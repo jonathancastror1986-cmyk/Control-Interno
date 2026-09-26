@@ -16,23 +16,23 @@
 <script src="../js/auth.js"></script>
 <style>
 :root{
-  --bg:#f6f5f0; --panel:#ffffff; --card:#fbfaf6; --line:#e3e0d5;
-  --accent:#c98f4e; --accent2:#6a9c82; --text:#3a3a34; --muted:#8b8a7d; --danger:#c0605a;
+  --bg:#f7f6f2; --panel:#ffffff; --card:#fbfaf7; --line:#e2ddd0;
+  --accent:#b08d57; --accent2:#1f2d3d; --text:#23272b; --muted:#7a7f85; --danger:#b5504a;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   box-sizing:border-box;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#20241f; --panel:#2a2f27; --card:#2f342c; --line:#3c4137;
-    --accent:#d9a869; --accent2:#8bb89e; --text:#eceae1; --muted:#a7a99b;
+    --bg:#161a20; --panel:#1f242c; --card:#242a33; --line:#333a45;
+    --accent:#c9a066; --accent2:#3a4a5e; --text:#ece9e2; --muted:#9aa0a8;
   }
 }
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
-body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100%}
-h1,h2,h3{font-family:Georgia,'Times New Roman',serif;font-weight:600;margin:.2em 0}
-header{padding:16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);top:env(safe-area-inset-top,0px);z-index:5}
-header h1{font-size:1.3rem;color:var(--accent)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Montserrat',system-ui,sans-serif;min-height:100%}
+h1,h2,h3{font-family:'Montserrat',system-ui,sans-serif;font-weight:800;margin:.2em 0;letter-spacing:.01em}
+header{padding:16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--accent2);top:env(safe-area-inset-top,0px);z-index:5}
+header h1{font-size:1.3rem;color:#fff;text-transform:uppercase;letter-spacing:.04em}
 nav{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
 nav button{background:none;border:1px solid var(--line);color:var(--muted);padding:8px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;font-size:.85rem}
 nav button.active{background:var(--accent2);color:#fff;border-color:var(--accent2)}
@@ -83,6 +83,9 @@ small{color:var(--muted)}
 .idcard-back h4{margin:0 0 1mm 0;font-size:7pt;color:var(--accent)}
 .idcard-back .sec{margin-bottom:1.5mm}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <header><h1>Control de Asistencia y Portería</h1><button class="btn secondary" style="float:right;margin-top:-38px" onclick="logout()">Cerrar sesión</button></header>
@@ -172,6 +175,16 @@ small{color:var(--muted)}
     </div>
     <img id="emp-logo-preview" style="max-height:60px;margin-top:8px">
     <button class="btn" onclick="saveEmpresa()">Guardar datos de empresa</button>
+  </div>
+</section>
+
+<section class="view" id="v-usuarios">
+  <div class="card">
+    <h2>Usuarios del sistema</h2>
+    <small>Para agregar un usuario nuevo, invítalo desde el panel de Supabase
+      (Authentication → Users → Invite user). En cuanto acepte (o incluso antes,
+      apenas se le invita) aparecerá aquí para que le asignes su rol y lo actives.</small>
+    <div id="usuariosList" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -368,9 +381,8 @@ small{color:var(--muted)}
 
 </main>
 <script>
-requireAuth('login.html');
-let workers = JSON.parse(localStorage.getItem('workers')||'[]');
-let attendance = JSON.parse(localStorage.getItem('attendance')||'[]');
+let workers = [];       // ahora viene de Supabase (tabla trabajadores)
+let attendance = [];    // ahora viene de Supabase (tabla asistencia)
 let extraHolidays = JSON.parse(localStorage.getItem('extraHolidays')||'[]');
 let dayOverrides = JSON.parse(localStorage.getItem('dayOverrides')||'{}');
 let eppDeliveries = JSON.parse(localStorage.getItem('eppDeliveries')||'[]'); // {id,code,fecha,detalle,pdfName,pdf}
@@ -379,9 +391,10 @@ let toolAssignments = JSON.parse(localStorage.getItem('toolAssignments')||'[]');
 let tempCasual=null, tempSafety=null;
 
 function save(){
+  // Trabajadores y asistencia ya no se guardan aquí: cada acción que los
+  // modifica escribe directo en Supabase (ver saveWorker, marcajeManual,
+  // justificar, loadAttendance, desvincularWorker, trasladarTrabajador).
   try{
-    localStorage.setItem('workers',JSON.stringify(workers));
-    localStorage.setItem('attendance',JSON.stringify(attendance));
     localStorage.setItem('extraHolidays',JSON.stringify(extraHolidays));
     localStorage.setItem('dayOverrides',JSON.stringify(dayOverrides));
     localStorage.setItem('eppDeliveries',JSON.stringify(eppDeliveries));
@@ -389,6 +402,49 @@ function save(){
     localStorage.setItem('toolAssignments',JSON.stringify(toolAssignments));
   }catch(e){alert('No se pudo guardar (posible límite de almacenamiento, los PDF pesan bastante): '+e.message);}
 }
+
+// ---------- puente Supabase <-> objetos en memoria ----------
+function workerToDb(w){
+  return {
+    code:w.code, name:w.name, cargo:w.spec||null, phone:w.phone||null,
+    is_supervisor: !!w.is_supervisor, supervisor_code: w.supervisor_code||null,
+    foto_casual_url: w.casual||null, foto_seguridad_url: w.safety||null,
+    emerg_nombre: w.emerg_name||null, emerg_telefono: w.emerg_phone||null, emerg_relacion: w.emerg_rel||null,
+    salud_notas: w.salud||null, medicamentos: w.medicamentos||null, precauciones: w.precauciones||null,
+    alerta_social: !!w.alerta_social, alerta_social_nota: w.alerta_social_nota||null,
+    alerta_prevencion: !!w.alerta_prevencion, alerta_prevencion_nota: w.alerta_prevencion_nota||null,
+    status: w.status||'activo', fecha_desvinculacion: w.fecha_desvinculacion||null
+  };
+}
+function dbToWorker(r){
+  return {
+    code:r.code, name:r.name, spec:r.cargo, phone:r.phone,
+    is_supervisor:r.is_supervisor, supervisor_code:r.supervisor_code,
+    casual:r.foto_casual_url, safety:r.foto_seguridad_url,
+    emerg_name:r.emerg_nombre, emerg_phone:r.emerg_telefono, emerg_rel:r.emerg_relacion,
+    salud:r.salud_notas, medicamentos:r.medicamentos, precauciones:r.precauciones,
+    alerta_social:r.alerta_social, alerta_social_nota:r.alerta_social_nota,
+    alerta_prevencion:r.alerta_prevencion, alerta_prevencion_nota:r.alerta_prevencion_nota,
+    status:r.status, fecha_desvinculacion:r.fecha_desvinculacion
+  };
+}
+function attToDb(a){
+  return {code:a.code, fecha:a.date, estado:a.estado, hora_llegada:a.hora_llegada||null, nota:a.nota||null, origen:a.origen||'manual'};
+}
+function dbToAtt(r){
+  return {code:r.code, date:r.fecha, estado:r.estado, hora_llegada:r.hora_llegada, nota:r.nota, origen:r.origen};
+}
+async function loadWorkers(){
+  const {data,error}=await window.supabaseClient.from('trabajadores').select('*').order('name');
+  if(error){alert('No se pudieron cargar los trabajadores desde la base de datos: '+error.message);return;}
+  workers=(data||[]).map(dbToWorker);
+}
+async function loadAttendanceFromDB(){
+  const {data,error}=await window.supabaseClient.from('asistencia').select('*');
+  if(error){alert('No se pudo cargar la asistencia desde la base de datos: '+error.message);return;}
+  attendance=(data||[]).map(dbToAtt);
+}
+
 function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,7);}
 function isoLocal(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
 function hoyLocal(){return isoLocal(new Date());}
@@ -409,7 +465,7 @@ function isFeriado(y,m,d){
 
 const navGroups = {
   porteria: [{v:'porteria',label:'Consultar trabajador'}],
-  administracion: [{v:'trabajadores',label:'Trabajadores'},{v:'empresa',label:'Datos de empresa'},{v:'tarjeta',label:'Tarjeta'},{v:'asistencia',label:'Asistencia mensual'},{v:'exportar',label:'Exportar remuneraciones'},{v:'porteria',label:'Consultar trabajador'}],
+  administracion: [{v:'trabajadores',label:'Trabajadores'},{v:'usuarios',label:'Usuarios'},{v:'empresa',label:'Datos de empresa'},{v:'tarjeta',label:'Tarjeta'},{v:'asistencia',label:'Asistencia mensual'},{v:'exportar',label:'Exportar remuneraciones'},{v:'porteria',label:'Consultar trabajador'}],
   bodega: [{v:'bodega',label:'Entregas y herramientas'}],
   supervisores: [{v:'supervisores',label:'Equipos y tarja'}],
   tecnica: [{v:'tecnica',label:'Prevención (próximamente)'}]
@@ -417,6 +473,7 @@ const navGroups = {
 function initView(v){
   if(v==='tarjeta'){fillCardSelect();renderCard();fillPdfChecks();}
   if(v==='empresa'){loadEmpresaForm();}
+  if(v==='usuarios'){loadPerfiles();}
   if(v==='trabajadores'){renderList('');fillSupervisorSelect('w-supervisor');}
   if(v==='bodega'){initBodega();}
   if(v==='supervisores'){initSupervisores();}
@@ -442,7 +499,6 @@ function showGroup(group){
   showView(items[0].v);
 }
 document.querySelectorAll('#mainNav button').forEach(b=>b.addEventListener('click',()=>showGroup(b.dataset.group)));
-showGroup('porteria');
 function fillSupervisorSelect(id,excludeCode){
   const sups=workers.filter(w=>w.is_supervisor && w.code!==excludeCode);
   document.getElementById(id).innerHTML='<option value="">Sin asignar</option>'+sups.map(s=>`<option value="${s.code}">${s.name}</option>`).join('');
@@ -479,7 +535,7 @@ function clearForm(){
   tempCasual=null;tempSafety=null;
 }
 
-function saveWorker(){
+async function saveWorker(){
   const code=document.getElementById('w-code').value.trim();
   const name=document.getElementById('w-name').value.trim();
   const spec=document.getElementById('w-spec').value.trim();
@@ -505,9 +561,9 @@ function saveWorker(){
     status: existing?existing.status:'activo',
     fecha_desvinculacion: existing?existing.fecha_desvinculacion:null
   };
-  workers=workers.filter(w=>w.code!==code);
-  workers.push(worker);
-  save();
+  const {error}=await window.supabaseClient.from('trabajadores').upsert(workerToDb(worker),{onConflict:'code'});
+  if(error){alert('No se pudo guardar en la base de datos: '+error.message);return;}
+  await loadWorkers();
   renderList('');
   clearForm();
   alert('Trabajador guardado');
@@ -526,7 +582,12 @@ function renderList(filter){
     const icons=d.querySelector('span:last-child');
     icons.childNodes[0]&&(icons.innerHTML=`<span title="Desvincular" style="cursor:pointer">🚪</span> <span title="Eliminar" style="cursor:pointer">🗑️</span>`);
     icons.children[0].onclick=(ev)=>{ev.stopPropagation();desvincularWorker(w.code);};
-    icons.children[1].onclick=(ev)=>{ev.stopPropagation();if(confirm('¿Eliminar '+w.name+'?')){workers=workers.filter(x=>x.code!==w.code);save();renderList(f);}};
+    icons.children[1].onclick=async (ev)=>{ev.stopPropagation();if(confirm('¿Eliminar '+w.name+'?')){
+      const {error}=await window.supabaseClient.from('trabajadores').delete().eq('code',w.code);
+      if(error){alert('No se pudo eliminar: '+error.message);return;}
+      await loadWorkers();
+      renderList(f);
+    }};
     el.appendChild(d);
   });
 }
@@ -555,7 +616,6 @@ function editWorker(code){
   document.getElementById('w-alerta-prevencion-nota').value=w.alerta_prevencion_nota||'';
   window.scrollTo({top:0,behavior:'smooth'});
 }
-renderList('');
 
 function empresaData(){return JSON.parse(localStorage.getItem('empresa')||'{}');}
 function cardFrontHtml(w,idSuffix,temporal){
@@ -702,13 +762,14 @@ function renderSupervisorList(){
     return `<div class="list-item" style="cursor:default"><span><b>${s.name}</b> — ${s.phone||'sin teléfono'} <small>(${n} trabajador${n===1?'':'es'} a cargo)</small></span></div>`;
   }).join('') || '<small>No hay trabajadores marcados como supervisor todavía. Marca la casilla "Este trabajador es supervisor" en su ficha.</small>';
 }
-function trasladarTrabajador(){
+async function trasladarTrabajador(){
   const code=document.getElementById('trans-worker').value;
   const supCode=document.getElementById('trans-supervisor').value;
   const w=workers.find(x=>x.code===code);
   if(!w){alert('Selecciona un trabajador.');return;}
-  w.supervisor_code=supCode||null;
-  save();
+  const {error}=await window.supabaseClient.from('trabajadores').update({supervisor_code:supCode||null}).eq('code',code);
+  if(error){alert('No se pudo guardar en la base de datos: '+error.message);return;}
+  await loadWorkers();
   initSupervisores();
   alert('Trabajador reasignado.');
 }
@@ -724,14 +785,17 @@ function renderSupervisorMatrix(){
 }
 
 // ---------- marcaje manual ----------
-function marcajeManual(){
+async function marcajeManual(){
   const code=document.getElementById('man-worker').value;
   const fecha=document.getElementById('man-fecha').value;
   const hora=document.getElementById('man-hora').value;
   if(!code||!fecha||!hora){alert('Completa trabajador, fecha y hora.');return;}
-  attendance=attendance.filter(a=>!(a.code===code&&a.date===fecha));
-  attendance.push({code,date:fecha,estado:'X',hora_llegada:hora,nota:'',origen:'manual'});
-  save();
+  const {error}=await window.supabaseClient.from('asistencia').upsert(
+    attToDb({code,date:fecha,estado:'X',hora_llegada:hora,nota:'',origen:'manual'}),
+    {onConflict:'code,fecha'}
+  );
+  if(error){alert('No se pudo guardar en la base de datos: '+error.message);return;}
+  await loadAttendanceFromDB();
   renderMatrix();
   alert('Marcaje registrado.');
 }
@@ -745,24 +809,25 @@ function showJustSupervisor(){
   el.innerHTML = sup ? `<small>Supervisor a cargo: <b>${sup.name}</b>${sup.phone?(' — '+sup.phone):''}. Consultar con él/ella qué pasa con el trabajador.</small>` : '<small>Sin supervisor asignado.</small>';
 }
 
-function justificar(){
+async function justificar(){
   const code=document.getElementById('just-worker').value;
   const estado=document.getElementById('just-estado').value;
   const desde=document.getElementById('just-desde').value;
   const hasta=document.getElementById('just-hasta').value || desde;
   const nota=document.getElementById('just-nota').value.trim();
   if(!code||!desde){alert('Selecciona trabajador y al menos la fecha "Desde".');return;}
-  let d=new Date(desde+'T00:00:00'), fin=new Date(hasta+'T00:00:00'), n=0;
+  let d=new Date(desde+'T00:00:00'), fin=new Date(hasta+'T00:00:00');
+  const rows=[];
   while(d<=fin){
-    const iso=isoLocal(d);
-    attendance=attendance.filter(a=>!(a.code===code&&a.date===iso));
-    attendance.push({code,date:iso,estado,nota,hora_llegada:'',origen:'justificacion'});
-    d.setDate(d.getDate()+1); n++;
+    rows.push(attToDb({code,date:isoLocal(d),estado,nota,hora_llegada:'',origen:'justificacion'}));
+    d.setDate(d.getDate()+1);
   }
-  save();
+  const {error}=await window.supabaseClient.from('asistencia').upsert(rows,{onConflict:'code,fecha'});
+  if(error){alert('No se pudo guardar en la base de datos: '+error.message);return;}
+  await loadAttendanceFromDB();
   renderMatrix();
   document.getElementById('just-nota').value='';
-  alert(`${n} día(s) justificado(s) como ${estado}.`);
+  alert(`${rows.length} día(s) justificado(s) como ${estado}.`);
 }
 
 function daysInMonth(y,m){return new Date(y,m,0).getDate();}
@@ -812,18 +877,17 @@ function toggleDay(iso){
   save();
   renderMatrix();
 }
-renderMatrix();
 
 function loadAttendance(){
   const f=document.getElementById('attFile').files[0];
   if(!f){alert('Selecciona un archivo');return;}
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=async e=>{
     try{
       const wb=XLSX.read(e.target.result,{type:'array'});
       const sheet=wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
-      let count=0;
+      const built=[];
       rows.forEach(r=>{
         const code=String(r.codigo||r.Codigo||r.CODIGO||'').trim();
         let fecha=r.fecha||r.Fecha||r.FECHA;
@@ -843,13 +907,13 @@ function loadAttendance(){
           else if(tipo.includes('permiso')||String(r.permiso||'').trim()) estado='P';
           else estado='F';
         }
-        const rec={code,date:fecha,estado,hora_llegada:horaLlegada,nota:String(r.nota||'').trim(),origen:'importado'};
-        attendance=attendance.filter(a=>!(a.code===code&&a.date===fecha));
-        attendance.push(rec);
-        count++;
+        built.push({code,date:fecha,estado,hora_llegada:horaLlegada,nota:String(r.nota||'').trim(),origen:'importado'});
       });
-      save();
-      document.getElementById('loadMsg').innerHTML=`<small>${count} registros cargados.</small>`;
+      if(!built.length){document.getElementById('loadMsg').innerHTML='<small style="color:var(--danger)">No se encontraron filas válidas (revisa columnas "codigo" y "fecha").</small>';return;}
+      const {error}=await window.supabaseClient.from('asistencia').upsert(built.map(attToDb),{onConflict:'code,fecha'});
+      if(error){document.getElementById('loadMsg').innerHTML=`<small style="color:var(--danger)">Error guardando en la base de datos: ${error.message}</small>`;return;}
+      await loadAttendanceFromDB();
+      document.getElementById('loadMsg').innerHTML=`<small>${built.length} registros cargados.</small>`;
       renderMatrix();
     }catch(err){document.getElementById('loadMsg').innerHTML=`<small style="color:var(--danger)">Error leyendo archivo: ${err.message}</small>`;}
   };
@@ -896,6 +960,29 @@ function saveEmpresa(){
     r.onload=e=>finish(e.target.result);
     r.readAsDataURL(file);
   }else finish(null);
+}
+
+// ---------- usuarios del sistema (tabla perfiles) ----------
+const ROLES_DISPONIBLES=['admin','oficina','porteria','bodega','prevencion','rrhh'];
+async function loadPerfiles(){
+  const el=document.getElementById('usuariosList');
+  const {data,error}=await window.supabaseClient.from('perfiles').select('*').order('nombre');
+  if(error){el.innerHTML=`<small style="color:var(--danger)">No se pudo cargar: ${error.message}</small>`;return;}
+  el.innerHTML=(data||[]).map(p=>`
+    <div class="list-item" style="cursor:default;flex-wrap:wrap;gap:8px;align-items:center">
+      <span style="flex:1;min-width:180px"><b>${p.nombre||'(sin nombre)'}</b><br><small>${p.id}</small></span>
+      <select id="rol-${p.id}">${ROLES_DISPONIBLES.map(r=>`<option value="${r}" ${r===p.rol?'selected':''}>${r}</option>`).join('')}</select>
+      <label style="width:auto;display:flex;align-items:center;gap:4px"><input type="checkbox" id="act-${p.id}" style="width:auto" ${p.activo?'checked':''}> Activo</label>
+      <button class="btn secondary" style="margin:0" onclick="guardarPerfil('${p.id}')">Guardar</button>
+    </div>`).join('') || '<small>Todavía no hay usuarios invitados.</small>';
+}
+async function guardarPerfil(id){
+  const rol=document.getElementById('rol-'+id).value;
+  const activo=document.getElementById('act-'+id).checked;
+  const {error}=await window.supabaseClient.from('perfiles').update({rol,activo}).eq('id',id);
+  if(error){alert('No se pudo guardar: '+error.message);return;}
+  alert('Usuario actualizado.');
+  loadPerfiles();
 }
 
 // ---------- exportar PDF de tarjetas (varias, frente y reverso) ----------
@@ -1018,7 +1105,7 @@ function marcarDevuelta(id){
 }
 
 // ---------- desvinculación ----------
-function desvincularWorker(code){
+async function desvincularWorker(code){
   const w=workers.find(x=>x.code===code);
   if(!w)return;
   const pendientes=toolAssignments.filter(a=>a.code===code&&!a.devuelta);
@@ -1028,9 +1115,10 @@ function desvincularWorker(code){
     alert(`⚠️ ${w.name} tiene herramientas sin devolver:\n${detalle}\n\nTotal a descontar del finiquito: $${total.toLocaleString('es-CL')}`);
   }
   if(!confirm(`¿Confirmar desvinculación de ${w.name}?`))return;
-  w.status='desvinculado';
-  w.fecha_desvinculacion=hoyLocal();
-  save();
+  const fecha=hoyLocal();
+  const {error}=await window.supabaseClient.from('trabajadores').update({status:'desvinculado',fecha_desvinculacion:fecha}).eq('code',code);
+  if(error){alert('No se pudo actualizar en la base de datos: '+error.message);return;}
+  await loadWorkers();
   renderList('');
 }
 
@@ -1054,6 +1142,16 @@ function exportPayroll(){
   XLSX.utils.book_append_sheet(wb,ws,'Carga');
   XLSX.writeFile(wb,`carga_remuneraciones_${y}-${String(m).padStart(2,'0')}.xlsx`);
 }
+
+async function boot(){
+  const session = await requireAuth('login.html');
+  if(!session) return; // requireAuth ya redirigió a login.html
+  await Promise.all([loadWorkers(), loadAttendanceFromDB()]);
+  renderList('');
+  renderMatrix();
+  showGroup('porteria');
+}
+boot();
 </script>
 </body>
 </html>
