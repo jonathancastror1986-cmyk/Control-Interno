@@ -1,0 +1,67 @@
+:root{
+  --bg:#f6f5f0; --panel:#ffffff; --card:#fbfaf6; --line:#e3e0d5;
+  --accent:#c98f4e; --accent2:#6a9c82; --text:#3a3a34; --muted:#8b8a7d; --danger:#c0605a;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#20241f; --panel:#2a2f27; --card:#2f342c; --line:#3c4137;
+    --accent:#d9a869; --accent2:#8bb89e; --text:#eceae1; --muted:#a7a99b;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100%}
+h1,h2,h3{font-family:Georgia,'Times New Roman',serif;font-weight:600;margin:.2em 0}
+header{padding:16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);top:env(safe-area-inset-top,0px);z-index:5}
+header h1{font-size:1.3rem;color:var(--accent)}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+nav button{background:none;border:1px solid var(--line);color:var(--muted);padding:8px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;font-size:.85rem}
+nav button.active{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+#subNav{background:var(--bg);border-bottom:2px solid var(--accent2)}
+#subNav button.active{background:var(--accent);border-color:var(--accent)}
+main{padding:16px;max-width:900px;margin:0 auto}
+.view{display:none}
+.view.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:.8rem;color:var(--muted);margin:8px 0 3px}
+input,select,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:.9rem;font-family:inherit}
+textarea{resize:vertical;min-height:50px}
+button.btn{background:var(--accent2);color:#fff;border:none;padding:9px 16px;border-radius:6px;cursor:pointer;font-size:.85rem;margin-top:10px}
+button.btn.secondary{background:transparent;border:1px solid var(--accent2);color:var(--accent2)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>div{flex:1;min-width:140px}
+fieldset{border:1px solid var(--line);border-radius:8px;margin-top:12px;padding:10px}
+legend{color:var(--accent);font-size:.85rem;padding:0 6px}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+th,td{border:1px solid var(--line);padding:4px;text-align:center}
+.overflow{overflow-x:auto}
+.day-feriado{background:rgba(232,163,61,.25)}
+.day-lab{background:transparent}
+.pill{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:.7rem;margin:2px}
+small{color:var(--muted)}
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid var(--line);cursor:pointer}
+.list-item:hover{background:var(--panel)}
+#scanResult{margin-top:12px}
+.photoRow{display:flex;gap:10px}
+.photoBox{flex:1;text-align:center}
+.photoBox img{width:100%;height:110px;object-fit:cover;border:1px solid var(--line);border-radius:6px;background:var(--panel);display:block;margin-bottom:4px}
+.photoBox label.fileLabel{display:block;background:var(--panel);border:1px dashed var(--accent2);border-radius:6px;padding:8px;cursor:pointer;font-size:.75rem;color:var(--accent2);text-align:center}
+.photoBox input[type=file]{display:none}
+
+/* ---- tarjeta tamaño carnet: 85.6mm x 53.98mm ---- */
+.cardWrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+.idcard{width:85.6mm;height:53.98mm;border-radius:3mm;position:relative;perspective:1000px}
+.idcard-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.idcard.flipped .idcard-inner{transform:rotateY(180deg)}
+.idcard-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border:1px solid var(--line);border-radius:3mm;background:var(--card);padding:3mm;overflow:hidden;display:flex}
+.idcard-back{transform:rotateY(180deg);flex-direction:column;font-size:6.5pt;line-height:1.25}
+.idcard-photo{width:22mm;height:28mm;object-fit:cover;border-radius:1.5mm;border:1px solid var(--line)}
+.idcard-info{flex:1;padding-left:3mm;display:flex;flex-direction:column;justify-content:space-between}
+.idcard-name{font-size:9pt;font-weight:700;color:var(--accent);line-height:1.15}
+.idcard-cargo{font-size:7pt;color:var(--muted)}
+.idcard-code{font-size:7pt;margin-top:2mm}
+.idcard-codes{display:flex;align-items:center;gap:2mm;margin-top:1mm}
+.idcard-back h4{margin:0 0 1mm 0;font-size:7pt;color:var(--accent)}
+.idcard-back .sec{margin-bottom:1.5mm}

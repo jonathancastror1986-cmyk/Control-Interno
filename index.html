@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Control de Asistencia</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabaseConfig.js"></script>
+<script src="js/supabaseClient.js"></script>
+</head>
+<body>
+<script>
+window.supabaseClient.auth.getSession().then(({data:{session}})=>{
+  window.location.href = session ? 'pages/app.html' : 'pages/login.html';
+});
+</script>
+</body>
+</html>

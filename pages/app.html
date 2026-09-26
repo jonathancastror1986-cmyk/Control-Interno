@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Control de Asistencia</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabaseConfig.js"></script>
+<script src="../js/supabaseClient.js"></script>
+<script src="../js/auth.js"></script>
+<style>
+:root{
+  --bg:#f6f5f0; --panel:#ffffff; --card:#fbfaf6; --line:#e3e0d5;
+  --accent:#c98f4e; --accent2:#6a9c82; --text:#3a3a34; --muted:#8b8a7d; --danger:#c0605a;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  box-sizing:border-box;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#20241f; --panel:#2a2f27; --card:#2f342c; --line:#3c4137;
+    --accent:#d9a869; --accent2:#8bb89e; --text:#eceae1; --muted:#a7a99b;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100%}
+h1,h2,h3{font-family:Georgia,'Times New Roman',serif;font-weight:600;margin:.2em 0}
+header{padding:16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);top:env(safe-area-inset-top,0px);z-index:5}
+header h1{font-size:1.3rem;color:var(--accent)}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
+nav button{background:none;border:1px solid var(--line);color:var(--muted);padding:8px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;font-size:.85rem}
+nav button.active{background:var(--accent2);color:#fff;border-color:var(--accent2)}
+#subNav{background:var(--bg);border-bottom:2px solid var(--accent2)}
+#subNav button.active{background:var(--accent);border-color:var(--accent)}
+main{padding:16px;max-width:900px;margin:0 auto}
+.view{display:none}
+.view.active{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:.8rem;color:var(--muted);margin:8px 0 3px}
+input,select,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:.9rem;font-family:inherit}
+textarea{resize:vertical;min-height:50px}
+button.btn{background:var(--accent2);color:#fff;border:none;padding:9px 16px;border-radius:6px;cursor:pointer;font-size:.85rem;margin-top:10px}
+button.btn.secondary{background:transparent;border:1px solid var(--accent2);color:var(--accent2)}
+.row{display:flex;gap:10px;flex-wrap:wrap}
+.row>div{flex:1;min-width:140px}
+fieldset{border:1px solid var(--line);border-radius:8px;margin-top:12px;padding:10px}
+legend{color:var(--accent);font-size:.85rem;padding:0 6px}
+table{width:100%;border-collapse:collapse;font-size:.78rem}
+th,td{border:1px solid var(--line);padding:4px;text-align:center}
+.overflow{overflow-x:auto}
+.day-feriado{background:rgba(232,163,61,.25)}
+.day-lab{background:transparent}
+.pill{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:.7rem;margin:2px}
+small{color:var(--muted)}
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid var(--line);cursor:pointer}
+.list-item:hover{background:var(--panel)}
+#scanResult{margin-top:12px}
+.photoRow{display:flex;gap:10px}
+.photoBox{flex:1;text-align:center}
+.photoBox img{width:100%;height:110px;object-fit:cover;border:1px solid var(--line);border-radius:6px;background:var(--panel);display:block;margin-bottom:4px}
+.photoBox label.fileLabel{display:block;background:var(--panel);border:1px dashed var(--accent2);border-radius:6px;padding:8px;cursor:pointer;font-size:.75rem;color:var(--accent2);text-align:center}
+.photoBox input[type=file]{display:none}
+
+/* ---- tarjeta tamaño carnet: 85.6mm x 53.98mm ---- */
+.cardWrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+.idcard{width:85.6mm;height:53.98mm;border-radius:3mm;position:relative;perspective:1000px}
+.idcard-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+.idcard.flipped .idcard-inner{transform:rotateY(180deg)}
+.idcard-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border:1px solid var(--line);border-radius:3mm;background:var(--card);padding:3mm;overflow:hidden;display:flex}
+.idcard-back{transform:rotateY(180deg);flex-direction:column;font-size:6.5pt;line-height:1.25}
+.idcard-photo{width:22mm;height:28mm;object-fit:cover;border-radius:1.5mm;border:1px solid var(--line)}
+.idcard-info{flex:1;padding-left:3mm;display:flex;flex-direction:column;justify-content:space-between}
+.idcard-name{font-size:9pt;font-weight:700;color:var(--accent);line-height:1.15}
+.idcard-cargo{font-size:7pt;color:var(--muted)}
+.idcard-code{font-size:7pt;margin-top:2mm}
+.idcard-codes{display:flex;align-items:center;gap:2mm;margin-top:1mm}
+.idcard-back h4{margin:0 0 1mm 0;font-size:7pt;color:var(--accent)}
+.idcard-back .sec{margin-bottom:1.5mm}
+</style>
+</head>
+<body>
+<header><h1>Control de Asistencia y Portería</h1><button class="btn secondary" style="float:right;margin-top:-38px" onclick="logout()">Cerrar sesión</button></header>
+<nav id="mainNav">
+  <button data-group="porteria" class="active">🚪 Portería</button>
+  <button data-group="administracion">🗂️ Administración</button>
+  <button data-group="bodega">📦 Bodega</button>
+  <button data-group="supervisores">👷 Supervisores</button>
+  <button data-group="tecnica">🦺 Técnica</button>
+</nav>
+<nav id="subNav"></nav>
+<main>
+
+<section class="view active" id="v-trabajadores">
+  <div class="card">
+    <h2>Nuevo trabajador</h2>
+    <div class="row">
+      <div><label>Código</label><input id="w-code"></div>
+      <div><label>Nombre</label><input id="w-name"></div>
+      <div><label>Cargo / Especialidad</label><input id="w-spec"></div>
+      <div><label>Teléfono</label><input id="w-phone"></div>
+    </div>
+    <div class="row">
+      <div><label><input type="checkbox" id="w-is-supervisor" style="width:auto;display:inline-block;margin-right:6px">Este trabajador es supervisor</label></div>
+      <div><label>Supervisor a cargo</label><select id="w-supervisor"><option value="">Sin asignar</option></select></div>
+    </div>
+    <div class="photoRow">
+      <div class="photoBox">
+        <label>Foto casual (ingreso)</label>
+        <img id="pre-casual" alt="">
+        <label class="fileLabel" for="w-casual">Elegir foto casual</label>
+        <input type="file" accept="image/*" id="w-casual">
+      </div>
+      <div class="photoBox">
+        <label>Foto con implementos de seguridad</label>
+        <img id="pre-safety" alt="">
+        <label class="fileLabel" for="w-safety">Elegir foto de seguridad</label>
+        <input type="file" accept="image/*" id="w-safety">
+      </div>
+    </div>
+    <small id="photoHint"></small>
+
+    <fieldset>
+      <legend>Contacto de emergencia</legend>
+      <div class="row">
+        <div><label>Nombre del contacto</label><input id="w-emerg-name"></div>
+        <div><label>Teléfono</label><input id="w-emerg-phone"></div>
+        <div><label>Relación</label><input id="w-emerg-rel" placeholder="ej. cónyuge, madre"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Información de prevención (uso interno)</legend>
+      <label>Condiciones de salud relevantes (ej. hipertensión, diabetes, alergias)</label>
+      <textarea id="w-salud"></textarea>
+      <label>Medicamentos que toma</label>
+      <textarea id="w-medicamentos"></textarea>
+      <label>Precauciones a considerar en obra</label>
+      <textarea id="w-precauciones"></textarea>
+    </fieldset>
+
+    <fieldset>
+      <legend>Alertas para portería</legend>
+      <div class="row">
+        <div><label><input type="checkbox" id="w-alerta-social" style="width:auto;display:inline-block;margin-right:6px">Asistente social quiere hablar con él/ella</label><input id="w-alerta-social-nota" placeholder="Nota (opcional)"></div>
+        <div><label><input type="checkbox" id="w-alerta-prevencion" style="width:auto;display:inline-block;margin-right:6px">Prevencionista quiere hablar con él/ella</label><input id="w-alerta-prevencion-nota" placeholder="Nota (opcional)"></div>
+      </div>
+    </fieldset>
+
+    <button class="btn" onclick="saveWorker()">Guardar trabajador</button>
+    <button class="btn secondary" onclick="printTemp()">Imprimir tarjeta temporal (billetera)</button>
+    <small>La tarjeta temporal usa la foto casual y los datos ya ingresados. La tarjeta definitiva plastificada se genera después en "Tarjeta", con la foto de EPP que toma bodega.</small>
+  </div>
+  <div class="card">
+    <h2>Listado</h2>
+    <input placeholder="Buscar por código o nombre" oninput="renderList(this.value)">
+    <div id="workerList"></div>
+  </div>
+</section>
+
+<section class="view" id="v-empresa">
+  <div class="card">
+    <h2>Datos de la empresa (aparecen en la tarjeta)</h2>
+    <div class="row">
+      <div><label>Nombre de la empresa</label><input id="emp-name"></div>
+      <div><label>Logo</label><input type="file" accept="image/*" id="emp-logo"></div>
+    </div>
+    <img id="emp-logo-preview" style="max-height:60px;margin-top:8px">
+    <button class="btn" onclick="saveEmpresa()">Guardar datos de empresa</button>
+  </div>
+</section>
+
+<section class="view" id="v-tarjeta">
+  <div class="card">
+    <label>Seleccionar trabajador</label>
+    <select id="cardSelect" onchange="renderCard()"></select>
+  </div>
+  <div class="card cardWrap" id="cardArea"></div>
+  <div class="card">
+    <h2>Exportar PDF de tarjetas (varias a la vez)</h2>
+    <small>Selecciona los trabajadores y el tipo de tarjeta. Se arman en hojas con el frente y luego el reverso en el mismo orden, para imprimir a doble cara y ahorrar papel.</small>
+    <div class="row">
+      <div><label>Tipo</label><select id="pdf-tipo"><option value="definitiva">Definitiva (foto EPP)</option><option value="temporal">Temporal (foto casual)</option></select></div>
+    </div>
+    <div id="pdf-worker-checks" style="max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:6px"></div>
+    <button class="btn secondary" onclick="toggleAllPdfChecks(true)">Seleccionar todos</button>
+    <button class="btn secondary" onclick="toggleAllPdfChecks(false)">Ninguno</button>
+    <button class="btn" onclick="exportCardsPdf()">Generar PDF</button>
+    <div id="pdfMsg"></div>
+  </div>
+</section>
+
+
+<section class="view" id="v-porteria">
+  <div class="card">
+    <h2>Escaneo / búsqueda</h2>
+    <small>Escanea con el lector conectado (funciona como teclado), usa la cámara, o escribe el código y presiona Enter.</small>
+    <label>Código escaneado</label>
+    <input id="scanCode" onkeydown="if(event.key==='Enter')doScan()">
+    <div class="row">
+      <button class="btn" onclick="doScan()">Buscar</button>
+      <button class="btn secondary" id="camBtn" onclick="toggleCam()">📷 Escanear con cámara</button>
+    </div>
+    <div id="camReader" style="display:none;max-width:320px;margin-top:10px"></div>
+    <div id="scanResult"></div>
+  </div>
+</section>
+
+<section class="view" id="v-asistencia">
+  <div class="card">
+    <h2>Tarja mensual</h2>
+    <div class="row">
+      <div><label>Año</label><input type="number" id="matYear" value="2026"></div>
+      <div><label>Mes</label><select id="matMonth" onchange="renderMatrix()">
+        <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+        <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select></div>
+    </div>
+    <button class="btn secondary" onclick="renderMatrix()">Generar tarja</button>
+    <label>Agregar feriado adicional (fecha)</label>
+    <input type="date" id="addHoliday">
+    <button class="btn secondary" onclick="addHoliday()">Agregar feriado</button>
+    <div class="overflow"><div id="matrixArea"></div></div>
+  </div>
+  <div class="card">
+    <h2>Registrar marcaje manual</h2>
+    <div class="row">
+      <div><label>Trabajador</label><select id="man-worker"></select></div>
+      <div><label>Fecha</label><input type="date" id="man-fecha"></div>
+      <div><label>Hora de llegada</label><input type="time" id="man-hora"></div>
+    </div>
+    <button class="btn" onclick="marcajeManual()">Registrar marcaje</button>
+  </div>
+  <div class="card">
+    <h2>Justificar inasistencia / permiso / licencia</h2>
+    <small>Úsalo después del marcaje masivo para justificar a quien no marcó, o para cargar de una vez un permiso/licencia de varios días.</small>
+    <div class="row">
+      <div><label>Trabajador</label><select id="just-worker" onchange="showJustSupervisor()"></select></div>
+      <div><label>Estado</label><select id="just-estado">
+        <option value="F">F — Falla</option>
+        <option value="P">P — Permiso</option>
+        <option value="L">L — Licencia</option>
+        <option value="A">A — Accidente Mutual</option>
+        <option value="PP">PP — Permiso Pagado</option>
+        <option value="V">V — Vacaciones</option>
+      </select></div>
+    </div>
+    <div id="just-supervisor-info"></div>
+    <div class="row">
+      <div><label>Desde</label><input type="date" id="just-desde"></div>
+      <div><label>Hasta</label><input type="date" id="just-hasta"></div>
+    </div>
+    <label>Nota (opcional)</label>
+    <input id="just-nota">
+    <button class="btn" onclick="justificar()">Justificar rango</button>
+  </div>
+  <div class="card">
+    <h2>Cargar asistencia desde Excel</h2>
+    <small>Columnas esperadas: codigo, fecha (AAAA-MM-DD), estado (X/F/P/L/A/PP/V) u hora_llegada, nota (opcional). Si viene un permiso/licencia de varios días ya cargado así, quedan justificados automáticamente.</small>
+    <input type="file" id="attFile" accept=".xlsx,.xls,.csv">
+    <button class="btn" onclick="loadAttendance()">Cargar registros</button>
+    <div id="loadMsg"></div>
+  </div>
+</section>
+
+<section class="view" id="v-bodega">
+  <div class="card">
+    <h2>Entrega de EPP / materiales</h2>
+    <div class="row">
+      <div><label>Trabajador</label><select id="epp-worker"></select></div>
+      <div><label>Fecha</label><input type="date" id="epp-fecha"></div>
+    </div>
+    <label>Detalle de lo entregado (ej. casco, guantes, zapatos de seguridad x1)</label>
+    <textarea id="epp-detalle"></textarea>
+    <label>Respaldo en PDF</label>
+    <input type="file" accept="application/pdf" id="epp-pdf">
+    <button class="btn" onclick="saveEpp()">Guardar entrega</button>
+  </div>
+  <div class="card">
+    <h2>Historial de entregas EPP</h2>
+    <select id="epp-filter" onchange="renderEppHistory()"><option value="">Todos los trabajadores</option></select>
+    <div id="eppHistory"></div>
+  </div>
+  <div class="card">
+    <h2>Catálogo de herramientas</h2>
+    <div class="row">
+      <div><label>Nombre</label><input id="tool-name"></div>
+      <div><label>Precio (CLP)</label><input type="number" id="tool-price"></div>
+    </div>
+    <button class="btn secondary" onclick="addTool()">Agregar al catálogo</button>
+    <div id="toolCatalog"></div>
+  </div>
+  <div class="card">
+    <h2>Asignar herramienta a trabajador</h2>
+    <div class="row">
+      <div><label>Trabajador</label><select id="assign-worker"></select></div>
+      <div><label>Herramienta</label><select id="assign-tool"></select></div>
+      <div><label>Fecha</label><input type="date" id="assign-fecha"></div>
+    </div>
+    <button class="btn" onclick="assignTool()">Registrar entrega de herramienta</button>
+  </div>
+  <div class="card">
+    <h2>Herramientas en poder de trabajadores</h2>
+    <div id="toolAssignments"></div>
+  </div>
+</section>
+
+<section class="view" id="v-supervisores">
+  <div class="card">
+    <h2>Supervisores</h2>
+    <small>Los supervisores son trabajadores marcados con "Este trabajador es supervisor" en su ficha.</small>
+    <div id="supervisorList"></div>
+  </div>
+  <div class="card">
+    <h2>Trasladar trabajador de supervisor</h2>
+    <div class="row">
+      <div><label>Trabajador</label><select id="trans-worker"></select></div>
+      <div><label>Nuevo supervisor</label><select id="trans-supervisor"></select></div>
+    </div>
+    <button class="btn" onclick="trasladarTrabajador()">Trasladar</button>
+  </div>
+  <div class="card">
+    <h2>Tarja del personal de un supervisor</h2>
+    <div class="row">
+      <div><label>Supervisor</label><select id="sup-view" onchange="renderSupervisorMatrix()"></select></div>
+      <div><label>Año</label><input type="number" id="supYear" value="2026" onchange="renderSupervisorMatrix()"></div>
+      <div><label>Mes</label><select id="supMonth" onchange="renderSupervisorMatrix()">
+        <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+        <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select></div>
+    </div>
+    <div class="overflow"><div id="supMatrixArea"></div></div>
+  </div>
+</section>
+
+<section class="view" id="v-exportar">
+  <div class="card">
+    <h2>Exportar códigos para carga masiva a remuneraciones</h2>
+    <div class="row">
+      <div><label>Año</label><input type="number" id="expYear" value="2026"></div>
+      <div><label>Mes</label><select id="expMonth">
+        <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+        <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select></div>
+    </div>
+    <small>Genera una fila por trabajador y día con permiso/tipo registrado, lista para editar el código de inasistencia/licencia antes de subir al sistema.</small>
+    <button class="btn" onclick="exportPayroll()">Generar Excel</button>
+  </div>
+</section>
+
+<section class="view" id="v-tecnica">
+  <div class="card">
+    <h2>Módulo Técnica / Prevención</h2>
+    <small>Próximamente: checklist de inspecciones, seguimiento de incidentes y capacitaciones. Por ahora, la información de salud/prevención de cada trabajador se administra desde su ficha en Administración → Trabajadores, y las alertas al prevencionista aparecen al consultar al trabajador en Portería.</small>
+  </div>
+</section>
+
+</main>
+<script>
+requireAuth('login.html');
+let workers = JSON.parse(localStorage.getItem('workers')||'[]');
+let attendance = JSON.parse(localStorage.getItem('attendance')||'[]');
+let extraHolidays = JSON.parse(localStorage.getItem('extraHolidays')||'[]');
+let dayOverrides = JSON.parse(localStorage.getItem('dayOverrides')||'{}');
+let eppDeliveries = JSON.parse(localStorage.getItem('eppDeliveries')||'[]'); // {id,code,fecha,detalle,pdfName,pdf}
+let tools = JSON.parse(localStorage.getItem('tools')||'[]'); // {id,name,price}
+let toolAssignments = JSON.parse(localStorage.getItem('toolAssignments')||'[]'); // {id,code,toolId,toolName,price,fecha,devuelta}
+let tempCasual=null, tempSafety=null;
+
+function save(){
+  try{
+    localStorage.setItem('workers',JSON.stringify(workers));
+    localStorage.setItem('attendance',JSON.stringify(attendance));
+    localStorage.setItem('extraHolidays',JSON.stringify(extraHolidays));
+    localStorage.setItem('dayOverrides',JSON.stringify(dayOverrides));
+    localStorage.setItem('eppDeliveries',JSON.stringify(eppDeliveries));
+    localStorage.setItem('tools',JSON.stringify(tools));
+    localStorage.setItem('toolAssignments',JSON.stringify(toolAssignments));
+  }catch(e){alert('No se pudo guardar (posible límite de almacenamiento, los PDF pesan bastante): '+e.message);}
+}
+function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,7);}
+function isoLocal(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function hoyLocal(){return isoLocal(new Date());}
+
+const feriadosFijos = ['01-01','05-01','05-21','06-29','07-16','08-15','09-18','09-19','10-12','10-31','11-01','12-08','12-25'];
+const feriadosMoviles = {2025:['04-18','04-19'],2026:['04-03','04-04']};
+
+function isFeriado(y,m,d){
+  const iso = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  if(dayOverrides[iso]) return dayOverrides[iso]==='fer';
+  const mmdd = iso.slice(5);
+  if(feriadosFijos.includes(mmdd)) return true;
+  if((feriadosMoviles[y]||[]).includes(mmdd)) return true;
+  if(extraHolidays.includes(iso)) return true;
+  const dow = new Date(y,m-1,d).getDay();
+  return dow===0 || dow===6;
+}
+
+const navGroups = {
+  porteria: [{v:'porteria',label:'Consultar trabajador'}],
+  administracion: [{v:'trabajadores',label:'Trabajadores'},{v:'empresa',label:'Datos de empresa'},{v:'tarjeta',label:'Tarjeta'},{v:'asistencia',label:'Asistencia mensual'},{v:'exportar',label:'Exportar remuneraciones'},{v:'porteria',label:'Consultar trabajador'}],
+  bodega: [{v:'bodega',label:'Entregas y herramientas'}],
+  supervisores: [{v:'supervisores',label:'Equipos y tarja'}],
+  tecnica: [{v:'tecnica',label:'Prevención (próximamente)'}]
+};
+function initView(v){
+  if(v==='tarjeta'){fillCardSelect();renderCard();fillPdfChecks();}
+  if(v==='empresa'){loadEmpresaForm();}
+  if(v==='trabajadores'){renderList('');fillSupervisorSelect('w-supervisor');}
+  if(v==='bodega'){initBodega();}
+  if(v==='supervisores'){initSupervisores();}
+  if(v==='asistencia'){
+    const opts=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+    document.getElementById('just-worker').innerHTML=opts;
+    document.getElementById('man-worker').innerHTML=opts;
+    showJustSupervisor();
+  }
+}
+function showView(v){
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  document.getElementById('v-'+v).classList.add('active');
+  document.querySelectorAll('#subNav button').forEach(x=>x.classList.toggle('active',x.dataset.v===v));
+  initView(v);
+}
+function showGroup(group){
+  document.querySelectorAll('#mainNav button').forEach(x=>x.classList.toggle('active',x.dataset.group===group));
+  const sub=document.getElementById('subNav');
+  const items=navGroups[group];
+  sub.innerHTML=items.map(it=>`<button data-v="${it.v}">${it.label}</button>`).join('');
+  sub.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.v)));
+  showView(items[0].v);
+}
+document.querySelectorAll('#mainNav button').forEach(b=>b.addEventListener('click',()=>showGroup(b.dataset.group)));
+showGroup('porteria');
+function fillSupervisorSelect(id,excludeCode){
+  const sups=workers.filter(w=>w.is_supervisor && w.code!==excludeCode);
+  document.getElementById(id).innerHTML='<option value="">Sin asignar</option>'+sups.map(s=>`<option value="${s.code}">${s.name}</option>`).join('');
+}
+
+function wirephoto(inputId,imgId,which){
+  const input=document.getElementById(inputId);
+  input.addEventListener('change',function(){
+    const hint=document.getElementById('photoHint');
+    hint.textContent='';
+    const file=this.files && this.files[0];
+    if(!file){return;}
+    if(!file.type.startsWith('image/')){hint.textContent='El archivo elegido no es una imagen.';hint.style.color='var(--danger)';return;}
+    const reader=new FileReader();
+    reader.onerror=function(){hint.textContent='No se pudo leer la imagen. Prueba con otra foto.';hint.style.color='var(--danger)';};
+    reader.onload=function(ev){
+      document.getElementById(imgId).src=ev.target.result;
+      if(which==='casual') tempCasual=ev.target.result; else tempSafety=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+wirephoto('w-casual','pre-casual','casual');
+wirephoto('w-safety','pre-safety','safety');
+
+function clearForm(){
+  ['w-code','w-name','w-spec','w-phone','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones','w-alerta-social-nota','w-alerta-prevencion-nota'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('w-alerta-social').checked=false;
+  document.getElementById('w-alerta-prevencion').checked=false;
+  document.getElementById('w-is-supervisor').checked=false;
+  document.getElementById('w-supervisor').value='';
+  document.getElementById('pre-casual').src='';
+  document.getElementById('pre-safety').src='';
+  tempCasual=null;tempSafety=null;
+}
+
+function saveWorker(){
+  const code=document.getElementById('w-code').value.trim();
+  const name=document.getElementById('w-name').value.trim();
+  const spec=document.getElementById('w-spec').value.trim();
+  if(!code||!name){alert('Código y nombre son obligatorios');return;}
+  const existing=workers.find(w=>w.code===code);
+  const worker={
+    code,name,spec,
+    phone: document.getElementById('w-phone').value.trim(),
+    is_supervisor: document.getElementById('w-is-supervisor').checked,
+    casual: tempCasual || (existing?existing.casual:null),
+    safety: tempSafety || (existing?existing.safety:null),
+    emerg_name: document.getElementById('w-emerg-name').value.trim(),
+    emerg_phone: document.getElementById('w-emerg-phone').value.trim(),
+    emerg_rel: document.getElementById('w-emerg-rel').value.trim(),
+    salud: document.getElementById('w-salud').value.trim(),
+    medicamentos: document.getElementById('w-medicamentos').value.trim(),
+    precauciones: document.getElementById('w-precauciones').value.trim(),
+    alerta_social: document.getElementById('w-alerta-social').checked,
+    alerta_social_nota: document.getElementById('w-alerta-social-nota').value.trim(),
+    alerta_prevencion: document.getElementById('w-alerta-prevencion').checked,
+    alerta_prevencion_nota: document.getElementById('w-alerta-prevencion-nota').value.trim(),
+    supervisor_code: document.getElementById('w-supervisor').value || null,
+    status: existing?existing.status:'activo',
+    fecha_desvinculacion: existing?existing.fecha_desvinculacion:null
+  };
+  workers=workers.filter(w=>w.code!==code);
+  workers.push(worker);
+  save();
+  renderList('');
+  clearForm();
+  alert('Trabajador guardado');
+}
+
+function renderList(filter){
+  const el=document.getElementById('workerList');
+  const f=(filter||'').toLowerCase();
+  el.innerHTML='';
+  workers.filter(w=>w.code.toLowerCase().includes(f)||w.name.toLowerCase().includes(f)).forEach(w=>{
+    const d=document.createElement('div');
+    d.className='list-item';
+    const estado = w.status==='desvinculado' ? ' <span class="pill" style="color:var(--danger);border-color:var(--danger)">Desvinculado</span>' : '';
+    d.innerHTML=`<span><b>${w.code}</b> — ${w.name} <small>(${w.spec||'—'})</small>${estado}</span><span>🚪&nbsp;🗑️</span>`;
+    d.onclick=()=>editWorker(w.code);
+    const icons=d.querySelector('span:last-child');
+    icons.childNodes[0]&&(icons.innerHTML=`<span title="Desvincular" style="cursor:pointer">🚪</span> <span title="Eliminar" style="cursor:pointer">🗑️</span>`);
+    icons.children[0].onclick=(ev)=>{ev.stopPropagation();desvincularWorker(w.code);};
+    icons.children[1].onclick=(ev)=>{ev.stopPropagation();if(confirm('¿Eliminar '+w.name+'?')){workers=workers.filter(x=>x.code!==w.code);save();renderList(f);}};
+    el.appendChild(d);
+  });
+}
+function editWorker(code){
+  const w=workers.find(x=>x.code===code);
+  if(!w)return;
+  fillSupervisorSelect('w-supervisor',code);
+  document.getElementById('w-code').value=w.code;
+  document.getElementById('w-name').value=w.name;
+  document.getElementById('w-spec').value=w.spec||'';
+  document.getElementById('w-phone').value=w.phone||'';
+  document.getElementById('w-is-supervisor').checked=!!w.is_supervisor;
+  document.getElementById('w-supervisor').value=w.supervisor_code||'';
+  document.getElementById('pre-casual').src=w.casual||'';
+  document.getElementById('pre-safety').src=w.safety||'';
+  tempCasual=null;tempSafety=null;
+  document.getElementById('w-emerg-name').value=w.emerg_name||'';
+  document.getElementById('w-emerg-phone').value=w.emerg_phone||'';
+  document.getElementById('w-emerg-rel').value=w.emerg_rel||'';
+  document.getElementById('w-salud').value=w.salud||'';
+  document.getElementById('w-medicamentos').value=w.medicamentos||'';
+  document.getElementById('w-precauciones').value=w.precauciones||'';
+  document.getElementById('w-alerta-social').checked=!!w.alerta_social;
+  document.getElementById('w-alerta-social-nota').value=w.alerta_social_nota||'';
+  document.getElementById('w-alerta-prevencion').checked=!!w.alerta_prevencion;
+  document.getElementById('w-alerta-prevencion-nota').value=w.alerta_prevencion_nota||'';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+renderList('');
+
+function empresaData(){return JSON.parse(localStorage.getItem('empresa')||'{}');}
+function cardFrontHtml(w,idSuffix,temporal){
+  const emp=empresaData();
+  const foto=temporal?(w.casual||''):(w.safety||w.casual||'');
+  return `
+    <div class="idcard-face idcard-front">
+      ${emp.logo?`<img src="${emp.logo}" style="position:absolute;top:1mm;right:1mm;height:6mm;object-fit:contain">`:''}
+      <img class="idcard-photo" src="${foto}" alt="foto">
+      <div class="idcard-info">
+        <div>
+          ${emp.name?`<div style="font-size:5.5pt;color:var(--muted);text-transform:uppercase">${emp.name}</div>`:''}
+          <div class="idcard-name">${w.name}</div>
+          <div class="idcard-cargo">${w.spec||''}${temporal?' — TEMPORAL':''}</div>
+        </div>
+        <div>
+          <div class="idcard-code">Código: <b>${w.code}</b></div>
+          <div class="idcard-codes">
+            <div id="qrbox${idSuffix}"></div>
+            <svg id="barcode${idSuffix}"></svg>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+function cardBackHtml(w){
+  return `
+    <div class="idcard-face idcard-back">
+      <h4>Contacto de emergencia</h4>
+      <div class="sec">${w.emerg_name||'—'} (${w.emerg_rel||'—'})<br>${w.emerg_phone||'—'}</div>
+      <h4>Información médica (uso portería/prevención)</h4>
+      <div class="sec"><b>Condiciones:</b> ${w.salud||'—'}</div>
+      <div class="sec"><b>Medicamentos:</b> ${w.medicamentos||'—'}</div>
+      <div class="sec"><b>Precauciones:</b> ${w.precauciones||'—'}</div>
+    </div>`;
+}
+function drawCardCodes(w,idSuffix){
+  document.getElementById('qrbox'+idSuffix).innerHTML='';
+  new QRCode(document.getElementById('qrbox'+idSuffix),{text:w.code,width:44,height:44});
+  JsBarcode('#barcode'+idSuffix,w.code,{height:20,width:1,fontSize:7,margin:0});
+}
+function fillCardSelect(){
+  const sel=document.getElementById('cardSelect');
+  sel.innerHTML=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+}
+function renderCard(){
+  const code=document.getElementById('cardSelect').value;
+  const w=workers.find(x=>x.code===code);
+  const area=document.getElementById('cardArea');
+  if(!w){area.innerHTML='<small>No hay trabajadores registrados.</small>';return;}
+  area.innerHTML=`
+    <div class="idcard" id="idcard">
+      <div class="idcard-inner">
+        ${cardFrontHtml(w,'',false)}
+        ${cardBackHtml(w)}
+      </div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn secondary" onclick="document.getElementById('idcard').classList.toggle('flipped')">Girar tarjeta</button>
+      <button class="btn secondary" onclick="window.print()">Imprimir</button>
+    </div>
+  `;
+  drawCardCodes(w,'');
+}
+
+// ---------- escaneo por cámara (QR y código de barras) ----------
+let camScanner=null;
+function toggleCam(){
+  const box=document.getElementById('camReader');
+  if(camScanner){
+    camScanner.stop().then(()=>{camScanner=null;box.style.display='none';box.innerHTML='';});
+    return;
+  }
+  box.style.display='block';
+  box.innerHTML='<div id="camReaderInner"></div>';
+  camScanner=new Html5Qrcode('camReaderInner',{formatsToSupport:[
+    Html5QrcodeSupportedFormats.QR_CODE,Html5QrcodeSupportedFormats.CODE_128,
+    Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.CODE_39
+  ]});
+  camScanner.start({facingMode:'environment'},{fps:10,qrbox:220},(text)=>{
+    document.getElementById('scanCode').value=text;
+    toggleCam();
+    doScan();
+  },()=>{}).catch(()=>{
+    alert('No se pudo acceder a la cámara. Revisa los permisos del navegador.');
+    box.style.display='none';
+    camScanner=null;
+  });
+}
+
+function doScan(){
+  const code=document.getElementById('scanCode').value.trim();
+  const w=workers.find(x=>x.code===code);
+  const res=document.getElementById('scanResult');
+  if(!w){res.innerHTML='<p style="color:var(--danger)">Código no encontrado.</p>';return;}
+  const hoy=hoyLocal();
+  const hoyRec=attendance.find(a=>a.code===code&&a.date===hoy);
+  const nombresEstado={X:'Presente',F:'Falla',P:'Permiso',L:'Licencia',A:'Accidente Mutual',PP:'Permiso Pagado',V:'Vacaciones'};
+  let bannerHoy='';
+  if(w.status==='desvinculado'){
+    bannerHoy+=`<p style="background:var(--danger);color:#fff;padding:6px 10px;border-radius:6px"><b>⚠️ Trabajador desvinculado</b> (${w.fecha_desvinculacion||''})</p>`;
+  }else if(hoyRec && hoyRec.estado!=='X'){
+    bannerHoy+=`<p style="background:var(--accent);color:#1c1206;padding:6px 10px;border-radius:6px"><b>Hoy tiene ${nombresEstado[hoyRec.estado]||hoyRec.estado}</b>${hoyRec.nota?(': '+hoyRec.nota):''} — no debería venir a marcar.</p>`;
+  }else{
+    bannerHoy+=`<p style="background:var(--accent2);color:#fff;padding:6px 10px;border-radius:6px">Sin permiso/licencia registrado para hoy — viene a marcar normalmente.</p>`;
+  }
+  if(w.alerta_social) bannerHoy+=`<p style="background:#7a3fa0;color:#fff;padding:6px 10px;border-radius:6px"><b>🗣️ Asistente social quiere hablar con él/ella</b>${w.alerta_social_nota?(': '+w.alerta_social_nota):''}</p>`;
+  if(w.alerta_prevencion) bannerHoy+=`<p style="background:#c0392b;color:#fff;padding:6px 10px;border-radius:6px"><b>🦺 Prevencionista quiere hablar con él/ella</b>${w.alerta_prevencion_nota?(': '+w.alerta_prevencion_nota):''}</p>`;
+  const recs=attendance.filter(a=>a.code===code).sort((a,b)=>a.date<b.date?1:-1).slice(0,10);
+  res.innerHTML=`
+    <div class="card">
+      <div class="photoRow"><img src="${w.safety||w.casual||''}" style="width:90px;height:90px;object-fit:cover;border-radius:6px"><div><h3>${w.name}</h3><small>${w.spec||''} — Código ${w.code}</small></div></div>
+      ${bannerHoy}
+      <p><b>Emergencia:</b> ${w.emerg_name||'—'} (${w.emerg_rel||'—'}) — ${w.emerg_phone||'—'}</p>
+      <p><b>Prevención:</b> ${w.salud||'—'} ${w.medicamentos?(' | Medicamentos: '+w.medicamentos):''} ${w.precauciones?(' | Precauciones: '+w.precauciones):''}</p>
+      <h3>Últimos registros</h3>
+      <table><tr><th>Fecha</th><th>Estado</th><th>Hora llegada</th><th>Nota</th></tr>
+      ${recs.map(r=>`<tr><td>${r.date}</td><td>${nombresEstado[r.estado]||r.estado||'-'}</td><td>${r.hora_llegada||'-'}</td><td>${r.nota||'-'}</td></tr>`).join('')||'<tr><td colspan="4">Sin registros</td></tr>'}
+      </table>
+    </div>`;
+  document.getElementById('scanCode').value='';
+}
+
+function addHoliday(){
+  const v=document.getElementById('addHoliday').value;
+  if(!v)return;
+  if(!extraHolidays.includes(v))extraHolidays.push(v);
+  save();
+  renderMatrix();
+}
+// ---------- supervisores ----------
+function initSupervisores(){
+  renderSupervisorList();
+  fillSupervisorSelect('trans-supervisor');
+  document.getElementById('trans-worker').innerHTML=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+  const sups=workers.filter(w=>w.is_supervisor);
+  document.getElementById('sup-view').innerHTML=sups.map(s=>`<option value="${s.code}">${s.name}</option>`).join('') || '<option value="">Sin supervisores</option>';
+  renderSupervisorMatrix();
+}
+function renderSupervisorList(){
+  const sups=workers.filter(w=>w.is_supervisor);
+  document.getElementById('supervisorList').innerHTML = sups.map(s=>{
+    const n=workers.filter(w=>w.supervisor_code===s.code).length;
+    return `<div class="list-item" style="cursor:default"><span><b>${s.name}</b> — ${s.phone||'sin teléfono'} <small>(${n} trabajador${n===1?'':'es'} a cargo)</small></span></div>`;
+  }).join('') || '<small>No hay trabajadores marcados como supervisor todavía. Marca la casilla "Este trabajador es supervisor" en su ficha.</small>';
+}
+function trasladarTrabajador(){
+  const code=document.getElementById('trans-worker').value;
+  const supCode=document.getElementById('trans-supervisor').value;
+  const w=workers.find(x=>x.code===code);
+  if(!w){alert('Selecciona un trabajador.');return;}
+  w.supervisor_code=supCode||null;
+  save();
+  initSupervisores();
+  alert('Trabajador reasignado.');
+}
+function renderSupervisorMatrix(){
+  const supCode=document.getElementById('sup-view').value;
+  const y=parseInt(document.getElementById('supYear').value);
+  const m=parseInt(document.getElementById('supMonth').value);
+  const area=document.getElementById('supMatrixArea');
+  if(!supCode){area.innerHTML='<small>Selecciona un supervisor.</small>';return;}
+  const equipo=workers.filter(w=>w.supervisor_code===supCode);
+  if(!equipo.length){area.innerHTML='<small>Este supervisor no tiene trabajadores asignados.</small>';return;}
+  area.innerHTML=buildMatrixHtml(y,m,equipo);
+}
+
+// ---------- marcaje manual ----------
+function marcajeManual(){
+  const code=document.getElementById('man-worker').value;
+  const fecha=document.getElementById('man-fecha').value;
+  const hora=document.getElementById('man-hora').value;
+  if(!code||!fecha||!hora){alert('Completa trabajador, fecha y hora.');return;}
+  attendance=attendance.filter(a=>!(a.code===code&&a.date===fecha));
+  attendance.push({code,date:fecha,estado:'X',hora_llegada:hora,nota:'',origen:'manual'});
+  save();
+  renderMatrix();
+  alert('Marcaje registrado.');
+}
+
+function showJustSupervisor(){
+  const code=document.getElementById('just-worker').value;
+  const w=workers.find(x=>x.code===code);
+  const el=document.getElementById('just-supervisor-info');
+  if(!w||!w.supervisor_code){el.innerHTML='<small>Sin supervisor asignado — no hay a quién consultar.</small>';return;}
+  const sup=workers.find(s=>s.code===w.supervisor_code);
+  el.innerHTML = sup ? `<small>Supervisor a cargo: <b>${sup.name}</b>${sup.phone?(' — '+sup.phone):''}. Consultar con él/ella qué pasa con el trabajador.</small>` : '<small>Sin supervisor asignado.</small>';
+}
+
+function justificar(){
+  const code=document.getElementById('just-worker').value;
+  const estado=document.getElementById('just-estado').value;
+  const desde=document.getElementById('just-desde').value;
+  const hasta=document.getElementById('just-hasta').value || desde;
+  const nota=document.getElementById('just-nota').value.trim();
+  if(!code||!desde){alert('Selecciona trabajador y al menos la fecha "Desde".');return;}
+  let d=new Date(desde+'T00:00:00'), fin=new Date(hasta+'T00:00:00'), n=0;
+  while(d<=fin){
+    const iso=isoLocal(d);
+    attendance=attendance.filter(a=>!(a.code===code&&a.date===iso));
+    attendance.push({code,date:iso,estado,nota,hora_llegada:'',origen:'justificacion'});
+    d.setDate(d.getDate()+1); n++;
+  }
+  save();
+  renderMatrix();
+  document.getElementById('just-nota').value='';
+  alert(`${n} día(s) justificado(s) como ${estado}.`);
+}
+
+function daysInMonth(y,m){return new Date(y,m,0).getDate();}
+const diaSemanaLetra=['D','L','M','M','J','V','S']; // getDay(): 0=domingo
+function buildMatrixHtml(y,m,lista){
+  const nd=daysInMonth(y,m);
+  let html='<table><tr><th>Trabajador</th>';
+  for(let d=1;d<=nd;d++)html+=`<th>${d}</th>`;
+  html+='<th>Días trab. (base 30)</th><th>Días efectivos</th><th>Días reales trabajados</th><th>Lic./Acc. (L,A)</th><th>Inasist. (F,P)</th></tr>';
+  html+='<tr><td><i>Día</i></td>';
+  for(let d=1;d<=nd;d++){
+    const dow=new Date(y,m-1,d).getDay();
+    const fer=isFeriado(y,m,d);
+    const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    html+=`<td class="${fer?'day-feriado':'day-lab'}" style="cursor:pointer" onclick="toggleDay('${iso}')" title="Click para alternar laborable/feriado"><small>${diaSemanaLetra[dow]}</small></td>`;
+  }
+  html+='<td colspan="5"></td></tr>';
+  lista.forEach(w=>{
+    html+=`<tr><td>${w.name}</td>`;
+    let cX=0,cF=0,cP=0,cL=0,cA=0,cPP=0,cV=0;
+    for(let d=1;d<=nd;d++){
+      const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const rec=attendance.find(a=>a.code===w.code&&a.date===iso);
+      const est=rec?rec.estado:null;
+      if(est==='X')cX++;else if(est==='F')cF++;else if(est==='P')cP++;else if(est==='L')cL++;else if(est==='A')cA++;else if(est==='PP')cPP++;else if(est==='V')cV++;
+      html+=`<td>${est||''}</td>`;
+    }
+    const diasReales=cX;
+    const diasEfectivos=cX+cV+cPP;
+    const diasTrabajadosCrudo=cX+cV+cPP;
+    const diasTrabajadosBase30=Math.round(diasTrabajadosCrudo/nd*30);
+    html+=`<td>${diasTrabajadosBase30}</td><td>${diasEfectivos}</td><td>${diasReales}</td><td>${cL+cA}</td><td>${cF+cP}</td></tr>`;
+  });
+  html+='</table>';
+  html+='<p style="margin-top:8px"><small><b>Códigos:</b> X Presente · F Falla · P Permiso · L Licencia · A Accidente Mutual · PP Permiso Pagado · V Vacaciones. La fila "Día" muestra L M M J V S D (lunes a domingo); el fondo resaltado indica feriado — haz clic en un día para alternar laborable/feriado. <b>Días efectivos</b> = X+V+PP (para liquidación). <b>Días reales trabajados</b> = solo X, para informes de asistencia real.</small></p>';
+  return html;
+}
+function renderMatrix(){
+  const y=parseInt(document.getElementById('matYear').value);
+  const m=parseInt(document.getElementById('matMonth').value);
+  document.getElementById('matrixArea').innerHTML=buildMatrixHtml(y,m,workers);
+}
+function toggleDay(iso){
+  const [y,m,d]=iso.split('-').map(Number);
+  const cur = dayOverrides[iso] ? dayOverrides[iso] : (isFeriado(y,m,d)?'fer':'lab');
+  dayOverrides[iso] = cur==='fer' ? 'lab' : 'fer';
+  save();
+  renderMatrix();
+}
+renderMatrix();
+
+function loadAttendance(){
+  const f=document.getElementById('attFile').files[0];
+  if(!f){alert('Selecciona un archivo');return;}
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const sheet=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
+      let count=0;
+      rows.forEach(r=>{
+        const code=String(r.codigo||r.Codigo||r.CODIGO||'').trim();
+        let fecha=r.fecha||r.Fecha||r.FECHA;
+        if(fecha instanceof Date) fecha=isoLocal(fecha);
+        fecha=String(fecha).trim();
+        if(!code||!fecha)return;
+        let estado=String(r.estado||r.Estado||'').trim().toUpperCase();
+        const horaLlegada=String(r.hora_llegada||r.Hora||'').trim();
+        if(!estado){
+          // compatibilidad con formato anterior (tipo_permiso / permiso)
+          const tipo=String(r.tipo_permiso||'').trim().toLowerCase();
+          if(horaLlegada) estado='X';
+          else if(tipo.includes('licencia')) estado='L';
+          else if(tipo.includes('accidente')) estado='A';
+          else if(tipo.includes('pagado')) estado='PP';
+          else if(tipo.includes('vacacion')) estado='V';
+          else if(tipo.includes('permiso')||String(r.permiso||'').trim()) estado='P';
+          else estado='F';
+        }
+        const rec={code,date:fecha,estado,hora_llegada:horaLlegada,nota:String(r.nota||'').trim(),origen:'importado'};
+        attendance=attendance.filter(a=>!(a.code===code&&a.date===fecha));
+        attendance.push(rec);
+        count++;
+      });
+      save();
+      document.getElementById('loadMsg').innerHTML=`<small>${count} registros cargados.</small>`;
+      renderMatrix();
+    }catch(err){document.getElementById('loadMsg').innerHTML=`<small style="color:var(--danger)">Error leyendo archivo: ${err.message}</small>`;}
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+// ---------- tarjeta temporal (billetera) ----------
+function printTemp(){
+  const code=document.getElementById('w-code').value.trim();
+  const name=document.getElementById('w-name').value.trim();
+  const spec=document.getElementById('w-spec').value.trim();
+  if(!code||!name){alert('Ingresa al menos código y nombre antes de imprimir la tarjeta temporal.');return;}
+  const photo=tempCasual||document.getElementById('pre-casual').src||'';
+  const wTemp={code,name,spec,casual:photo,safety:null};
+  const win=document.getElementById('tempPrintArea')||(()=>{const d=document.createElement('div');d.id='tempPrintArea';d.style.display='none';document.body.appendChild(d);return d;})();
+  win.innerHTML=`<div class="idcard" style="margin:20px auto"><div class="idcard-inner">${cardFrontHtml(wTemp,'',true)}</div></div>`;
+  document.body.querySelectorAll('.view,#mainNav,#subNav,header').forEach(x=>x.style.display='none');
+  win.style.display='block';
+  drawCardCodes(wTemp,'');
+  setTimeout(()=>{
+    window.print();
+    document.body.querySelectorAll('.view,#mainNav,#subNav,header').forEach(x=>x.style.display='');
+    win.style.display='none';
+  },300);
+}
+
+// ---------- datos de empresa ----------
+function loadEmpresaForm(){
+  const emp=empresaData();
+  document.getElementById('emp-name').value=emp.name||'';
+  document.getElementById('emp-logo-preview').src=emp.logo||'';
+}
+function saveEmpresa(){
+  const name=document.getElementById('emp-name').value.trim();
+  const file=document.getElementById('emp-logo').files[0];
+  const finish=(logoData)=>{
+    const emp=empresaData();
+    localStorage.setItem('empresa',JSON.stringify({name,logo:logoData||emp.logo||null}));
+    alert('Datos de empresa guardados.');
+    loadEmpresaForm();
+  };
+  if(file){
+    const r=new FileReader();
+    r.onload=e=>finish(e.target.result);
+    r.readAsDataURL(file);
+  }else finish(null);
+}
+
+// ---------- exportar PDF de tarjetas (varias, frente y reverso) ----------
+function fillPdfChecks(){
+  document.getElementById('pdf-worker-checks').innerHTML = workers.map(w=>
+    `<label style="display:block;font-weight:normal"><input type="checkbox" class="pdfChk" value="${w.code}" style="width:auto;display:inline-block;margin-right:6px">${w.code} - ${w.name}</label>`
+  ).join('') || '<small>No hay trabajadores registrados.</small>';
+}
+function toggleAllPdfChecks(v){
+  document.querySelectorAll('.pdfChk').forEach(c=>c.checked=v);
+}
+async function exportCardsPdf(){
+  const codes=[...document.querySelectorAll('.pdfChk:checked')].map(c=>c.value);
+  if(!codes.length){alert('Selecciona al menos un trabajador.');return;}
+  const temporal=document.getElementById('pdf-tipo').value==='temporal';
+  const msg=document.getElementById('pdfMsg');
+  msg.innerHTML='<small>Generando PDF…</small>';
+  // área oculta donde renderizamos cada tarjeta para capturarla
+  const stage=document.getElementById('pdfStage')||(()=>{const d=document.createElement('div');d.id='pdfStage';d.style.position='fixed';d.style.left='-9999px';d.style.top='0';document.body.appendChild(d);return d;})();
+  const { jsPDF } = window.jspdf;
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const cardW=85.6, cardH=53.98, cols=2, rows=4, marginX=(210-cols*cardW)/2, marginY=(297-rows*cardH)/2;
+  const perPage=cols*rows;
+  async function capturaFace(w,face,idSuffix){
+    stage.innerHTML=`<div class="idcard" style="margin:0"><div class="idcard-inner" style="transform:none">${face==='front'?cardFrontHtml(w,idSuffix,temporal):cardBackHtml(w)}</div></div>`;
+    if(face==='front')drawCardCodes(w,idSuffix);
+    const el=stage.querySelector(face==='front'?'.idcard-front':'.idcard-back');
+    el.style.position='static';
+    const canvas=await html2canvas(el,{scale:3,backgroundColor:'#ffffff'});
+    return canvas.toDataURL('image/png');
+  }
+  const lista=codes.map(c=>workers.find(w=>w.code===c)).filter(Boolean);
+  for(let pass=0; pass<2; pass++){ // pass 0 = frentes, pass 1 = reversos
+    for(let i=0;i<lista.length;i++){
+      if(i%perPage===0){ if(!(pass===0&&i===0)) pdf.addPage(); }
+      const w=lista[i];
+      const img=await capturaFace(w,pass===0?'front':'back','_'+w.code);
+      const pos=i%perPage, col=pos%cols, row=Math.floor(pos/cols);
+      pdf.addImage(img,'PNG', marginX+col*cardW, marginY+row*cardH, cardW, cardH);
+    }
+  }
+  stage.innerHTML='';
+  pdf.save(`tarjetas_${temporal?'temporales':'definitivas'}.pdf`);
+  msg.innerHTML=`<small>Listo: ${lista.length} tarjeta(s) exportada(s). Frentes primero, reversos después en el mismo orden — imprime a doble cara volteando por el borde largo.</small>`;
+}
+// ---------- bodega: EPP ----------
+function initBodega(){
+  const opts=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+  document.getElementById('epp-worker').innerHTML=opts;
+  document.getElementById('assign-worker').innerHTML=opts;
+  document.getElementById('epp-filter').innerHTML='<option value="">Todos los trabajadores</option>'+opts;
+  document.getElementById('assign-tool').innerHTML=tools.map(t=>`<option value="${t.id}">${t.name} ($${t.price})</option>`).join('');
+  renderToolCatalog();
+  renderEppHistory();
+  renderToolAssignments();
+}
+function saveEpp(){
+  const code=document.getElementById('epp-worker').value;
+  const fecha=document.getElementById('epp-fecha').value || hoyLocal();
+  const detalle=document.getElementById('epp-detalle').value.trim();
+  const file=document.getElementById('epp-pdf').files[0];
+  if(!code||!detalle){alert('Selecciona trabajador y describe lo entregado.');return;}
+  const finish=(pdfData)=>{
+    eppDeliveries.push({id:uid(),code,fecha,detalle,pdfName:file?file.name:'',pdf:pdfData||null});
+    save();
+    document.getElementById('epp-detalle').value='';
+    document.getElementById('epp-pdf').value='';
+    renderEppHistory();
+    alert('Entrega registrada');
+  };
+  if(file){
+    const r=new FileReader();
+    r.onload=e=>finish(e.target.result);
+    r.onerror=()=>{alert('No se pudo leer el PDF, se guardó la entrega sin respaldo.');finish(null);};
+    r.readAsDataURL(file);
+  }else finish(null);
+}
+function renderEppHistory(){
+  const filter=document.getElementById('epp-filter').value;
+  const list=eppDeliveries.filter(e=>!filter||e.code===filter).sort((a,b)=>a.fecha<b.fecha?1:-1);
+  document.getElementById('eppHistory').innerHTML = list.map(e=>{
+    const w=workers.find(x=>x.code===e.code);
+    return `<div class="list-item" style="cursor:default"><span>${e.fecha} — <b>${w?w.name:e.code}</b>: ${e.detalle}</span>${e.pdf?`<a href="${e.pdf}" download="${e.pdfName||'respaldo.pdf'}">📄</a>`:'<small>sin PDF</small>'}</div>`;
+  }).join('') || '<small>Sin entregas registradas.</small>';
+}
+
+// ---------- bodega: herramientas ----------
+function addTool(){
+  const name=document.getElementById('tool-name').value.trim();
+  const price=parseFloat(document.getElementById('tool-price').value);
+  if(!name||!price){alert('Ingresa nombre y precio real de la herramienta.');return;}
+  tools.push({id:uid(),name,price});
+  save();
+  document.getElementById('tool-name').value='';
+  document.getElementById('tool-price').value='';
+  initBodega();
+}
+function renderToolCatalog(){
+  document.getElementById('toolCatalog').innerHTML = tools.map(t=>`<span class="pill">${t.name} — $${t.price.toLocaleString('es-CL')}</span>`).join('') || '<small>Catálogo vacío.</small>';
+}
+function assignTool(){
+  const code=document.getElementById('assign-worker').value;
+  const toolId=document.getElementById('assign-tool').value;
+  const fecha=document.getElementById('assign-fecha').value || hoyLocal();
+  const tool=tools.find(t=>t.id===toolId);
+  if(!code||!tool){alert('Selecciona trabajador y herramienta.');return;}
+  toolAssignments.push({id:uid(),code,toolId,toolName:tool.name,price:tool.price,fecha,devuelta:false});
+  save();
+  renderToolAssignments();
+}
+function renderToolAssignments(){
+  document.getElementById('toolAssignments').innerHTML = toolAssignments.map(a=>{
+    const w=workers.find(x=>x.code===a.code);
+    return `<div class="list-item" style="cursor:default"><span>${a.fecha} — <b>${w?w.name:a.code}</b>: ${a.toolName} ($${a.price.toLocaleString('es-CL')}) ${a.devuelta?'<span class="pill" style="color:var(--accent2);border-color:var(--accent2)">Devuelta</span>':'<span class="pill" style="color:var(--accent);border-color:var(--accent)">Pendiente</span>'}</span>${a.devuelta?'':`<button class="btn secondary" style="margin:0;padding:4px 8px" onclick="marcarDevuelta('${a.id}')">Marcar devuelta</button>`}</div>`;
+  }).join('') || '<small>No hay herramientas asignadas.</small>';
+}
+function marcarDevuelta(id){
+  const a=toolAssignments.find(x=>x.id===id);
+  if(a){a.devuelta=true;save();renderToolAssignments();}
+}
+
+// ---------- desvinculación ----------
+function desvincularWorker(code){
+  const w=workers.find(x=>x.code===code);
+  if(!w)return;
+  const pendientes=toolAssignments.filter(a=>a.code===code&&!a.devuelta);
+  if(pendientes.length){
+    const total=pendientes.reduce((s,a)=>s+a.price,0);
+    const detalle=pendientes.map(a=>`- ${a.toolName}: $${a.price.toLocaleString('es-CL')}`).join('\n');
+    alert(`⚠️ ${w.name} tiene herramientas sin devolver:\n${detalle}\n\nTotal a descontar del finiquito: $${total.toLocaleString('es-CL')}`);
+  }
+  if(!confirm(`¿Confirmar desvinculación de ${w.name}?`))return;
+  w.status='desvinculado';
+  w.fecha_desvinculacion=hoyLocal();
+  save();
+  renderList('');
+}
+
+function exportPayroll(){
+  const y=parseInt(document.getElementById('expYear').value);
+  const m=parseInt(document.getElementById('expMonth').value);
+  const nd=daysInMonth(y,m);
+  const rows=[];
+  workers.forEach(w=>{
+    for(let d=1;d<=nd;d++){
+      const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const rec=attendance.find(a=>a.code===w.code&&a.date===iso);
+      if(rec && ['F','P','L','A','PP','V'].includes(rec.estado)){
+        rows.push({codigo:w.code,nombre:w.name,fecha:iso,estado:rec.estado,nota:rec.nota||'',codigo_inasistencia:''});
+      }
+    }
+  });
+  if(rows.length===0){alert('No hay permisos/licencias/inasistencias registradas en ese mes.');return;}
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Carga');
+  XLSX.writeFile(wb,`carga_remuneraciones_${y}-${String(m).padStart(2,'0')}.xlsx`);
+}
+</script>
+</body>
+</html>
