@@ -7,10 +7,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../js/supabaseConfig.js"></script>
 <script src="../js/supabaseClient.js"></script>
+<script src="../js/theme.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);font-family:'Montserrat',system-ui,sans-serif}
 .loginCard{max-width:380px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:32px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
@@ -21,9 +21,11 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;bac
 .loginErr{color:var(--danger);font-size:.85rem;margin-top:8px;display:none}
 .loginFoot{margin-top:16px;font-size:.8rem;color:var(--muted);text-align:center}
 </style>
+<link rel="stylesheet" href="../css/styles.css">
 </head>
 <body>
 <div class="loginCard">
+  <div class="login-theme-toggle"><button type="button" class="btn secondary theme-toggle" data-theme-toggle></button></div>
   <div class="loginBrand">
     <div class="icon" id="brandIcon">🪪</div>
     <div id="brandName">Control de Asistencia</div>
