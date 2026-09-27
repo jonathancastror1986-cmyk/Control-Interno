@@ -18,7 +18,10 @@
 -- ------------------------------------------------------------
 alter table epp_catalogo add column if not exists tipo_talla text;
 
-drop constraint if exists epp_catalogo_tipo_talla_check;
+-- DROP CONSTRAINT no existe como sentencia suelta: va dentro de ALTER TABLE.
+alter table epp_catalogo
+  drop constraint if exists epp_catalogo_tipo_talla_check;
+
 alter table epp_catalogo
   add constraint epp_catalogo_tipo_talla_check
   check (tipo_talla is null or tipo_talla in ('calzado','ropa','general'));
