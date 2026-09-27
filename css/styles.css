@@ -87,6 +87,7 @@ th{background:var(--accent2);color:#fff;font-weight:600}
 .overflow{overflow-x:auto}
 .day-feriado{background:rgba(23,197,181,.14)}
 .day-lab{background:transparent}
+.day-blocked{background:#0b0e0c;color:#5b6660;cursor:not-allowed;user-select:none}
 .pill{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:0;padding:3px 8px;font-size:.7rem;margin:2px}
 small{color:var(--muted)}
 .list-item{display:flex;justify-content:space-between;align-items:center;padding:11px 8px;border-bottom:1px solid var(--line);cursor:pointer}

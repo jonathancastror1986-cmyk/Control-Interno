@@ -62,6 +62,25 @@ small{color:var(--muted)}
 .list-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-bottom:1px solid var(--line);cursor:pointer}
 .list-item:hover{background:var(--panel)}
 #scanResult{margin-top:12px}
+#camModal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,18,.74)}
+#camModal.open{display:flex}
+.camModalBox{width:min(480px,100%);max-height:92vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.camModalBox h3{margin:0 0 4px}
+.camStage{position:relative;width:100%;min-height:180px;margin-top:12px;background:#000;border-radius:8px;overflow:hidden}
+#camScanArea{position:relative;width:100%;background:#000}
+#camScanArea video{width:100%!important;height:auto!important;display:block;background:#000}
+#camScanArea canvas{display:none!important}
+.camReticle{position:absolute;top:10px;right:10px;bottom:10px;left:10px;border:2px solid rgba(255,255,255,.7);border-radius:10px;box-sizing:border-box;pointer-events:none}
+.camReticle:before,.camReticle:after{content:'';position:absolute;width:28px;height:28px;border:3px solid var(--accent)}
+.camReticle:before{top:-2px;left:-2px;border-right:0;border-bottom:0;border-radius:10px 0 0 0}
+.camReticle:after{right:-2px;bottom:-2px;border-left:0;border-top:0;border-radius:0 0 10px 0}
+.camStatus{margin-top:10px;font-size:.85rem;color:var(--muted)}
+.camStatus b{color:var(--accent)}
+.camStatus .err{color:var(--danger)}
+.camUpload{display:inline-block;margin:10px 10px 0 0;padding:9px 16px;border:1px solid var(--accent2);border-radius:6px;background:transparent;color:var(--accent2);font-family:'Montserrat',system-ui,sans-serif;font-size:.85rem;cursor:pointer}
+.camUpload:hover{background:var(--accent2);color:#fff}
+.camActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px}
+.camActions .btn{margin-top:10px}
 .photoRow{display:flex;gap:10px}
 .photoBox{flex:1;text-align:center}
 .photoBox img{width:100%;height:110px;object-fit:cover;border:1px solid var(--line);border-radius:6px;background:var(--panel);display:block;margin-bottom:4px}
@@ -139,6 +158,11 @@ small{color:var(--muted)}
 .temp-card-front .idcard-cargo{color:#f5f7f4;font-size:7pt}
 .temp-company{font-size:5.5pt;color:#aab7b1;text-transform:uppercase;letter-spacing:.04em}
 .temp-card-badge{display:inline-block;margin-top:1.5mm;padding:1mm 2mm;border-radius:3mm;background:#159b8b;color:#fff;font-size:7pt;font-weight:700;text-transform:uppercase}
+.final-card-badge{display:inline-block;margin-top:1.5mm;margin-right:1mm;padding:1mm 2mm;border-radius:3mm;background:var(--accent2);color:#fff;font-size:7pt;font-weight:700;text-transform:uppercase}
+.worker-type-badge{display:inline-block;margin-top:1.5mm;padding:1mm 2mm;border-radius:3mm;font-size:7pt;font-weight:700;text-transform:uppercase}
+.worker-type-badge.interno{background:var(--accent);color:#fff}
+.worker-type-badge.subcontrato{background:#8a5a2b;color:#fff}
+
 .temp-card-front .idcard-code{display:inline-block;padding:1mm 2mm;background:#fff;color:#17231c;border-radius:1mm;font-size:7pt}
 .temp-card-front .idcard-codes{width:100%;margin-top:1mm}
 .temp-card-front .idcard-codes svg{width:48mm!important;height:8mm!important;background:#fff}
@@ -156,7 +180,7 @@ small{color:var(--muted)}
   @page{size:A4 portrait;margin:0}
     body.printing-temporary>*:not(#tempPrintArea){display:none!important}
     body.printing-temporary #tempPrintArea{display:block!important;position:absolute;left:50%;top:18mm;transform:translateX(-50%);margin:0!important}
-    body:not(.printing-temporary)>header,body:not(.printing-temporary)>#mainNav,body:not(.printing-temporary)>#subNav{display:none!important}
+    body:not(.printing-temporary)>header,body:not(.printing-temporary)>#mainNav,body:not(.printing-temporary)>#subNav,body:not(.printing-temporary)>#camModal{display:none!important}
     body:not(.printing-temporary)>main{display:block!important;max-width:none!important;margin:0!important;padding:0!important}
     body:not(.printing-temporary)>main>:not(#v-buscar-tarjeta){display:none!important}
     body:not(.printing-temporary) #v-buscar-tarjeta{display:block!important}
@@ -186,7 +210,6 @@ small{color:var(--muted)}
   <button data-group="soporte">🛟 Soporte</button>
   <button data-group="asistente-social">🤝 Asistente Social</button>
   <button data-group="prevencion">🦺 Prevención</button>
-  <button data-group="tecnica">🦺 Técnica</button>
 </nav>
 <nav id="subNav"></nav>
 <main>
@@ -203,6 +226,7 @@ small{color:var(--muted)}
     <div class="row">
       <div><label><input type="checkbox" id="w-is-supervisor" style="width:auto;display:inline-block;margin-right:6px">Este trabajador es supervisor</label></div>
       <div><label>Fecha de ingreso</label><input type="date" id="w-fecha-ingreso"></div>
+      <div><label>Tipo de trabajador</label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="subcontrato">Subcontrato</option></select></div>
     </div>
     <div class="photoRow">
       <div class="photoBox">
@@ -385,8 +409,6 @@ small{color:var(--muted)}
       <button class="btn" onclick="doScan()">Buscar</button>
       <button class="btn secondary" id="camBtn" onclick="openQrCamera()">📷 Escanear con cámara</button>
     </div>
-    <input type="file" id="qrImageInput" accept="image/*" capture="environment" style="display:none" onchange="scanQrImage(this.files[0])">
-    <div id="camReader" style="display:none;max-width:320px;margin-top:10px"></div>
     <div id="scanResult"></div>
   </div>
 </section>
@@ -465,7 +487,7 @@ small{color:var(--muted)}
   </div>
 </section>
 
-<section class="view" id="v-bodega">
+<section class="view" id="v-bodega-epp">
   <div class="card">
     <h2>Entrega de EPP / materiales</h2>
     <div class="row">
@@ -478,11 +500,17 @@ small{color:var(--muted)}
     <input type="file" accept="application/pdf" id="epp-pdf">
     <button class="btn" onclick="saveEpp()">Guardar entrega</button>
   </div>
+</section>
+
+<section class="view" id="v-bodega-historial">
   <div class="card">
     <h2>Historial de entregas EPP</h2>
     <select id="epp-filter" onchange="renderEppHistory()"><option value="">Todos los trabajadores</option></select>
     <div id="eppHistory"></div>
   </div>
+</section>
+
+<section class="view" id="v-bodega-catalogo">
   <div class="card">
     <h2>Catálogo de herramientas</h2>
     <div class="row">
@@ -492,6 +520,9 @@ small{color:var(--muted)}
     <button class="btn secondary" onclick="addTool()">Agregar al catálogo</button>
     <div id="toolCatalog"></div>
   </div>
+</section>
+
+<section class="view" id="v-bodega-asignar">
   <div class="card">
     <h2>Asignar herramienta a trabajador</h2>
     <div class="row">
@@ -546,17 +577,12 @@ small{color:var(--muted)}
   </div>
 </section>
 
-<section class="view" id="v-tecnica">
-  <div class="card">
-    <h2>Módulo Técnica / Prevención</h2>
-    <small>Próximamente: checklist de inspecciones, seguimiento de incidentes y capacitaciones. Por ahora, la información de salud/prevención de cada trabajador se administra desde su ficha en Administración → Trabajadores, y las alertas al prevencionista aparecen al consultar al trabajador en Portería.</small>
-  </div>
-</section>
 
 </main>
 <script>
 let workers = [];       // ahora viene de Supabase (tabla trabajadores)
 let attendance = [];    // ahora viene de Supabase (tabla asistencia)
+let tarjetas = [];      // ahora viene de Supabase (tabla tarjetas: emisión/anulación por ID)
 let extraHolidays = JSON.parse(localStorage.getItem('extraHolidays')||'[]');
 let dayOverrides = JSON.parse(localStorage.getItem('dayOverrides')||'{}');
 let eppDeliveries = JSON.parse(localStorage.getItem('eppDeliveries')||'[]'); // {id,code,fecha,detalle,pdfName,pdf}
@@ -581,7 +607,7 @@ function save(){
 function workerToDb(w){
   return {
     code:w.code, name:w.name, cargo:w.spec||null, phone:w.phone||null,
-    fecha_ingreso:w.fecha_ingreso||null,
+    fecha_ingreso:w.fecha_ingreso||null, tipo_trabajador:w.tipo_trabajador||'interno',
     is_supervisor: !!w.is_supervisor, supervisor_code: w.supervisor_code||null,
     foto_casual_url: w.casual||null, foto_seguridad_url: w.safety||null,
     emerg_nombre: w.emerg_name||null, emerg_telefono: w.emerg_phone||null, emerg_relacion: w.emerg_rel||null,
@@ -594,7 +620,7 @@ function workerToDb(w){
 }
 function dbToWorker(r){
   return {
-    code:r.code, name:r.name, spec:r.cargo, phone:r.phone, fecha_ingreso:r.fecha_ingreso,
+    code:r.code, name:r.name, spec:r.cargo, phone:r.phone, fecha_ingreso:r.fecha_ingreso, tipo_trabajador:r.tipo_trabajador||'interno',
     is_supervisor:r.is_supervisor, supervisor_code:r.supervisor_code,
     casual:r.foto_casual_url, safety:r.foto_seguridad_url,
     emerg_name:r.emerg_nombre, emerg_phone:r.emerg_telefono, emerg_rel:r.emerg_relacion,
@@ -620,6 +646,34 @@ async function loadAttendanceFromDB(){
   const {data,error}=await window.supabaseClient.from('asistencia').select('*');
   if(error){alert('No se pudo cargar la asistencia desde la base de datos: '+error.message);return;}
   attendance=(data||[]).map(dbToAtt);
+}
+async function loadTarjetas(){
+  const {data,error}=await window.supabaseClient.from('tarjetas').select('*');
+  if(error){alert('No se pudieron cargar las tarjetas emitidas: '+error.message);return;}
+  tarjetas=data||[];
+}
+function generateCardId(){
+  const alfabeto='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin 0/O/1/I para evitar confusiones
+  return Array.from({length:8},()=>alfabeto[Math.floor(Math.random()*alfabeto.length)]).join('');
+}
+async function issueCard(code,tipo){
+  const previas=tarjetas.filter(t=>t.code===code&&t.estado==='activa');
+  if(previas.length){
+    const {error:errAnular}=await window.supabaseClient.from('tarjetas')
+      .update({estado:'anulada',motivo_anulacion:`Reemplazada por nueva tarjeta ${tipo}`})
+      .in('id',previas.map(p=>p.id));
+    if(errAnular){alert('No se pudo anular la tarjeta anterior: '+errAnular.message);}
+  }
+  const id=generateCardId();
+  const {error}=await window.supabaseClient.from('tarjetas').insert({id,code,tipo,estado:'activa'});
+  if(error){alert('No se pudo emitir la tarjeta en la base de datos: '+error.message);return code;}
+  await loadTarjetas();
+  return id;
+}
+async function getOrIssueCard(code,tipo){
+  const existente=tarjetas.find(t=>t.code===code&&t.tipo===tipo&&t.estado==='activa');
+  if(existente)return existente.id;
+  return await issueCard(code,tipo);
 }
 
 function uid(){return Date.now()+'-'+Math.random().toString(36).slice(2,7);}
@@ -669,11 +723,16 @@ const navGroups = {
   ],
   prevencion: [
     {v:'alertas-prevencion',label:'Alertas'},
-    {v:'indicaciones-prevencion',label:'Agregar indicaciones para trabajadores'}
+    {v:'indicaciones-prevencion',label:'Agregar indicaciones para trabajadores'},
+    {v:'ingresar-subcontrato',label:'Ingresar trabajador de subcontrato'}
   ],
-  bodega: [{v:'bodega',label:'Entregas y herramientas'}],
-  supervisores: [{v:'supervisores',label:'Equipos y tarja'}],
-  tecnica: [{v:'tecnica',label:'Prevención (próximamente)'}]
+  bodega: [
+    {v:'bodega-epp',label:'Entrega de EPP / materiales'},
+    {v:'bodega-historial',label:'Historial de entregas EPP'},
+    {v:'bodega-catalogo',label:'Catálogo de herramientas'},
+    {v:'bodega-asignar',label:'Asignar herramienta a trabajador'}
+  ],
+  supervisores: [{v:'supervisores',label:'Equipos y tarja'}]
 };
 function initView(v){
   if(v==='buscar-tarjeta'){fillCardSelect();renderCard();}
@@ -687,7 +746,7 @@ function initView(v){
   if(v==='listado-trabajadores'){fillWorkerSupervisorFilter();renderList();}
   if(v==='asignar-supervisor'){initAsignarSupervisor();}
   if(v==='carga-csv-trabajadores')document.getElementById('workersCsvMsg').textContent='';
-  if(v==='bodega'){initBodega();}
+  if(v==='bodega-epp'||v==='bodega-historial'||v==='bodega-catalogo'||v==='bodega-asignar'){initBodega();}
   if(v==='supervisores'){initSupervisores();}
   if(v==='asistencia'){
     showAttendancePanel('tarja');
@@ -750,6 +809,7 @@ function showAttendancePanel(name){
   });
 }
 function showView(v){
+  if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
   document.getElementById('v-'+v).classList.add('active');
   document.querySelectorAll('#subNav button').forEach(x=>x.classList.toggle('active',x.dataset.v===v));
@@ -905,6 +965,7 @@ wirephoto('w-safety','pre-safety','safety');
 function clearForm(){
   ['w-code','w-name','w-spec','w-phone','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('w-is-supervisor').checked=false;
+  document.getElementById('w-tipo-trabajador').value='interno';
   document.getElementById('pre-casual').src='';
   document.getElementById('pre-safety').src='';
   tempCasual=null;tempSafety=null;
@@ -921,6 +982,7 @@ async function saveWorker(){
     phone: document.getElementById('w-phone').value.trim(),
     is_supervisor: document.getElementById('w-is-supervisor').checked,
     fecha_ingreso: document.getElementById('w-fecha-ingreso').value || (existing?existing.fecha_ingreso:null),
+    tipo_trabajador: document.getElementById('w-tipo-trabajador').value || 'interno',
     casual: tempCasual || (existing?existing.casual:null),
     safety: tempSafety || (existing?existing.safety:null),
     emerg_name: document.getElementById('w-emerg-name').value.trim(),
@@ -984,7 +1046,7 @@ function parseCsvBoolean(value,fallback){
   return null;
 }
 function downloadWorkersCsvTemplate(){
-  const headers=['codigo','nombre','cargo','telefono','fecha_ingreso','es_supervisor','codigo_supervisor','nombre_contacto_emergencia','telefono_emergencia','relacion_emergencia','salud','medicamentos','precauciones','alerta_social','nota_alerta_social','alerta_prevencion','nota_alerta_prevencion','indicaciones_sociales','indicaciones_prevencion','status'];
+  const headers=['codigo','nombre','cargo','telefono','fecha_ingreso','tipo_trabajador','es_supervisor','codigo_supervisor','nombre_contacto_emergencia','telefono_emergencia','relacion_emergencia','salud','medicamentos','precauciones','alerta_social','nota_alerta_social','alerta_prevencion','nota_alerta_prevencion','indicaciones_sociales','indicaciones_prevencion','status'];
   const blob=new Blob(['\ufeff'+headers.join(';')+'\r\n'],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const link=document.createElement('a');
@@ -1037,11 +1099,14 @@ async function importWorkersCsv(){
       const statusValue=read('status','estado').toLowerCase();
       const status=statusValue||existing?.status||'activo';
       if(!['activo','desvinculado'].includes(status)){issues.push(`Fila ${index+2}: status debe ser activo o desvinculado.`);return;}
+      const tipoTrabajadorValue=read('tipo_trabajador','tipo de trabajador').toLowerCase();
+      const tipoTrabajador=['interno','subcontrato'].includes(tipoTrabajadorValue)?tipoTrabajadorValue:(existing?.tipo_trabajador||'interno');
       imported.push(workerToDb({
         code,name,
         spec:readOrCurrent(['cargo','especialidad','spec'],'spec'),
         phone:readOrCurrent(['telefono','phone'],'phone'),
         fecha_ingreso:parsedDate.value,
+        tipo_trabajador:tipoTrabajador,
         is_supervisor:isSupervisor,
         supervisor_code:readOrCurrent(['codigo_supervisor','supervisor_codigo','supervisor_code'],'supervisor_code',null),
         casual:existing?.casual||null,
@@ -1116,6 +1181,7 @@ function editWorker(code){
   document.getElementById('w-phone').value=w.phone||'';
   document.getElementById('w-is-supervisor').checked=!!w.is_supervisor;
   document.getElementById('w-fecha-ingreso').value=w.fecha_ingreso||'';
+  document.getElementById('w-tipo-trabajador').value=w.tipo_trabajador||'interno';
   document.getElementById('pre-casual').src=w.casual||'';
   document.getElementById('pre-safety').src=w.safety||'';
   tempCasual=null;tempSafety=null;
@@ -1141,7 +1207,7 @@ function cardFrontHtml(w,idSuffix,temporal){
           ${emp.name?`<div class="${temporal?'temp-company':''}" style="font-size:5.5pt;text-transform:uppercase">${emp.name}</div>`:''}
           <div class="idcard-name">${w.name}</div>
           <div class="idcard-cargo">${w.spec||''}</div>
-          ${temporal?'<span class="temp-card-badge">Temporal</span>':''}
+          ${temporal?'<span class="temp-card-badge">Temporal</span>':`<span class="final-card-badge">Definitiva</span><span class="worker-type-badge ${w.tipo_trabajador==='subcontrato'?'subcontrato':'interno'}">${w.tipo_trabajador==='subcontrato'?'Subcontrato':'Interno Empresa'}</span>`}
         </div>
         <div>
           <div class="idcard-code">Código: <b>${w.code}</b></div>
@@ -1185,6 +1251,7 @@ function cardBackHtml(w,idSuffix='',temporal=false){
         <div><b>Código:</b> ${w.code}</div>
         <div><b>Cargo:</b> ${w.spec||'—'}</div>
         <div><b>Fecha de ingreso:</b> ${formatCardDate(w.fecha_ingreso)}</div>
+        <div><b>Tipo:</b> ${w.tipo_trabajador==='subcontrato'?'Subcontrato':'Interno Empresa'}</div>
         <div><b>Estado:</b> ${w.status==='desvinculado'?'Desvinculado':'Activo'}</div>
         <div class="final-card-emergency"><b>Emergencia:</b> ${w.emerg_name||'—'}${w.emerg_rel?` (${w.emerg_rel})`:''} · ${w.emerg_phone||'—'}</div>
         <div class="final-card-health"><b>Prevención:</b> ${w.salud||'—'}${w.medicamentos?` · Medicamentos: ${w.medicamentos}`:''}${w.precauciones?` · Precauciones: ${w.precauciones}`:''}</div>
@@ -1200,23 +1267,23 @@ function formatCardDate(value){
   const [year,month,day]=value.split('-');
   return `${day}/${month}/${year}`;
 }
-function drawCardCodes(w,idSuffix,options={}){
+function drawCardCodes(value,idSuffix,options={}){
   const qrbox=document.getElementById('qrbox'+idSuffix);
   if(qrbox){
     qrbox.innerHTML='';
     const size=options.qrSize||44;
-    new QRCode(qrbox,{text:w.code,width:size,height:size});
+    new QRCode(qrbox,{text:value,width:size,height:size});
   }
   const barcode=document.getElementById('barcode'+idSuffix);
   if(barcode){
-    JsBarcode(barcode,w.code,{height:options.barcodeHeight||20,width:options.barcodeWidth||1,fontSize:options.fontSize||7,margin:options.margin??0});
+    JsBarcode(barcode,value,{height:options.barcodeHeight||20,width:options.barcodeWidth||1,fontSize:options.fontSize||7,margin:options.margin??0});
   }
 }
 function fillCardSelect(){
   const sel=document.getElementById('cardSelect');
   sel.innerHTML=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
 }
-function renderCard(){
+async function renderCard(){
   const code=document.getElementById('cardSelect').value;
   const w=workers.find(x=>x.code===code);
   const area=document.getElementById('cardArea');
@@ -1231,61 +1298,218 @@ function renderCard(){
     <div style="display:flex;gap:8px">
       <button class="btn secondary" onclick="document.getElementById('idcard').classList.toggle('flipped')">Girar tarjeta</button>
       <button class="btn secondary" onclick="window.print()">Imprimir</button>
+      <button class="btn secondary" onclick="reemitirDefinitiva('${w.code}')">Emitir tarjeta nueva (anula la anterior)</button>
     </div>
   `;
-  drawCardCodes(w,'',{barcodeHeight:26,barcodeWidth:2,fontSize:7,margin:10});
-  drawCardCodes(w,'-back',{qrSize:220,barcodeHeight:24,barcodeWidth:2,fontSize:7,margin:10});
+  const cardId=await getOrIssueCard(w.code,'definitiva');
+  drawCardCodes(cardId,'',{barcodeHeight:26,barcodeWidth:2,fontSize:7,margin:10});
+  drawCardCodes(cardId,'-back',{qrSize:220,barcodeHeight:24,barcodeWidth:2,fontSize:7,margin:10});
+}
+async function reemitirDefinitiva(code){
+  if(!confirm('Esto anula cualquier tarjeta activa de este trabajador (temporal o definitiva) y emite una nueva. ¿Continuar?'))return;
+  await issueCard(code,'definitiva');
+  renderCard();
 }
 
 // ---------- lectura QR desde la cámara o una imagen ----------
 let qrScanPurpose='porteria';
-function openQrCamera(purpose='porteria'){
-  qrScanPurpose=purpose;
-  const input=document.getElementById('qrImageInput');
-  input.value='';
-  input.click();
+let liveScanner=null;
+let liveScanLock=false;
+
+function qrSupportedFormats(){
+  return [
+    Html5QrcodeSupportedFormats.QR_CODE,Html5QrcodeSupportedFormats.CODE_128,
+    Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.CODE_39
+  ];
 }
-async function scanQrImage(file){
+function qrFormatsAvailable(){
+  return typeof Html5Qrcode!=='undefined'&&typeof Html5QrcodeSupportedFormats!=='undefined';
+}
+// Resuelve un código leído (QR o barra) al destino correspondiente al contexto de escaneo.
+function handleScannedCode(rawCode,purpose){
+  const code=String(rawCode||'').trim();
+  if(!code)return;
+  if(purpose==='attendance-worker'||purpose==='attendance-supervisor'){applyAttendanceQr(code,purpose);return;}
+  const input=document.getElementById('scanCode');
+  if(input)input.value=code;
+  doScan();
+}
+// Monta (una sola vez) la ventana del lector en vivo.
+function camModal(){
+  let modal=document.getElementById('camModal');
+  if(modal)return modal;
+  modal=document.createElement('div');
+  modal.id='camModal';
+  modal.innerHTML=`<div class="camModalBox" role="dialog" aria-modal="true" aria-label="Escanear código de tarjeta">
+    <h3>Escanear código</h3>
+    <small>Encuadra el QR o el código de barras de la tarjeta dentro del marco. La búsqueda se hace sola al detectarlo.</small>
+    <div class="camStage">
+      <div id="camScanArea"></div>
+      <div class="camReticle"></div>
+    </div>
+    <div class="camStatus" id="camStatus" role="status" aria-live="polite"></div>
+    <div class="camActions">
+      <button class="btn secondary" type="button" id="camStopBtn">Cerrar</button>
+      <label class="camUpload">📁 Subir foto
+        <input type="file" id="camShotInput" accept="image/*" capture="environment" style="display:none">
+      </label>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
+  modal.addEventListener('click',event=>{if(event.target===modal)stopLiveScan();});
+  modal.querySelector('#camStopBtn').addEventListener('click',()=>stopLiveScan());
+  modal.querySelector('#camShotInput').addEventListener('change',event=>{
+    const file=event.target.files&&event.target.files[0];
+    stopLiveScan();
+    if(file)scanQrImage(file,modal.dataset.purpose||'porteria');
+  });
+  document.addEventListener('keydown',event=>{
+    if(event.key==='Escape'&&modal.classList.contains('open'))stopLiveScan();
+  });
+  return modal;
+}
+// El retículo vive FUERA de #camScanArea porque la librería vacía ese elemento al iniciar la cámara.
+function camScanArea(){
+  const area=document.getElementById('camScanArea');
+  if(!area)return null;
+  area.innerHTML='';
+  return area;
+}
+function camStatus(text,isError){
+  const status=document.getElementById('camStatus');
+  if(!status)return;
+  status.textContent='';
+  const line=document.createElement('div');
+  if(isError)line.className='err';
+  line.textContent=text;
+  status.appendChild(line);
+}
+function chooseRearCamera(cameras){
+  const rear=/back|rear|trasera|trase|environment/i;
+  return cameras.find(c=>rear.test(c.label||''))||cameras[0];
+}
+function onLiveScanSuccess(decodedText){
+  if(liveScanLock)return;
+  const text=String(decodedText||'').trim();
+  if(!text)return;
+  liveScanLock=true;
+  const purpose=qrScanPurpose;
+  if(navigator.vibrate){try{navigator.vibrate(120);}catch(error){}}
+  camStatus('✓ Código detectado: '+text+' — buscando…');
+  setTimeout(()=>{
+    stopLiveScan();
+    handleScannedCode(text,purpose);
+  },350);
+}
+async function openQrCamera(purpose='porteria'){
+  qrScanPurpose=purpose;
+  if(!qrFormatsAvailable()){
+    alert('No se pudo cargar el lector de cámara. Revisa tu conexión e inténtalo de nuevo.');
+    return;
+  }
+  const modal=camModal();
+  modal.dataset.purpose=purpose;
+  modal.classList.add('open');
+  camScanArea();
+  document.getElementById('camShotInput').value='';
+  camStatus('Encendiendo cámara…');
+  let cameras;
+  try{
+    cameras=await Html5Qrcode.getCameras();
+  }catch(error){
+    camStatus('No se pudo acceder a la cámara. Revisa el permiso del navegador o usa "Subir foto".',true);
+    return;
+  }
+  if(!cameras||!cameras.length){
+    camStatus('No se encontró ninguna cámara en este dispositivo. Usa "Subir foto".',true);
+    return;
+  }
+  const camera=chooseRearCamera(cameras);
+  camStatus('Apunta al código de la tarjeta…');
+  const scanner=new Html5Qrcode('camScanArea',{verbose:false,formatsToSupport:qrSupportedFormats()});
+  liveScanner=scanner;
+  try{
+    await scanner.start(
+      camera.id,
+      {
+        fps:15,
+        // fotograma completo: la librería aplica getShadedRegionBounds y un recorte
+        // (p.ej. 72%) cortaba las esquinas del código y hacia imposible decodificarlo
+        qrbox:(viewW,viewH)=>({width:viewW,height:viewH})
+      },
+      onLiveScanSuccess,
+      ()=>{} // se decodifica en casi cada frame: ignoramos para no llenar la consola de errores
+    );
+  }catch(error){
+    liveScanner=null;
+    camStatus('No se pudo iniciar la cámara: '+(error&&error.message||error),true);
+  }
+}
+function stopLiveScan(){
+  const scanner=liveScanner;
+  liveScanner=null;
+  liveScanLock=false;
+  const modal=document.getElementById('camModal');
+  if(modal){
+    modal.classList.remove('open');
+    const input=document.getElementById('camShotInput');
+    if(input)input.value='';
+  }
+  if(!scanner)return;
+  Promise.resolve()
+    .then(()=>scanner.isScanning?scanner.stop():null)
+    .catch(()=>{})
+    .then(()=>{try{scanner.clear();}catch(error){}})
+    .catch(()=>{});
+}
+async function scanQrImage(file,purpose='porteria'){
   if(!file)return;
-  if(typeof Html5Qrcode==='undefined'||typeof Html5QrcodeSupportedFormats==='undefined'){
+  if(!qrFormatsAvailable()){
     alert('No se pudo cargar el lector. Revisa tu conexión e inténtalo de nuevo.');
     return;
   }
-  const box=document.getElementById('camReader');
-  box.style.display='block';
-  box.innerHTML='<div id="qrImageScanArea"></div><small>Analizando imagen…</small>';
+  const modal=camModal();
+  modal.dataset.purpose=purpose;
+  modal.classList.add('open');
+  const area=camScanArea();
+  area.innerHTML='<div id="qrImageScanArea"></div>';
+  camStatus('Analizando imagen…');
   let scanner=null;
   try{
-    scanner=new Html5Qrcode('qrImageScanArea',{formatsToSupport:[
-      Html5QrcodeSupportedFormats.QR_CODE,Html5QrcodeSupportedFormats.CODE_128,
-      Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.CODE_39
-    ]});
+    scanner=new Html5Qrcode('qrImageScanArea',{verbose:false,formatsToSupport:qrSupportedFormats()});
     const code=await scanner.scanFile(file,false);
-    box.style.display='none';
-    box.innerHTML='';
-    const purpose=qrScanPurpose;
-    qrScanPurpose='porteria';
-    if(purpose==='attendance-worker'||purpose==='attendance-supervisor')applyAttendanceQr(code.trim(),purpose);
-    else{
-      document.getElementById('scanCode').value=code.trim();
-      doScan();
-    }
+    if(scanner){try{scanner.clear();}catch(error){}}
+    stopLiveScan();
+    handleScannedCode(code,purpose);
   }catch(error){
-    box.style.display='none';
-    box.innerHTML='';
-    alert('No se detectó un código QR en la imagen. Intenta tomar otra foto con el código enfocado.');
+    if(scanner){try{scanner.clear();}catch(error){}}
+    liveScanner=null;
+    liveScanLock=false;
+    // la ventana se mantiene abierta para que el usuario pueda reintentar con otra foto
+    camStatus('No se detectó un código en la imagen. Intenta otra foto con el código enfocado o vuelve a la cámara.',true);
   }finally{
-    if(scanner){
-      try{scanner.clear();}catch(error){}
-    }
-    document.getElementById('qrImageInput').value='';
+    const input=document.getElementById('camShotInput');
+    if(input)input.value='';
   }
 }
 
 function doScan(){
-  const code=document.getElementById('scanCode').value.trim();
-  const w=workers.find(x=>x.code===code);
+  const scanned=document.getElementById('scanCode').value.trim();
   const res=document.getElementById('scanResult');
+  // primero intenta resolver como ID de tarjeta emitida (QR/código de barras actuales)
+  const card=tarjetas.find(t=>t.id===scanned);
+  if(card&&card.estado==='anulada'){
+    res.innerHTML=`<div class="card" style="border-color:var(--danger)">
+      <p style="background:var(--danger);color:#fff;padding:10px;border-radius:6px;font-size:1.05rem"><b>⚠️ TARJETA ANULADA</b><br>Esta tarjeta ya no es válida (${card.motivo_anulacion||'fue reemplazada por una más reciente'}). Solicita la tarjeta vigente antes de dar acceso.</p>
+    </div>`;
+    document.getElementById('scanCode').value='';
+    return;
+  }
+  // si el escaneo coincide con una tarjeta activa, resolvemos al código del trabajador;
+  // si no coincide con ninguna tarjeta, se acepta como código de trabajador directo
+  // (compatibilidad con tarjetas antiguas o búsqueda manual por código)
+  const code=card?card.code:scanned;
+  const w=workers.find(x=>x.code===code);
   if(!w){res.innerHTML='<p style="color:var(--danger)">Código no encontrado.</p>';return;}
   const hoy=hoyLocal();
   const hoyRec=attendance.find(a=>a.code===code&&a.date===hoy);
@@ -1441,6 +1665,13 @@ function buildMatrixHtml(y,m,lista){
     let cX=0,cHolidayX=0,cF=0,cP=0,cL=0,cA=0,cPP=0,cV=0,cLL=0;
     for(let d=1;d<=nd;d++){
       const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const beforeStart=w.fecha_ingreso&&iso<w.fecha_ingreso;
+      const afterEnd=w.status==='desvinculado'&&w.fecha_desvinculacion&&iso>w.fecha_desvinculacion;
+      if(beforeStart||afterEnd){
+        const motivo=beforeStart?'Antes de la fecha de ingreso':'Después de la desvinculación';
+        html+=`<td class="day-blocked" title="${motivo}">·</td>`;
+        continue;
+      }
       const rec=recordsByDay.get(`${w.code}|${iso}`);
       const holiday=isFeriado(y,m,d);
       const autoHoliday=!rec&&holiday&&workedWeeks.has(`${w.code}|${weekStartIso(iso)}`);
@@ -1459,6 +1690,7 @@ function buildMatrixHtml(y,m,lista){
   });
   html+='</table>';
   html+='<p><small>Los feriados sin marca muestran X automáticamente si el trabajador tiene una X registrada en esa semana. Haz clic en cualquier celda para cambiar el estado; puedes elegir X, F, P, L, A, PP, V o volver al valor automático.</small></p>';
+  html+='<p><small>Los días en negro quedan bloqueados: son anteriores a la fecha de ingreso del trabajador o posteriores a su fecha de desvinculación, y no se pueden editar.</small></p>';
   html+='<p style="margin-top:8px"><small><b>Códigos:</b> X Presente · F Falla · P Permiso · L Licencia · A Accidente Mutual · PP Permiso Pagado · V Vacaciones · LL Día lluvia. La fila "Día" muestra L M M J V S D (lunes a domingo); el fondo resaltado indica feriado — haz clic en un día para alternar laborable/feriado. <b>Días efectivos</b> = X+V+PP+LL y X en feriados (para liquidación). <b>Días reales trabajados</b> = X fuera de feriado.</small></p>';
   return html;
 }
@@ -1568,11 +1800,12 @@ function loadAttendance(){
 function tempCardPairHtml(w,suffix){
   return `<div class="temp-card-pair">${cardFrontHtml(w,`${suffix}-front`,true)}${cardBackHtml(w,`${suffix}-back`,true)}</div>`;
 }
-function drawTempCardPairCodes(w,suffix){
-  drawCardCodes(w,`${suffix}-front`,{barcodeHeight:26,barcodeWidth:2,fontSize:7,margin:10});
-  drawCardCodes(w,`${suffix}-back`,{qrSize:280,barcodeHeight:24,barcodeWidth:2,fontSize:7,margin:10});
+async function drawTempCardPairCodes(w,suffix){
+  const cardId=await getOrIssueCard(w.code,'temporal');
+  drawCardCodes(cardId,`${suffix}-front`,{barcodeHeight:26,barcodeWidth:2,fontSize:7,margin:10});
+  drawCardCodes(cardId,`${suffix}-back`,{qrSize:280,barcodeHeight:24,barcodeWidth:2,fontSize:7,margin:10});
 }
-function printTemp(){
+async function printTemp(){
   const code=document.getElementById('w-code').value.trim();
   const name=document.getElementById('w-name').value.trim();
   const spec=document.getElementById('w-spec').value.trim();
@@ -1588,14 +1821,14 @@ function printTemp(){
   const suffix=`temp-${Date.now()}`;
   win.innerHTML=tempCardPairHtml(wTemp,suffix);
   document.body.classList.add('printing-temporary');
-  document.body.querySelectorAll('.view,#mainNav,#subNav,header').forEach(x=>x.style.display='none');
+  document.body.querySelectorAll('.view,#mainNav,#subNav,header,#camModal').forEach(x=>x.style.display='none');
   win.style.display='block';
-  drawTempCardPairCodes(wTemp,suffix);
+  await drawTempCardPairCodes(wTemp,suffix);
   setTimeout(()=>{
     try{window.print();}
     finally{
       document.body.classList.remove('printing-temporary');
-      document.body.querySelectorAll('.view,#mainNav,#subNav,header').forEach(x=>x.style.display='');
+      document.body.querySelectorAll('.view,#mainNav,#subNav,header,#camModal').forEach(x=>x.style.display='');
       win.style.display='none';
     }
   },300);
@@ -1669,9 +1902,10 @@ async function exportCardsPdf(){
   const perPage=cols*rows;
   async function capturaFace(w,face,idSuffix){
     const backId=`${idSuffix}-back`;
+    const cardId=await getOrIssueCard(w.code,'definitiva');
     stage.innerHTML=`<div class="idcard" style="margin:0"><div class="idcard-inner" style="transform:none">${face==='front'?cardFrontHtml(w,idSuffix,temporal):cardBackHtml(w,backId,temporal)}</div></div>`;
-    if(face==='front')drawCardCodes(w,idSuffix,{barcodeHeight:26,barcodeWidth:2,fontSize:7,margin:10});
-    else drawCardCodes(w,backId,{qrSize:220,barcodeHeight:24,barcodeWidth:2,fontSize:7,margin:10});
+    if(face==='front')drawCardCodes(cardId,idSuffix,{barcodeHeight:26,barcodeWidth:2,fontSize:7,margin:10});
+    else drawCardCodes(cardId,backId,{qrSize:220,barcodeHeight:24,barcodeWidth:2,fontSize:7,margin:10});
     const el=stage.querySelector(face==='front'?'.idcard-front':'.idcard-back');
     el.style.position='static';
     el.style.transform='none';
@@ -1687,7 +1921,7 @@ async function exportCardsPdf(){
       if(i>0&&i%pairsPerPage===0)pdf.addPage();
       const worker=lista[i], suffix=`temp-${worker.code}`;
       stage.innerHTML=tempCardPairHtml(worker,suffix);
-      drawTempCardPairCodes(worker,suffix);
+      await drawTempCardPairCodes(worker,suffix);
       const canvas=await html2canvas(stage.querySelector('.temp-card-pair'),{scale:3,backgroundColor:'#ffffff'});
       pdf.addImage(canvas.toDataURL('image/png'),'PNG',pairMarginX,pairMarginY+(i%pairsPerPage)*pairH,pairW,pairH);
     }
@@ -1827,7 +2061,7 @@ function exportPayroll(){
 async function boot(){
   const session = await requireAuth('login.html');
   if(!session) return; // requireAuth ya redirigió a login.html
-  await Promise.all([loadWorkers(), loadAttendanceFromDB()]);
+  await Promise.all([loadWorkers(), loadAttendanceFromDB(), loadTarjetas()]);
   renderList('');
   renderMatrix();
   showGroup('porteria');
