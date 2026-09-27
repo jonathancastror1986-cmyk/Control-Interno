@@ -564,6 +564,7 @@ small{color:var(--muted)}
 </section>
 
 <section class="view" id="v-solicitar-cambio">
+  <div id="solAviso" style="display:none;margin-bottom:12px"></div>
   <div class="card">
     <h2>Solicitar cambio de estado en la tarja</h2>
     <small>Los supervisores y técnicos no modifican la tarja directamente: piden el cambio y RRHH lo aprueba. Ejemplo: pedir cambiar una <b>F</b> (falta) por <b>P</b> (permiso).</small>
@@ -578,6 +579,12 @@ small{color:var(--muted)}
       <div><label>Nota (opcional)</label><input id="sol-nota" placeholder="Ej. certificado en portería"></div>
     </div>
     <button class="btn" type="button" onclick="crearSolicitud()">Enviar solicitud a RRHH</button>
+    <div id="solPermisoHint" class="kitResumen"></div>
+  </div>
+  <div class="card" id="solAprobarWrap" style="display:none">
+    <h2>Aprobar aquí mismo</h2>
+    <small>Tienes permiso de aprobación, así que desde esta misma vista puedes resolver las solicitudes pendientes.</small>
+    <div id="solList"></div>
   </div>
   <div class="card">
     <h2>Estado de las solicitudes</h2>
@@ -586,10 +593,11 @@ small{color:var(--muted)}
 </section>
 
 <section class="view" id="v-aprobar-cambio">
+  <div id="solAviso2" style="display:none;margin-bottom:12px"></div>
   <div class="card">
     <h2>Solicitudes pendientes de aprobación</h2>
     <small>Al aprobar, el cambio se aplica a la tarja. Al rechazar queda registrado el motivo.</small>
-    <div id="solList"></div>
+    <div id="solList2"></div>
   </div>
   <div class="card">
     <h2>Historial de solicitudes resueltas</h2>
@@ -1247,8 +1255,8 @@ const navGroups = {
 };
 function initView(v){
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
-  if(v==='solicitar-cambio'){initSolicitarCambio();}
-  if(v==='aprobar-cambio'){renderSolicitudes();renderMisSolicitudes();}
+  if(v==='solicitar-cambio'){initSolicitarCambio();initVistaSolicitar();}
+  if(v==='aprobar-cambio'){renderSolicitudes();renderMisSolicitudes();renderAvisoSolicitudes();}
   if(v==='permisos'){renderPermisos();}
   if(v==='buscar-tarjeta'){fillCardSelect();renderCard();}
   if(v==='imprimir-tarjetas'){fillPdfChecks();}
@@ -4678,6 +4686,10 @@ async function loadPermisosUsuario(){
   // el equipo depende del usuario conectado: se recalcula siempre aquí para
   // que un cambio de roles o de ficha no deje el ámbito del anterior
   if(typeof recalcularMiSupervisor==='function')recalcularMiSupervisor();
+  // La pantalla decide con perfil_roles y la base con sus propias políticas.
+  // Si las dos cosas se desalinean, el síntoma es "envié la solicitud y no
+  // aparece en la cola", así que se comprueba y se avisa en pantalla.
+  if(typeof comprobarPermisos==='function')comprobarPermisos();
 }
 function mostrarAvisoPermisos(texto){
   quitarAvisoPermisos();
@@ -4737,6 +4749,44 @@ function exigirPermiso(permiso,mensaje){
   if(puede(permiso))return true;
   alert(mensaje||('No tienes permiso para esta acción ('+permiso+'). Pídele a un administrador que te lo habilite.'));
   return false;
+}
+
+// ============================================================
+// COMPROBACIÓN DE COHERENCIA DE PERMISOS
+// La pantalla decide qué botones mostrar usando perfil_roles; la base
+// de datos decide qué permite usando sus políticas RLS. Si no coinciden,
+// la persona ve un botón que la base le va a rechazar, o le esconde uno
+// que sí podría usar. Se consulta a la propia base para detectarlo.
+// ============================================================
+async function comprobarPermisos(){
+  try{
+    const {data,error}=await window.supabaseClient.rpc('diagnostico_permisos');
+    if(error){
+      // La función es de la migración 016. Si no está, no es un problema:
+      // solo se pierde esta advertencia.
+      console.info('Sin diagnostico_permisos (falta la migración 016):',error.message);
+      return;
+    }
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d)return;
+    if(!d.usuario_activo){
+      mostrarAvisoPermisos('⚠️ Tu usuario figura como inactivo. No vas a poder guardar nada hasta que un administrador lo active en Soporte → Usuarios.');
+      return;
+    }
+    // La app cree que puede enviar o aprobar, pero la base lo desmiente.
+    if(d.puede_solicitar&&!puede('tarja.solicitar_cambio')){
+      mostrarAvisoPermisos('⚠️ Desalineación de permisos: la base cree que puedes solicitar cambios de estado pero la pantalla no. Ejecuta la migración 016_permisos_coherentes.sql.');
+    }
+    if(!d.puede_aprobar&&puede('tarja.aprobar_cambio')){
+      mostrarAvisoPermisos('⚠️ Desalineación de permisos: ves el botón de aprobar pero la base no te lo va a permitir. Ejecuta la migración 016_permisos_coherentes.sql.');
+    }
+    // Sin ningún rol: se ve el sistema pero no se puede hacer nada.
+    if(!misRoles.length){
+      mostrarAvisoPermisos('⚠️ Tu usuario no tiene ningún rol asignado, así que no puedes hacer nada. Pídele a un administrador que te asigne uno en Soporte → Usuarios.');
+    }
+  }catch(error){
+    console.info('No se pudo comprobar la coherencia de permisos:',error.message);
+  }
 }
 
 // ============================================================
@@ -4900,21 +4950,63 @@ let solicitudes=[];
 
 const ESTADOS_TARJA=[{v:'X',t:'X — Presente'},{v:'F',t:'F — Falla'},{v:'P',t:'P — Permiso'},{v:'L',t:'L — Licencia'},{v:'A',t:'A — Accidente Mutual'},{v:'PP',t:'PP — Permiso Pagado'},{v:'V',t:'V — Vacaciones'},{v:'LL',t:'LL — Día lluvia'}];
 
+let errorSolicitudes='';
 async function loadSolicitudes(quiet){
   const {data,error}=await window.supabaseClient.from('solicitudes_cambio_asistencia')
     .select('*').order('created_at',{ascending:false}).limit(300);
-  if(error){bodegaError('No se pudieron cargar las solicitudes de cambio: '+error.message,quiet);return;}
+  if(error){
+    // Antes esto se callaba y la cola aparecía vacía, que es justo lo que
+    // hace creer que "la solicitud no llegó". Ahora se muestra el motivo.
+    errorSolicitudes=error.message||String(error);
+    console.warn('No se pudieron cargar las solicitudes de cambio:',errorSolicitudes);
+    renderAvisoSolicitudes();
+    return;
+  }
+  errorSolicitudes='';
   solicitudes=data||[];
+  renderAvisoSolicitudes();
+}
+// Si la tabla no existe o la consulta es rechazada, se dice en la vista
+// en vez de dejar una lista vacía sin explicación.
+function renderAvisoSolicitudes(){
+  const cajas=[document.getElementById('solAviso'),document.getElementById('solAviso2')].filter(Boolean);
+  if(!cajas.length)return;
+  if(!errorSolicitudes){cajas.forEach(c=>{c.innerHTML='';c.style.display='none';});return;}
+  const faltaTabla=/does not exist|schema cache/i.test(errorSolicitudes);
+  cajas.forEach(box=>{
+    box.style.display='';
+    box.innerHTML=`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      <b>No se pudieron leer las solicitudes de cambio.</b><br>
+      <small>${escHtml(errorSolicitudes)}</small><br>
+      <small>${faltaTabla
+        ? 'Falta la migración 013: ejecuta 013_roles_permisos.sql en el SQL Editor de Supabase.'
+        : 'Si acabas de cambiar los roles o las políticas, ejecuta 016_permisos_coherentes.sql y recarga con Ctrl+F5.'}</small>
+    </div>`;
+  });
 }
 function estadoDe(code,fecha){
   const rec=attendance.find(a=>a.code===code&&a.date===fecha);
   return rec?rec.estado:'';
 }
+// Quien puede aprobar ve la cola en la misma vista donde envía, para no
+// tener que andar entre dos menús. Y se le aclara qué puede hacer.
+function initVistaSolicitar(){
+  const puedeAprobar=puede('tarja.aprobar_cambio');
+  const wrap=document.getElementById('solAprobarWrap');
+  if(wrap)wrap.style.display=puedeAprobar?'':'none';
+  const hint=document.getElementById('solPermisoHint');
+  if(hint){
+    hint.textContent=puedeAprobar
+      ? 'Como puedes aprobar, la solicitud que envíes también aparecerá en la cola de aquí mismo para resolverla.'
+      : 'Tu envío queda pendiente hasta que alguien con RRHH lo apruebe.';
+  }
+  renderAvisoSolicitudes();
+}
 function initSolicitarCambio(){
   const w=document.getElementById('sol-worker');
   if(w){
     const previo=w.value;
-    w.innerHTML=workers.map(x=>`<option value="${x.code}">${x.code} - ${x.name}</option>`).join('');
+    w.innerHTML=workers.map(x=>`<option value="${escHtml(x.code)}">${escHtml(x.code+' - '+x.name)}</option>`).join('');
     if(workers.some(x=>x.code===previo))w.value=previo;
   }
   const f=document.getElementById('sol-fecha');
@@ -4982,24 +5074,50 @@ function miNombrePerfil(){
   return (miPerfil&&miPerfil.nombre)?miPerfil.nombre:'Usuario del sistema';
 }
 function renderSolicitudes(){
-  const el=document.getElementById('solList');
-  if(!el)return;
-  const pend=solicitudes.filter(s=>s.estado==='pendiente');
-  if(!pend.length){el.innerHTML='<small>No hay solicitudes pendientes.</small>';return;}
-  el.innerHTML=pend.map(s=>{
+  // la misma cola se muestra en "Aprobar solicitudes" y, si la persona
+  // puede aprobar, tambien en "Solicitar cambio" para hacerlo en un solo lugar
+  const cajas=[document.getElementById('solList'),document.getElementById('solList2')].filter(Boolean);
+  if(!cajas.length)return;
+  const pendientes=solicitudes.filter(s=>s.estado==='pendiente');
+  const html=pendientes.length?pendientes.map(s=>{
     const w=workers.find(x=>x.code===s.code);
     return `<div class="kitAsigCard">
       <div class="headline">
-        <span><b>${s.code}</b> ${w?w.name:''} · ${s.fecha}</span>
+        <span><b>${escHtml(s.code)}</b> ${w?escHtml(w.name):''} · ${escHtml(s.fecha)}</span>
         <span>${(ESTADOS_TARJA.find(e=>e.v===s.estado_actual)||{t:s.estado_actual||'sin registro'}).t}
           → <b style="color:var(--accent)">${(ESTADOS_TARJA.find(e=>e.v===s.estado_solicitado)||{t:s.estado_solicitado}).t}</b></span>
       </div>
-      <div style="font-size:.82rem"><b>Motivo:</b> ${s.motivo}${s.nota?`<br><small>${s.nota}</small>`:''}</div>
+      <div style="font-size:.82rem"><b>Motivo:</b> ${escHtml(s.motivo)}${s.nota?`<br><small>${escHtml(s.nota)}</small>`:''}</div>
       <div class="eppActions">
-        <small>Pedido por ${s.solicitado_por_nombre||'—'}${s.solicitado_por_rol?' ('+s.solicitado_rol+')':''} · ${new Date(s.created_at).toLocaleString('es-CL')}</small>
+        <small>Pedido por ${escHtml(s.solicitado_por_nombre||'—')}${s.solicitado_por_rol?' ('+escHtml(s.solicitado_por_rol)+')':''} · ${new Date(s.created_at).toLocaleString('es-CL')}</small>
         <button class="btn" type="button" onclick="resolverSolicitud('${s.id}','aprobada')">Aprobar y aplicar</button>
         <button class="btn secondary" type="button" onclick="resolverSolicitud('${s.id}','rechazada')">Rechazar</button>
       </div>
+    </div>`;
+  }).join(''):'<small>No hay solicitudes pendientes.</small>';
+  cajas.forEach(el=>{el.innerHTML=html;});
+  renderSolResueltas();
+}
+// El historial de resueltas estaba en el markup pero sin nada que lo
+// llenara, por eso la tarjeta salia en blanco.
+function renderSolResueltas(){
+  const el=document.getElementById('solResueltas');
+  if(!el)return;
+  const resueltas=solicitudes.filter(s=>s.estado&&s.estado!=='pendiente').slice(0,50);
+  if(!resueltas.length){el.innerHTML='<small>Todavia no hay solicitudes resueltas.</small>';return;}
+  el.innerHTML=resueltas.map(s=>{
+    const w=workers.find(x=>x.code===s.code);
+    const ok=s.estado==='aprobada';
+    const color=ok?'var(--accent)':'var(--danger)';
+    return `<div class="list-item" style="cursor:default;align-items:flex-start;gap:8px">
+      <span style="flex:1">
+        <b>${ok?'OK':'NO'}</b> ${escHtml(s.fecha)} — <b>${escHtml(s.code)}</b> ${w?escHtml(w.name):''}:
+        ${(ESTADOS_TARJA.find(e=>e.v===s.estado_actual)||{t:s.estado_actual||'—'}).t} →
+        <b>${(ESTADOS_TARJA.find(e=>e.v===s.estado_solicitado)||{t:s.estado_solicitado}).t}</b>
+        <b style="color:${color}"> · ${s.estado.toUpperCase()}</b>${s.aplicado?' <small>(aplicado a la tarja)</small>':''}
+        <br><small>Motivo: ${escHtml(s.motivo||'—')}${s.comentario_resolucion?` · Respuesta: ${escHtml(s.comentario_resolucion)}`:''}</small>
+        ${s.resuelto_por_nombre?`<br><small>Resuelto por ${escHtml(s.resuelto_por_nombre)} el ${new Date(s.resuelto_at).toLocaleString('es-CL')}</small>`:''}
+      </span>
     </div>`;
   }).join('');
 }
