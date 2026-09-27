@@ -991,13 +991,14 @@ small{color:var(--muted)}
     <label>Estado que quieres solicitar</label>
     <div class="solGrid" id="solModalEstados"></div>
     <div class="solAviso" id="solModalAviso"></div>
-    <label for="solModalMotivo">Detalle / motivo (obligatorio)</label>
+    <label for="solModalMotivo">Detalle / motivo</label>
     <textarea id="solModalMotivo" rows="3" placeholder="Ej. el trabajador presentó licencia médica ante supervisor"></textarea>
     <label for="solModalNota">Observación para RRHH (opcional)</label>
     <input type="text" id="solModalNota" placeholder="Ej. certificado recibido en portería">
     <div class="solFoot">
       <button class="btn secondary" type="button" onclick="cerrarModalSolicitud()">Cancelar</button>
-      <button class="btn" type="button" id="solModalEnviar" onclick="enviarDesdeModal()">Enviar a RRHH</button>
+      <button class="btn secondary" type="button" id="solModalSolicitar" onclick="enviarDesdeModal('solicitud')" style="display:none">Enviar a RRHH</button>
+      <button class="btn" type="button" id="solModalEnviar" onclick="enviarDesdeModal('directo')">Guardar cambio</button>
     </div>
   </div>
 </div>
@@ -4885,10 +4886,22 @@ function abrirModal(code,fecha,modo){
   document.getElementById('solModalNota').value='';
 
   const edita=puedeEditarTarjaDirectamente();
-  const btn=document.getElementById('solModalEnviar');
-  btn.textContent=edita?'Guardar cambio':'Enviar a RRHH';
+  const puedePedir=puede('tarja.solicitar_cambio');
+  const btnDirecto=document.getElementById('solModalEnviar');
+  const btnSolicitar=document.getElementById('solModalSolicitar');
+  // Quien puede aprobar tiene las dos acciones: aplicar el cambio ahora, o
+  // dejarlo pendiente como si lo hubiera pedido otra persona. Antes solo
+  // tenía "Guardar cambio", y por eso al probar el flujo como admin la cola
+  // de aprobación quedaba siempre vacía.
+  // "Guardar cambio" solo para quien puede aplicarlo; "Enviar a RRHH" para
+  // quien puede pedirlo. Un supervisor ve únicamente el segundo.
+  btnSolicitar.style.display=puedePedir?'':'none';
+  btnDirecto.style.display=edita?'':'none';
+  btnDirecto.textContent='Guardar cambio';
   document.getElementById('solModalAviso').innerHTML=edita
-    ? 'Tienes permiso de edición: el cambio se aplica de inmediato. Si prefieres que lo revise RRHH antes, usa la vista "Solicitar cambio de estado".'
+    ? (puedePedir
+        ? '<b>Tienes las dos opciones.</b> "Guardar cambio" lo aplica al tiro. "Enviar a RRHH" lo deja pendiente, como si lo hubiera pedido un supervisor, para probar o para que lo revise otra persona.'
+        : 'Tienes permiso de edición: el cambio se aplica de inmediato.')
     : 'Queda <b>pendiente</b> hasta que RRHH lo apruebe. La tarja no cambia por ahora. El motivo es lo primero que verá quien lo revise.';
 
   document.getElementById('solModal').classList.add('open');
@@ -4933,7 +4946,10 @@ async function resolverPendienteSuperada(code,fecha,estadoAplicado){
   }).eq('id',abierta.id);
   if(error)console.warn('No se pudo cerrar la solicitud superada:',error.message);
 }
-async function enviarDesdeModal(){
+// modo: 'directo' (aplicar el cambio ya) o 'solicitud' (dejarlo pendiente).
+// Quien puede hacer las dos cosas elige con el botón que pulsó; el resto
+// siempre acaba en 'solicitud'.
+async function enviarDesdeModal(modo){
   if(!modalCtx)return;
   const {code,fecha,estadoActual}=modalCtx;
   const nuevo=modalCtx.estadoNuevo;
@@ -4941,14 +4957,12 @@ async function enviarDesdeModal(){
   const nota=document.getElementById('solModalNota').value.trim();
 
   if(!nuevo){alert('Elige el estado que quieres solicitar.');return;}
-  if(!motivo){alert('Escribe el detalle: es lo primero que verá RRHH para aprobar.');return;}
   if(nuevo===estadoActual){alert('El estado elegido es el mismo que ya tiene.');return;}
-  // El permiso que hace falta depende de qué hace el botón: quien edita
-  // directo solo necesita 'tarja.editar'; el resto, 'tarja.solicitar_cambio'.
-  // (RRHH suele editar la tarja sin poder solicitar cambios, y antes el
-  // modal le bloqueaba sin sentido.)
   const edita=puedeEditarTarjaDirectamente();
-  if(!edita&&!exigirPermiso('tarja.solicitar_cambio','No tienes permiso para solicitar cambios de estado.'))return;
+  const directa=modo==='directo'&&edita;
+  // El motivo es obligatorio cuando alguien más lo va a leer y decidir.
+  if(!motivo&&!directa){alert('Escribe el detalle: es lo primero que verá RRHH para aprobar.');return;}
+  if(!directa&&!exigirPermiso('tarja.solicitar_cambio','No tienes permiso para solicitar cambios de estado.'))return;
   // última comprobación del equipo, en el momento de escribir: si el modal
   // se abrió antes de que cambiara el equipo, aquí igual se frena
   const ficha=workers.find(x=>x.code===code);
@@ -4959,7 +4973,7 @@ async function enviarDesdeModal(){
 
   const w=workers.find(x=>x.code===code);
 
-  if(edita){
+  if(directa){
     if(!confirm(`Se guardará ${estadoActual||'sin registro'} → ${nuevo} para ${w.name} el ${fecha}.`))return;
     const ok=await saveAttendanceState(code,fecha,nuevo);
     if(!ok)return;
@@ -5135,6 +5149,19 @@ async function crearSolicitud(){
 function miNombrePerfil(){
   return (miPerfil&&miPerfil.nombre)?miPerfil.nombre:'Usuario del sistema';
 }
+// Cuando la cola está vacía se explica por qué, porque si pruebas el flujo
+// con tu propia cuenta de administración los cambios se aplican al tiro y
+// nunca hay nada que aprobar: puede parecer que las solicitudes no llegan.
+function sinNadaQueAprobar(){
+  const puedeAprobar=puede('tarja.aprobar_cambio');
+  return `<div class="kitResumen">
+    <b>No hay solicitudes pendientes.</b><br>
+    <small>Aquí llegan las peticiones de cambio de estado de los supervisores y técnicos: ellos no modifican la tarja, la piden y tú la apruebas.</small><br>
+    <small>${puedeAprobar
+      ? 'Si pruebas el flujo con <b>tu propia cuenta</b>, el cambio se aplica directamente y no queda nada en esta cola. Para ver el proceso completo, entra con una cuenta de supervisor, o usa el botón <b>"Enviar a RRHH"</b> del aviso de cambio de estado en vez de "Guardar cambio".'
+      : 'Si acabas de pedir un cambio, vuelve a cargar la vista (Ctrl+F5).'}</small>
+  </div>`;
+}
 function renderSolicitudes(){
   // la misma cola se muestra en "Aprobar solicitudes" y, si la persona
   // puede aprobar, tambien en "Solicitar cambio" para hacerlo en un solo lugar
@@ -5156,7 +5183,7 @@ function renderSolicitudes(){
         <button class="btn secondary" type="button" onclick="resolverSolicitud('${s.id}','rechazada')">Rechazar</button>
       </div>
     </div>`;
-  }).join(''):'<small>No hay solicitudes pendientes.</small>';
+  }).join(''):sinNadaQueAprobar();
   cajas.forEach(el=>{el.innerHTML=html;});
   renderSolResueltas();
 }
