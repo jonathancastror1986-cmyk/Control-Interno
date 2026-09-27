@@ -2455,9 +2455,14 @@ function buildMatrixHtml(y,m,lista,modo){
     html+=`<td>${diasTrabajadosBase30}</td><td>${diasEfectivos}</td><td>${cLL}</td><td>${diasReales}</td><td>${cL+cA}</td><td>${cF+cP}</td></tr>`;
   });
   html+='</table>';
-  const textoCelda=modo==='supervisores'
-    ? 'Haz clic en cualquier día para <b>solicitar</b> un cambio de estado: se abre una ventana para elegir el estado nuevo y escribir el detalle. Queda pendiente hasta que RRHH lo apruebe.'
-    : 'Haz clic en cualquier celda para cambiar el estado; puedes elegir X, F, P, L, A, PP, V o volver al valor automático.';
+  let textoCelda;
+  if(modo==='supervisores'){
+    textoCelda='Haz clic en cualquier día para <b>solicitar</b> un cambio de estado: se abre una ventana para elegir el estado nuevo y escribir el detalle. Queda pendiente hasta que RRHH lo apruebe.';
+  }else if(!puedeEditarTarjaDirectamente()&&puede('tarja.solicitar_cambio')){
+    textoCelda='Haz clic en cualquier día para <b>solicitar</b> un cambio de estado: se abre una ventana para elegir el estado nuevo y escribir el detalle. Queda pendiente hasta que RRHH lo apruebe.';
+  }else{
+    textoCelda='Haz clic en cualquier celda para cambiar el estado; puedes elegir X, F, P, L, A, PP, V o volver al valor automático.';
+  }
   html+=`<p><small>${textoCelda}</small></p>`;
   html+='<p><small>Los días en negro quedan bloqueados: son anteriores a la fecha de ingreso del trabajador o posteriores a su fecha de desvinculación, y no se pueden editar.</small></p>';
   html+='<p style="margin-top:8px"><small><b>Códigos:</b> X Presente · F Falla · P Permiso · L Licencia · A Accidente Mutual · PP Permiso Pagado · V Vacaciones · LL Día lluvia. La fila "Día" muestra L M M J V S D (lunes a domingo); el fondo resaltado indica feriado — haz clic en un día para alternar laborable/feriado. <b>Días efectivos</b> = X+V+PP+LL y X en feriados (para liquidación). <b>Días reales trabajados</b> = X fuera de feriado.</small></p>';
@@ -2497,13 +2502,20 @@ async function saveAttendanceState(code,iso,state){
   return true;
 }
 function editAttendanceCell(cell){
-  // Solo quien tenga 'tarja.editar' puede cambiar estados en la tarja.
-  // Los supervisores/técnica deben usar "Solicitar cambio de estado".
-  if(typeof puede==='function'&&!puede('tarja.editar')){
+  // Quien puede pedir cambios pero no aprobarlos (supervisores, técnica)
+  // nunca modifica la tarja: se abre la ventana de solicitud.
+  if(typeof puede==='function'&&!puedeEditarTarjaDirectamente()){
     const code=decodeURIComponent(cell.dataset.code);
     const iso=cell.dataset.date;
     const w=workers.find(x=>x.code===code);
-    if(confirm(`No tienes permiso para modificar la tarja.\n\n¿Solicitar el cambio de estado de ${w?w.name:code} el ${iso}?`)){
+    if(puede('tarja.solicitar_cambio')){
+      showView('solicitar-cambio');
+      const selW=document.getElementById('sol-worker');
+      if(selW)selW.value=code;
+      const f=document.getElementById('sol-fecha');
+      if(f)f.value=iso;
+      if(typeof actualizarEstadoActual==='function')actualizarEstadoActual();
+    }else if(confirm(`No tienes permiso para modificar la tarja.\n\n¿Solicitar el cambio de estado de ${w?w.name:code} el ${iso}?`)){
       showView('solicitar-cambio');
       const selW=document.getElementById('sol-worker');
       if(selW)selW.value=code;
@@ -4735,14 +4747,20 @@ function aplicarPermisos(){
 }
 // En la tarja, si no hay permiso de edición las celdas no son editables.
 function marcarTarjaSoloLectura(){
-  const soloLectura=!puede('tarja.editar');
+  const directa=puedeEditarTarjaDirectamente();
+  const puedePedir=puede('tarja.solicitar_cambio');
+  const soloLectura=!directa&&!puedePedir;
   document.querySelectorAll('#matrixArea .attendance-cell').forEach(c=>{
     c.style.cursor=soloLectura?'default':'pointer';
     c.title=soloLectura?'Solo lectura: no tienes permiso para modificar la tarja'
-                    :(c.dataset.auto==='true'?'X en feriado: día compensado':'Clic para editar el estado');
+      :directa?(c.dataset.auto==='true'?'X en feriado: día compensado':'Clic para editar el estado')
+      :'Clic para solicitar un cambio de estado (lo aprueba RRHH)';
   });
   const hint=document.getElementById('tarjaPermisoHint');
-  if(hint)hint.textContent=soloLectura?'Estás viendo la tarja en solo lectura (sin permiso para modificarla).':'';
+  if(!hint)return;
+  if(soloLectura)hint.textContent='Estás viendo la tarja en solo lectura (sin permiso para modificarla).';
+  else if(!directa&&puedePedir)hint.textContent='Puedes pedir cambios de estado, pero no aplicarlos: quedan pendientes hasta que RRHH los apruebe.';
+  else hint.textContent='';
 }
 // Aviso cuando alguien intenta una acción sin permiso.
 function exigirPermiso(permiso,mensaje){
@@ -4797,6 +4815,23 @@ async function comprobarPermisos(){
 // ============================================================
 let modalCtx=null;   // {code, fecha, estadoActual, modo}
 
+// Quién puede cambiar la tarja sin pasar por una aprobación.
+//
+// El permiso "tarja.editar" alcanza para que un rol sea editor, pero si
+// esa persona además puede SOLICITAR cambios, significa que su trabajo es
+// pedir el cambio y que otro lo revise: en ese caso siempre es una
+// solicitud, nunca una modificación directa. Ese era el caso del
+// supervisor, que además tenía el rol "oficina" y terminaba editando la
+// tarja él mismo.
+//
+// Se aplica solo a quien no tiene "tarja.aprobar_cambio": RRHH y
+// administración, que son los que resuelven, sí editan directamente.
+function puedeEditarTarjaDirectamente(){
+  if(soyAdmin())return true;
+  if(puede('tarja.aprobar_cambio'))return true;
+  if(!puede('tarja.editar'))return false;
+  return !puede('tarja.solicitar_cambio');
+}
 function abrirModalSolicitud(cell){
   const code=decodeURIComponent(cell.dataset.code);
   const fecha=cell.dataset.date;
@@ -4849,10 +4884,10 @@ function abrirModal(code,fecha,modo){
   document.getElementById('solModalMotivo').value='';
   document.getElementById('solModalNota').value='';
 
-  const puedeEditar=puede('tarja.editar');
+  const edita=puedeEditarTarjaDirectamente();
   const btn=document.getElementById('solModalEnviar');
-  btn.textContent=puedeEditar?'Guardar cambio':'Enviar a RRHH';
-  document.getElementById('solModalAviso').innerHTML=puedeEditar
+  btn.textContent=edita?'Guardar cambio':'Enviar a RRHH';
+  document.getElementById('solModalAviso').innerHTML=edita
     ? 'Tienes permiso de edición: el cambio se aplica de inmediato. Si prefieres que lo revise RRHH antes, usa la vista "Solicitar cambio de estado".'
     : 'Queda <b>pendiente</b> hasta que RRHH lo apruebe. La tarja no cambia por ahora. El motivo es lo primero que verá quien lo revise.';
 
@@ -4877,6 +4912,27 @@ document.getElementById('solModal').addEventListener('click',e=>{
   if(e.target.id==='solModal')cerrarModalSolicitud();
 });
 
+// Cuando RRHH o la administración cambian un día a mano y ya había una
+// solicitud pedida para ese mismo día, la solicitud se marca como
+// resuelta: si se deja abierta, quedaría pidiendo un cambio que ya se hizo.
+async function resolverPendienteSuperada(code,fecha,estadoAplicado){
+  const abierta=solicitudes.find(s=>s.code===code&&s.fecha===fecha&&s.estado==='pendiente');
+  if(!abierta)return;
+  const coincide=abierta.estado_solicitado===estadoAplicado;
+  const {data:sesion}=await window.supabaseClient.auth.getSession();
+  const miId=sesion&&sesion.session&&sesion.session.user&&sesion.session.user.id;
+  const {error}=await window.supabaseClient.from('solicitudes_cambio_asistencia').update({
+    estado:coincide?'aprobada':'rechazada',
+    aplicado:coincide,
+    resuelto_por:miId,
+    resuelto_por_nombre:miNombrePerfil(),
+    comentario_resolucion:coincide
+      ? 'Aplicado directamente en la tarja.'
+      : 'Se aplicó otro estado directamente en la tarja.',
+    resuelto_at:new Date().toISOString()
+  }).eq('id',abierta.id);
+  if(error)console.warn('No se pudo cerrar la solicitud superada:',error.message);
+}
 async function enviarDesdeModal(){
   if(!modalCtx)return;
   const {code,fecha,estadoActual}=modalCtx;
@@ -4891,7 +4947,7 @@ async function enviarDesdeModal(){
   // directo solo necesita 'tarja.editar'; el resto, 'tarja.solicitar_cambio'.
   // (RRHH suele editar la tarja sin poder solicitar cambios, y antes el
   // modal le bloqueaba sin sentido.)
-  const edita=puede('tarja.editar');
+  const edita=puedeEditarTarjaDirectamente();
   if(!edita&&!exigirPermiso('tarja.solicitar_cambio','No tienes permiso para solicitar cambios de estado.'))return;
   // última comprobación del equipo, en el momento de escribir: si el modal
   // se abrió antes de que cambiara el equipo, aquí igual se frena
@@ -4901,22 +4957,28 @@ async function enviarDesdeModal(){
     return;
   }
 
-  const pendiente=solicitudes.find(s=>s.code===code&&s.fecha===fecha&&s.estado==='pendiente');
-  if(pendiente){
-    alert('Ya hay una solicitud pendiente para ese día ('+(ESTADOS_TARJA.find(e=>e.v===pendiente.estado_solicitado)||{t:''}).t+'). Espera que RRHH la resuelva.');
-    return;
-  }
   const w=workers.find(x=>x.code===code);
 
   if(edita){
     if(!confirm(`Se guardará ${estadoActual||'sin registro'} → ${nuevo} para ${w.name} el ${fecha}.`))return;
     const ok=await saveAttendanceState(code,fecha,nuevo);
     if(!ok)return;
+    // Si había una solicitud abierta para ese día, esta modificación la
+    // deja resuelta: si no, seguiría pidiendo un cambio ya hecho.
+    await resolverPendienteSuperada(code,fecha,nuevo);
     cerrarModalSolicitud();
     await loadSolicitudes(true);
     renderSolicitudes();
     renderMisSolicitudes();
     renderMatrix();
+    return;
+  }
+
+  // Esto ya es una solicitud, así que sí importa que no haya otra abierta
+  // para el mismo día: si no, se acumularían pedidos contradictorios.
+  const pendiente=solicitudes.find(s=>s.code===code&&s.fecha===fecha&&s.estado==='pendiente');
+  if(pendiente){
+    alert('Ya hay una solicitud pendiente para ese día ('+(ESTADOS_TARJA.find(e=>e.v===pendiente.estado_solicitado)||{t:''}).t+'). Espera que RRHH la resuelva.');
     return;
   }
 

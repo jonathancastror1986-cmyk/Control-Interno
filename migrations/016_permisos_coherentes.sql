@@ -13,10 +13,67 @@
 -- justo lo que se produjo.
 --
 -- Aquí las dos quedan en la misma fuente: todas las políticas pasan a
--- usar las funciones security definer de la 014, que leen perfil_roles.
+-- usar funciones security definer que leen perfil_roles.
 --
 -- ES RE-EJECUTABLE. Orden: 001 -> ... -> 015 -> 016.
 -- ============================================================
+
+-- ------------------------------------------------------------
+-- 0) LAS FUNCIONES QUE USA EL RESTO DE ESTA MIGRACIÓN
+-- ------------------------------------------------------------
+-- Se crean (o reemplazan) aquí para que la 016 no dependa de que la 014
+-- se haya aplicado: si falta alguna, el CREATE POLICY falla con
+-- "function es_usuario_activo() does not exist" y no queda claro por qué.
+--
+-- Por qué security definer: una política que consulta "perfiles" desde
+-- otra política de "perfiles" hace recursión infinita. Como TODAS las
+-- políticas del proyecto necesitan preguntar si el usuario está activo,
+-- la pregunta se hace desde una función que se ejecuta con los
+-- privilegios del dueño (que sí ignora RLS) y así no se dispara a sí misma.
+create or replace function public.es_usuario_activo(uid uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (select 1 from public.perfiles p where p.id = uid and p.activo)
+$$;
+
+create or replace function public.es_admin(uid uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.perfil_roles r
+     where r.user_id = uid and r.rol = 'admin'
+  )
+$$;
+
+-- "¿tiene este permiso?". Así la base decide lo mismo que la pantalla
+-- "Permisos por rol": si a alguien le marcas un permiso, la interfaz se
+-- lo habilita y la base lo acepta (y no al revés).
+create or replace function public.tiene_permiso(clave text, uid uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+      from public.perfil_roles pr
+      join public.roles_permisos rp on rp.rol = pr.rol
+     where pr.user_id = uid
+       and rp.permiso = clave
+  )
+$$;
+
+-- Si la 013 no está aplicada, el paso 1 falla con "relation perfil_roles
+-- does not exist". Ejecuta antes 013_roles_permisos.sql.
 
 -- ------------------------------------------------------------
 -- 1) SINCRONIZAR LAS DOS COLUMNAS DE ROL
@@ -47,7 +104,7 @@ on conflict (user_id, rol) do nothing;
 -- ------------------------------------------------------------
 -- 2) LAS POLÍTICAS PASAN A LEER perfil_roles
 -- ------------------------------------------------------------
--- Se vuelven a crear todas sobre las funciones de la 014, que por
+-- Se vuelven a crear todas sobre las funciones del paso 0, que por
 -- dentro leen perfil_roles desde un security definer.
 
 drop policy if exists "perfil roles read" on perfil_roles;
@@ -84,7 +141,35 @@ create policy "solicitudes update" on solicitudes_cambio_asistencia for update
   with check (public.es_admin() or public.tiene_permiso('tarja.aprobar_cambio'));
 
 -- ------------------------------------------------------------
--- 3) COMPROBACIÓN DE SALUD
+-- 4) EL ALTA DE USUARIOS YA NO REGALA PERMISOS
+-- ------------------------------------------------------------
+-- Este trigger es el de la 014 con un cambio importante. Antes dejaba
+-- "oficina" en perfil_roles a todo usuario nuevo, y "oficina" tiene
+-- "tarja.editar": un supervisor invitado a la app terminaba con los dos
+-- roles, heredaba el de editar, y desde la tarja de su equipo el cambio
+-- de estado se le aplicaba solo en vez de quedar pendiente de RRHH.
+--
+-- Ahora el usuario nuevo nace SIN roles y con activo = false. La app
+-- muestra un aviso en rojo pidiéndole a un administrador que se los
+-- asigne en Soporte -> Usuarios, que es donde corresponde decidir.
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.perfiles (id, nombre, rol, activo)
+  values (new.id, coalesce(new.raw_user_meta_data->>'full_name', new.email), 'oficina', false)
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+-- ------------------------------------------------------------
+-- 5) COMPROBACIÓN DE SALUD
 -- ------------------------------------------------------------
 -- La app la llama al entrar para avisar, en pantalla, si algo quedó
 -- desalineado. Así el problema se ve en vez de aparecer como una cola
