@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Control de Asistencia</title>
+<link rel="icon" href="../img/favicon.svg" type="image/svg+xml">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -705,7 +706,9 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     <h2>Soporte del sistema</h2>
     <div class="row">
       <button class="btn" type="button" onclick="checkSupportConnection()">Comprobar conexión</button>
+      <button class="btn secondary" type="button" onclick="mostrarVersionDeLaApp()">Qué versión estoy viendo</button>
       <small id="supportStatus" role="status" aria-live="polite">Estado de conexión no comprobado.</small>
+      <small id="soporteVersion" style="display:block;margin-top:6px;color:var(--muted);font-size:.72rem"></small>
     </div>
   </div>
 </section>
@@ -825,6 +828,20 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
   <div class="card">
     <h2>Historial de solicitudes resueltas</h2>
     <div id="solResueltas"></div>
+  </div>
+  <div class="card">
+    <h2>Avisos de ingreso por confirmar</h2>
+    <small>Un supervisor marcó a un trabajador que no había fichado y dejó escrita la indicación.
+      Mientras no se confirme, es la palabra de una sola persona. Al confirmar queda registrado quién
+      lo revisó y cuándo, y el supervisor lo ve en su pantalla.</small>
+    <div id="avisosIngresoBandeja" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>Bitácora de acceso al sistema</h2>
+    <small>Quién abrió la aplicación, cuándo y cuánto tiempo estuvo. Esto <b>no</b> es la asistencia
+      del trabajador: es el uso del sistema por parte de quien lo opera. No se guarda la dirección IP
+      porque el navegador no la puede leer y es un dato personal que no hace falta para esto.</small>
+    <div id="bitacoraList" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -1256,6 +1273,23 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     <div class="overflow"><div id="diariaLista"></div></div>
     <p><small>El marcaje queda guardado en la tabla <b>marcajes</b> y la entrada también se refleja como <b>X</b> en la tarja del día.</small></p>
   </div>
+
+  <div class="card">
+    <h2>Conciliar el reloj con la planilla</h2>
+    <small>El reloj de la obra y la planilla son dos registros distintos de lo mismo, y se contradicen.
+      Lo que más pasa: <b>el reloj tiene la marcación y la planilla no</b>. Ese trabajador fichó y en el
+      sistema nadie lo marcó. Acá se ven los dos casos, en las dos direcciones, más los que están
+      marcados en los dos pero a horas distintas.</small>
+    <div id="conciliacionBox" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Mis avisos de ingreso</h2>
+    <small>Cuando marcas a alguien que no había fichado, la app te pide la indicación y la manda a
+      Administración, que tiene que <b>confirmarla</b>. Ahí ves si ya la confirmaron o si sigue en la bandeja.</small>
+    <div id="avisosIngresoMios" style="margin-top:10px"></div>
+  </div>
+
   <div class="card">
     <h2>Avisos del día</h2>
     <small>Atrasos, mensajes de la asistente social y de prevención, se anotan solos al marcar la tarjeta.</small>
@@ -1558,8 +1592,7 @@ const navGroups = {
   ],
   prevencion: [
     {v:'alertas-prevencion',label:'Alertas'},
-    {v:'indicaciones-prevencion',label:'Agregar indicaciones para trabajadores'},
-    {v:'ingresar-subcontrato',label:'Ingresar trabajador de subcontrato'}
+    {v:'indicaciones-prevencion',label:'Agregar indicaciones para trabajadores'}
   ],
   bodega: [
     {v:'bodega-epp',label:'EPP ▾',options:[
@@ -1585,7 +1618,13 @@ const navGroups = {
 function initView(v){
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
   if(v==='solicitar-cambio'){initSolicitarCambio();initVistaSolicitar();}
-  if(v==='aprobar-cambio'){renderSolicitudes();renderMisSolicitudes();renderAvisoSolicitudes();}
+  if(v==='aprobar-cambio'){
+    renderSolicitudes();renderMisSolicitudes();renderAvisoSolicitudes();
+    // La bandeja de avisos de ingreso y la bitácora se cargan al abrir la
+    // vista, no al arrancar: son de Administración y casi nadie las mira.
+    loadBandejaAvisos();
+    loadBitacora();
+  }
   if(v==='permisos'){renderPermisos();}
   if(v==='buscar-tarjeta'){fillCardSelect();renderCard();}
   if(v==='imprimir-tarjetas'){fillPdfChecks();}
@@ -1722,14 +1761,32 @@ function showView(v){
     abrirPrimeraVistaPermitida();
     return;
   }
+  // Si la vista no existe, NO se sigue como si nada: antes esto reventaba
+  // con "Cannot read properties of null (reading 'classList')" y dejaba la
+  // app a medio cambiar, con el menú marcado en una vista que no se veía.
+  // Pasa cuando un botón del menú apunta a algo que nunca se construyó, y
+  // es un error de código, no de la persona que hace clic.
+  if(!seccion){
+    console.error('showView: no existe la vista "v-'+v+'". Revisar el menú y las secciones.');
+    abrirPrimeraVistaPermitida();
+    return;
+  }
   document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
-  document.getElementById('v-'+v).classList.add('active');
+  seccion.classList.add('active');
   document.querySelectorAll('#subNav button').forEach(x=>x.classList.toggle('active',x.dataset.v===v));
-  // si el botón activo está dentro de un desplegable, se abre para que se vea
-  document.querySelectorAll('#subNav details').forEach(d=>d.open=false);
-  const activo=document.querySelector('#subNav button.active');
-  if(activo)activo.closest('details')?.setAttribute('open','');
+  // El desplegable se CIERRA al elegir, y no se vuelve a abrir. Antes se
+  // cerraban todos y enseguida se reabría el del botón que quedó activo,
+  // que es justo el que el usuario acababa de cerrar: por eso había que
+  // apretar dos veces el título del grupo para que se ocultara.
+  //
+  // La opción elegida sigue marcada en la barra (con el estilo "active"),
+  // así que no hace falta dejarla a la vista.
+  cerrarDesplegablesSubNav();
   initView(v);
+}
+// Cierra todos los desplegables del submenú, incluidos los anidados.
+function cerrarDesplegablesSubNav(){
+  document.querySelectorAll('#subNav details').forEach(d=>{d.open=false;});
 }
 function showGroup(group){
   document.querySelectorAll('#mainNav button').forEach(x=>x.classList.toggle('active',x.dataset.group===group));
@@ -1750,6 +1807,24 @@ function showGroup(group){
     : `<button data-v="${it.v}">${it.label}</button>`
   ).join('');
   sub.querySelectorAll('button[data-v]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.v)));
+  // Solo un desplegable abierto a la vez. Sin esto, en Bodega se podían
+  // dejar EPP, KITS y HERRAMIENTAS abiertos al mismo tiempo, uno encima
+  // del otro, tapando lo que había detrás.
+  //
+  // Se usa el evento "toggle" y no el "click" del summary porque "details"
+  // es un elemento nativo: con el click hay que adivinar si se abría o se
+  // cerraba, y con un clic rápido queda en el estado equivocado.
+  sub.querySelectorAll('details.nav-dropdown').forEach(d=>{
+    d.addEventListener('toggle',()=>{
+      if(!d.open)return;
+      // Se cierra el hermano del mismo nivel. Se comparan los dos
+      // desplegables de primer nivel, no todos: los anidados viven dentro
+      // de su padre y se cierran con él.
+      sub.querySelectorAll('details.nav-dropdown').forEach(otro=>{
+        if(otro!==d)otro.open=false;
+      });
+    });
+  });
   ocultarSubNavSinPermiso();
   // abrir la primera vista que la persona sí pueda ver
   const primero=[...sub.querySelectorAll('button[data-v]')].find(b=>b.style.display!=='none');
@@ -1787,6 +1862,15 @@ function abrirPrimeraVistaPermitida(){
   initView(corto);
 }
 document.querySelectorAll('#mainNav button').forEach(b=>b.addEventListener('click',()=>showGroup(b.dataset.group)));
+// Un clic fuera del submenú lo cierra. Sin esto, el desplegable se queda
+// abierto tapando el contenido, y hay que acertarle al título para
+// cerrarlo. Escape también, que es lo que se prueba por costumbre.
+document.addEventListener('click',event=>{
+  if(!event.target.closest('#subNav'))cerrarDesplegablesSubNav();
+});
+document.addEventListener('keydown',event=>{
+  if(event.key==='Escape')cerrarDesplegablesSubNav();
+});
 document.querySelectorAll('[data-attendance-tab]').forEach(tab=>tab.addEventListener('click',()=>showAttendancePanel(tab.dataset.attendanceTab)));
 document.getElementById('epp-worker').addEventListener('change',updateEppWorkerHint);
 document.getElementById('assign-fecha').value=hoyLocal();
@@ -1824,6 +1908,48 @@ async function checkSupportConnection(){
   }catch(error){
     status.textContent=`No se pudo conectar: ${error.message}`;
   }
+}
+// ------------------------------------------------------------------
+// ¿QUÉ VERSIÓN DE LA APP ESTÁ CORRIENDO?
+// ------------------------------------------------------------------
+// Existe por un problema concreto: un cambio se subió a GitHub, el
+// navegador siguió con la copia vieja en caché, y el error que se veía en
+// pantalla era el de la versión ANTERIOR. Se pierde tiempo arreglando algo
+// que ya estaba arreglado.
+//
+// Con este dato se responde en un segundo: si el número de versión del
+// navegador es distinto del de la última publicada, hay que recargar con
+// Ctrl+F5. La versión se lee del propio archivo (una constante) y la
+// publicada, de la etiqueta del último commit.
+const APP_VERSION='2026-09-28-b';
+async function mostrarVersionDeLaApp(){
+  const el=document.getElementById('soporteVersion');
+  if(!el)return;
+  el.textContent='Versión en pantalla: '+APP_VERSION+' — comprobando la publicada…';
+  const remota=await versionEnGithub();
+  if(!remota){
+    el.innerHTML='En pantalla: <b>'+escHtml(APP_VERSION)+'</b><br>'+
+      '<small>No se pudo leer la versión publicada (se necesita internet para eso). '+
+      'Si crees que estás viendo una copia vieja, recarga con Ctrl+F5.</small>';
+    return;
+  }
+  if(remota===APP_VERSION){
+    el.innerHTML='En pantalla: <b>'+escHtml(APP_VERSION)+'</b> — al día con lo publicado.';
+    return;
+  }
+  el.innerHTML='<span class="gpsWarn">Estás viendo una copia vieja de la app.</span><br>'+
+    '<small>En pantalla: <b>'+escHtml(APP_VERSION)+'</b> · publicada: <b>'+escHtml(remota)+'</b><br>'+
+    'Recarga con <b>Ctrl+F5</b> (o Ctrl+Shift+R). Si después sigue igual, el cambio no se subió.</small>';
+}
+// La versión publicada va en la etiqueta [v...] del mensaje del commit, que
+// es la que se escribe al desplegar.
+async function versionEnGithub(){
+  try{
+    const r=await fetch('https://api.github.com/repos/jonathancastror1986-cmyk/Control-Interno/commits/main',{cache:'no-store'});
+    if(!r.ok)return null;
+    const j=await r.json();
+    return String((j.commit&&j.commit.message)||'').match(/\[v([^\]]+)\]/)?.[1]||null;
+  }catch(error){return null;}
 }
 function renderWorkerAlerts(type){
   const social=type==='social';
@@ -1998,6 +2124,42 @@ async function saveWorker(){
   alert('Trabajador guardado');
 }
 
+// Un error que no es de columna, traducido a lo que hay que hacer.
+//
+// El caso importante es el 409 de PostgREST, que aparece en la consola
+// como "409 (Conflict)" sin decir nada. PostgREST devuelve ese mismo
+// código para DOS cosas muy distintas: que se repite un valor único
+// (23505) y que una clave foránea no existe (23503). Un "409" a secas no
+// permite saber cuál, y son arreglos completamente distintos.
+function errorDeImportarTrabajadores(error){
+  const msg=String((error&&error.message)||error||'');
+  const codigo=String((error&&error.code)||'');
+  // Las dos se comprueban por texto, porque PostgREST no distingue los
+  // dos casos en el código de la respuesta.
+  if(/foreign key|violates foreign key|23503/i.test(msg)){
+    return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+      '<b>Alguna fila apunta a un trabajador que no existe.</b><br>'+
+      '<small>El código del supervisor no está en la base. La revisión previa debería haberlo detectado: '+
+      'si te apareció, es que el supervisor se está creando en la misma carga, en una fila posterior.</small>'+
+      '<br><small style="opacity:.75">Lo que respondió la base: '+escHtml(msg)+'</small></div>';
+  }
+  if(/duplicate key|unique|23505/i.test(msg)){
+    return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+      '<b>Se repite un dato que tiene que ser único.</b><br>'+
+      '<small>Lo más probable es el <b>RUT</b>: identifica a una persona, no a un puesto, así que no puede '+
+      'repetirse. La revisión previa lo avisa antes de guardar, pero si te aparece acá es que dos fichas lo tienen.</small>'+
+      '<br><small style="opacity:.75">Lo que respondió la base: '+escHtml(msg)+'</small></div>';
+  }
+  if(codigo==='409'||/conflict/i.test(msg)){
+    return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+      '<b>La base rechazó el guardado sin explicar por qué (409).</b><br>'+
+      '<small>Revisa que el <code>codigo_supervisor</code> exista y que los RUT no se repitan. '+
+      'Si sigue igual, el detalle está abajo.</small>'+
+      '<br><small style="opacity:.75">Lo que respondió la base: '+escHtml(msg)+'</small></div>';
+  }
+  return '<span class="gpsWarn">No se pudo importar: '+escHtml(msg)+'</span>';
+}
+
 function normalizeCsvHeader(value){
   return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
 }
@@ -2145,6 +2307,14 @@ async function importWorkersCsv(){
     ));
     const currentByCode=new Map(workers.map(worker=>[worker.code,worker]));
     const seenCodes=new Set();
+    // El RUT también es único, y en un archivo de carga masiva es fácil que
+    // se repita: alguien copia la fila de arriba. Se lleva aparte del
+    // código porque el motivo del rechazo es otro.
+    const seenRuts=new Set();
+    // Todos los códigos del archivo, incluidos los que vienen después:
+    // un supervisor puede estar en la fila 15 y el trabajador que lo
+    // referencia en la 2. Con este Map se acepta en cualquier orden.
+    const todosWorkers=new Set(normalizedRows.map(r=>String(r[normalizeCsvHeader('codigo')]||'').trim()).filter(Boolean));
     const imported=[];
     const issues=[];
     normalizedRows.forEach((row,index)=>{
@@ -2199,6 +2369,39 @@ async function importWorkersCsv(){
       }
       const tipoTrabajadorValue=read('tipo_trabajador','tipo de trabajador').toLowerCase();
       const tipoTrabajador=['interno','subcontrato'].includes(tipoTrabajadorValue)?tipoTrabajadorValue:(existing?.tipo_trabajador||'interno');
+      // "trabajadores.supervisor_code" tiene clave foránea a
+      // "trabajadores.code". Si el CSV dice un supervisor que no existe,
+      // Postgres lo rechaza con una violación de clave foránea, y
+      // PostgREST devuelve 409 Conflict —un código que no dice nada— en
+      // vez de una explicación. Se comprueba acá, con los códigos que
+      // traen el archivo más los que ya están cargados, que es la única
+      // forma de que el error llegue con nombre y apellido.
+      const supervisorCsv=readOrCurrent(['codigo_supervisor','supervisor_codigo','supervisor_code'],'supervisor_code',null);
+      if(supervisorCsv){
+        const existeSupervisor=currentByCode.has(supervisorCsv)
+          ||todosWorkers.has(supervisorCsv)
+          ||normalizedRows.some(r=>String(r[normalizeCsvHeader('codigo')]||'').trim()===supervisorCsv);
+        if(!existeSupervisor){
+          issues.push(`Fila ${index+2}: el codigo_supervisor "${supervisorCsv}" no existe como trabajador. `+
+            'Crea a ese supervisor primero, o deja la columna vacía y asígnalo después desde "Asignar supervisor".');
+          return;
+        }
+      }
+      // El RUT es único entre trabajadores. Dos filas con el mismo RUT
+      // revientan el guardado entero; mejor decírlo antes.
+      const rutCsv=normalizarRut(read('rut','r_u_t'));
+      if(rutCsv){
+        if(seenRuts.has(rutCsv)){
+          issues.push(`Fila ${index+2}: el RUT ${rutCsv} está repetido en el archivo. El RUT identifica a una persona, no a un puesto.`);
+          return;
+        }
+        const rutDeOtro=workers.find(w=>w.code!==code&&normalizarRut(w.rut)===rutCsv);
+        if(rutDeOtro){
+          issues.push(`Fila ${index+2}: el RUT ${rutCsv} ya lo tiene el trabajador ${rutDeOtro.code} — ${rutDeOtro.name}. No puede repetirse.`);
+          return;
+        }
+        seenRuts.add(rutCsv);
+      }
       imported.push(workerToDb({
         code,name,
         spec:readOrCurrent(['cargo','especialidad','spec'],'spec'),
@@ -2206,7 +2409,11 @@ async function importWorkersCsv(){
         fecha_ingreso:parsedDate.value,
         tipo_trabajador:tipoTrabajador,
         is_supervisor:isSupervisor,
-        supervisor_code:readOrCurrent(['codigo_supervisor','supervisor_codigo','supervisor_code'],'supervisor_code',null),
+        supervisor_code:supervisorCsv,
+        // El RUT se lee del archivo si viene. Antes la carga masiva lo
+        // ignoraba, y el RUT es justo lo que permite que después las
+        // importaciones de marcajes del reloj sean exactas.
+        rut:rutCsv||existing?.rut||null,
         casual:existing?.casual||null,
         safety:existing?.safety||null,
         emerg_name:readOrCurrent(['nombre_contacto_emergencia','emerg_nombre','emerg_name'],'emerg_name'),
@@ -2235,7 +2442,7 @@ async function importWorkersCsv(){
       // distintos (ver columnaDeLaImportacionFalta). Por eso se espera:
       // la respuesta se arma después de preguntar a la base.
       message.innerHTML=await columnaDeLaImportacionFalta(error)
-        ||(`<span class="gpsWarn">No se pudo importar: ${escHtml(error.message)}</span>`);
+        ||errorDeImportarTrabajadores(error);
       return;
     }
     await loadWorkers();
@@ -2885,6 +3092,16 @@ function addHoliday(){
 // ============================================================
 let marcajes=[];        // marcajes del día que se está viendo
 let avisosMarcaje=[];   // alertas generadas
+
+// La conciliación necesita DOS registros del mismo día:
+//   · "asistenciaDia" es la planilla (quién está presente y desde qué hora)
+//   · "marcajes" ya lo tinha: lo que registró el reloj
+// Se guardan aparte porque se consultan de tablas distintas y la pantalla
+// diaria tiene que pintar igual si alguna falla.
+let asistenciaDia=[];
+let asistenciaDiaError=null;
+let avisosIngresoDia=[];
+let avisosIngresoError=null;
 let fechaDiaria=hoyLocal();
 
 function empresaDeEquipo(supCode){
@@ -2956,7 +3173,19 @@ async function loadMarcajesDia(){
   const box=document.getElementById('diariaAviso');
   if(box)box.style.display='none';
   marcajes=data||[];
+  // La planilla del día va aparte, en segundo plano: sin ella no se puede
+  // conciliar, pero la pantalla tiene que pintar igual. Por eso el error
+  // se guarda y se muestra en la pestaña de conciliación, no acá.
+  loadAsistenciaDelDia();
   renderDiaria();
+}
+async function loadAsistenciaDelDia(){
+  const {data,error}=await window.supabaseClient.from('asistencia')
+    .select('*').eq('fecha',fechaDiaria);
+  asistenciaDiaError=error?error.message:null;
+  asistenciaDia=data||[];
+  renderDiaria();
+  renderConciliacion();
 }
 async function loadAvisosDia(){
   const {data}=await window.supabaseClient.from('avisos_marcaje')
@@ -3251,6 +3480,9 @@ function renderDiaria(){
         <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
           onclick="marcarManual('${escHtml(w.code)}','${ent?'salida':'entrada'}')">
           ${ent?'Marcar salida':'Marcar entrada'}</button>
+        ${ent?'':`<button class="btn" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
+          onclick="marcarYAvisar('${escHtml(w.code)}','entrada')" title="Marca y deja la indicación para que Administración la confirme">
+          Marcar y avisar</button>`}
       </div>
     </div>`;
   }).join('');
@@ -3265,6 +3497,476 @@ function renderDiaria(){
     resumen.innerHTML=`<b>${presentes}</b> de <b>${equipo.length}</b> presentes · <b>${completos}</b> con salida registrada`+
       (conAviso?` · <b style="color:var(--accent2)">${conAviso}</b> aviso(s) por atender`:'');
   }
+}
+
+// ============================================================
+// CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ
+// ============================================================
+// Son dos registros distintos de lo mismo, y por eso se contradicen:
+//   · "asistencia" es la PLANILLA: quién está presente, y a qué hora
+//     quedó. La edita una persona.
+//   · "marcajes"  es lo que registró el reloj de la obra.
+//
+// El caso que importa es uno: el reloj tiene la marcación y la planilla
+// no. Ese trabajador fichó, y en el sistema nadie lo marcó. O al revés:
+// quedó presente en la planilla sin que el reloj registre nada, que es
+// justo lo que hay que poder detectar.
+//
+// Se agrupan en cuatro, y son excluyentes: cada trabajador cae en una
+// sola categoría para una fecha dada.
+function conciliarDia(supCode){
+  const equipo=equipoDe(supCode);
+  const planillaPorCode=new Map(asistenciaDia.map(a=>[a.code,a]));
+  // Tolerancia para considerar que dos horas "coinciden". Un minuto de
+  // diferencia entre lo que escribió el supervisor y lo que vio el reloj
+  // es redondeo, no una discrepancia. Se agranda a 10 minutos, que es lo
+  // habitual entre un reloj y una anotación.
+  const TOLERANCIA_MIN=10;
+  const filas=[];
+  equipo.forEach(w=>{
+    const ent=marcajeDe(w.code,'entrada');
+    const sal=marcajeDe(w.code,'salida');
+    const reloj=ent||sal;
+    const planilla=planillaPorCode.get(w.code)||null;
+    const presenteEnPlanilla=!!planilla&&planilla.estado==='X';
+    const marcajeReloj=!!ent;
+
+    let situacion;
+    if(marcajeReloj&&!presenteEnPlanilla){
+      // ESTE es el caso que se pidió: fichó en el reloj, no está en la
+      // planilla. Falta marcar.
+      situacion='falta_marcar';
+    }else if(!marcajeReloj&&presenteEnPlanilla){
+      // Al revés: quedó presente sin que el reloj registre nada.
+      situacion='sin_marcaje';
+    }else if(marcajeReloj&&presenteEnPlanilla){
+      // Los dos dicen que presente. Ahora: ¿coincide la hora?
+      const minReloj=minutosDe(reloj.hora);
+      const minPlanilla=planilla&&planilla.hora_llegada?minutosDe(String(planilla.hora_llegada).slice(0,5)):null;
+      const dif=(minReloj!=null&&minPlanilla!=null)?Math.abs(minReloj-minPlanilla):null;
+      situacion=(dif!=null&&dif>TOLERANCIA_MIN)?'diferencia_hora':'al_day';
+    }else{
+      situacion='ninguno';
+    }
+    const difMin=(()=>{
+      if(!reloj||!planilla||!planilla.hora_llegada)return null;
+      const a=minutosDe(reloj.hora);
+      const b=minutosDe(String(planilla.hora_llegada).slice(0,5));
+      return (a!=null&&b!=null)?a-b:null;
+    })();
+    filas.push({w,ent,sal,reloj,planilla,presenteEnPlanilla,marcajeReloj,situacion,difMin});
+  });
+  return filas;
+}
+function renderConciliacion(){
+  const box=document.getElementById('conciliacionBox');
+  if(!box)return;
+  const selSup=document.getElementById('supDiariaSup');
+  const supCode=selSup?selSup.value:miCodigoSupervisor;
+  if(asistenciaDiaError){
+    box.innerHTML='<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+      '<b>No se pudo leer la planilla del día.</b> <small>'+escHtml(asistenciaDiaError)+'</small></div>';
+    return;
+  }
+  if(!supCode||!equipoDe(supCode).length){
+    box.innerHTML='<small>Selecciona un supervisor con equipo asignado.</small>';
+    return;
+  }
+  const filas=conciliarDia(supCode);
+  const cuenta=k=>filas.filter(f=>f.situacion===k).length;
+  const falta=cuenta('falta_marcar');
+  const sinMarca=cuenta('sin_marcaje');
+  const dif=cuenta('diferencia_hora');
+  const alertas=filas.filter(f=>f.situacion!=='al_day'&&f.situacion!=='ninguno');
+
+  const etiqueta={
+    falta_marcar:{t:'Falta marcar en la planilla',b:'faltaMarcar',c:'var(--danger)'},
+    sin_marcaje:{t:'Presente en la planilla, sin marcaje del reloj',b:'sinMarcaje',c:'var(--accent2)'},
+    diferencia_hora:{t:'La hora no coincide',b:'difHora',c:'#e08b1a'},
+    al_day:{t:'Coincide',b:'ok',c:'var(--accent)'},
+    ninguno:{t:'Sin registro en ninguno de los dos',b:'ninguno',c:'var(--muted)'}
+  };
+
+  box.innerHTML=`
+    <div class="row" style="margin-bottom:10px">
+      ${Object.entries(etiqueta).map(([k,v])=>{
+        const n=cuenta(k);
+        return `<span class="mkPill" style="border-color:${v.c};color:${v.c}">${escHtml(v.t)}: <b>${n}</b></span>`;
+      }).join('')}
+    </div>
+    <small style="color:var(--muted)">Se considera coincidente cuando la diferencia de hora es de hasta 10 minutos, que es lo
+      habitual entre lo que registró el reloj y lo que anotó una persona.</small>
+    ${alertas.length?`<div style="margin-top:10px">${alertas.map(f=>{
+      const v=etiqueta[f.situacion];
+      const dif=f.difMin!=null?` · ${f.difMin>0?'+':''}${f.difMin} min de diferencia`:'';
+      return `<div class="mkFila" style="border-left:3px solid ${v.c}">
+        <div class="mkNombre">
+          <b>${escHtml(f.w.code)}</b> ${escHtml(f.w.name)}
+          <small>${escHtml(f.w.spec||'')}</small>
+        </div>
+        <div class="mkEstado">
+          <span class="mkPill" style="border-color:${v.c};color:${v.c}">${escHtml(v.t)}</span>
+          <small>
+            Reloj: ${f.reloj?escHtml(f.reloj.hora)+' ('+escHtml(f.reloj.tipo)+')':'sin marcaje'} ·
+            Planilla: ${f.planilla?(escHtml(f.planilla.estado)+(f.planilla.hora_llegada?' a las '+escHtml(String(f.planilla.hora_llegada).slice(0,5)):'')):'sin registro'}
+            ${dif}
+          </small>
+        </div>
+        <div class="mkAcciones">
+          <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
+            onclick="conciliarMarcar('${escHtml(f.w.code)}','entrada')">Marcar entrada</button>
+          <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
+            onclick="marcarYAvisar('${escHtml(f.w.code)}','entrada')">Marcar y avisar</button>
+        </div>
+      </div>`;
+    }).join('')}</div>`
+      :'<div style="margin-top:10px"><small>El reloj y la planilla coinciden en todo el equipo.</small></div>'}`;
+}
+
+// ============================================================
+// MARCAR Y AVISAR
+// ============================================================
+// El caso: un trabajador no fichó, pero el supervisor lo vio entrar y lo
+// marca. Eso está bien hecho, pero la planilla queda diciendo "presente"
+// sin que quede dicho QUIÉN decidió eso ni POR QUÉ. Después nadie puede
+// responder por una marcación que se hizo de palabra.
+//
+// Así que al marcar sin marcaje del reloj, la app no solo marca: escribe
+// un aviso que Administración tiene que CONFIRMAR. La confirmación es lo
+// que lo convierte en un registro y no en un dato suelto.
+//
+// El aviso NO lo confirma quien lo mandó. La política de la base lo
+// impide: confirmar usa el permiso de "aprobar cambio", no el de marcar.
+// Un supervisor no puede darse por buena su propia indicación.
+async function marcarYAvisar(code,tipo){
+  const w=workers.find(x=>x.code===code);
+  if(!w){alert('No se encontró al trabajador.');return;}
+  const reloj=marcajeDe(code,tipo);
+  const entradaEsp=horaEntradaDe(miCodigoSupervisor);
+  const tolerancia=toleranciaDe(miCodigoSupervisor);
+  const minEsp=minutosDe(entradaEsp);
+  const minMarcaje=reloj?minutosDe(reloj.hora):null;
+  const tarde=minMarcaje!=null&&minEsp!=null&&minMarcaje>minEsp+tolerancia;
+
+  const indicacion=prompt(
+    'Marcando a '+w.code+' — '+w.name+' sin marcaje del reloj.\n\n'+
+    (reloj?('El reloj registró '+reloj.tipo+' a las '+reloj.hora+'.')
+          :'El reloj no registró nada de esta persona hoy.')+
+    (tarde?'\n\nVa fuera de la hora de entrada ('+entradaEsp+').':'')+
+    '\n\nEscribe por qué lo marcas. Esto lo va a leer y confirmar Administración, '+
+    'así que escribe lo que se le dirías a RRHH:\n\n(obligatorio)'
+  ,'');
+  if(indicacion==null)return;   // canceló
+  if(!indicacion.trim()){
+    alert('La indicación es obligatoria: sin ella el aviso no dice nada y no sirve para confirmar nada.');
+    return;
+  }
+  const tipoAviso=!reloj?'no_marco':(tarde?'entrada_tarde':'otra');
+  const {error}=await window.supabaseClient.from('avisos_ingreso').insert({
+    code,fecha:fechaDiaria,tipo:tipoAviso,
+    indicacion:indicacion.trim(),
+    hora_reloj:reloj?reloj.hora:null,
+    // "origen_registro" es una columna libre de texto: acá va de dónde
+    // salió la hora, no el origen del marcaje (que va en "marcajes" y solo
+    // admite qr, manual, excel, porteria, app y reloj).
+    origen_registro:reloj?(reloj.origen||'reloj'):'sin_marcaje',
+    enviado_por:miPerfil?miPerfil.id:null,
+    enviado_por_nombre:miNombrePerfil()
+  });
+  if(error){
+    const archivo=migracionQueFalta(error);
+    alert(archivo
+      ? 'Falta la migración '+archivo+'. Sin ella no se puede dejar el aviso. Ábrela en el SQL Editor de Supabase y vuelve a intentar.'
+      : 'No se pudo dejar el aviso: '+error.message);
+    return;
+  }
+  // Se marca DESPUÉS de dejar el aviso, no antes. Al revés, si el aviso
+  // fallara, quedaría la marcación sin explicación de por qué.
+  // El origen va "manual": el reloj no registró nada de esta persona, lo
+  // está anotando una persona. La indicación va en la nota del marcaje
+  // para que se entienda al ver la fila, no solo en la bandeja de avisos.
+  const marcado=await registrarMarcaje(code,tipo,'manual','Marcado por supervisor: '+indicacion.trim());
+  if(!marcado){
+    alert('Se dejó el aviso, pero la marcación no se pudo guardar. Revisa la asistencia antes de que termine el turno.');
+  }
+  await Promise.all([loadMarcajesDia(),loadAsistenciaDelDia(),loadAvisosIngresoDia()]);
+  renderAvisosIngresoEnviados();
+}
+
+// Mis avisos: los que mandé yo, con su estado. Para que el supervisor vea
+// si Administración ya lo confirmó o si sigue en la bandeja.
+// RLS filtra en silencio: un UPDATE prohibido devuelve 0 filas y NO lanza
+// error. Estos casos son los que llegan sin excepción, y son los que más
+// confunden ("guardó bien y no pasó nada"). Se detectan mirando si la fila
+// volvió.
+const RLS_RECHAZO=/row-level security|not authorized|violates row|new row violates|permission denied/i;
+
+async function loadAvisosIngresoDia(){
+  const {data,error}=await window.supabaseClient.from('avisos_ingreso')
+    .select('*').eq('fecha',fechaDiaria).order('created_at',{ascending:false});
+  if(error){
+    avisosIngresoError=error.message;
+    avisosIngresoDia=[];
+    return;
+  }
+  avisosIngresoError=null;
+  avisosIngresoDia=data||[];
+}
+function renderAvisosIngresoEnviados(){
+  const box=document.getElementById('avisosIngresoMios');
+  if(!box)return;
+  if(avisosIngresoError){
+    const archivo=migracionQueFalta({message:avisosIngresoError});
+    box.innerHTML=archivo
+      ?`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+        <b>Falta la migración ${escHtml(archivo)}.</b> <small>Sin ella no se pueden dejar avisos de ingreso.</small></div>`
+      :`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+        <b>No se pudieron leer tus avisos.</b> <small>${escHtml(avisosIngresoError)}</small></div>`;
+    return;
+  }
+  const mios=miPerfil?avisosIngresoDia.filter(a=>a.enviado_por===miPerfil.id):[];
+  if(!mios.length){
+    box.innerHTML='<small>No has dejado ningún aviso hoy. Cuando marques a alguien que no fichó, aparece aquí.</small>';
+    return;
+  }
+  const estado=(a)=>{
+    if(a.estado==='confirmado'){
+      return `<span class="eppBadge firmado">Confirmado por ${escHtml(a.confirmado_por_nombre||'Administración')}${a.confirmado_at?' · '+escHtml(fechaLegible(a.confirmado_at,true)):''}</span>`+
+        (a.comentario?`<small>${escHtml(a.comentario)}</small>`:'');
+    }
+    if(a.estado==='rechazado'){
+      return `<span class="eppBadge sinFirma">Rechazado</span><small>${escHtml(a.comentario||'Sin comentario')}</small>`;
+    }
+    return '<span class="eppBadge" style="color:#e08b1a;border-color:#e08b1a">Esperando confirmación</span>';
+  };
+  box.innerHTML=mios.map(a=>{
+    const w=workers.find(x=>x.code===a.code);
+    return `<div style="border:1px solid var(--line);border-radius:8px;padding:9px 10px;margin-bottom:7px">
+      <div style="display:flex;gap:10px;align-items:flex-start">
+        <div style="flex:1">
+          <b>${escHtml(a.code)}</b> ${escHtml(w?w.name:a.code)}
+          <small> · ${escHtml(a.hora_reloj?'el reloj marcó '+a.hora_reloj:'sin marcaje del reloj')}</small>
+          <div><small style="color:var(--muted)">Dijiste:</small> ${escHtml(a.indicacion)}</div>
+        </div>
+        <div>${estado(a)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// La bandeja de Administración. Acá es donde el aviso deja de ser "alguien
+// dijo que sí" y pasa a ser un registro confirmado: quién lo mandó, por
+// qué, quién lo confirmó y qué respondió.
+// ============================================================
+// BITÁCORA DE ACCESO
+// ============================================================
+// Se lee acá y no en un informe aparte porque la pregunta "quién estuvo
+// en el sistema el martes" la hace quien está mirando aprobaciones.
+//
+// Las sesiones que se cerraron solas (pestaña cerrada, red caída) NO
+// tienen registro de salida: el navegador no avisa. Se deducen por el
+// hueco. Marcarlo como "cierre" sin más sería mentir sobre lo que pasó,
+// así que se muestra la hora en que empezó la siguiente.
+async function loadBitacora(){
+  const box=document.getElementById('bitacoraList');
+  if(!box)return;
+  const {data,error}=await window.supabaseClient.from('accesos_sistema')
+    .select('*').order('created_at',{ascending:false}).limit(250);
+  if(error){
+    const archivo=migracionQueFalta(error);
+    box.innerHTML=archivo
+      ?`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+        <b>Falta la migración ${escHtml(archivo)}.</b> <small>Sin ella no se puede llevar la bitácora de acceso.</small></div>`
+      :`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+        <b>No se pudo leer la bitácora.</b> <small>${escHtml(error.message)}</small></div>`;
+    return;
+  }
+  const filas=data||[];
+  if(!filas.length){
+    box.innerHTML='<small>Todavía no hay accesos registrados. aparecerán desde la próxima vez que alguien entre al sistema.</small>';
+    return;
+  }
+  // Duración legible: "12 min" o "1 h 04 min". Los segundos pelados no
+  // dicen nada.
+  const duracion=(s)=>{
+    if(s==null)return '—';
+    const m=Math.round(s/60);
+    if(m<1)return 'menos de 1 min';
+    if(m<60)return m+' min';
+    return Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min';
+  };
+  const evento={
+    entrada:['<span class="eppBadge firmado">Entró</span>','ok'],
+    salida:['<span class="eppBadge">Salió</span>','ok'],
+    cierre:['<span class="eppBadge sinFirma">Sesión cortada</span>','warn']
+  };
+  box.innerHTML=`<table><thead><tr>
+      <th class="izq">Quién</th><th>Qué pasó</th><th>Cuándo</th><th>Duración</th><th>Desde</th>
+    </tr></thead><tbody>${filas.map(a=>{
+      const e=evento[a.evento]||evento.entrada;
+      return `<tr>
+        <td class="izq"><b>${escHtml(a.nombre||a.correo||'—')}</b><br><small>${escHtml(a.correo||'')}</small></td>
+        <td>${e[0]}</td>
+        <td><small>${escHtml(fechaLegible(a.created_at,true))}</small></td>
+        <td><small>${escHtml(duracion(a.duracion_segundos))}</small></td>
+        <td><small>${escHtml(a.dispositivo||'—')}</small></td>
+      </tr>`;
+    }).join('')}</tbody></table>
+    <p><small>Una <b>sesión cortada</b> es una que se terminó sin pasar por "Cerrar sesión": pestaña
+      cerrada, red caída o el token vencido. El navegador no avisa en esos casos, así que no hay hora
+      de salida registrada. Los últimos 250 accesos, de todos los usuarios.</small></p>`;
+}
+
+async function loadBandejaAvisos(){
+  const box=document.getElementById('avisosIngresoBandeja');
+  if(!box)return;
+  if(!exigirPermiso('tarja.aprobar_cambio','Solo Administración puede confirmar estos avisos.')){
+    box.innerHTML='<small>Sin permiso para confirmar avisos.</small>';
+    return;
+  }
+  const {data,error}=await window.supabaseClient.from('avisos_ingreso')
+    .select('*').order('created_at',{ascending:false}).limit(200);
+  if(error){
+    const archivo=migracionQueFalta(error);
+    box.innerHTML=archivo
+      ?`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+        <b>Falta la migración ${escHtml(archivo)}.</b> <small>Sin ella no hay bandeja de avisos de ingreso.</small></div>`
+      :`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+        <b>No se pudo leer la bandeja.</b> <small>${escHtml(error.message)}</small></div>`;
+    return;
+  }
+  const filas=data||[];
+  const pendientes=filas.filter(a=>a.estado==='enviado');
+  const resueltos=filas.filter(a=>a.estado!=='enviado').slice(0,60);
+
+  const fila=(a,conAccion)=>{
+    const w=workers.find(x=>x.code===a.code);
+    const estado=a.estado==='confirmado'
+      ?`<span class="eppBadge firmado">Confirmado · ${escHtml(a.confirmado_por_nombre||'')} ${a.confirmado_at?escHtml(fechaLegible(a.confirmado_at,true)):''}</span>`
+      :a.estado==='rechazado'
+        ?`<span class="eppBadge sinFirma">Rechazado · ${escHtml(a.confirmado_por_nombre||'')}</span>`
+        :'<span class="eppBadge" style="color:#e08b1a;border-color:#e08b1a">Sin confirmar</span>';
+    const tipo={no_marco:'No fichó',entrada_tarde:'Entró tarde',salida_temprana:'Salió temprano',otra:'Otro'}[a.tipo]||a.tipo;
+    return `<tr>
+      <td class="izq">${escHtml(a.fecha)}</td>
+      <td class="izq"><b>${escHtml(a.code)}</b> ${escHtml(w?w.name:'')}<br><small>${escHtml(tipo)}${a.hora_reloj?' · reloj '+escHtml(a.hora_reloj):''}</small></td>
+      <td class="izq"><small>${escHtml(a.indicacion)}</small></td>
+      <td class="izq"><small>${escHtml(a.enviado_por_nombre||'')}<br>${escHtml(fechaLegible(a.created_at,true))}</small></td>
+      <td>${estado}${a.comentario?'<br><small>'+escHtml(a.comentario)+'</small>':''}</td>
+      <td>${conAccion?`
+        <button class="btn" type="button" style="margin:0;padding:5px 9px;font-size:.7rem" onclick="confirmarAvisoIngreso('${a.id}','confirmado')">Confirmar</button>
+        <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem" onclick="confirmarAvisoIngreso('${a.id}','rechazado')">Rechazar</button>
+      `:'<small>—</small>'}</td>
+    </tr>`;
+  };
+
+  box.innerHTML=`
+    <h3 style="font-size:.95rem;margin:0 0 4px">Avisos sin confirmar</h3>
+    <small style="color:var(--muted)">Un supervisor marcó a alguien que no había fichado y dejó escrita la indicación.
+      Confirmar deja constancia de que alguien lo revisó. El supervisor ve la confirmación en su pantalla.</small>
+    ${pendientes.length
+      ?`<table style="margin-top:8px"><thead><tr>
+          <th class="izq">Fecha</th><th class="izq">Trabajador</th><th class="izq">Indicación</th>
+          <th class="izq">Mandado por</th><th>Estado</th><th></th>
+        </tr></thead><tbody>${pendientes.map(a=>fila(a,true)).join('')}</tbody></table>`
+      :'<div style="margin-top:8px"><small>Nada pendiente. Los avisos confirmados quedan más abajo.</small></div>'}
+    <h3 style="font-size:.95rem;margin:18px 0 4px">Ya resueltos</h3>
+    ${resueltos.length
+      ?`<table><thead><tr>
+          <th class="izq">Fecha</th><th class="izq">Trabajador</th><th class="izq">Indicación</th>
+          <th class="izq">Mandado por</th><th>Estado</th><th></th>
+        </tr></thead><tbody>${resueltos.map(a=>fila(a,false)).join('')}</tbody></table>`
+      :'<div><small>Todavía no se resolvió ningún aviso.</small></div>'}`;
+}
+async function confirmarAvisoIngreso(id,estado){
+  if(!exigirPermiso('tarja.aprobar_cambio'))return;
+  const comentario=prompt(
+    estado==='confirmado'
+      ? 'Vas a confirmar que la marcación correspondía. Escribe una línea para el registro (opcional):'
+      : 'Vas a rechazar la marcación. Escribe POR QUÉ, que el supervisor lo va a leer:'
+  ,'');
+  if(comentario===null)return;
+  if(estado==='rechazado'&&!comentario.trim()){
+    alert('El rechazo necesita un motivo: el supervisor tiene que entender qué corregir.');
+    return;
+  }
+  // El .select() al final es lo que hace que esto se pueda verificar: sin
+  // él, un UPDATE que la política de la base bloquea devuelve 0 filas y
+  // NINGÚN error, y la pantalla mostraría "confirmado" sin que se haya
+  // guardado nada. Con el select se ve si la fila volvió.
+  const {data,error}=await window.supabaseClient.from('avisos_ingreso').update({
+    estado,
+    confirmado_por:miPerfil?miPerfil.id:null,
+    confirmado_por_nombre:miNombrePerfil(),
+    confirmado_at:new Date().toISOString(),
+    comentario:comentario.trim()||null
+  }).eq('id',id).select('id');
+  if(error){
+    alert('No se pudo confirmar: '+error.message+
+      (RLS_RECHAZO.test(error.message)
+        ?'\n\nLa base no lo permitió. Confirmar requiere el permiso "tarja.aprobar_cambio", que es distinto del permiso para marcar.'
+        :''));
+    return;
+  }
+  if(!data||!data.length){
+    alert('La base no dejó confirmar este aviso.\n\n'+
+      'Casi siempre es el permiso: confirmar exige "tarja.aprobar_cambio", que no es el mismo que el de marcar asistencia. '+
+      'Pídeselo a un administrador.');
+    return;
+  }
+  await loadBandejaAvisos();
+}
+
+// Marcar desde la conciliación. Es distinto de "Marcar y avisar" a
+// propósito: acá el reloj YA tiene la marcación y lo que falta es
+// reflejarla en la planilla. No hay nada que confirmar, porque la fuente es
+// el reloj y no la palabra de una persona.
+//
+// QUE HAGA ALGO DE VERDAD, QUE NO HACÍA ANTES
+//
+// El caso "falta marcar" es, por definición, uno en que el marcaje YA
+// existe: el reloj lo vio y la planilla no lo tiene. Llamar a
+// registrarMarcaje() ahí no servía de nada, porque esa función sale
+// temprano cuando el marcaje ya está, y la planilla seguía igual. El
+// botón no hacía nada y no se veía por qué.
+//
+// Por eso el orden es: primero se asegura el marcaje (si falta) y
+// después se escribe la planilla SIEMPRE. Que la planilla se actualice es
+// el punto de este botón.
+async function conciliarMarcar(code,tipo){
+  const w=workers.find(x=>x.code===code);
+  if(!w){alert('No se encontró al trabajador.');return;}
+  const reloj=marcajeDe(code,tipo);
+  const ok=confirm(
+    'Se va a llevar a la planilla la marcación del reloj de '+w.code+' — '+w.name+':\n\n'+
+    '   '+tipo+' a las '+(reloj?reloj.hora:'sin hora')+'\n\n'+
+    'No deja aviso a confirmar: la fuente es el reloj, no una anotación.\n\n¿Seguir?'
+  );
+  if(!ok)return;
+
+  // 1) El marcaje, por si tampoco existe (caso "presente en la planilla
+  //    sin marcaje": acá es al revés y sí hay que crearlo).
+  if(!reloj){
+    const creado=await registrarMarcaje(code,tipo,'app','Marcado desde la conciliación.');
+    if(!creado){
+      alert('No se pudo registrar el marcaje. Revisa la asistencia antes de que termine el turno.');
+      return;
+    }
+  }
+
+  // 2) La planilla, SIEMPRE. Es lo que faltaba.
+  const hora=reloj?reloj.hora:hhmmActual();
+  const guardado=await saveAttendanceState(code,fechaDiaria,'X',hora);
+  if(guardado===false){
+    alert('El marcaje quedó, pero la planilla no se pudo actualizar. '+
+      'Revísala a mano antes de que termine el turno.');
+  }else{
+    // El objeto local también, para que la pantalla no muestre algo viejo
+    // hasta el próximo "Actualizar".
+    const local=attendance.find(a=>a.code===code&&a.date===fechaDiaria);
+    if(local)local.hora_llegada=hora;
+  }
+  await Promise.all([loadMarcajesDia(),loadAsistenciaDelDia()]);
 }
 
 async function cambiarFechaDiaria(){
@@ -3694,9 +4396,12 @@ async function initDiaria(){
   }
   const f=document.getElementById('diariaFecha');
   if(f&&!f.value)f.value=fechaDiaria;
-  await loadMarcajesDia();
+  await loadMarcajesDia();          // ya dispara loadAsistenciaDelDia
   await loadAvisosDia();
+  await loadAvisosIngresoDia();
   renderDiaria();
+  renderConciliacion();
+  renderAvisosIngresoEnviados();
 }
 async function verAvisosDelTrabajador(code){
   const w=workers.find(x=>x.code===code);
@@ -3983,7 +4688,11 @@ function refreshAttendanceMatrix(){
 }
 // Devuelve true si se guardó. Importante: quien aprueba una solicitud
 // necesita saber si el cambio entró de verdad antes de marcarla aprobada.
-async function saveAttendanceState(code,iso,state){
+// "hora" es opcional: si se pasa, se guarda esa; si no, se conserva la que
+// hubiera. La conciliación lo necesita, porque lleva la hora del reloj a
+// la planilla y sin esto quedaba en blanco, que es justo el dato que
+// después se usa para comparar.
+async function saveAttendanceState(code,iso,state,hora){
   const existing=attendance.find(record=>record.code===code&&record.date===iso);
   if(!state||state==='__auto__'){
     if(existing){
@@ -3991,8 +4700,11 @@ async function saveAttendanceState(code,iso,state){
       if(error){alert('No se pudo quitar la marca: '+error.message);await loadAttendanceFromDB();refreshAttendanceMatrix();return false;}
     }
   }else{
+    const nuevaHora=state==='X'
+      ? String(hora||existing?.hora_llegada||'').slice(0,5)
+      : '';
     const {error}=await window.supabaseClient.from('asistencia').upsert(
-      attToDb({code,date:iso,estado:state,hora_llegada:state==='X'?(existing?.hora_llegada||''):'',nota:existing?.nota||'',origen:'manual'}),
+      attToDb({code,date:iso,estado:state,hora_llegada:nuevaHora,nota:existing?.nota||'',origen:'manual'}),
       {onConflict:'code,fecha'}
     );
     if(error){alert('No se pudo actualizar la asistencia: '+error.message);await loadAttendanceFromDB();refreshAttendanceMatrix();return false;}
@@ -4233,11 +4945,107 @@ async function loadPerfiles(){
     </div>`;
   }).join('') || '<small>Todavía no hay usuarios invitados.</small>';
 }
+// Un rol que la base va a rechazar. Se comprueba ANTES de guardar, porque
+// el error de Postgres sale recién al final, con un texto que no nombra la
+// casilla y dice "23514" en vez de "esa casilla no existe".
+//
+// El caso real: la casilla se dibuja desde "roles_sistema", y si ahí hay
+// un rol que el "check" de la tabla no acepta (por ejemplo "supervisor" en
+// vez de "supervisores"), se ve bien y no se puede guardar.
+async function rolesQueLaBaseRechaza(){
+  try{
+    const {data,error}=await window.supabaseClient.rpc('roles_aceptados');
+    if(error||!data)return null;         // la 025 no está: no se puede saber
+    return Array.isArray(data)?data:[];
+  }catch(error){return null;}
+}
+async function rolesInvalidosEnPantalla(seleccionados){
+  const aceptados=await rolesQueLaBaseRechaza();
+  if(!aceptados)return [];
+  const {data}=await window.supabaseClient.from('roles_sistema').select('rol,nombre');
+  const catalogo=data||[];
+  return catalogo
+    .filter(r=>seleccionados.includes(r.rol)&&!aceptados.includes(r.rol))
+    .map(r=>`"${r.rol}"${r.nombre&&r.nombre!==r.rol?' ('+r.nombre+')':''}`);
+}
+
+// El error que salía era el de Postgres, tal cual:
+//
+//   No se pudieron guardar los roles: new row violates row-level security
+//   policy for table "perfil_roles"
+//
+// Que no dice nada útil. La causa es concreta: la política de la base
+// decide si quien guarda es mirando la columna vieja "perfiles.rol", que
+// tiene un solo valor, mientras que la persona puede tener varios roles.
+// Con la columna en 'supervisores' y el admin marcado en la lista, la base
+// cree que no sos administrador y bloquea. La app lo detecta por el texto
+// y da el camino corto.
+function errorDeGuardarRoles(error){
+  const msg=String((error&&error.message)||error||'');
+  // El 23514 con un rol en el detalle: el catálogo tiene un rol que la
+  // base no acepta. Sale con el nombre adentro, que es la parte útil.
+  if(/23514|check constraint/i.test(msg)){
+    const culpable=msg.match(/contains\s*\(([^)]*)\)/i);
+    const campos=culpable?culpable[1].split(','):[];
+    // El segundo campo de "perfiles" es el rol.
+    const rol=campos[1]?campos[1].trim().replace(/^'|'$/g,''):'';
+    return 'La base rechazó un rol que no existe.\n\n'+
+      (rol?('El valor guardado fue: "'+rol+'"\n\n'):'')+
+      'La lista de roles la tiene la tabla "roles_sistema", y hay una fila\n'+
+      'con un rol que la base no acepta. El más común es "supervisor" en vez\n'+
+      'de "supervisores": una letra de diferencia, y la casilla se ve igual.\n\n'+
+      'QUÉ HACER\n'+
+      'En el SQL Editor de Supabase, pega y ejecuta:\n\n'+
+      '   migrations/025_roles_invalidos.sql\n\n'+
+      'Arregla los datos que ya estaban guardados, saca del catálogo el rol\n'+
+      'que sobra y deja el catálogo y la base diciendo lo mismo. Es\n'+
+      're-ejecutable.\n\n'+
+      'Si quieres ver primero qué rol es el que sobra, pega\n'+
+      'sql/revisar-roles.sql: su paso 1 solo lee.\n\n'+
+      'Lo que respondió la base: '+msg;
+  }
+  if(/row-level security|violates row-level|42501|403/i.test(msg)){
+    return 'La base no dejó guardar los roles de este usuario.\n\n'+
+      'Es un problema de la base, no de los datos que pusiste.\n\n'+
+      'LA CAUSA\n'+
+      'Hay dos criterios para "¿quién administra?": la tabla de roles, que\n'+
+      'acepta varios por persona, y la columna vieja perfiles.rol, que es un\n'+
+      'solo texto. Si al que está guardando le quedaste con varios roles\n'+
+      'marcados y el primero no es Administración, la base cree que no es\n'+
+      'administrador y bloquea el guardado —aunque en la pantalla veas el\n'+
+      'menú completo.\n\n'+
+      'QUÉ HACER\n'+
+      'En el SQL Editor de Supabase, pega y ejecuta:\n\n'+
+      '   1) migrations/016_permisos_coherentes.sql   (si no la has aplicado)\n'+
+      '   2) migrations/024_permisos_escritura.sql   (deja el criterio bien)\n\n'+
+      'O pega sql/desbloquear-roles.sql, que trae el diagnóstico primero y\n'+
+      'dice cuál de las dos te falta.\n\n'+
+      'Lo que respondió la base: '+msg;
+  }
+  return 'No se pudieron guardar los roles: '+msg;
+}
+
 async function guardarPerfil(id){
   if(!exigirPermiso('sistema.usuarios'))return;
   const activo=document.getElementById('act-'+id).checked;
   const roles=[...document.querySelectorAll('.rolchk-'+id+':checked')].map(c=>c.value);
   if(!roles.length){alert('Elige al menos un rol.');return;}
+  // Antes de tocar la base: que ninguno de los roles marcados sea uno que
+  // la base va a rechazar. El error de Postgres sale recién al final, con
+  // un código (23514) que no dice qué casilla fue, y para entonces la
+  // lista de roles de la persona ya quedó a medias.
+  const invalidos=await rolesInvalidosEnPantalla(roles);
+  if(invalidos.length){
+    alert('Estos roles están en el catálogo de la app pero la base no los acepta:\n\n'+
+      '   '+invalidos.join('\n   ')+'\n\n'+
+      'Se ven como casillas válidas, pero al guardar Postgres los rechaza. El caso\n'+
+      'típico es "supervisor" en vez de "supervisores", que se diferencian en una\n'+
+      'sola letra.\n\n'+
+      'Desmarca esas casillas, o ejecuta en el SQL Editor de Supabase:\n\n'+
+      '   migrations/025_roles_invalidos.sql\n\n'+
+      'que saca del catálogo lo que sobra y arregla lo que ya estaba guardado.');
+    return;
+  }
   const {data:sesion}=await window.supabaseClient.auth.getSession();
   const miId=sesion&&sesion.session&&sesion.session.user&&sesion.session.user.id;
   if(miId===id&&!activo){
@@ -4251,16 +5059,41 @@ async function guardarPerfil(id){
     if(chk)chk.checked=true;
     return;
   }
-  // perfiles.rol queda con el primero, por compatibilidad
   const fichaSel=document.getElementById('ficha-'+id);
   const ficha=fichaSel&&fichaSel.value?fichaSel.value:null;
+  // "perfiles.rol" es un solo valor y ya no es la fuente de la verdad (lo
+  // es "perfil_roles"), pero partes antiguas todavía lo leen. Antes se
+  // guardaba el PRIMER rol de la lista, y eso rompía cosas: con
+  // "Supervisores" marcado antes que "Administración", la columna quedaba
+  // en 'supervisores' y las políticas de la base —que la miraban— creían
+  // que no eras administrador, aunque la tabla de roles sí tuviera el
+  // admin. Se guarda 'admin' cuando lo tiene, que es el rol de más
+  // alcance: es lo que un lector de la columna vieja espera encontrar.
+  const rolPrincipal=roles.includes('admin')?'admin':roles[0];
   const {error:e1}=await window.supabaseClient.from('perfiles')
-    .update({rol:roles[0],activo,trabajador_code:ficha}).eq('id',id);
+    .update({rol:rolPrincipal,activo,trabajador_code:ficha}).eq('id',id);
   if(e1){alert('No se pudo guardar: '+e1.message);return;}
-  const {error:e2}=await window.supabaseClient.from('perfil_roles').delete().eq('user_id',id);
-  if(e2){alert('No se pudieron limpiar los roles: '+e2.message);return;}
-  const {error:e3}=await window.supabaseClient.from('perfil_roles').insert(roles.map(rol=>({user_id:id,rol})));
-  if(e3){alert('No se pudieron guardar los roles: '+e3.message);return;}
+
+  // ORDEN IMPORTANTE: primero se agregan los roles nuevos, después se
+  // borran los que sobran. Al revés (borrar y después insertar) un fallo
+  // en el insert dejaba al usuario SIN NINGÚN ROL: era un borrado de datos
+  // disfrazado de guardado, y con el error que salía no se entendía que
+  // se había perdido todo.
+  const {data:previos}=await window.supabaseClient.from('perfil_roles')
+    .select('rol').eq('user_id',id);
+  const yaEstan=new Set((previos||[]).map(r=>r.rol));
+  const faltan=roles.filter(rol=>!yaEstan.has(rol));
+  if(faltan.length){
+    const {error:e3}=await window.supabaseClient.from('perfil_roles')
+      .insert(faltan.map(rol=>({user_id:id,rol})));
+    if(e3){alert(errorDeGuardarRoles(e3));return;}
+  }
+  const sobran=[...yaEstan].filter(rol=>!roles.includes(rol));
+  if(sobran.length){
+    const {error:e2}=await window.supabaseClient.from('perfil_roles')
+      .delete().eq('user_id',id).in('rol',sobran);
+    if(e2){alert('Se agregaron los roles nuevos, pero no se pudieron quitar los que quedaron sin marcar: '+e2.message);return;}
+  }
   await loadPermisosUsuario();
   if(typeof recalcularMiSupervisor==='function')recalcularMiSupervisor();
   alert('Usuario actualizado: '+roles.map(nombreDeRol).join(', ')+(ficha?' · ficha '+ficha:' · sin ficha vinculada'));
@@ -7325,7 +8158,6 @@ const VISTAS_POR_PERMISO={
   'v-indicaciones-sociales':'social.ver',
   'v-alertas-prevencion':'prevencion.ver',
   'v-indicaciones-prevencion':'prevencion.ver',
-  'v-ingresar-subcontrato':'prevencion.subcontrato',
   'v-bodega-epp':'bodega.epp.entregar',
   'v-bodega-historial':'bodega.epp.historial',
   'v-bodega-epp-catalogo':'bodega.epp.catalogo',
@@ -7480,6 +8312,17 @@ function aplicarPermisos(){
     if(!visible)el.classList.remove('active');
   });
   document.querySelectorAll('#subNav button[data-v]').forEach(b=>{
+    // Un botón que apunta a una vista inexistente se esconde y avisa. Sin
+    // esto, el clic reventaba con un error de JavaScript y dejaba la app a
+    // medio cambiar, con el menú marcado en una pantalla que no se veía.
+    // Es un error de código, no de quien hace clic, así que se avisa por
+    // consola con el nombre exacto que hay que corregir.
+    if(!document.getElementById('v-'+b.dataset.v)){
+      console.error('El botón "'+b.textContent.trim()+'" apunta a la vista "v-'+b.dataset.v+
+        '", que no existe. O se crea la sección, o se saca el botón del menú.');
+      b.style.display='none';
+      return;
+    }
     b.style.display=puede(VISTAS_POR_PERMISO['v-'+b.dataset.v])?'':'none';
   });
   ocultarSubNavSinPermiso();
@@ -8122,6 +8965,11 @@ function exportPayroll(){
 async function boot(){
   const session = await requireAuth('login.html');
   if(!session) return; // requireAuth ya redirigió a login.html
+  // La entrada a la bitácora va después de requireAuth (que ya sabemos que
+  // hay sesión) y antes de todo lo demás, para que quede registrada aunque
+  // algo de la carga falle después. Es en segundo plano: si la tabla no
+  // existe, la app arranca igual.
+  registrarAcceso('entrada');
   await loadPermisosUsuario();          // qué menús y acciones ve esta persona
   await loadEmpresas();                 // antes de los trabajadores: define su ámbito
   fillWorkerEmpresaSelect();
