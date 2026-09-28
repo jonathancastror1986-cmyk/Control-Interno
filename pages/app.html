@@ -440,8 +440,11 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     <div class="row">
       <div><label>Código</label><input id="w-code"></div>
       <div><label>Nombre</label><input id="w-name"></div>
-      <div><label>Cargo / Especialidad</label><input id="w-spec"></div>
-      <div><label>Teléfono</label><input id="w-phone"></div>
+      <div><label>Cargo / Especialidad</label><input id="w-spec">
+       <small style="display:block;color:var(--muted);font-size:.72rem">Texto libre: es lo que se imprime en las planillas. Para el kit de contratación lo que decide es la especialidad de abajo, que es una lista.</small></div>
+      <div><label>Especialidad del kit</label><select id="w-especialidad-clave"><option value="">Sin asignar (solo los papeles generales)</option></select>
+      <small style="display:block;color:var(--muted);font-size:.72rem">Determina qué charlas de inducción le tocan. Se deja vacío a propósito: adivinarlo desde el texto del cargo es la forma fácil de mandarle a alguien la charla del oficio equivocado.</small></div>
+    <div><label>Teléfono</label><input id="w-phone"></div>
       <div><label>RUT</label><input id="w-rut" placeholder="13.199.887-2">
         <small style="display:block;color:var(--muted);font-size:.72rem">Sirve para que las importaciones desde Excel reconozcan al trabajador sin depender del nombre.</small></div>
     </div>
@@ -1565,6 +1568,169 @@ para copiar, y el aviso dice exactamente eso.
   </div>
 </dialog>
 
+
+<!--
+PLANTILLAS DEL KIT
+==================
+Las escribe Prevención. El contenido es HTML, no texto con saltos de línea,
+porque es lo que se imprime: guardar texto plano obliga a reinterpretar los
+saltos al imprimir, y el resultado cambia entre navegadores.
+
+El editor es un <div contenteditable> con una barra de formato, no un
+<textarea>: el textarea obliga a que el texto se interprete después, y
+entonces el papel se ve bien en un computador y mal en otro.
+
+LA ESPECIALIDAD
+---------------
+Cada plantilla es general (le toca a todo el mundo) o de una especialidad.
+Una charla de albanil no le toca a un portero. La lista de especialidades
+viene de la que ya usa el EPP, con las 25 del formulario de inducción de la
+obra sembradas por la migración 031.
+-->
+<section class="view" id="v-plantillas-kit">
+  <div class="card">
+    <h2>Plantillas del kit de contratación</h2>
+    <small>Los papeles que se le entregan a una persona cuando entra. Prevención los escribe y los cambia cuando
+      haga falta; la versión sube sola y las entregas ya firmadas guardan con qué versión se firmaron, así que un
+      cambio de texto no vuelve válido un papel viejo.</small>
+    <div class="row" style="margin-top:12px">
+      <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="abrirEditorPlantilla('')">Agregar plantilla</button></div>
+    </div>
+    <div id="plantillasAviso" style="margin-top:10px"></div>
+    <div id="plantillasLista" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <h3>El timbre</h3>
+    <small>El nombre y el RUT salen de la empresa, no se escriben de nuevo acá: si el timbre tuviera su propio
+      nombre, algún día los dos dicen cosas distintas y el que vale es el del papel. Lo que se configura es quién
+      lo suscribe y cómo se dibuja.</small>
+    <div id="timbreEditor" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!--
+EL KIT DE UN TRABAJADOR
+=======================
+La lista la arma la base de datos, no la pantalla: con muchas personas y
+varios papeles, una lista mal armada es un papel que no se entrega.
+-->
+<section class="view" id="v-kit">
+  <div class="card">
+    <h2>Kit de contratación</h2>
+    <small>Los papeles que le tocan a un trabajador y los que ya firmó. Para armar el kit, primero hay que
+      asignarle la especialidad en su ficha: sin especialidad le tocan solo los papeles generales, y es
+      preferible eso a darle la charla del oficio equivocado.</small>
+    <div class="row" style="margin-top:12px">
+      <div style="flex:1"><label>Trabajador</label><select id="kitWorker" onchange="if(this.value)cargarKitDelTrabajador(this.value)"></select></div>
+    </div>
+    <div id="kitLista" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<!--
+EL PAPEL
+========
+Como se va a imprimir, con las firmas y el timbre ya en su lugar. El
+timbre se dibuja con HTML y sale en el PDF tal cual se ve acá, porque el
+PDF se genera renderizando esta misma hoja.
+-->
+<dialog id="dlgPapel" style="max-width:min(860px,96vw);width:96vw">
+  <div class="card" style="margin:0">
+    <div class="row" style="align-items:center">
+      <h2 id="papelTitulo" style="margin:0;flex:1"></h2>
+      <small id="papelVersion"></small>
+    </div>
+    <div class="papel-scroll">
+      <div class="hoja-papel" id="papelHoja"></div>
+    </div>
+    <div class="firmas-edicion">
+      <div id="papelFirmaTrabWrap">
+        <label>Firma del trabajador</label>
+        <canvas id="papelFirmaTrab" width="420" height="150"></canvas>
+        <div class="row" style="gap:6px;margin-top:4px">
+          <button class="btn" type="button" onclick="limpiarFirma('papelFirmaTrab')">Limpiar</button>
+        </div>
+      </div>
+      <div id="papelFirmaSupWrap">
+        <label>Firma del supervisor</label>
+        <canvas id="papelFirmaSup" width="420" height="150"></canvas>
+        <div class="row" style="gap:6px;margin-top:4px">
+          <button class="btn" type="button" onclick="limpiarFirma('papelFirmaSup')">Limpiar</button>
+        </div>
+      </div>
+    </div>
+    <div id="papelError" style="color:var(--danger);margin-top:8px" role="alert"></div>
+    <small style="display:block;margin-top:4px">Marcá la firma con el dedo, el mouse o el lápiz, si la pantalla lo tiene.
+      Para que funcione hay que apoyar y arrastrar, no solo apoyar.</small>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <button class="btn" id="papelAnular" type="button" onclick="anularPapel(document.getElementById('dlgPapel')._plantilla.code,document.getElementById('dlgPapel')._code)">Anular</button>
+      <button class="btn" type="button" onclick="document.getElementById('dlgPapel').close()">Cerrar</button>
+      <button class="btn primary" id="papelGuardar" type="button" onclick="guardarPapel()">Guardar firma</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
+EL EDITOR DE PLANTILLAS
+=======================
+Barra de formato + hoja editable. Es lo más cerca de un documento de Word
+que se puede sin instalar nada: la barra usa execCommand, que es lo único
+que da formato enriquecido sin una librería entera. Sirve para negrita,
+cursiva, listas y tamaño de letra, que es lo que necesita un acta.
+
+Lo que NO se puede desde acá y hay que pegar: tablas, imágenes y cambios
+de página. Un <div contenteditable> los acepta si se los pegan, y después
+no se pueden editar con la barra.
+-->
+<dialog id="dlgPlantilla" style="max-width:min(960px,96vw);width:96vw">
+  <div class="card" style="margin:0">
+    <h2 id="plantillaTitulo" style="margin-top:0">Editar plantilla</h2>
+    <div class="row">
+      <div><label>Código</label><input id="plantillaCode" placeholder="IND-GENERAL"></div>
+      <div style="flex:1"><label>Nombre</label><input id="plantillaNombre" placeholder="Inducción general"></div>
+      <div><label>Tipo</label><select id="plantillaTipo" onchange="actualizarAyudaPlantilla()">
+        <option value="charla">Charla</option>
+        <option value="formulario">Formulario</option>
+        <option value="acta">Acta</option>
+      </select></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1"><label>Especialidad</label><select id="plantillaEspecialidad" onchange="actualizarAyudaPlantilla()"></select></div>
+      <div><label>Orden en el kit</label><input type="number" id="plantillaOrden" min="1" step="10" value="100"></div>
+      <div style="align-self:flex-end">
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="plantillaSupervisor" checked> La firma el supervisor
+        </label>
+      </div>
+    </div>
+    <div id="plantillaAyuda" class="small" style="margin-top:8px"></div>
+    <div class="editor-barra" style="margin-top:10px">
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('bold')"><b>N</b></button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('italic')"><i>C</i></button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('underline')"><u>S</u></button>
+      <select class="btn" style="padding:3px 6px" onchange="document.execCommand('fontSize',false,this.value);this.value=''">
+        <option value="">Tamaño</option><option value="1">Chico</option><option value="3">Normal</option><option value="5">Grande</option>
+      </select>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertUnorderedList')">• Lista</button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertOrderedList')">1. Lista</button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertParagraph')">Párrafo</button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('removeFormat')">Sin formato</button>
+    </div>
+    <div id="plantillaEditor" class="editor-hoja" contenteditable="true" spellcheck="true"></div>
+    <div id="plantillaError" style="color:var(--danger);margin-top:6px" role="alert"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="document.getElementById('dlgPlantilla').close()">Cancelar</button>
+      <button class="btn primary" id="plantillaGuardar" type="button" onclick="guardarPlantilla()">Guardar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Lo que se imprime no se ve nunca en la app, pero tiene que estar en el
+     DOM para poder renderizarlo al PDF. Por eso vive acá y no se arma al
+     vuelo: se arma, se mide, se saca. -->
+<div id="pantallaTotal" style="position:fixed;left:-10000px;top:0;background:#fff"></div>
+
 <dialog id="dlgDesvincula" style="max-width:560px;width:94vw">
   <div class="card" style="margin:0">
     <h2 id="desvTitulo" style="margin-top:0">Desvincular trabajador</h2>
@@ -1728,6 +1894,11 @@ function workerToDb(w){
     fecha_termino: w.fecha_termino||null,
     articulo_termino: w.articulo_termino||null,
     motivo_desvinculacion: w.motivo_desvinculacion||null,
+    // La especialidad por CLAVE (migración 031): decide qué charlas del
+    // kit le tocan. Va en el upsert de todas partes porque este
+    // workerToDb lo usan TODOS los guardados —incluida la carga del
+    // Excel— y sin esta línea cualquiera de ellos la pondría en null.
+    especialidad_clave: w.especialidad_clave||null,
     empresa_id: w.empresa_id||null
   };
 }
@@ -1749,6 +1920,14 @@ function dbToWorker(r){
     // llegaba a ninguna parte.
     fecha_termino:r.fecha_termino,
     articulo_termino:r.articulo_termino,
+    // La especialidad por CLAVE (migración 031). Sin mapearla, el kit
+    // le armaba a todos el papel general y avisaba que no tienen
+    // especialidad, aunque la tuvieran puesta en la base.
+    especialidad_clave:r.especialidad_clave||null,
+    // La especialidad por CLAVE (migración 031). Sin mapearla, el kit
+    // le armaba a todos el papel general y avisaba que no tienen
+    // especialidad, aunque la tuvieran puesta en la base.
+    especialidad_clave:r.especialidad_clave||null,
     motivo_desvinculacion:r.motivo_desvinculacion,
     desvinculado_por_nombre:r.desvinculado_por_nombre,
     empresa_id:r.empresa_id||null
@@ -1934,6 +2113,10 @@ const navGroups = {
       {v:'aprobar-cambio',label:'Aprobar solicitudes'}
     ]},
     {v:'relojes',label:'Relojes y centros de costo'},
+    {v:'kit',label:'Kit de contratación',options:[
+      {v:'kit',label:'Papeles del trabajador'},
+      {v:'plantillas-kit',label:'Editar plantillas y timbre'}
+    ]},
     {v:'porteria',label:'Consultar trabajador'}
   ],
   soporte: [
@@ -2017,6 +2200,8 @@ function initView(v){
   if(v==='just-diaria'){initJustificacionDiaria();}
   if(v==='auditoria'){initAuditoria();}
   if(v==='relojes'){cargarRelojes();}
+  if(v==='kit'){cargarContratacion().then(cargarEspecialidadesContratacion).then(()=>initKitView());}
+  if(v==='plantillas-kit'){cargarContratacion().then(cargarEspecialidadesContratacion).then(()=>{renderPlantillas();renderEditorTimbre();});}
   if(v==='asistencia'){
     showAttendancePanel('tarja');
     const yearInput=document.getElementById('matYear');
@@ -2556,10 +2741,13 @@ async function ejecutarDesvinculacion(){
   btn.disabled=false;
   btn.textContent='Desvincular';
   if(error){
-    const falta=/desvincular_trabajador/.test(error.message||'')&&/does not exist|no existe/i.test(error.message||'');
-    err.innerHTML=falta
-      ?'La migracion <b>029_desvinculacion_articulo.sql</b> no esta aplicada. Sin ella no se puede desvincular con fecha de termino.'
-      :escHtml(error.message);
+    if(errorEsDesvinculacionSinMigrar(error)){
+      err.innerHTML='La migración <b>029_desvinculacion_articulo.sql</b> no está aplicada, y por eso no se pudo guardar. '
+        +'Abrila en el SQL Editor de Supabase y volvé a intentar.<br>'
+        +'<small style="opacity:.65">'+escHtml(error.message||'')+'</small>';
+      return;
+    }
+    err.innerHTML=escHtml(error.message);
     return;
   }
   document.getElementById('dlgDesvincula').close();
@@ -2650,7 +2838,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-n';
+const APP_VERSION='2026-09-28-o';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -2778,6 +2966,8 @@ wirephoto('w-safety','pre-safety','safety');
 function clearForm(){
   ['w-code','w-name','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('w-is-supervisor').checked=false;
+  llenarSelectoresEspecialidad();
+  if(document.getElementById('w-especialidad-clave'))document.getElementById('w-especialidad-clave').value='';
   document.getElementById('w-tipo-trabajador').value='interno';
   fillWorkerEmpresaSelect();
   document.getElementById('pre-casual').src='';
@@ -2802,6 +2992,8 @@ async function saveWorker(){
   const code=document.getElementById('w-code').value.trim();
   const name=document.getElementById('w-name').value.trim();
   const spec=document.getElementById('w-spec').value.trim();
+  const espClave=document.getElementById('w-especialidad-clave')
+    ?document.getElementById('w-especialidad-clave').value:'';
   if(!code||!name){alert('Código y nombre son obligatorios');return;}
   const existing=workers.find(w=>w.code===code)||todosWorkers.find(w=>w.code===code);
   const empSel=document.getElementById('w-empresa');
@@ -2831,6 +3023,7 @@ async function saveWorker(){
     status: existing?existing.status:'activo',
     fecha_desvinculacion: existing?existing.fecha_desvinculacion:null
   };
+  worker.especialidad_clave=espClave||null;
   const {error}=await window.supabaseClient.from('trabajadores').upsert(workerToDb(worker),{onConflict:'code'});
   if(error){
     // El índice único de "rut" salta si dos trabajadores tienen el mismo.
@@ -3306,6 +3499,8 @@ function editWorker(code){
   document.getElementById('w-code').value=w.code;
   document.getElementById('w-name').value=w.name;
   document.getElementById('w-spec').value=w.spec||'';
+  llenarSelectoresEspecialidad();
+  document.getElementById('w-especialidad-clave').value=w.especialidad_clave||'';
   document.getElementById('w-phone').value=w.phone||'';
   document.getElementById('w-rut').value=w.rut||'';
   document.getElementById('w-is-supervisor').checked=!!w.is_supervisor;
@@ -6276,17 +6471,52 @@ function faltaMotivoEnElError(error){
   const t=String((error&&error.message)||error||'').toLowerCase();
   return t.includes('motivo')&&(t.includes('falta')||t.includes('escribe')||t.includes('minimo'));
 }
-// ¿El error es "la 028 todavía no está aplicada"?
+// ¿El error es "todavía no está aplicada la migración que hace falta"?
 //
-// Se separa de `faltaMotivoEnElError` porque son dos Cosas distintas con
-// dos arreglos distintos: una se arregla escribiendo el motivo, la otra
-// aplicando la migración. Decir "no se pudo actualizar la asistencia:
-// function registrar_asistencia does not exist" no dice ninguna de las dos
-// cosas, y deja a la persona pensando que la asistencia está rota.
-function errorEsAuditoriaSinMigrar(error){
+// ESTO ESTABA MAL Y SE VIO EN PANTALLA AL DESVINCULAR.
+//
+// Se buscaba "does not exist" en el mensaje, pero PostgREST no escribe eso.
+// Escribe:
+//
+//   Could not find the function public.desvincular_trabajador(...) in the
+//   schema cache
+//
+// Con el patrón anterior el error no se reconocía, se caía al mensaje
+// crudo, y la persona veía una línea de inglés técnico sin ninguna pista
+// de que lo que le faltaba era abrir el SQL Editor y correr una
+// migración. Peor todavía: pasaba en un formulario donde ya había escrito
+// la fecha de término y el artículo, así que parecía que esos datos estaban
+// mal.
+//
+// Se busca por las dos formas y por el nombre de la función, que es lo
+// único que no cambia entre versiones de PostgREST.
+const SIN_MIGRACION=[
+  /does not exist/i, /no existe/i, /not exist/i,
+  /could not find the function/i,   // <- el que salía en la pantalla
+  /undefined function/i, /schema cache/i,
+  /42883/,   // undefined_function
+  /42P01/,   // undefined_table
+  /42703/    // undefined_column: la migración quedó a medias
+];
+// Con `nombres` el error tiene que mencionar esa función o esa tabla. Sin
+// eso, cualquier "no existe" (una tarjeta, un nombre) se tomaría por una
+// migración faltante, y un falso positivo en un aviso de migración hace
+// que la persona deje de mirar esos avisos.
+function faltaLaMigracion(error,nombres){
   const t=String((error&&error.message)||error||'');
-  return /registrar_asistencia|asistencia_auditoria|auditar_asistencia/.test(t)
-    &&/does not exist|no existe|not exist|undefined function|42883|42P01/i.test(t);
+  if(!t)return false;
+  if(!SIN_MIGRACION.some(re=>re.test(t)))return false;
+  if(nombres&&nombres.length)return nombres.some(n=>t.includes(n));
+  return true;
+}
+function errorEsAuditoriaSinMigrar(error){
+  return faltaLaMigracion(error,['registrar_asistencia','asistencia_auditoria','auditar_asistencia']);
+}
+function errorEsRelojesSinMigrar(error){
+  return faltaLaMigracion(error,['marcar_por_reloj','relojes','centros_costo','rotar_token_reloj']);
+}
+function errorEsDesvinculacionSinMigrar(error){
+  return faltaLaMigracion(error,['desvincular_trabajador','diagnostico_desvinculacion']);
 }
 // Devuelve el motivo escrito, o null si la persona se arrepiente.
 // No es async: resuelve con callbacks, porque el cuadro es un <dialog>
@@ -7361,12 +7591,12 @@ async function loadInvitaciones(){
       if(inv.estado==='pendiente'&&!vencida){
         acciones=`<button class="btn secondary" type="button" onclick="reenlaceInvitacion('${inv.id}')">Ver enlace</button>
                   <button class="btn secondary" type="button" onclick="enviarInvitacionDe('${inv.correo}')">✉ Enviar</button>
-                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\\'"))}','verificar')">✓ Verificar</button>
-                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\\'"))}','crear')">🔑 Alta con clave</button>
+                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\'"))}','verificar')">✓ Verificar</button>
+                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\'"))}','crear')">🔑 Alta con clave</button>
                   <button class="btn secondary" type="button" onclick="cancelarInvitacion('${inv.id}')">Cancelar</button>`;
       }else if(vencida){
         acciones=`<button class="btn secondary" type="button" onclick="reinvitar('${inv.id}')">Volver a invitar</button>
-                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\\'"))}','crear')">🔑 Alta con clave</button>`;
+                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\'"))}','crear')">🔑 Alta con clave</button>`;
       }
       return `<tr>
         <td class="izq">${escHtml(inv.correo)}</td>
@@ -10250,6 +10480,8 @@ const VISTAS_POR_PERMISO={
   'v-just-diaria':'tarja.justificar',
   'v-auditoria':'asistencia.auditar',
   'v-relojes':'relojes.ver',
+  'v-kit':'contratacion.ver',
+  'v-plantillas-kit':'contratacion.editar',
   'v-aprobar-cambio':'tarja.aprobar_cambio',
   'v-usuarios':'sistema.usuarios',
   'v-invitar-usuario':'sistema.usuarios',
@@ -10331,6 +10563,7 @@ async function loadPermisosUsuario(){
   if(typeof comprobarAuditoria==='function')comprobarAuditoria();
   if(typeof comprobarDesvinculacion==='function')comprobarDesvinculacion();
   if(typeof comprobarRelojes==='function')comprobarRelojes();
+  if(typeof comprobarContratacion==='function')comprobarContratacion();
   if(typeof revisarPerfilIncompleto==='function')revisarPerfilIncompleto();
 }
 
@@ -10905,6 +11138,15 @@ async function registrarDesdeTotem(codigo){
     p_tipo:document.getElementById('totemTipo').value
   });
   if(error){
+    // Una migración faltante no es un marcaje malo: es que la base no está
+    // lista. Se distingue ANTES de buscar un código de error, porque el
+    // texto de PostgREST no trae ninguno y la pantalla terminaba
+    // mostrando una línea de inglés técnico en un cartel de 50 letras.
+    if(errorEsRelojesSinMigrar(error)){
+      mostrarTotem('error','Reloj sin configurar',
+        'La migración 030_relojes_totem.sql no está aplicada en la base de datos. Avisa a administración.');
+      return;
+    }
     const msg=String(error.message||'');
     const codigoError=(msg.match(/[A-Z_]{6,}/)||[''])[0];
     const par=MENSAJES_TOTEM[codigoError]||['No se pudo marcar',msg||'Intenta de nuevo.'];
@@ -11081,6 +11323,805 @@ async function comprobarRelojes(){
   }
 }
 
+// ------------------------------------------------------------------
+// EL EDITOR DE PLANTILLAS
+// ------------------------------------------------------------------
+// Un <div contenteditable> con barra de formato, no un <textarea>.
+//
+// El textarea obliga a guardar texto plano y a reinterpretar los saltos al
+// imprimir. El resultado cambia entre navegadores: el mismo papel se ve bien
+// en un computador y mal en otro, y eso se descubre cuando ya se firmano
+// veinte. Con HTML guardado, lo que se ve en el editor es lo que sale en el
+// papel.
+//
+// execCommand está "obsoleto" según el estándar pero es lo único que da
+// formato enriquecido sin instalar una librería de editor entera. Para un
+// acta (negrita, cursiva, listas, tamaño) alcanza y sobra.
+const CAMPOS_PLANTILLA=[
+  ['{{nombre}}','Nombre del trabajador'],
+  ['{{codigo}}','Código de 4 dígitos'],
+  ['{{rut}}','RUT'],
+  ['{{especialidad}}','Especialidad (la de la ficha)'],
+  ['{{cargo}}','Cargo'],
+  ['{{empresa}}','Nombre de la empresa'],
+  ['{{empresa_rut}}','RUT de la empresa'],
+  ['{{centro}}','Centro de costo o nombre de la obra'],
+  ['{{fecha}}','Fecha de hoy']
+];
+function renderContratacion(){
+  const aviso=document.getElementById('contratacionAvisoGeneral');
+  renderPlantillas();
+  renderEditorTimbre();
+}
+// ¿El contenido tiene texto de verdad?
+//
+// NO se hace con una expresión regular sobre el HTML. El problema concreto:
+// una hoja cuyo único contenido es un espacio duro devuelve innerHTML === "&nbsp;",
+// que son seis caracteres y no está vacía. Se guardaba una plantilla que en el
+// papel es una hoja en blanco, y un papel en blanco firmado no es un error
+// visible: es un documento falso.
+//
+// Se pasa por el DOM y se lee textContent, que es lo que se va a imprimir.
+function htmlTieneTexto(html){
+  if(!html)return false;
+  const div=document.createElement('div');
+  div.innerHTML=String(html);
+  if(div.querySelector('img,svg,canvas,video'))return true;
+  return (div.textContent||'').replace(/\u00a0/g,' ').trim().length>0;
+}
+function renderPlantillas(){
+  const lista=document.getElementById('plantillasLista');
+  const aviso=document.getElementById('plantillasAviso');
+  if(!lista)return;
+  aviso.innerHTML=contratacionError
+    ?'<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+     '<b>Falta la migración 031_kit_contratacion.sql.</b> <small>'+escHtml(contratacionError)+'</small></div>'
+    :(!plantillasContratacion.length
+      ?'<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+       '<b>No hay ninguna plantilla todavía.</b> <small>Sin plantillas no hay kit. Agregá la primera con "Agregar plantilla".</small></div>'
+      :'');
+  if(!plantillasContratacion.length){lista.innerHTML='';return;}
+  lista.innerHTML=plantillasContratacion.map(p=>{
+    const vacio=!htmlTieneTexto(p.contenido);
+    const hechas=entregasContratacion.filter(e=>e.plantilla_id===p.id&&e.estado==='completa').length;
+    return '<div class="list-item" style="cursor:default;display:block">'+
+      '<div><b>'+escHtml(p.nombre)+'</b> <small>'+escHtml(p.code)+' · v'+escHtml(String(p.version))+' · '+
+      escHtml(etiquetaTipo(p.tipo))+'</small>'+
+      (p.vigente?'':' <span class="pill" style="color:var(--danger);border-color:var(--danger)">No vigente</span>')+
+      (vacio?' <span class="pill" style="color:var(--warn);border-color:var(--warn)">Sin contenido</span>':'')+
+      '<br><small>'+escHtml(p.especialidad_clave?especialidadNombre(p.especialidad_clave):'General (le toca a todos)')+
+      (p.requiere_supervisor?' · firma del supervisor':'')+
+      (hechas?' · '+hechas+' firmada(s)':'')+'</small></div>'+
+      '<span style="display:flex;gap:6px;flex:0 0 auto">'+
+      '<button class="btn" style="padding:4px 8px;font-size:.8rem" type="button" onclick="abrirEditorPlantilla(\''+escHtml(p.code)+'\')">Editar</button>'+
+      (p.vigente
+        ?'<button class="btn" style="padding:4px 8px;font-size:.8rem" type="button" onclick="retirarPlantilla(\''+escHtml(p.code)+'\')">Retirar</button>'
+        :'<button class="btn" style="padding:4px 8px;font-size:.8rem" type="button" onclick="vigentarPlantilla(\''+escHtml(p.code)+'\')">Volver a usar</button>')+
+      '</span></div>';
+  }).join('');
+}
+function actualizarAyudaPlantilla(){
+  const esp=document.getElementById('plantillaEspecialidad').value;
+  const conSup=document.getElementById('plantillaSupervisor').checked;
+  const esCharla=document.getElementById('plantillaTipo').value==='charla';
+  document.getElementById('plantillaAyuda').innerHTML=
+    (esp
+      ?'Le tocará <b>solo</b> a los trabajadores con esa especialidad. Para que también la '
+       +'reciban todos, hacé otra plantilla igual pero como General: las dos conviven sin pisarse.'
+      :'Le toca a <b>todos</b> los trabajadores, tengan la especialidad que tengan.')+
+    (esCharla
+      ?'<br>Una charla es para explicarla: texto corrido, y los {{campos}} donde vaya el nombre.'
+      :'')+
+    (conSup
+      ?'<br>Se firma el trabajador <b>y</b> el supervisor: si falta una de las dos, no se guarda.'
+      :'<br>Se firma solo el trabajador. Se desmarca para las actas que solo lleva su firma.');
+}
+async function abrirEditorPlantilla(code){
+  if(!exigirPermiso('contratacion.editar','No tienes permiso para escribir las plantillas.'))return;
+  const p=code?plantillasContratacion.find(x=>x.code===code):null;
+  const dlg=document.getElementById('dlgPlantilla');
+  document.getElementById('plantillaTitulo').textContent=p?('Editar '+p.nombre):'Agregar plantilla';
+  document.getElementById('plantillaError').textContent='';
+  document.getElementById('plantillaCode').value=p?p.code:'';
+  document.getElementById('plantillaCode').readOnly=!!p;
+  document.getElementById('plantillaNombre').value=p?p.nombre:'';
+  document.getElementById('plantillaTipo').value=p?p.tipo:'charla';
+  document.getElementById('plantillaOrden').value=p?p.orden:100;
+  document.getElementById('plantillaSupervisor').checked=p?!!p.requiere_supervisor:true;
+  const sel=document.getElementById('plantillaEspecialidad');
+  sel.innerHTML='<option value="">General (le toca a todos)</option>'+
+    (typeof especialidades!=='undefined'?especialidades:[]).map(e=>`<option value="${escHtml(e.clave)}">${escHtml(e.nombre)}</option>`).join('');
+  sel.value=p&&p.especialidad_clave?p.especialidad_clave:'';
+  document.getElementById('plantillaEditor').innerHTML=p?(p.contenido||''):
+    '<h2>Inducción</h2><p>Bienvenido a la obra. Tu supervisor es {{nombre}}.</p>';
+  actualizarAyudaPlantilla();
+  dlg.showModal();
+  if(!p)document.getElementById('plantillaNombre').focus();
+}
+async function guardarPlantilla(){
+  const dlg=document.getElementById('dlgPlantilla');
+  const err=document.getElementById('plantillaError');
+  const btn=document.getElementById('plantillaGuardar');
+  const code=document.getElementById('plantillaCode').value.trim().toUpperCase();
+  const nombre=document.getElementById('plantillaNombre').value.trim();
+  const contenido=document.getElementById('plantillaEditor').innerHTML.trim();
+  err.textContent='';
+  if(!code){err.textContent='Falta el código. Es el que identifica la plantilla.';return;}
+  if(!/^[A-Z0-9][A-Z0-9._-]{0,39}$/.test(code)){
+    err.textContent='El código solo puede tener letras, números, punto y guion. Sin espacios.';
+    return;
+  }
+  if(!nombre){err.textContent='Falta el nombre.';return;}
+  if(!htmlTieneTexto(contenido)){
+    err.textContent='La plantilla está vacía. Un papel sin texto no se puede firmar.';
+    return;
+  }
+  const cuerpo={
+    nombre,
+    tipo:document.getElementById('plantillaTipo').value,
+    especialidad_clave:document.getElementById('plantillaEspecialidad').value||null,
+    orden:Number(document.getElementById('plantillaOrden').value)||100,
+    requiere_supervisor:document.getElementById('plantillaSupervisor').checked,
+    contenido
+  };
+  btn.disabled=true;btn.textContent='Guardando…';
+  let error=null;
+  const existente=plantillasContratacion.find(x=>x.code===code);
+  if(existente){
+    // La versión sube SOLO si el texto cambió. Guardar sin tocar el texto
+    // también subiría la versión, y eso dejaría inválidos todos los papeles
+    // que se firmaron de esa plantilla y que nadie iba a volver a hacer.
+    const textoCambiado=(existente.contenido||'').trim()!==contenido;
+    const r=await window.supabaseClient.from('plantillas_contratacion')
+      .update({...cuerpo,version:existente.version+(textoCambiado?1:0),updated_at:new Date().toISOString()})
+      .eq('code',code);
+    error=r.error;
+  }else{
+    const r=await window.supabaseClient.from('plantillas_contratacion')
+      .insert({code,...cuerpo,vigente:true,version:1}).select().single();
+    error=r.error;
+  }
+  btn.disabled=false;btn.textContent='Guardar';
+  if(error){
+    err.textContent=/duplicate|unique/i.test(error.message)
+      ?'Ya existe una plantilla con el código "'+code+'".'
+      :(faltaLaMigracion(error,['plantillas_contratacion'])
+        ?'La migración 031_kit_contratacion.sql no está aplicada.'
+        :'No se pudo guardar: '+error.message);
+    return;
+  }
+  dlg.close();
+  await cargarContratacion();
+}
+async function retirarPlantilla(code){
+  const p=plantillasContratacion.find(x=>x.code===code);
+  if(!p)return;
+  const hechas=entregasContratacion.filter(e=>e.plantilla_id===p.id&&e.estado==='completa').length;
+  if(!confirm('Retirar "'+p.nombre+'" del kit?\n\nDeja de aparecer en los kits nuevos. Los papeles ya firmados ('+hechas+') se conservan.\n\nNo se borra la plantilla: queda como "no vigente", para poder volver a usarla.'))return;
+  const {error}=await window.supabaseClient.from('plantillas_contratacion').update({vigente:false,updated_at:new Date().toISOString()}).eq('code',code);
+  if(error){alert('No se pudo retirar: '+error.message);return;}
+  await cargarContratacion();
+}
+async function vigentesPlantilla(code){
+  const {error}=await window.supabaseClient.from('plantillas_contratacion').update({vigente:true,updated_at:new Date().toISOString()}).eq('code',code);
+  if(error){alert('No se pudo volver a usar: '+error.message);return;}
+  await cargarContratacion();
+}
+// ------------------------------------------------------------------
+// EL TIMBRE
+// ------------------------------------------------------------------
+function renderEditorTimbre(){
+  const box=document.getElementById('timbreEditor');
+  if(!box)return;
+  if(!configTimbre){
+    box.innerHTML='<small>No hay configuración de timbre para esta empresa. Se crea al aplicar la migración 031.</small>';
+    return;
+  }
+  // El timbre pertenece a UNA empresa. Con "todas las empresas" arriba no hay
+  // cuál, y antes se imprimía un sello con el nombre en blanco: en un papel
+  // firmado, un timbre mudo es peor que ninguno, porque parece que la
+  // configuración se olvidó.
+  if(!empresaDelPapel()){
+    box.innerHTML='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);'
+      +'padding:10px 12px;border-radius:8px"><b>Elegí una empresa.</b> <small>'
+      +escHtml(avisoSinEmpresaUnica())+'</small></div>';
+    return;
+  }
+  const empresa=empresaDelPapel();
+  box.innerHTML=
+    '<div class="row">'+
+    '<div style="flex:1"><label>Cargo de quien suscribe</label>'+
+    '<input id="timbreCargo" value="'+escHtml(configTimbre.cargo||'')+'" onchange="guardarTimbre()"></div>'+
+    '<div><label>Giro (grados)</label><input type="number" id="timbreGiro" min="-45" max="45" value="'+escHtml(String(configTimbre.giro_grados))+'" onchange="guardarTimbre()"></div>'+
+    '<div><label>Tamaño (%)</label><input type="number" id="timbreTamano" min="50" max="200" step="5" value="'+escHtml(String(configTimbre.tamano))+'" onchange="guardarTimbre()"></div>'+
+    '</div>'+
+    '<div class="row" style="margin-top:8px">'+
+    '<div style="flex:1"><label>Posición</label><select id="timbrePosicion" onchange="guardarTimbre()">'+
+    [['inferior_derecha','Abajo a la derecha'],['inferior_izquierda','Abajo a la izquierda'],
+     ['superior_derecha','Arriba a la derecha'],['superior_izquierda','Arriba a la izquierda']]
+      .map(([v,t])=>`<option value="${v}"${configTimbre.posicion===v?' selected':''}>${t}</option>`).join('')+
+    '</select></div>'+
+    '<div style="align-self:flex-end;display:flex;gap:14px;flex-wrap:wrap">'+
+    '<label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="timbreRut"'+
+    (configTimbre.incluir_rut?' checked':'')+' onchange="guardarTimbre()"> Mostrar el RUT</label>'+
+    '<label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="timbreNombreSi"'+
+    (configTimbre.nombre_firmante?' checked':'')+' onchange="guardarTimbre()"> Nombre de la persona</label>'+
+    '</div></div>'+
+    '<label style="display:block;margin-top:8px">Nombre de quien firma (opcional)</label>'+
+    '<input id="timbreNombre" value="'+escHtml(configTimbre.nombre_firmante||'')+'" onchange="guardarTimbre()">'+
+    '<div class="timbre-prueba" style="margin-top:12px">'+htmlTimbre()+'</div>'+
+    '<small style="display:block;margin-top:4px">Así se va a ver en el papel. El nombre de la empresa sale de la pantalla de '+
+    'Configuración y no de acá: si el timbre tuviera su propio nombre, algún día los dos dirían cosas distintas '+
+    'y en el papel mandaría el que está escrito en el timbre.</small>';
+}
+async function guardarTimbre(){
+  if(!configTimbre)return;
+  const cargo=document.getElementById('timbreCargo').value.trim();
+  const giro=Number(document.getElementById('timbreGiro').value);
+  const tamano=Number(document.getElementById('timbreTamano').value);
+  const posicion=document.getElementById('timbrePosicion').value;
+  const incluirRut=document.getElementById('timbreRut').checked;
+  const nombre=document.getElementById('timbreNombreSi').checked
+    ?document.getElementById('timbreNombre').value.trim():null;
+  if(!cargo){alert('Falta el cargo de quien suscribe el timbre.');renderEditorTimbre();return;}
+  if(!(giro>=-45&&giro<=45)){alert('El giro va entre -45 y 45 grados.');renderEditorTimbre();return;}
+  if(!(tamano>=50&&tamano<=200)){alert('El tamaño va entre 50 y 200.');renderEditorTimbre();return;}
+  const {error}=await window.supabaseClient.from('configuracion_timbre').update({
+    cargo,giro_grados:giro,tamano,posicion,incluir_rut:incluirRut,
+    nombre_firmante:nombre,updated_at:new Date().toISOString()
+  }).eq('empresa_id',configTimbre.empresa_id);
+  if(error){
+    // Los rangos los controla la base, y el mensaje de Postgres no dice qué
+    // campo era. Se nombra.
+    alert(/giro|tamano|posicion|check/i.test(error.message)
+      ?'Revisá el giro (−45 a 45), el tamaño (50 a 200) y la posición.\n\nDetalle: '+error.message
+      :'No se pudo guardar el timbre: '+error.message);
+    renderEditorTimbre();
+    return;
+  }
+  await cargarContratacion();
+}
+// ------------------------------------------------------------------
+// LA VISTA DEL KIT
+// ------------------------------------------------------------------
+// El selector de especialidad del formulario del trabajador.
+//
+// Se llena aunque la lista esté vacía: el campo tiene que estar, porque
+// guardar() lo lee siempre. Si no estuviera, cualquier guardado de una
+// ficha lanzaría un TypeError en null.
+function llenarSelectoresEspecialidad(){
+  const sel=document.getElementById('w-especialidad-clave');
+  if(!sel)return;
+  const valor=sel.value;
+  sel.innerHTML='<option value="">Sin asignar (solo los papeles generales)</option>'
+    +(typeof especialidades!=='undefined'&&especialidades?especialidades:[])
+      .slice().sort((x,y)=>String(x.nombre||'').localeCompare(String(y.nombre||'')))
+      .map(e=>'<option value="'+escHtml(e.clave)+'">'+escHtml(e.nombre||e.clave)+'</option>').join('');
+  // Se conserva lo que había: al abrir una ficha para editarla, el valor
+  // anterior se pierde si la lista se rehace desde cero.
+  if(valor&&[...sel.options].some(o=>o.value===valor))sel.value=valor;
+}
+function initKitView(){
+  const sel=document.getElementById('kitWorker');
+  const anterior=sel.value;
+  const vis=codigosVisibles(workers);
+  sel.innerHTML='<option value="">Elegí un trabajador…</option>'+
+    workers.slice().sort((a,b)=>compararPorCodigo(a.code,b.code)||a.name.localeCompare(b.name))
+      .map(w=>`<option value="${escHtml(w.code)}">${escHtml((vis.get(w.code)||codigoMostrar(w.code))+' — '+w.name)}</option>`).join('');
+  if([...sel.options].some(o=>o.value===anterior))sel.value=anterior;
+  if(sel.value)cargarKitDelTrabajador(sel.value);
+  else document.getElementById('kitLista').innerHTML='<small>Elegí un trabajador para ver sus papeles.</small>';
+}
+async function comprobarContratacion(){
+  try{
+    const {data,error}=await window.supabaseClient.rpc('diagnostico_contratacion');
+    if(error){
+      if(faltaLaMigracion(error,['diagnostico_contratacion'])){
+        mostrarAvisoPermisos('El kit de contratación NO está puesto: falta aplicar la migración 031_kit_contratacion.sql. '+
+          'Sin ella no se pueden generar los papeles firmados.');
+      }
+      return;
+    }
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d)return;
+    const problemas=[];
+    if(!d.tabla_plantillas)problemas.push('faltan las plantillas');
+    if(!d.tabla_entregas)problemas.push('faltan las entregas');
+    if(!d.tabla_timbre)problemas.push('falta el timbre');
+    if(!d.fn_kit)problemas.push('falta la función del kit');
+    if(!d.fn_firma)problemas.push('falta la función de firma');
+    if(problemas.length){
+      mostrarAvisoPermisos('El kit de contratación está incompleto ('+problemas.join(', ')+'). Vuelve a aplicar la migración 031_kit_contratacion.sql.');
+    }else if(Number(d.sin_contenido)>0){
+      mostrarAvisoPermisos('Hay '+d.sin_contenido+' plantilla(s) sin contenido. Un papel vacío no se puede firmar. Se ven en Administración → Editar plantillas y timbre.');
+    }
+  }catch(error){
+    console.info('No se pudo comprobar el kit de contratación:',error.message);
+  }
+}
+
+// ===================================================================
+// KIT DE CONTRATACIÓN
+// ===================================================================
+//
+// Lo que se le entrega a una persona el primer día: la inducción, la
+// declaración de salud, los elementos de protección, el acta de
+// recepción. En papel, firmado, con el timbre de la empresa.
+//
+// TRES PIEZAS Y POR QUÉ NO SE MEZCLAN
+//
+//  1. La PLANTILLA. La escribe Prevención y se puede cambiar.
+//  2. La ENTREGA. El papel firmado por una persona en una fecha. Esa no
+//     se toca más: si se borra, se borra la prueba de que la persona fue
+//     inducida. Se anula, que es distinto, y queda el rastro.
+//  3. El TIMBRE. Sale de la tabla `empresa`, que ya tiene nombre y RUT. No
+//     se duplican acá: si el timbre tuviera su propio nombre, algún día los
+//     dos dicen cosas distintas y el que vale es el del papel.
+//
+// POR QUÉ EL PDF SE GENERA RENDERIZANDO, NO ESCRIBIENDO TEXTO
+//
+// Escribir el PDF a mano con una librería obliga a elegir una fuente
+// Metrics, y la fuente que traen esas librerías no tiene ñ, ni á, ni é. Con
+// texto español sale "A\ufff1ez" o directamente nada. Hay que subir una
+// fuente completa embebida, que son varios cientos de kilobytes.
+//
+// Renderizando el HTML con html2canvas y metiéndolo en el PDF se usa la
+// fuente que está mirando la persona, con sus tildes, y además el timbre y
+// la firma salen exactamente como se ven en pantalla. El costo es que el
+// texto del PDF no es seleccionable. Para un papel firmado eso no es una
+// pérdida: nadie busca texto adentro de un acta firmada.
+//
+// LA ESPECIALIDAD DEL TRABAJADOR
+//
+// La decide una persona desde la ficha. NO se adivina del texto libre del
+// cargo: adivinar significa que el primero que quede mal recibe la charla
+// del oficio equivocado, que es peor que no recibir ninguna.
+// ===================================================================
+
+let plantillasContratacion=[];
+let entregasContratacion=[];
+let configTimbre=null;
+let reglaTimbre=null;
+let contratacionError='';
+let PAPEL_ANCHO=794;   // A4 a 96 dpi
+
+// ------------------------------------------------------------------
+// CARGA
+// ------------------------------------------------------------------
+async function cargarContratacion(){
+  contratacionError='';
+  const [pr,tr,tm]=await Promise.all([
+    window.supabaseClient.from('plantillas_contratacion').select('*').order('orden').order('nombre'),
+    window.supabaseClient.from('entregas_contratacion').select('*'),
+    // Se busca por la empresa del timbre, que con "todas" es la única que
+    // haya. Con varias y ninguna elegida no hay una sola, y el timbre tampoco:
+    // se deja sin cargar y la vista lo explica en vez de imprimir un sello
+    // con el nombre en blanco.
+    empresaDelPapel()
+      ?window.supabaseClient.from('configuracion_timbre').select('*').eq('empresa_id',empresaDelPapel().id).maybeSingle()
+      :Promise.resolve({data:null,error:null})
+  ]);
+  // Las tres se leen juntas porque sin una de las otras la pantalla miente:
+  // si las plantillas cargan y las entregas no, el checklist muestra todo
+  // pendiente y alguien vuelve a firmar un papel que ya estaba firmado.
+  if(pr.error){contratacionError=faltaLaMigracion(pr.error,['plantillas_contratacion'])
+    ?'La migración 031_kit_contratacion.sql no está aplicada en la base de datos.'
+    :'No se pudieron cargar las plantillas: '+pr.error.message;}
+  if(tr.error&&!contratacionError){contratacionError=faltaLaMigracion(tr.error,['entregas_contratacion'])
+    ?'La migración 031_kit_contratacion.sql no está aplicada en la base de datos.'
+    :'No se pudieron cargar las entregas: '+tr.error.message;}
+  plantillasContratacion=pr.data||[];
+  entregasContratacion=tr.data||[];
+  configTimbre=(tm.data||null);
+  // reglaTimbre y configTimbre eran la MISMA cosa con dos nombres, y
+  // htmlTimbre() leía la que nunca se asignaba: el timbre no salía en
+  // ningún papel. Ahora hay una sola variable y las dos referencias
+  // apuntan a ella.
+  reglaTimbre=configTimbre;
+  renderContratacion();
+}
+function entregasDe(code){
+  return entregasContratacion.filter(e=>e.trabajador_code===code&&e.estado!=='anulada');
+}
+function plantillaPorId(id){
+  return plantillasContratacion.find(p=>p.id===id)||null;
+}
+async function cargarKitDelTrabajador(code){
+  // La lista la arma la base, no la pantalla: con 46 personas y cuatro
+  // papeles la diferencia es chica, pero el día que haya un compendio son
+  // 200, y una lista mal armada es un papel que no se entrega.
+  const {data,error}=await window.supabaseClient.rpc('kit_de_un_trabajador',{p_code:code});
+  if(error){
+    renderKitVacio(faltaLaMigracion(error,['kit_de_un_trabajador'])
+      ?'La migración 031_kit_contratacion.sql no está aplicada.'
+      :error.message);
+    return;
+  }
+  renderKit(data||[],code);
+}
+function renderKitVacio(motivo){
+  document.getElementById('kitLista').innerHTML=
+    '<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">'+
+    '<b>No se pudo armar el kit.</b> <small>'+escHtml(motivo||'')+'</small></div>';
+}
+async function renderKit(filas,code){
+  const lista=document.getElementById('kitLista');
+  if(!filas.length){
+    lista.innerHTML='<small>No hay plantillas vigentes. Crealas en "Editar plantillas".</small>';
+    return;
+  }
+  const w=workers.find(x=>x.code===code);
+  const nombre=(w?w.name:code);
+  const hechas=filas.filter(f=>f.estado==='completa').length;
+  lista.innerHTML=
+    '<div style="background:var(--surface);border:1px solid var(--line);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+    '<b>'+hechas+' de '+filas.length+'</b> papel(es) completos para <b>'+escHtml(nombre)+'</b>'+
+    (w&&!w.especialidad_clave
+      ?'<br><small style="color:var(--warn-ink)">Este trabajador no tiene especialidad asignada, así que le tocan solo los papeles generales. '+
+        'Asignásela en su ficha para que le aparezcan las charlas de su oficio.</small>'
+      :'')+
+    '</div>'+
+    filas.map(f=>{
+      const completa=f.estado==='completa';
+      const aMedias=f.estado==='incompleto';
+      const estado=completa
+        ?'<span class="pill" style="color:var(--accent);border-color:var(--accent)">Completo</span>'
+        :aMedias
+        ?'<span class="pill" style="color:var(--warn);border-color:var(--warn)">Falta firma</span>'
+        :'<span class="pill">Sin firmar</span>';
+      const esp=f.especialidad_clave
+        ?(especialidadNombre(f.especialidad_clave))
+        :'General';
+      const cuando=completa&&f.firmado_trabajador_at
+        ?new Date(f.firmado_trabajador_at).toLocaleDateString('es-CL'):'';
+      return '<div class="list-item" style="cursor:default;display:block">'+
+        '<div>'+
+        '<b>'+escHtml(f.plantilla_nombre)+'</b> <small>('+escHtml(esp)+' · v'+escHtml(String(f.version))+' · '+
+        escHtml(etiquetaTipo(f.tipo))+')</small> '+estado+
+        (cuando?'<br><small>Firmado el '+escHtml(cuando)+'</small>':'')+
+        '</div>'+
+        '<span style="display:flex;gap:6px;flex:0 0 auto">'+
+        '<button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="abrirPapel(\''+
+        escHtml(f.plantilla_code)+'\',\''+escHtml(code)+'\')">Abrir y firmar</button>'+
+        (completa?'<button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="descargarEntrega(\''+
+          escHtml(f.entrega_id)+'\')">PDF</button>':'')+
+        '</span></div>';
+    }).join('');
+}
+function etiquetaTipo(tipo){
+  return ({charla:'charla',formulario:'formulario',acta:'acta'})[tipo]||tipo;
+}
+// El nombre legible de una especialidad.
+//
+// Se usan las que ya carga el EPP (migracion 011). Eran dos listas leyendo
+// la MISMA tabla --"especialidades" y "especialidadesContratacion"-- y la
+// segunda se quedaba vieja en cuanto alguien creaba una especialidad en
+// la pantalla de EPP: el selector del kit mostraba una lista y el otro
+// otra. Dos copias de lo mismo siempre terminan en dos verdades.
+function especialidadNombre(clave){
+  if(!clave)return '';
+  const lista=(typeof especialidades!=='undefined'&&especialidades)?especialidades:[];
+  const e=(typeof especialidadPorClave==='function')
+    ?especialidadPorClave(clave)
+    :lista.find(x=>String(x.clave)===String(clave));
+  return e?e.nombre:clave;
+}
+// Se mantiene el nombre de la funcion porque la usan las cadenas del
+// editor de plantillas, pero ya no carga nada: espera a que la del EPP haya
+// llenado "especialidades".
+async function cargarEspecialidadesContratacion(){
+  if(typeof loadEspecialidades==='function'&&!especialidades.length){
+    await loadEspecialidades(true);
+  }
+}
+
+// ------------------------------------------------------------------
+// EL PAPEL: EL DOCUMENTO COMO SE VA A IMPRIMIR
+// ------------------------------------------------------------------
+// Los {{campos}} se reemplazan con los datos de la persona. Se hace con
+// reemplazo de texto y no con innerHTML sobre datos, para que un nombre con
+// < no rompa el documento: el nombre viene de la ficha, y las fichas se
+// importan de Excel.
+function reemplazarCampos(plantilla,w,extra){
+  const empresa=empresaDelPapel()||{};
+  const esp=especialidadNombre(w.especialidad_clave||'');
+  const datos={
+    nombre:w.name||'',
+    codigo:codigoMostrar(w.code),
+    rut:(w.rut||'').toUpperCase(),
+    especialidad:esp||(w.spec||'')||'',
+    cargo:w.spec||'',
+    empresa:empresa.nombre||'',
+    empresa_rut:(empresa.rut||'').toUpperCase(),
+    centro:centroDeRelojDe(w)||'',
+    fecha:new Date().toLocaleDateString('es-CL'),
+    ...(extra||{})
+  };
+  return (plantilla||'').replace(/\{\{\s*([a-z_]+)\s*\}\}/gi,(m,clave)=>
+    datos[clave]!==undefined?String(datos[clave]):m);
+}
+function centroDeRelojDe(w){
+  if(!relojes.length)return '';
+  // El centro de costo del reloj donde la persona marcan. Es una aproximación
+  // —puede marcar en más de uno— pero es la que sirve para el papel, y se
+  // escribe como "según el reloj" en la etiqueta.
+  const codigos=workers.filter(x=>x.supervisor_code===w.code).map(x=>x.code);
+  const candidatos=relojes.filter(r=>r.activo);
+  return candidatos.length===1?centroDe(candidatos[0]):'';
+}
+// El timbre, en HTML. Sale de la empresa; el cargo y el nombre de quien
+// suscribe salen de la configuración.
+// La empresa del timbre y del papel.
+//
+// "empresaActual" es un NÚMERO (0 = todas), no un objeto. El timbre pertenece
+// a UNA empresa, así que cuando la persona está viendo todas no hay con qué
+// armar el sello: se avisa en vez de imprimir un timbre en blanco, que es lo
+// que pasaba antes.
+function empresaDelPapel(){
+  const lista=(typeof empresas!=='undefined'&&empresas)?empresas:[];
+  if(empresaActual){
+    return lista.find(e=>e.id===empresaActual)
+      ||(typeof empresaActual==='object'?empresaActual:null)
+      ||null;
+  }
+  // Sin empresa elegida, el timbre no tiene a cuál pertenecer... salvo que
+  // haya una sola. Y es el caso más común: una obra con un solo contrato.
+  //
+  // Antes devolvía null siempre en ese caso, y el papel salía con un
+  // recuadro de timbre vacío. En un documento firmado, un timbre sin nombre
+  // parece un error de la empresa, y no lo es.
+  if(lista.length===1)return lista[0];
+  return null;
+}
+function avisoSinEmpresaUnica(){
+  return 'Estás viendo todas las empresas. El timbre pertenece a una sola: elegí una empresa arriba '
+    +'para que el papel salga con el nombre y el RUT correctos. Con una sola empresa no hace falta.';
+}
+function htmlTimbre(){
+  if(!reglaTimbre||!reglaTimbre.activo)return '';
+  const empresa=empresaDelPapel()||{};
+  const pos={
+    inferior_derecha:'right:34px;bottom:26px;text-align:right',
+    inferior_izquierda:'left:34px;bottom:26px;text-align:left',
+    superior_derecha:'right:34px;top:26px;text-align:right',
+    superior_izquierda:'left:34px;top:26px;text-align:left'
+  }[reglaTimbre.posicion]||'right:34px;bottom:26px;text-align:right';
+  const esc=escHtml;
+  return '<div class="timbre" style="'+pos+';transform:rotate('+Number(reglaTimbre.giro_grados)+'deg);font-size:'+
+    (Number(reglaTimbre.tamano)/100).toFixed(2)+'em">'
+    +'<div class="timbre-borde">'
+    +'<b>'+esc(empresa.nombre||'')+'</b>'
+    +'<div class="timbre-linea">'
+    +(reglaTimbre.incluir_rut&&empresa.rut?'RUT '+esc(String(empresa.rut).toUpperCase())+'<br>':'')
+    +esc(reglaTimbre.cargo||'')
+    +(reglaTimbre.nombre_firmante?'<br>'+esc(reglaTimbre.nombre_firmante):'')
+    +'</div></div></div>';
+}
+// Los dos recuadros de firma. El del supervisor solo aparece si la
+// plantilla lo pide: un papel con dos firmas donde la plantilla pide una
+// es un documento mal hecho.
+function htmlFirmas(plantilla,conFirmas){
+  const conSup=plantilla.requiere_supervisor;
+  const bloque=(titulo,campo,quien)=>{
+    const hay=campo&&String(campo).startsWith('data:image');
+    return '<div class="firma-bloque">'
+      +'<div class="firma-caja">'+(hay?'<img src="'+campo+'" alt="firma">':'')+'</div>'
+      +'<div class="firma-linea"></div>'
+      +'<div class="firma-pie"><b>'+escHtml(titulo)+'</b><br><small>'+escHtml(quien||'')+'</small></div>'
+      +'</div>';
+  };
+  const conWorkers=(conFirmas&&conFirmas.firma_trabajador)||null;
+  const firmaSup=(conFirmas&&conFirmas.firma_supervisor)||null;
+  return '<div class="firmas">'
+    +bloque('Firma del trabajador',conWorkers,'')
+    +(conSup?bloque('Firma y nombre del supervisor',firmaSup,''):'')
+    +'</div>';
+}
+function abrirPapel(plantillaCode,code){
+  if(!exigirPermiso('contratacion.firmar','No tienes permiso para generar los papeles del kit.'))return;
+  const p=plantillasContratacion.find(x=>x.code===plantillaCode);
+  const w=workers.find(x=>x.code===code);
+  if(!p||!w){alert('No se encontró el papel o el trabajador.');return;}
+  const entrega=entregasDe(code).find(e=>e.plantilla_code===plantillaCode)||null;
+  const dlg=document.getElementById('dlgPapel');
+  document.getElementById('papelTitulo').textContent=p.nombre;
+  document.getElementById('papelError').textContent='';
+  document.getElementById('papelVersion').textContent='v'+p.version;
+  const donde=document.getElementById('papelHoja');
+  if(!empresaDelPapel()){
+    document.getElementById('papelError').innerHTML=escHtml(avisoSinEmpresaUnica());
+  }
+  donde.innerHTML=reemplazarCampos(p.contenido,w,{
+    centro:centroDeRelojDe(w)||(typeof empresaActual!=='undefined'&&empresaActual?empresaActual.nombre:'')
+  })+htmlFirmas(p,entrega)+htmlTimbre();
+  // Los dos recuadros de firma se vuelven a dibujar vacíos, con la
+  // firma ya puesta de fondo si la había.
+  montarFirmaPapel('papelFirmaTrab',entrega?entrega.firma_trabajador:null);
+  if(p.requiere_supervisor)montarFirmaPapel('papelFirmaSup',entrega?entrega.firma_supervisor:null);
+  else document.getElementById('papelFirmaSupWrap').style.display='none';
+  document.getElementById('papelGuardar').textContent=entrega&&entrega.estado==='completa'?'Volver a guardar':'Guardar firma';
+  dlg._plantilla=p;dlg._code=code;dlg._entrega=entrega;
+  dlg.showModal();
+}
+
+// ------------------------------------------------------------------
+// LA FIRMA
+// ------------------------------------------------------------------
+// Un <canvas> como el de la entrega de EPP, que ya está hecho y anda. Se
+// reusa el mismo patrón en vez de escribir otro: son el mismo problema y dos
+// implementaciones se rompen por motivos distintos.
+function montarFirmaPapel(id,firmaPrevia){
+  const wrap=document.getElementById(id+'Wrap');
+  wrap.style.display='';
+  const canvas=document.getElementById(id);
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(firmaPrevia&&String(firmaPrevia).startsWith('data:image')){
+    // Se dibuja la firma previa de fondo, para que quien reimprima un papel
+    // ya firmado vea la misma imagen y no una caja vacía.
+    const img=new Image();
+    img.onload=()=>ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    img.src=firmaPrevia;
+  }
+  canvas._dibujando=false;canvas._vacio=true;
+  const pos=(ev)=>{
+    const r=canvas.getBoundingClientRect();
+    return {x:(ev.clientX-r.left)*(canvas.width/r.width),y:(ev.clientY-r.top)*(canvas.height/r.height)};
+  };
+  canvas.onpointerdown=(ev)=>{
+    ev.preventDefault();
+    canvas.setPointerCapture(ev.pointerId);
+    canvas._dibujando=true;canvas._vacio=false;
+    const p=pos(ev);
+    ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineWidth=2.2;ctx.lineCap='round';ctx.lineJoin='round';
+    ctx.strokeStyle='#111';
+  };
+  canvas.onpointermove=(ev)=>{
+    if(!canvas._dibujando)return;
+    const p=pos(ev);
+    ctx.lineTo(p.x,p.y);ctx.stroke();
+  };
+  const fin=()=>{canvas._dibujando=false;};
+  canvas.onpointerup=fin;canvas.onpointercancel=fin;canvas.onpointerleave=fin;
+  canvas.ontouchend=fin;
+}
+function limpiarFirma(id){
+  const canvas=document.getElementById(id);
+  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  canvas._vacio=true;
+}
+function firmaComoDatos(id){
+  const canvas=document.getElementById(id);
+  if(canvas._vacio)return null;
+  // PNG en blanco: comprimiría a un símbolo y la base de guarda menos, pero
+  // un papel firmado tiene que seguir siendo legible dentro de un año, en
+  // una impresora cualquiera. Se deja sin comprimir.
+  return canvas.toDataURL('image/png');
+}
+
+// ------------------------------------------------------------------
+// GUARDAR
+// ------------------------------------------------------------------
+async function guardarPapel(){
+  const dlg=document.getElementById('dlgPapel');
+  const p=dlg._plantilla,code=dlg._code;
+  if(!p)return;
+  const err=document.getElementById('papelError');
+  const btn=document.getElementById('papelGuardar');
+  err.textContent='';
+  const firmaT=firmaComoDatos('papelFirmaTrab');
+  const firmaS=p.requiere_supervisor?firmaComoDatos('papelFirmaSup'):null;
+  if(!firmaT&&!firmaS){
+    err.textContent='Firmá al menos una de las dos para guardar el papel.';
+    return;
+  }
+  if(firmaT&&!firmaS&&p.requiere_supervisor){
+    err.textContent='Este papel lo firma el trabajador Y el supervisor. Falta una de las dos.';
+    return;
+  }
+  const w=workers.find(x=>x.code===code);
+  btn.disabled=true;btn.textContent='Guardando…';
+  const {data,error}=await window.supabaseClient.rpc('registrar_firma_contratacion',{
+    p_plantilla_code:p.code, p_trabajador_code:code, p_version:p.version,
+    p_firma_trabajador:firmaT, p_firma_supervisor:firmaS,
+    p_datos:{nombre:w?w.name:'',rut:w?w.rut:'',especialidad:especialidadNombre(w?w.especialidad_clave:'')},
+    p_anular:false
+  });
+  btn.disabled=false;btn.textContent='Guardar firma';
+  if(error){
+    // La versión de la plantilla pudo cambiar mientras el papel estaba
+    // abierto. El mensaje de la base lo dice y hay que decirlo también en
+    // la pantalla: si no, la persona firma un texto que no es el que leyó.
+    const cambio=/VERSION_CAMBIO/.test(error.message||'');
+    err.innerHTML=cambio
+      ?'La plantilla cambió mientras este papel estaba abierto.<br>'+
+       '<small>Cerrá el papel y volvé a abrirlo para que se descargue el texto nuevo. Lo que escribiste no se guardó.</small>'
+      :faltaLaMigracion(error,['registrar_firma_contratacion'])
+      ?'La migración <b>031_kit_contratacion.sql</b> no está aplicada.'
+      :escHtml(error.message);
+    return;
+  }
+  dlg.close();
+  await cargarContratacion();
+  await cargarKitDelTrabajador(code);
+  await renderList('');
+  alert('El papel quedó guardado con la firma.');
+}
+async function anularPapel(plantillaCode,code){
+  const p=plantillasContratacion.find(x=>x.code===plantillaCode);
+  if(!p)return;
+  if(!confirm('Anular el papel "'+p.nombre+'" de '+(workers.find(x=>x.code===code)||{}).name+'?\n\nEl papel NO se borra: queda como anulado, y la persona puede volver a firmarlo.\n\nSi lo firmaste por error, esto es lo correcto. Si lo querés borrar, no se puede: es un papel firmado.'))return;
+  const {error}=await window.supabaseClient.rpc('registrar_firma_contratacion',{
+    p_plantilla_code:plantillaCode, p_trabajador_code:code, p_version:p.version,
+    p_firma_trabajador:null, p_firma_supervisor:null, p_datos:{}, p_anular:true
+  });
+  if(error){alert('No se pudo anular: '+error.message);return;}
+  await cargarContratacion();
+  await cargarKitDelTrabajador(code);
+}
+
+// ------------------------------------------------------------------
+// EL PDF
+// ------------------------------------------------------------------
+async function descargarEntrega(entregaId){
+  if(typeof jspdf==='undefined'||typeof html2canvas==='undefined'){
+    alert('No se cargaron las librerías de PDF.\n\nRevisá la conexión a internet y recargá la página con Ctrl+F5.');
+    return;
+  }
+  const e=entregasContratacion.find(x=>x.id===entregaId);
+  if(!e){alert('No se encontró la entrega.');return;}
+  const p=plantillaPorId(e.plantilla_id);
+  const w=workers.find(x=>x.code===e.trabajador_code);
+  if(!p||!w){alert('No se encontró la plantilla o el trabajador.');return;}
+  const hoja=document.getElementById('pantallaTotal');
+  hoja.innerHTML='<div class="hoja-papel">'
+    +reemplazarCampos(p.contenido,w,e.datos||{})
+    +htmlFirmas(p,e)
+    +htmlTimbre()
+    +'</div>';
+  await new Promise(r=>setTimeout(r,150));
+  // Se usa la global que ya está en el <head>, no un import().
+  //
+  // Importar la versión ESM de jspdf por dinámica cargaría una segunda copia
+  // de la librería en la misma página: son más de 400 kB y dos copias del
+  // mismo código con distinto estado interno. Para qué, si la del <head>
+  // ya sirve.
+  const Ctor=(window.jspdf&&(window.jspdf.jsPDF||window.jspdf))||null;
+  if(!Ctor){
+    alert('No se cargó la librería de PDF. Revisá la conexión a internet y recargá con Ctrl+F5.');
+    return;
+  }
+  const canvas=await html2canvas(hoja.firstElementChild,{scale:2,backgroundColor:'#ffffff',logging:false});
+  const pdf=new Ctor({unit:'pt',format:'a4',compress:true});
+  const anchoUtil=PAPEL_ANCHO;
+  const img=canvas.toDataURL('image/jpeg',0.92);
+  const altoPagina=595.28;
+  // El papel puede ser más largo que una hoja: se reparte en varias
+  // páginas en vez de dejar el final cortado, que es lo que pasa si se
+  // escala todo a una sola imagen.
+  const imgAlto=(canvas.height*anchoUtil)/canvas.width;
+  let resto=imgAlto;
+  let pagina=0;
+  while(resto>0){
+    if(pagina>0)pdf.addPage();
+    // Se recorta con un canvas auxiliar, porque drawImage con negative
+    // offset no funciona en todos los navegadores.
+    const trozo=Math.min(resto,altoPagina);
+    const c2=document.createElement('canvas');
+    c2.width=canvas.width;
+    c2.height=Math.round((trozo*canvas.width)/anchoUtil);
+    c2.getContext('2d').drawImage(canvas,
+      0,Math.round((pagina*altoPagina*canvas.width)/anchoUtil),canvas.width,c2.height,
+      0,0,canvas.width,c2.height);
+    pdf.addImage(c2.toDataURL('image/jpeg',0.92),'JPEG',0,0,anchoUtil,trozo,undefined,'FAST');
+    resto-=trozo;
+    pagina++;
+  }
+  const nombre=(w.name||e.trabajador_code).replace(/[\\/:*?"<>|]/g,'').trim();
+  pdf.save(p.nombre.replace(/[\\/:*?"<>|]/g,'')+' - '+nombre+'.pdf');
+  hoja.innerHTML='';
+}
+
 // ============================================================
 // LA BITÁCORA, PARA PODER LEERLA
 // ============================================================
@@ -11144,7 +12185,7 @@ async function loadAuditoria(){
     // Sin la 028 no hay tabla. Decirlo claro, con el nombre de la migración: el
     // error de la base es "relation does not exist", que no le dice a nadie qué
     // hacer.
-    const falta=/asistencia_auditoria/.test(error.message||'');
+    const falta=errorEsAuditoriaSinMigrar(error);
     auditoriaError=falta
       ?'La bitácora todavía no existe en la base de datos. Aplicá la migración 028_auditoria_asistencia.sql y volvé a abrir esta pantalla.'
       :error.message;

@@ -183,6 +183,99 @@ body.modoTotem{overflow:hidden}
 /* Los iconos de acción de una fila. Sin gap, dos emojis pegados no se
    distinguen al apretar. */
 .lista-iconos{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+/* ------------------------------------------------------------------
+EL PAPEL QUE SE IMPRIME
+------------------------------------------------------------------
+A4 a 96 dpi son 794 px de ancho. Se usa eso como unidad de toda la hoja
+para que lo que se ve en el editor y lo que sale en el PDF sean el mismo
+documento, y no "parecido".
+
+El fondo es blanco SIEMPRE, incluso en modo oscuro. Un acta firmada en
+negro sobre negro no se lee, y el que la va a imprimir es un usuario que
+puede tener el modo oscuro activado por accidente.
+------------------------------------------------------------------ */
+.hoja-papel{
+  width:794px;min-height:1123px;background:#fff;color:#111;
+  margin:0 auto;padding:56px 62px;box-sizing:border-box;
+  font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+  font-size:13px;line-height:1.55;position:relative;
+}
+.hoja-papel h1{font-size:20px;margin:0 0 6px;text-align:center;color:#111}
+.hoja-papel h2{font-size:16px;margin:14px 0 6px;color:#111}
+.hoja-papel h3{font-size:14px;margin:12px 0 4px;color:#111}
+.hoja-papel p{margin:5px 0}
+.hoja-papel ul,.hoja-papel ol{margin:5px 0;padding-left:22px}
+.hoja-papel table{width:100%;border-collapse:collapse;margin:8px 0}
+.hoja-papel th,.hoja-papel td{border:1px solid #999;padding:5px 7px;text-align:left;vertical-align:top}
+.hoja-papel th{background:#eee}
+.hoja-papel .campo-linea{display:inline-block;min-width:210px;border-bottom:1px solid #333;margin:0 6px 3px 0}
+.hoja-papel .dato{border-bottom:1px solid #333;padding:0 4px;display:inline-block;min-width:160px}
+.hoja-papel .casilla{display:inline-block;width:11px;height:11px;border:1px solid #333;vertical-align:-1px;margin:0 4px 0 9px}
+.hoja-papel .aviso{border:1px solid #333;padding:7px 10px;margin:8px 0;background:#f4f4f4}
+.hoja-papel .referencia{font-size:10.5px;color:#444;margin-top:4px}
+
+/* ------------------------------------------------------------------
+EL TIMBRE
+------------------------------------------------------------------
+Un recuadro de doble línea, girado. El giro es lo que lo hace parecer un
+sello y no una tabla: es la diferencia entre "papel con un recuadro" y
+"papel con un timbre puesto".
+------------------------------------------------------------------ */
+.timbre{position:absolute;color:#1a3a6b;opacity:.82;pointer-events:none;font-weight:700;line-height:1.25}
+.timbre-borde{border:2.5px solid currentColor;border-radius:3px;padding:6px 12px;position:relative}
+.timbre-borde::before{content:"";position:absolute;inset:3px;border:1px solid currentColor;border-radius:2px;opacity:.65}
+.timbre-borde>b{font-size:1.02em;letter-spacing:.2px;display:block;text-align:center;padding:0 4px}
+.timbre-linea{font-size:.78em;font-weight:600;text-align:center;margin-top:2px;padding:0 6px}
+.timbre-prueba{position:relative;height:118px;background:#fff;border:1px dashed var(--line);border-radius:8px;overflow:hidden}
+
+/* ------------------------------------------------------------------
+LAS FIRMAS
+------------------------------------------------------------------
+La imagen es un PNG con fondo transparente, así que se ve el papel de
+atrás. Un PNG con fondo blanco taparía el texto que queda debajo, y en un
+acta eso no es aceptable.
+------------------------------------------------------------------ */
+.firmas{display:flex;gap:34px;margin-top:26px;page-break-inside:avoid;break-inside:avoid}
+.firma-bloque{flex:1;min-width:0}
+.firma-caja{height:58px;display:flex;align-items:flex-end}
+.firma-caja img{max-height:56px;max-width:100%;display:block}
+.firma-linea{border-top:1px solid #333;margin-top:2px}
+.firma-pie{font-size:10.5px;margin-top:3px;line-height:1.35}
+.firma-pie b{font-size:11px}
+
+.firmas-edicion{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px}
+.firmas-edicion>div{flex:1 1 300px;min-width:240px}
+.firmas-edicion label{display:block;font-size:.8rem;color:var(--secondary-text);margin-bottom:4px}
+/* El canvas se dibuja con eventos de puntero, así que necesita
+   touch-action:none: sin eso, en una pantalla táctil el dedo hace scroll
+   en vez de firmar, y la firma sale como un rayón. */
+.firmas-edicion canvas{width:100%;height:150px;background:var(--bg);
+  border:1.5px dashed var(--line);border-radius:8px;touch-action:none;cursor:crosshair;
+  display:block}
+.firmas-edicion canvas:focus{outline:2px solid var(--accent)}
+
+/* ------------------------------------------------------------------
+EL EDITOR DE PLANTILLAS
+------------------------------------------------------------------
+Una hoja blanca dentro de la pantalla oscura. Por la misma razón que el
+papel: se está escribiendo un documento, y un editor con fondo oscuro hace
+que uno dude de cómo va a salir impreso.
+------------------------------------------------------------------ */
+.editor-barra{display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+  background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+.editor-barra .btn{cursor:pointer}
+.editor-hoja{background:#fff;color:#111;min-height:340px;max-height:56vh;overflow:auto;
+  border:1px solid var(--line);border-radius:0 0 8px 8px;padding:18px 20px;
+  font-size:13.5px;line-height:1.6;font-family:'Segoe UI',system-ui,Arial,sans-serif}
+.editor-hoja:focus{outline:2px solid var(--accent);outline-offset:-2px}
+.editor-hoja h2{color:#111}
+.editor-hoja table{width:100%;border-collapse:collapse}
+.editor-hoja th,.editor-hoja td{border:1px solid #999;padding:4px 6px}
+
+.papel-scroll{max-height:62vh;overflow:auto;background:var(--panel);
+  border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:10px}
+
 .lista-iconos>span{cursor:pointer;line-height:1}
 #scanResult{margin-top:12px}
 .photoRow{display:flex;gap:14px}
