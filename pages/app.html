@@ -17,17 +17,14 @@
 <script src="../js/auth.js"></script>
 <script src="../js/theme.js"></script>
 <style>
+/* La paleta (los colores) vive en css/styles.css, NO acá. Este bloque la
+   repetía con valores viejos y, como styles.css se carga después, quedaba
+   pisado: se cambiaba la paleta en el archivo correcto y la pantalla seguía
+   mostrando la otra. Dos copias de una paleta es una esperando que se
+   desincronicen. */
 :root{
-  --bg:#f7f6f2; --panel:#ffffff; --card:#fbfaf7; --line:#e2ddd0;
-  --accent:#b08d57; --accent2:#1f2d3d; --text:#23272b; --muted:#7a7f85; --danger:#b5504a;
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   box-sizing:border-box;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#161a20; --panel:#1f242c; --card:#242a33; --line:#333a45;
-    --accent:#c9a066; --accent2:#3a4a5e; --text:#ece9e2; --muted:#9aa0a8;
-  }
 }
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
@@ -48,7 +45,9 @@ label{display:block;font-size:.8rem;color:var(--muted);margin:8px 0 3px}
 input,select,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:.9rem;font-family:inherit}
 textarea{resize:vertical;min-height:50px}
 button.btn{background:var(--accent2);color:#fff;border:none;padding:9px 16px;border-radius:6px;cursor:pointer;font-size:.85rem;margin-top:10px}
-button.btn.secondary{background:transparent;border:1px solid var(--accent2);color:var(--accent2)}
+/* button.btn.secondary NO se define acá: lo define css/styles.css con
+   --secondary-text. Estaba duplicado acá con --accent2, y --accent2 es un
+   gris de superficie (#404040 en oscuro), no un color de texto. */
 .row{display:flex;gap:10px;flex-wrap:wrap}
 .row>div{flex:1;min-width:140px}
 fieldset{border:1px solid var(--line);border-radius:8px;margin-top:12px;padding:10px}
@@ -96,8 +95,11 @@ small{color:var(--muted)}
 .mkEstado small{color:var(--muted);font-size:.72rem}
 .mkEstado small b.late{color:var(--danger)}
 .mkPill{display:inline-block;font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
-.mkPill.ok{background:#d8efdc;color:var(--accent)}
-.mkPill.no{background:#f7c9d0;color:var(--danger)}
+/* El fondo de estas etiquetas es claro y está fijo, así que el texto tiene
+   que ser un oscuro FIJO. Con color:var(--accent) o var(--danger) el texto
+   cambiaba con el tema y en modo oscuro quedaba claro sobre claro. */
+.mkPill.ok{background:#d8efdc;color:#14532d}
+.mkPill.no{background:#f7c9d0;color:#812b39}
 .mkPill.warn{background:#ffe9b0;color:#7a5200}
 .mkAcciones{text-align:right}
 /* ventana de avisos al marcar */
@@ -288,12 +290,12 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 .idcard-back .sec{margin-bottom:1.5mm}
 .attendance-cell{position:relative;cursor:pointer}
 .attendance-cell:hover{outline:2px solid var(--accent);outline-offset:-2px}
-.attendance-code-column{min-width:72px;white-space:nowrap;font-weight:700;color:var(--accent2)}
+.attendance-code-column{min-width:72px;white-space:nowrap;font-weight:700;color:var(--secondary-text)}
 .day-label-holiday{background:#f5dada!important;color:#3b2424!important;font-weight:700}
 .day-label-holiday small{color:#3b2424!important;font-weight:700}
 .attendance-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;border-bottom:1px solid var(--line)}
 .attendance-tabs button{flex:0 0 auto;margin:0;padding:11px 12px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:600 .72rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;white-space:nowrap;cursor:pointer}
-.attendance-tabs button.active{border-color:var(--accent);color:var(--accent2)}
+.attendance-tabs button.active{border-color:var(--accent);color:var(--secondary-text)}
 .attendance-panel{display:none}
 .attendance-panel.active{display:block}
 .attendance-cell.state-x{background:#edf2ee;color:#17231c;font-weight:700}
@@ -344,7 +346,9 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 .temp-card-badge{display:inline-block;margin-top:1.5mm;padding:1mm 2mm;border-radius:3mm;background:#159b8b;color:#fff;font-size:7pt;font-weight:700;text-transform:uppercase}
 .final-card-badge{display:inline-block;margin-top:1.5mm;margin-right:1mm;padding:1mm 2mm;border-radius:3mm;background:var(--accent2);color:#fff;font-size:7pt;font-weight:700;text-transform:uppercase}
 .worker-type-badge{display:inline-block;margin-top:1.5mm;padding:1mm 2mm;border-radius:3mm;font-size:7pt;font-weight:700;text-transform:uppercase}
-.worker-type-badge.interno{background:var(--accent);color:#fff}
+/* El texto va con --on-accent, no fijo en blanco: el primario del modo
+   oscuro es un verde claro, y blanco sobre #7eb96e no se lee. */
+.worker-type-badge.interno{background:var(--accent);color:var(--on-accent)}
 .worker-type-badge.subcontrato{background:#8a5a2b;color:#fff}
 
 .temp-card-front .idcard-code{display:inline-block;padding:1mm 2mm;background:#fff;color:#17231c;border-radius:1mm;font-size:7pt}
@@ -1934,7 +1938,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-d';
+const APP_VERSION='2026-09-28-e';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -2150,21 +2154,21 @@ function errorDeImportarTrabajadores(error){
   // Las dos se comprueban por texto, porque PostgREST no distingue los
   // dos casos en el código de la respuesta.
   if(/foreign key|violates foreign key|23503/i.test(msg)){
-    return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+    return '<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
       '<b>Alguna fila apunta a un trabajador que no existe.</b><br>'+
       '<small>El código del supervisor no está en la base. La revisión previa debería haberlo detectado: '+
       'si te apareció, es que el supervisor se está creando en la misma carga, en una fila posterior.</small>'+
       '<br><small style="opacity:.75">Lo que respondió la base: '+escHtml(msg)+'</small></div>';
   }
   if(/duplicate key|unique|23505/i.test(msg)){
-    return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+    return '<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
       '<b>Se repite un dato que tiene que ser único.</b><br>'+
       '<small>Lo más probable es el <b>RUT</b>: identifica a una persona, no a un puesto, así que no puede '+
       'repetirse. La revisión previa lo avisa antes de guardar, pero si te aparece acá es que dos fichas lo tienen.</small>'+
       '<br><small style="opacity:.75">Lo que respondió la base: '+escHtml(msg)+'</small></div>';
   }
   if(codigo==='409'||/conflict/i.test(msg)){
-    return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+    return '<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
       '<b>La base rechazó el guardado sin explicar por qué (409).</b><br>'+
       '<small>Revisa que el <code>codigo_supervisor</code> exista y que los RUT no se repitan. '+
       'Si sigue igual, el detalle está abajo.</small>'+
@@ -3160,13 +3164,13 @@ async function doScan(){
   if(r.error){
     let html='';
     if(r.error==='Anulada'){
-      html=`<p style="background:var(--danger);color:#fff;padding:10px;border-radius:6px;font-size:1.05rem"><b>⚠️ TARJETA ANULADA</b><br>Esta tarjeta ya no es válida (${r.motivo}). Solicita la tarjeta vigente antes de dar acceso.</p>`;
+      html=`<p style="background:var(--danger-solid);color:#fff;padding:10px;border-radius:6px;font-size:1.05rem"><b>⚠️ TARJETA ANULADA</b><br>Esta tarjeta ya no es válida (${r.motivo}). Solicita la tarjeta vigente antes de dar acceso.</p>`;
     }else if(r.error==='Bloqueada'){
-      html=`<p style="background:var(--danger);color:#fff;padding:10px;border-radius:6px;font-size:1.05rem"><b>⛔ TARJETA BLOQUEADA</b><br>Esta tarjeta no sirve para pasar asistencia.${r.motivo?('<br>Motivo: '+r.motivo):''}<br>Debe pasar por Administración para regularizar su situación.</p>`;
+      html=`<p style="background:var(--danger-solid);color:#fff;padding:10px;border-radius:6px;font-size:1.05rem"><b>⛔ TARJETA BLOQUEADA</b><br>Esta tarjeta no sirve para pasar asistencia.${r.motivo?('<br>Motivo: '+r.motivo):''}<br>Debe pasar por Administración para regularizar su situación.</p>`;
     }else if(r.error==='OtraEmpresa'){
       html=`<p style="background:var(--accent);color:#1c1206;padding:10px;border-radius:6px"><b>La tarjeta es de ${escHtml(r.nombre)} (código ${escHtml(r.code)}), que pertenece a otra empresa.</b><br>No se puede consultar desde esta empresa. Cambia de empresa en Soporte, o pídele a Administración que lo revise.</p>`;
     }else if(r.error==='SinTrabajador'){
-      html=`<p style="background:var(--danger);color:#fff;padding:10px;border-radius:6px"><b>La tarjeta apunta al código ${escHtml(r.code)}, que no está en la lista de trabajadores.</b><br>Datos inconsistentes: Administración tiene que emitir la tarjeta de nuevo.</p>`;
+      html=`<p style="background:var(--danger-solid);color:#fff;padding:10px;border-radius:6px"><b>La tarjeta apunta al código ${escHtml(r.code)}, que no está en la lista de trabajadores.</b><br>Datos inconsistentes: Administración tiene que emitir la tarjeta de nuevo.</p>`;
     }else if(r.error==='Vacio'){
       html='<p style="color:var(--danger)">Escaneá una tarjeta o escribí un código.</p>';
     }else{
@@ -3198,7 +3202,7 @@ async function doScan(){
   const nombresEstado={X:'Presente',F:'Falla',P:'Permiso',L:'Licencia',A:'Accidente Mutual',PP:'Permiso Pagado',V:'Vacaciones',LL:'Día lluvia'};
   let bannerHoy='';
   if(w.status==='desvinculado'){
-    bannerHoy+=`<p style="background:var(--danger);color:#fff;padding:6px 10px;border-radius:6px"><b>⚠️ Trabajador desvinculado</b> (${w.fecha_desvinculacion||''})</p>`;
+    bannerHoy+=`<p style="background:var(--danger-solid);color:#fff;padding:6px 10px;border-radius:6px"><b>⚠️ Trabajador desvinculado</b> (${w.fecha_desvinculacion||''})</p>`;
   }else if(hoyRec && hoyRec.estado!=='X'){
     bannerHoy+=`<p style="background:var(--accent);color:#1c1206;padding:6px 10px;border-radius:6px"><b>Hoy tiene ${nombresEstado[hoyRec.estado]||hoyRec.estado}</b>${hoyRec.nota?(': '+hoyRec.nota):''} — no debería venir a marcar.</p>`;
   }else{
@@ -3305,12 +3309,12 @@ async function loadMarcajesDia(){
       // exacto y no un "column not found" incomprensible.
       const archivo=migracionQueFalta(error);
       box.innerHTML=archivo
-        ?`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">
+        ?`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">
           <b>Falta la migración ${escHtml(archivo)}.</b> Sin ella no hay tabla de marcajes y esta pantalla no puede mostrar nada.<br>
           <small>Ejecútala en el <b>SQL Editor</b> de Supabase. Si ya la habías ejecutado, la API puede tenerla
           cacheada: corre <code>NOTIFY pgrst, 'reload schema';</code>. Después recarga con <b>Ctrl+F5</b>.</small>
           <br><small style="opacity:.75">Lo que respondió la base: ${escHtml(error.message)}</small></div>`
-        :`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+        :`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
           <b>No se pudieron leer los marcajes.</b> <small>${escHtml(error.message)}</small></div>`;
     }
     marcajes=[];
@@ -3711,7 +3715,7 @@ function renderConciliacion(){
   const selSup=document.getElementById('supDiariaSup');
   const supCode=selSup?selSup.value:miCodigoSupervisor;
   if(asistenciaDiaError){
-    box.innerHTML='<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+    box.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
       '<b>No se pudo leer la planilla del día.</b> <small>'+escHtml(asistenciaDiaError)+'</small></div>';
     return;
   }
@@ -3728,8 +3732,10 @@ function renderConciliacion(){
 
   const etiqueta={
     falta_marcar:{t:'Falta marcar en la planilla',b:'faltaMarcar',c:'var(--danger)'},
-    sin_marcaje:{t:'Presente en la planilla, sin marcaje del reloj',b:'sinMarcaje',c:'var(--accent2)'},
-    diferencia_hora:{t:'La hora no coincide',b:'difHora',c:'#e08b1a'},
+    // --accent2 es un gris de superficie: en modo oscuro es #404040 sobre
+    // #1e1e1e, que es invisible. Para TEXTO va --secondary-text.
+    sin_marcaje:{t:'Presente en la planilla, sin marcaje del reloj',b:'sinMarcaje',c:'var(--secondary-text)'},
+    diferencia_hora:{t:'La hora no coincide',b:'difHora',c:'var(--warn)'},
     al_day:{t:'Coincide',b:'ok',c:'var(--accent)'},
     ninguno:{t:'Sin registro en ninguno de los dos',b:'ninguno',c:'var(--muted)'}
   };
@@ -3865,9 +3871,9 @@ function renderAvisosIngresoEnviados(){
   if(avisosIngresoError){
     const archivo=migracionQueFalta({message:avisosIngresoError});
     box.innerHTML=archivo
-      ?`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      ?`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
         <b>Falta la migración ${escHtml(archivo)}.</b> <small>Sin ella no se pueden dejar avisos de ingreso.</small></div>`
-      :`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      :`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
         <b>No se pudieron leer tus avisos.</b> <small>${escHtml(avisosIngresoError)}</small></div>`;
     return;
   }
@@ -3922,9 +3928,9 @@ async function loadBitacora(){
   if(error){
     const archivo=migracionQueFalta(error);
     box.innerHTML=archivo
-      ?`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      ?`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
         <b>Falta la migración ${escHtml(archivo)}.</b> <small>Sin ella no se puede llevar la bitácora de acceso.</small></div>`
-      :`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      :`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
         <b>No se pudo leer la bitácora.</b> <small>${escHtml(error.message)}</small></div>`;
     return;
   }
@@ -3976,9 +3982,9 @@ async function loadBandejaAvisos(){
   if(error){
     const archivo=migracionQueFalta(error);
     box.innerHTML=archivo
-      ?`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      ?`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
         <b>Falta la migración ${escHtml(archivo)}.</b> <small>Sin ella no hay bandeja de avisos de ingreso.</small></div>`
-      :`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      :`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
         <b>No se pudo leer la bandeja.</b> <small>${escHtml(error.message)}</small></div>`;
     return;
   }
@@ -4741,8 +4747,8 @@ async function buscarParaMarcajeManual(texto){
     return;
   }
   if(msg){
-    if(r.error==='Anulada')msg.innerHTML=`<p style="background:var(--danger);color:#fff;padding:8px 10px;border-radius:6px"><b>⚠️ TARJETA ANULADA</b><br>${escHtml(r.motivo||'')}. No se puede registrar con una tarjeta anulada.</p>`;
-    else if(r.error==='Bloqueada')msg.innerHTML=`<p style="background:var(--danger);color:#fff;padding:8px 10px;border-radius:6px"><b>⛔ TARJETA BLOQUEADA</b><br>${escHtml(r.motivo?('Motivo: '+r.motivo):'')} Debe pasar por Administración.</p>`;
+    if(r.error==='Anulada')msg.innerHTML=`<p style="background:var(--danger-solid);color:#fff;padding:8px 10px;border-radius:6px"><b>⚠️ TARJETA ANULADA</b><br>${escHtml(r.motivo||'')}. No se puede registrar con una tarjeta anulada.</p>`;
+    else if(r.error==='Bloqueada')msg.innerHTML=`<p style="background:var(--danger-solid);color:#fff;padding:8px 10px;border-radius:6px"><b>⛔ TARJETA BLOQUEADA</b><br>${escHtml(r.motivo?('Motivo: '+r.motivo):'')} Debe pasar por Administración.</p>`;
     else if(r.error==='OtraEmpresa')msg.innerHTML=`<p style="color:var(--danger)">La tarjeta es de <b>${escHtml(r.nombre)}</b>, que pertenece a otra empresa.</p>`;
     else if(r.error==='SinTrabajador')msg.innerHTML=`<p style="color:var(--danger)">La tarjeta apunta al código <b>${escHtml(r.code)}</b>, que no está en la lista de trabajadores.</p>`;
     else msg.innerHTML=`<p style="color:var(--danger)">No encontré a nadie con <b>${escHtml(leido)}</b>.<br><small>Prueba con la tarjeta, con el código (por ejemplo 021) o con parte del nombre.</small></p>`;
@@ -5380,7 +5386,7 @@ function avisarSiteUrl(host){
     caja.innerHTML='';   // todo bien: hay una dirección real
     return;
   }
-  caja.innerHTML='<div style="background:#fff6e0;border:1px solid #e08b1a;color:#8a5a00;padding:10px 12px;border-radius:8px">'+
+  caja.innerHTML='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">'+
     '<b>Atención: la app está en '+escHtml(host||'una dirección local')+'.</b><br>'+
     '<small>Si la abriste desde la página de alguien más, su enlace de invitación le va a llegar '+
     'apuntando a <b>localhost</b>, que no le va a abrir. Se arregla en '+
@@ -5615,7 +5621,7 @@ async function loadInvitaciones(){
   const {data,error}=await window.supabaseClient.from('invitaciones')
     .select('*').order('created_at',{ascending:false}).limit(100);
   if(error){
-    el.innerHTML=`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+    el.innerHTML=`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
       <b>No se pudieron leer las invitaciones.</b> <small>${escHtml(error.message)}</small><br>
       <small>Falta la migración 019: ejecuta 019_invitaciones_perfiles.sql.</small></div>`;
     return;
@@ -5923,7 +5929,7 @@ async function loadAltasCuentas(){
   const {data,error}=await window.supabaseClient.from('cuentas_altas')
     .select('*').order('created_at',{ascending:false}).limit(40);
   if(error){
-    el.innerHTML=`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+    el.innerHTML=`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
       <b>No se pudo leer el historial de altas.</b> <small>${escHtml(error.message)}</small><br>
       <small>Falta la migración 021: ejecuta <b>021_altas_cuentas.sql</b>. El alta igual funciona; lo que no se guarda es quién la hizo.</small></div>`;
     return;
@@ -5973,12 +5979,12 @@ async function initMiPerfil(){
   const empresasDeEsta=empresas.filter(e=>misEmpresas.includes(e.id));
   cont.innerHTML=
     (miPerfil&&!miPerfil.activo
-      ?'<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+      ?'<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
         '<b>Tu cuenta está inactiva.</b> Un administrador tiene que activarla en Soporte → Usuarios. '+
         'Mientras tanto puedes entrar, pero no vas a poder guardar nada.</div>'
       :'')+
     (miPerfil&&miPerfil.perfil_completo===false
-      ?'<div style="background:#fff6e0;border:1px solid #e08b1a;color:#8a5a00;padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+      ?'<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
         '<b>Te falta completar tus datos.</b> Arriba está el formulario: pon tu nombre y guarda.</div>'
       :'')+
     `<div style="border:1px solid var(--line);border-radius:8px;padding:12px">
@@ -6762,7 +6768,7 @@ function columnaDeLaImportacionFalta(error){
   // ponerla en la pantalla.
   return baseYaLaTiene.then((existe)=>{
     if(existe===true){
-      return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+      return '<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
         '<b>La columna '+escHtml(columna)+' sí existe, pero la API no la ve.</b><br>'+
         '<small>La migración ya está aplicada y lo que quedó viejo es la caché de esquema de PostgREST. '+
         'En el <b>SQL Editor</b> de Supabase ejecuta:<br>'+
@@ -6770,13 +6776,13 @@ function columnaDeLaImportacionFalta(error){
         'Espera unos segundos y vuelve a importar. No hace falta volver a correr la migración.</small></div>';
     }
     if(existe===false){
-      return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:8px 12px;border-radius:8px">'+
+      return '<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:8px 12px;border-radius:8px">'+
         '<b>Falta la migración '+escHtml(archivo||'que agrega '+columna)+'.</b><br>'+
         '<small>La columna <code>'+escHtml(columna)+'</code> no existe en la tabla <code>'+escHtml(tabla)+
         '</code>. Ábrela en el <b>SQL Editor</b> de Supabase y ejecútala, y después vuelve a importar. '+
         'Si ya la habías ejecutado, entonces el problema es la caché: <b>NOTIFY pgrst, \'reload schema\';</b></small></div>';
     }
-    return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:8px 12px;border-radius:8px">'+
+    return '<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:8px 12px;border-radius:8px">'+
       '<b>Falta una migración: '+escHtml(archivo||columna)+'</b><br>'+
       '<small>Abre <b>'+escHtml(archivo||'la migración correspondiente')+'</b> en el SQL Editor de Supabase. '+
       'Si ya la ejecutaste y el error sigue, la caché de esquema está vieja: '+
@@ -6849,6 +6855,17 @@ function itemsVisibles(e){
   const items=e.items||[];
   const item=valorFiltroEpp('epp-filtro-item');
   return item?items.filter(i=>i.epp_codigo===item):items;
+}
+// Enlace al mapa de la firma.
+//
+// Se arma con encodeURIComponent sobre el par de coordenadas, no con los
+// números pelados: son doubles, y un "NaN" o un "undefined" dentro del href
+// produce un enlace que no abre nada, que es peor que no tener enlace.
+// Se usa la latitud primero porque así lo espera la URL de Google.
+function enlaceMapa(lat,lng){
+  const la=Number(lat), ln=Number(lng);
+  if(!isFinite(la)||!isFinite(ln))return '#';
+  return 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(la+','+ln);
 }
 function etiquetaItemEpp(i){
   return i.epp_codigo||i.nombre||'—';
@@ -6959,8 +6976,14 @@ function renderEppDetalleFila(fila){
     // un NaN en pantalla ("NaN, NaN") no le sirve de nada a nadie.
     const num=Number(e.firma_lat), numLng=Number(e.firma_lng);
     const precision=Math.round(Number(e.firma_precision_m));
-    const gps=(e.firma_lat!=null&&isFinite(num)&&isFinite(numLng))
-      ?`<small>📍 ${num.toFixed(5)}, ${numLng.toFixed(5)}${isFinite(precision)?' (±'+precision+' m)':''}</small>`
+    const tieneGps=(e.firma_lat!=null&&e.firma_lng!=null&&isFinite(num)&&isFinite(numLng));
+    // Las coordenadas son un enlace: ver dónde firmó en el mapa es lo que
+    // sirve para verificar una entrega. El texto va pegado a la hora, porque
+    // "dónde" y "cuándo" son la misma prueba y conviene verlas juntas.
+    const gps=tieneGps
+      ?`<small>📍 <a href="${enlaceMapa(num,numLng)}" target="_blank" rel="noopener noreferrer"`+
+       ` title="Abrir en Google Maps" style="color:var(--accent)">${num.toFixed(5)}, ${numLng.toFixed(5)}`+
+       `${isFinite(precision)?' (±'+precision+' m)':''} ↗</a></small>`
       :'<small class="gpsWarn">📍 sin ubicación</small>';
     return `<div class="eppEntrega">
       <div class="headline">
@@ -8174,7 +8197,7 @@ function mostrarFaltaDeMigracion(error){
   if(!archivo)return;
   const caja=document.getElementById('empDiag');
   if(!caja)return;
-  caja.innerHTML='<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">'+
+  caja.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">'+
     '<b>Falta migrations/'+escHtml(archivo)+'</b>.<br>'+
     '<small>Puede ser por dos cosas. Si no la has ejecutado: ábrela y pégala en el SQL Editor de '+
     'Supabase (es re-ejecutable, no hay riesgo). Si ya la habías ejecutado, la API puede tenerla '+
@@ -8263,7 +8286,7 @@ async function revisarMigraciones(){
   }
   const archivos=Array.from(porArchivo.keys());
   const total=archivos.length+avisos.length;
-  caja.innerHTML='<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">'+
+  caja.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">'+
     '<b>Falta aplicar '+(total===1?'1 migración':total+' migraciones')+'.</b> '+
     '<small>Ejecútalas en el <b>SQL Editor</b> de Supabase, en orden, y recarga con <b>Ctrl+F5</b>. '+
     'Son re-ejecutables: repetirlas no rompe nada.</small>'+
@@ -8495,7 +8518,7 @@ function mostrarAvisoPermisos(texto){
   quitarAvisoPermisos();
   const div=document.createElement('div');
   div.id='permisosAviso';
-  div.style.cssText='background:var(--danger);color:#fff;padding:8px 16px;font-size:.82rem;font-weight:600;text-align:center;position:sticky;top:0;z-index:20';
+  div.style.cssText='background:var(--danger-solid);color:#fff;padding:8px 16px;font-size:.82rem;font-weight:600;text-align:center;position:sticky;top:0;z-index:20';
   div.textContent=texto;
   const header=document.querySelector('header');
   if(header)header.insertAdjacentElement('afterend',div);
@@ -8849,7 +8872,7 @@ function renderAvisoSolicitudes(){
   const faltaTabla=/does not exist|schema cache/i.test(errorSolicitudes);
   cajas.forEach(box=>{
     box.style.display='';
-    box.innerHTML=`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+    box.innerHTML=`<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
       <b>No se pudieron leer las solicitudes de cambio.</b><br>
       <small>${escHtml(errorSolicitudes)}</small><br>
       <small>${faltaTabla
