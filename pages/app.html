@@ -57,6 +57,22 @@ button.btn{background:var(--accent2);color:#fff;border:none;padding:9px 16px;bor
 #subNav button.bloqueado:before{content:'\\1F512  ';}
 #subNav button.bloqueado:hover{background-color:var(--surface-hover);color:var(--muted);opacity:.9}
 #subNav details.parcial>.nav-dropdown-trigger:after{content:'\\1F512'}
+
+/* La lista del equipo del supervisor, plegada. Con 40 personas abierta
+   empujaba la tarja fuera de la pantalla, y la tarja es lo que se viene a
+   mirar. Va plegada por defecto y el resumen dice cuantas son. Es un
+   <details> nativo: no necesita JavaScript para acordarse del estado y se
+   abre con el teclado. */
+details.supEquipo>summary{
+  cursor:pointer;font-weight:600;padding:8px 10px;border:1px solid var(--line);
+  border-radius:8px;background:var(--surface-hover);list-style:none;
+  display:flex;align-items:center;gap:6px;
+}
+details.supEquipo>summary::-webkit-details-marker{display:none}
+details.supEquipo>summary:before{content:'\25B8';font-size:.9rem;color:var(--muted)}
+details.supEquipo[open]>summary:before{content:'\25BE'}
+details.supEquipo>summary:hover{border-color:var(--accent)}
+details.supEquipo .supEquipoHint{font-weight:400;font-size:.8rem;color:var(--muted)}
 /* button.btn.secondary NO se define acá: lo define css/styles.css con
    --secondary-text. Estaba duplicado acá con --accent2, y --accent2 es un
    gris de superficie (#404040 en oscuro), no un color de texto. */
@@ -1257,7 +1273,7 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     <div id="supSoloEqWrap" class="kitResumen" style="display:none"></div>
     <div class="row">
       <div id="supSelWrap"><label>Supervisor</label><select id="sup-view" onchange="renderSupervisorMatrix()"></select></div>
-      <div><label>Año</label><input type="number" id="supYear" value="2026" onchange="renderSupervisorMatrix()"></div>
+      <div><label>Año</label><input type="number" id="supYear" onchange="renderSupervisorMatrix()"></div>
       <div><label>Mes</label><select id="supMonth" onchange="renderSupervisorMatrix()">
         <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
         <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
@@ -2039,7 +2055,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-i';
+const APP_VERSION='2026-09-28-j';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -5117,8 +5133,27 @@ function soySupervisorDeEsteEquipo(supCode){
 function equipoDe(supCode){
   return workers.filter(w=>w.supervisor_code===supCode);
 }
+// El periodo de la tarja arranca en el mes actual, pero SOLO la primera
+// vez. Si se pusiera en cada apertura, cambiar a otro mes no serviría de
+// nada: al volver a la vista saltaría de vuelta al actual.
+//
+// Antes solo se ajustaba al escanear un QR, así que al abrir la vista la
+// tarja salía en enero (lo que traía el HTML) y seemed que no hubiera
+// fecha de hoy.
+let periodoTarjaPuesto=false;
+function ponerPeriodoActualEnTarja(){
+  if(periodoTarjaPuesto)return;
+  const y=document.getElementById('supYear');
+  const m=document.getElementById('supMonth');
+  if(!y||!m)return;
+  const hoy=new Date();
+  y.value=String(hoy.getFullYear());
+  m.value=String(hoy.getMonth()+1);
+  periodoTarjaPuesto=true;
+}
 function initSupervisores(){
   recalcularMiSupervisor();
+  ponerPeriodoActualEnTarja();
   const sel=document.getElementById('sup-view');
   const sups=workers.filter(w=>w.is_supervisor);
   const propio=miCodigoSupervisor;
@@ -5133,11 +5168,22 @@ function initSupervisores(){
     document.getElementById('supSelWrap').style.display='none';
     const equipo=equipoDe(propio);
     document.getElementById('supSoloEqWrap').style.display='';
+    // Con 40 personas esta lista ocupa media pantalla y empuja la tarja
+    // para abajo. Va plegada por defecto y el resumen dice cuántas son,
+    // así se puede abrir solo cuando hace falta. Es un <details> nativo:
+    // no necesita JavaScript para guardar el estado, y se puede abrir con
+    // el teclado.
+    const ordenados=equipo.slice().sort((a,b)=>compararPorCodigo(a.code,b.code));
     document.getElementById('supSoloEqWrap').innerHTML=
-      `<b>${equipo.length}</b> trabajador${equipo.length===1?'':'es'} a cargo: `+
-      equipo.slice().sort((a,b)=>compararPorCodigo(a.code,b.code))
-        .map(w=>`<b>${escHtml(codigoMostrar(w.code))}</b> ${escHtml(w.name)}`).join(' · ')+
-      (equipo.length?'':'<br><small>Todavía no tienes gente asignada. Pídele a administración que te asigne un equipo.</small>');
+      `<details class="supEquipo"><summary>`+
+        `<b>${equipo.length}</b> trabajador${equipo.length===1?'':'es'} a cargo`+
+        `<span class="supEquipoHint"> — tocá para ver la lista</span>`+
+      `</summary>`+
+      (equipo.length
+        ?`<p style="margin:8px 0 0">`+ordenados
+            .map(w=>`<b>${escHtml(codigoMostrar(w.code))}</b> ${escHtml(w.name)}`).join(' · ')+`</p>`
+        :'<p style="margin:8px 0 0"><small>Todavía no tienes gente asignada. Pídele a administración que te asigne un equipo.</small></p>')+
+      `</details>`;
     sel.innerHTML=`<option value="${propio}">${escHtml(workers.find(w=>w.code===propio).name)}</option>`;
   }else{
     document.getElementById('supIntroCard').style.display='';
