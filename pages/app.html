@@ -198,6 +198,33 @@ small{color:var(--muted)}
 .eppHistoryItem td{font-size:.78rem;padding:4px 6px}
 .eppActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
 .eppActions .btn{margin-top:0;padding:6px 10px;font-size:.7rem}
+/* ---- historial de EPP: tabla expandible, una fila por trabajador ---- */
+.eppFiltros{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
+.eppFiltros .eppBuscar{grid-column:span 2}
+.eppFiltros input,.eppFiltros select{width:100%}
+table.eppTabla{table-layout:auto}
+table.eppTabla th{background:var(--accent2);font-size:.7rem;white-space:nowrap}
+table.eppTabla td{font-size:.78rem;padding:6px}
+table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
+.eppFila:hover>td{background:var(--panel)}
+/* la flechita gira cuando la fila está abierta */
+.caret{display:inline-block;transition:transform .15s;font-size:.7rem;vertical-align:middle}
+.eppFilaAbierta .caret{transform:rotate(90deg)}
+.eppFilaAbierta>td{background:var(--panel);border-bottom:none}
+.eppCodigos{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-start}
+.eppCod{display:inline-block;font-family:ui-monospace,Consolas,monospace;font-size:.68rem;
+  padding:1px 5px;border:1px solid var(--line);border-radius:4px;background:var(--panel)}
+.eppCod.mas{border-style:dashed;color:var(--muted)}
+.eppDetalle{background:var(--panel);border-top:1px dashed var(--line)}
+.eppDetalle>td{padding:0!important}
+.eppEntrega{border:1px solid var(--line);border-radius:8px;margin:8px;overflow:hidden}
+.eppEntrega .headline{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;
+  padding:7px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+.eppEntrega table{background:transparent}
+.eppEntrega th{background:var(--accent2);font-size:.68rem}
+.eppEntrega td{font-size:.75rem;padding:4px 6px}
+.eppEntrega .eppActions{margin:0;padding:7px 10px;border-top:1px solid var(--line)}
+.eppVacio{text-align:center;padding:14px;color:var(--muted)}
 @media(max-width:760px){
   .eppItemRow{grid-template-columns:1fr 1fr;gap:6px}
   .eppItemRow>*:nth-child(1){grid-column:1/-1}
@@ -911,11 +938,24 @@ small{color:var(--muted)}
 <section class="view" id="v-bodega-historial">
   <div class="card">
     <h2>Historial de entregas EPP</h2>
-    <div class="row">
-      <div><label>Filtrar trabajador</label><select id="epp-filter" onchange="loadEppDeliveries()"><option value="">Todos los trabajadores</option></select></div>
-      <div style="display:flex;align-items:flex-end"><button class="btn secondary" type="button" onclick="openQrCamera('epp-historial')">📷 Escanear tarjeta</button></div>
+    <small>Una fila por trabajador. <b>Ver detalle</b> abre las entregas con sus ítems, la firma, el PDF y la ubicación.</small>
+    <div class="eppFiltros">
+      <div class="eppBuscar"><label>Buscar</label><input id="epp-buscar" placeholder="Nombre o código del trabajador" oninput="renderEppHistory()"></div>
+      <div><label>Trabajador</label><select id="epp-filter" onchange="renderEppHistory()"><option value="">Todos</option></select></div>
+      <div><label>Elemento EPP</label><select id="epp-filtro-item" onchange="renderEppHistory()"><option value="">Todos</option></select></div>
+      <div><label>Firma</label><select id="epp-filtro-firma" onchange="renderEppHistory()">
+        <option value="">Todas</option>
+        <option value="firmadas">Solo firmadas</option>
+        <option value="sinfirma">Solo sin firma</option>
+      </select></div>
+      <div><label>Desde</label><input type="date" id="epp-filtro-desde" onchange="renderEppHistory()"></div>
+      <div><label>Hasta</label><input type="date" id="epp-filtro-hasta" onchange="renderEppHistory()"></div>
+      <div style="display:flex;align-items:flex-end;gap:6px">
+        <button class="btn secondary" type="button" onclick="limpiarFiltrosEpp()">Limpiar</button>
+        <button class="btn secondary" type="button" onclick="openQrCamera('epp-historial')">📷 Escanear tarjeta</button>
+      </div>
     </div>
-    <div id="eppHistory"></div>
+    <div id="eppHistory" style="margin-top:12px"></div>
   </div>
 </section>
 
@@ -1192,7 +1232,10 @@ async function loadEppCatalog(quiet){
   eppCatalog=data||[];
 }
 async function loadEppDeliveries(quiet){
-  const {data,error}=await window.supabaseClient.from('epp_entregas').select('*').order('fecha',{ascending:false}).limit(300);
+  // Con una fila por trabajador, truncar el historial haría que un
+  // trabajador apareciera incompleto sin avisar. Se piden muchas y, si
+  // aun así se llega al tope, se dice en pantalla.
+  const {data,error}=await window.supabaseClient.from('epp_entregas').select('*').order('fecha',{ascending:false}).limit(2000);
   if(error){bodegaError('No se pudieron cargar las entregas de EPP: '+error.message,quiet);return;}
   const entregas=data||[];
   if(entregas.length){
@@ -1202,7 +1245,27 @@ async function loadEppDeliveries(quiet){
     entregas.forEach(e=>{e.items=byEntrega[e.id]||[];});
   }
   eppDeliveries=entregas;
+  fillEppItemFilter();
   renderEppHistory();
+}
+// El selector de "Elemento EPP" se arma con lo que se entregó de verdad,
+// no con el catálogo entero: así el filtro nunca ofrece algo que nadie
+// tiene y el resultado vacío siempre significa algo.
+function fillEppItemFilter(){
+  const sel=document.getElementById('epp-filtro-item');
+  if(!sel)return;
+  const previo=sel.value;
+  const usados=new Set();
+  eppDeliveries.forEach(e=>(e.items||[]).forEach(i=>{
+    if(i.epp_codigo)usados.add(i.epp_codigo+'|'+i.nombre);
+    else if(i.nombre)usados.add(''+'|'+i.nombre);
+  }));
+  const lista=Array.from(usados).map(p=>{const [c,n]=p.split('|');return {c,n};})
+    .sort((a,b)=>a.n.localeCompare(b.n,'es'));
+  sel.innerHTML='<option value="">Todos los elementos</option>'+
+    lista.map(x=>`<option value="${escHtml(x.c)}">${escHtml(x.c?x.c+' · ':'')}${escHtml(x.n)}</option>`).join('');
+  if(lista.some(x=>x.c===previo))sel.value=previo;
+  else sel.value='';
 }
 async function loadTools(quiet){
   const {data,error}=await window.supabaseClient.from('herramientas_catalogo').select('*').order('nombre');
@@ -1352,6 +1415,7 @@ function initView(v){
   if(v==='bodega-kits'){initKitsView();initSignaturePad('Kit');}
   if(v==='bodega-kits-admin'){loadEspecialidades(true).then(renderEspecialidades);}
   if(v==='bodega-epp-catalogo'){renderEppCatalog();}
+  if(v==='bodega-historial'){fillEppItemFilter();renderEppHistory();}
   if(v==='bodega-qr'){initQrView();}
   if(v==='supervisores'){initSupervisores();}
   if(v==='sup-diaria'){initDiaria();}
@@ -2134,22 +2198,30 @@ function selectKitWorkerByScan(scanned){
 async function filtrarHistorialPorScan(scanned){
   const w=resolverCodigoTrabajador(scanned);
   if(!w)return;
+  limpiarFiltrosEpp();
   if(typeof showView==='function')showView('bodega-historial');
   const filtro=document.getElementById('epp-filter');
   if(filtro)filtro.value=w.code;
+  // Se abre la fila de una vez: si escaneó la tarjeta es para ver las
+  // entregas de esa persona, no solo su nombre en un filtro.
+  eppFilaAbierta=w.code;
   await loadEppDeliveries();
   if(navigator.vibrate){try{navigator.vibrate(120);}catch(error){}}
-  const total=eppDeliveries.filter(e=>e.code===w.code).length;
+  const total=entregasFiltradasDe(w.code).length;
+  const cont=document.getElementById('eppHistory');
+  if(!cont)return;
   let aviso=document.getElementById('eppHistScan');
   if(!aviso){
     aviso=document.createElement('div');
     aviso.id='eppHistScan';
-    aviso.className='camStatus';
-    if(filtro&&filtro.parentNode&&filtro.parentNode.parentNode)
-      filtro.parentNode.parentNode.insertBefore(aviso,filtro.parentNode);
+    aviso.className='eppVacio';
+    aviso.style.textAlign='left';
+    cont.parentNode.insertBefore(aviso,cont);
   }
-  aviso.textContent=`Filtrando por ${w.name} (${w.code}): ${total} entrega(s).`;
-  aviso.style.color='var(--accent)';
+  aviso.textContent=total
+    ?`Mostrando a ${w.name} (${w.code}): ${total} entrega(s).`
+    :`${w.name} (${w.code}) no tiene entregas de EPP registradas.`;
+  aviso.style.color=total?'var(--accent)':'var(--muted)';
 }
 // Monta (una sola vez) la ventana del lector en vivo.
 function camModal(){
@@ -3997,44 +4069,190 @@ function updateEppWorkerHint(){
 }
 
 // ---------- EPP: historial ----------
+// Tabla con UNA FILA POR TRABAJADOR. El detalle de cada uno se abre y se
+// cierra con "Ver detalle", así se puede ver de un vistazo quién tiene
+// entrega y quién no, en vez de una tarjeta por entrega (que con dos
+// entregas del mismo trabajador lo parte en dos bloques y cuesta
+// entender que es la misma persona).
+//
+// Los filtros no quitan columnas: acotan qué entregas se ven. Un
+// trabajador aparece si tiene al menos una entrega que pase los filtros,
+// y dentro de él solo se listan las que pasan. Si no, el filtro "Elemento
+// EPP" wouldn't serve de nada.
+const CODIGOS_MOSTRADOS_POR_FILA=4;
+let eppFilaAbierta=null;   // código del trabajador con el detalle abierto
+let eppFilaAbiertaAntesDeFiltrar=null;
+
+function normalizar(t){
+  return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function valorFiltroEpp(id){
+  const el=document.getElementById(id);
+  return el?String(el.value||'').trim():'';
+}
+function limpiarFiltrosEpp(){
+  ['epp-buscar','epp-filter','epp-filtro-item','epp-filtro-firma','epp-filtro-desde','epp-filtro-hasta']
+    .forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  renderEppHistory();
+}
+function toggleEppDetalle(code){
+  eppFilaAbierta=eppFilaAbierta===code?null:code;
+  renderEppHistory();
+}
+// Entregas de un trabajador que pasan los filtros de la barra superior.
+function entregasFiltradasDe(code){
+  const desde=valorFiltroEpp('epp-filtro-desde');
+  const hasta=valorFiltroEpp('epp-filtro-hasta');
+  const firma=valorFiltroEpp('epp-filtro-firma');
+  const item=valorFiltroEpp('epp-filtro-item');
+  return eppDeliveries.filter(e=>{
+    if(e.code!==code)return false;
+    const f=e.fecha||'';
+    if(desde&&f<desde)return false;
+    if(hasta&&f>hasta)return false;
+    if(firma==='firmadas'&&!e.firma_url)return false;
+    if(firma==='sinfirma'&&e.firma_url)return false;
+    if(item&&!(e.items||[]).some(i=>i.epp_codigo===item))return false;
+    return true;
+  });
+}
+// Los ítems de una entrega, o solo los del elemento que se está filtrando.
+function itemsVisibles(e){
+  const items=e.items||[];
+  const item=valorFiltroEpp('epp-filtro-item');
+  return item?items.filter(i=>i.epp_codigo===item):items;
+}
+function etiquetaItemEpp(i){
+  return i.epp_codigo||i.nombre||'—';
+}
+function codigosEppDe(entregas){
+  const set=new Set();
+  entregas.forEach(e=>itemsVisibles(e).forEach(i=>{
+    const c=etiquetaItemEpp(i);
+    if(c&&c!=='—')set.add(c);
+  }));
+  return Array.from(set);
+}
 function renderEppHistory(){
   const el=document.getElementById('eppHistory');
   if(!el)return;
-  const filter=document.getElementById('epp-filter').value;
-  const list=eppDeliveries.filter(e=>!filter||e.code===filter);
-  if(!list.length){
-    el.innerHTML='<small>Sin entregas registradas.</small>';
+  const buscar=normalizar(valorFiltroEpp('epp-buscar'));
+  const soloTrabajador=valorFiltroEpp('epp-filter');
+
+  // Un trabajador por fila, con las entregas que le corresponden.
+  const porCodigo=new Map();
+  eppDeliveries.forEach(e=>{
+    if(!porCodigo.has(e.code))porCodigo.set(e.code,[]);
+    porCodigo.get(e.code).push(e);
+  });
+  let filas=[];
+  porCodigo.forEach((entregas,code)=>{
+    if(soloTrabajador&&code!==soloTrabajador)return;
+    const w=workers.find(x=>x.code===code);
+    if(buscar){
+      const heno=normalizar((w?w.name:'')+' '+code);
+      if(heno.indexOf(buscar)<0)return;
+    }
+    const visibles=entregasFiltradasDe(code);
+    if(!visibles.length)return;
+    filas.push({code,w,entregas:visibles,total:entregas.length});
+  });
+  // la más reciente arriba
+  filas.sort((a,b)=>{
+    const fa=a.entregas[0].fecha||'',fb=b.entregas[0].fecha||'';
+    return fa<fb?1:fa>fb?-1:(a.code<b.code?-1:1);
+  });
+
+  const fHayFiltro=!!(buscar||soloTrabajador||valorFiltroEpp('epp-filtro-item')||
+    valorFiltroEpp('epp-filtro-firma')||valorFiltroEpp('epp-filtro-desde')||valorFiltroEpp('epp-filtro-hasta'));
+  if(!filas.length){
+    el.innerHTML=`<div class="eppVacio">${eppDeliveries.length
+      ? 'Ningún trabajador coincide con los filtros.'
+      : 'Sin entregas registradas todavía.'}</div>`;
     return;
   }
-  el.innerHTML=list.map(e=>{
-    const w=workers.find(x=>x.code===e.code);
-    const items=e.items||[];
-    const gps=e.firma_lat!=null
-      ?`<small>📍 ${Number(e.firma_lat).toFixed(5)}, ${Number(e.firma_lng).toFixed(5)}${e.firma_precision_m?' (±'+Math.round(e.firma_precision_m)+' m)':''}</small>`
+  const piezas=filas.reduce((s,f)=>s+f.entregas.reduce((t,e)=>t+itemsVisibles(e).reduce((u,i)=>u+(Number(i.cantidad)||1),0),0),0);
+  el.innerHTML=
+    (fHayFiltro?`<div class="eppVacio" style="padding:6px 0;text-align:left">
+       <b>${filas.length}</b> trabajador(es) · <b>${piezas}</b> pieza(s) en lo filtrado.
+       <button class="btn secondary" type="button" onclick="limpiarFiltrosEpp()">Limpiar filtros</button></div>`:'')+
+    `<div class="overflow"><table class="eppTabla"><thead><tr>
+       <th>Cód.</th><th class="izq">Nombre</th><th class="izq">EPP recibido</th>
+       <th>Entregas</th><th>Piezas</th><th>Última</th><th>Firma</th><th></th>
+     </tr></thead><tbody>`+
+    filas.map(f=>{
+      const abierta=eppFilaAbierta===f.code;
+      const cods=codigosEppDe(f.entregas);
+      const mostrados=cods.slice(0,CODIGOS_MOSTRADOS_POR_FILA);
+      const sobra=cods.length-mostrados.length;
+      // el "+N" abre el detalle, así que no hace falta que quepan todos
+      const tituloCods=cods.length
+        ?' title="'+escHtml(cods.join(', '))+'"'
+        :' title="Sin ítems detallados"';
+      const piezasF=f.entregas.reduce((t,e)=>t+itemsVisibles(e).reduce((u,i)=>u+(Number(i.cantidad)||1),0),0);
+      const sinFirma=f.entregas.filter(e=>!e.firma_url).length;
+      const ultima=(f.entregas[0].fecha||'');
+      const badges=`<div class="eppCodigos"${tituloCods}>`+
+        mostrados.map(c=>`<span class="eppCod">${escHtml(c)}</span>`).join('')+
+        (sobra>0?`<span class="eppCod mas">+${sobra}</span>`:'')+
+        (cods.length?'':'<small>—</small>')+
+        `</div>`;
+      const firma=sinFirma
+        ?(f.entregas.length===sinFirma?'<span class="eppBadge sinFirma">Sin firma</span>':`<span class="eppBadge sinFirma">${sinFirma} sin firma</span>`)
+        :'<span class="eppBadge firmado">Firmado</span>';
+      const tr=`<tr class="eppFila${abierta?' eppFilaAbierta':''}">
+        <td><b>${escHtml(f.code)}</b></td>
+        <td class="izq">${f.w?escHtml(f.w.name):'<small>(fuera de la lista)</small>'}${f.w&&f.w.spec?` <small>· ${escHtml(f.w.spec)}</small>`:''}</td>
+        <td class="izq">${badges}</td>
+        <td>${f.entregas.length}${f.total!==f.entregas.length
+        ?`<small title="de ${f.total} entregas en total"> / ${f.total}</small>`:''}</td>
+        <td>${piezasF}</td>
+        <td>${escHtml(ultima)}</td>
+        <td>${firma}</td>
+        <td><button class="btn secondary" type="button" onclick="toggleEppDetalle('${escHtml(f.code)}')"
+            aria-expanded="${abierta}">${abierta?'Ocultar':'Ver detalle'} <span class="caret">▶</span></button></td>
+      </tr>`;
+      return abierta?tr+renderEppDetalleFila(f):tr;
+    }).join('')+
+    `</tbody></table></div>`;
+}
+// El detalle desplegado: una entrega por bloque, con sus ítems y los
+// botones de PDF y firma. Se mantiene igual para no perder nada al
+// cambiar la tabla a filas.
+function renderEppDetalleFila(fila){
+  const bloques=fila.entregas.map(e=>{
+    const items=itemsVisibles(e);
+    const filasItems=items.length
+      ?`<div class="overflow"><table><thead><tr><th>Código</th><th class="izq">Elemento</th><th class="izq">Detalle</th><th>Talla</th><th>Cant.</th></tr></thead><tbody>${
+          items.map(i=>`<tr><td>${escHtml(i.epp_codigo||'—')}</td><td class="izq">${escHtml(i.nombre)}</td><td class="izq">${escHtml(i.detalle||'—')}</td><td>${escHtml(i.talla||'—')}</td><td>${i.cantidad}</td></tr>`).join('')
+        }</tbody></table></div>`
+      :'<div class="eppVacio">Sin ítems detallados (registro anterior a la migración 008).</div>';
+    // La ubicación viene de la base como double, pero se comprueba igual:
+    // un NaN en pantalla ("NaN, NaN") no le sirve de nada a nadie.
+    const num=Number(e.firma_lat), numLng=Number(e.firma_lng);
+    const precision=Math.round(Number(e.firma_precision_m));
+    const gps=(e.firma_lat!=null&&isFinite(num)&&isFinite(numLng))
+      ?`<small>📍 ${num.toFixed(5)}, ${numLng.toFixed(5)}${isFinite(precision)?' (±'+precision+' m)':''}</small>`
       :'<small class="gpsWarn">📍 sin ubicación</small>';
-    const filas=items.length
-      ?`<table><thead><tr><th>Código</th><th>Elemento</th><th>Detalle</th><th>Talla</th><th>Cant.</th></tr></thead><tbody>${
-          items.map(i=>`<tr><td>${i.epp_codigo||'—'}</td><td>${i.nombre}</td><td style="text-align:left">${i.detalle||'—'}</td><td>${i.talla||'—'}</td><td>${i.cantidad}</td></tr>`).join('')
-        }</tbody></table>`
-      :'<small>Sin ítems detallados (registro anterior a la migración 008).</small>';
-    return `<div class="eppHistoryItem">
+    return `<div class="eppEntrega">
       <div class="headline">
-        <span><b>${e.fecha}</b> — ${w?w.name:e.code} <small>(${e.code})</small>${e.cargo?` · ${e.cargo}`:''}</span>
+        <span><b>${escHtml(e.fecha)}</b>${e.cargo?` · ${escHtml(e.cargo)}`:''}</span>
         <span>
-          ${e.es_entrega_inicial?'<span class="eppBadge inicial" style="color:var(--accent);border-color:var(--accent)">Entrega inicial</span> ':''}
+          ${e.es_entrega_inicial?'<span class="eppBadge" style="color:var(--accent);border-color:var(--accent)">Entrega inicial</span> ':''}
           <span class="eppBadge ${e.firma_url?'firmado':'sinFirma'}">${e.firma_url?'Firmado':'Sin firma'}</span>
         </span>
       </div>
-      ${filas}
+      ${filasItems}
       <div class="eppActions">
         ${gps}
-        ${e.firma_at?`<small>Firmado: ${new Date(e.firma_at).toLocaleString('es-CL')}</small>`:''}
-        ${e.observacion?`<small>Obs.: ${e.observacion}</small>`:''}
-        ${e.pdf_url?`<button class="btn secondary" type="button" onclick="downloadFromBucket('${e.pdf_url}','entrega_${e.code}_${e.fecha}.pdf')">📄 Descargar PDF</button>`:''}
-        ${e.firma_url?`<button class="btn secondary" type="button" onclick="downloadFromBucket('${e.firma_url}','firma_${e.code}_${e.fecha}.png')">✍ Ver firma</button>`:''}
+        ${e.firma_at?`<small>Firmado: ${escHtml(fechaLegible(e.firma_at,true))}</small>`:''}
+        ${e.observacion?`<small>Obs.: ${escHtml(e.observacion)}</small>`:''}
+        ${e.pdf_url?`<button class="btn secondary" type="button" onclick="downloadFromBucket('${escHtml(e.pdf_url)}','entrega_${escHtml(e.code)}_${escHtml(e.fecha)}.pdf')">📄 Descargar PDF</button>`:''}
+        ${e.firma_url?`<button class="btn secondary" type="button" onclick="downloadFromBucket('${escHtml(e.firma_url)}','firma_${escHtml(e.code)}_${escHtml(e.fecha)}.png')">✍ Ver firma</button>`:''}
       </div>
     </div>`;
   }).join('');
+  return `<tr class="eppDetalle"><td colspan="8">${bloques}</td></tr>`;
 }
 
 // ---------- bodega: herramientas ----------
@@ -5033,6 +5251,7 @@ function refreshAllWorkerPickers(){
     const sel=document.getElementById(id);
     if(!sel)return;
     const previo=sel.value;
+    // en los filtros de bodega "vacío" significa todos
     // en los filtros de bodega "vacío" significa todos
     const base=(id==='epp-filter')?'<option value="">Todos los trabajadores</option>':'';
     const soloSupervisores=id==='sup-view';
