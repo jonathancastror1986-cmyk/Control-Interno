@@ -978,14 +978,14 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
         </div>
         <div class="sigPadBar">
           <button class="btn secondary" type="button" onclick="clearSignature()">Limpiar firma</button>
-          <button class="btn secondary" type="button" onclick="captureGps()">📍 Capturar ubicación</button>
+          <button class="btn secondary" type="button" onclick="captureGps()">📍 Capturar ubicación de nuevo</button>
           <span id="sigStamp" style="font-size:.75rem;color:var(--muted)"></span>
         </div>
       </div>
       <div>
-        <label>Ubicación de la entrega</label>
+        <label>Ubicación y hora de la firma</label>
         <div class="gpsBox">
-          <div id="gpsStatus" style="font-size:.8rem;color:var(--muted)">Sin ubicación capturada.</div>
+          <div id="gpsStatus" style="font-size:.8rem;color:var(--muted)">Se toma sola cuando el trabajador empieza a firmar.</div>
           <div class="gpsVal" id="gpsVal" style="margin-top:6px">—</div>
         </div>
         <label>Observación (opcional)</label>
@@ -1938,7 +1938,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-e';
+const APP_VERSION='2026-09-28-f';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -6400,6 +6400,10 @@ function initSignaturePad(suf){
     sigInk[ids.canvas]=true;
     const wrap=document.getElementById(ids.wrap);
     if(wrap)wrap.classList.add('firmado');
+    // Firmar ES el momento en que se toma la ubicación y la hora. Es un
+    // gesto del usuario, y además el navegador permite pedir el permiso
+    // geográfico desde acá sin que se queje.
+    if(typeof alFirmar==='function')alFirmar(suf);
   };
   const trazar=ev=>{
     if(!dibujando)return;
@@ -6427,6 +6431,12 @@ function clearSignature(suf){
   sigInk[ids.canvas]=false;
   const wrap=document.getElementById(ids.wrap);
   if(wrap)wrap.classList.remove('firmado');
+  // Firmar de nuevo es un hecho nuevo: se olvida la hora anterior y se
+  // vuelve a pedir la ubicación. Si no, la entrega se firmaría con la hora
+  // del primer intento, que ya no es la de la firma que se está guardando.
+  firmaAl[suf]=null;
+  gpsPedido[suf]=false;
+  if(typeof limpiarGps==='function')limpiarGps(suf);
 }
 // Recorta los márgenes vacíos y devuelve el PNG de la firma, o null si está en blanco.
 function signatureDataUrl(suf){
@@ -6460,44 +6470,103 @@ function signatureDataUrl(suf){
   return out.toDataURL('image/png');
 }
 
-// ---------- EPP: geolocalización ----------
+// ---------- EPP: geolocalización y hora de la firma ----------
 // sufijo "" = Entrega de EPP, "Kit" = Kits por especialidad
-function captureGps(suf){
+//
+// POR QUÉ SE TOMA SOLA AL FIRMAR
+//
+// Antes había un botón "Capturar ubicación" aparte. El resultado era que
+// casi ninguna entrega lo tenía: la persona firmaba, leía "Guardar
+// entrega" y listo. Y una entrega sin coordenadas no sirve para verificar
+// nada, que es justo para lo que se pide la firma.
+//
+// Así que la ubicación y la hora se toman en el instante en que el
+// trabajador empieza a firmar, que es el momento que importa, y no cuando se
+// apretó Guardar, que puede ser un rato después.
+//
+// SE PIDE UNA SOLA VEZ POR FIRMA. El navegador va incluida la última
+// posición conocida si elapsed <maximumAge>, así que la ubicación es la de
+// ese momento; y pedirla en cada trazo abriría el permiso una y otra vez,
+// hasta que el navegador empieza a ignorarlo del todo.
+const gpsEnCurso={};   // sufijo -> promesa de la captura
+const firmaAl={};      // sufijo -> ISO del instante en que se empezó a firmar
+const gpsPedido={};    // sufijo -> ¿ya se pidió en esta firma?
+
+// Se dispara al empezar el trazo. Deja el reloj de la firma y pide la
+// ubicación una única vez.
+function alFirmar(suf){
   suf=suf||'';
-  const status=document.getElementById('gpsStatus'+suf);
-  const val=document.getElementById('gpsVal'+suf);
-  if(!navigator.geolocation){
-    if(status){status.textContent='Este dispositivo no reporta ubicación.';status.className='gpsWarn';}
-    return;
-  }
-  if(status){status.textContent='Obteniendo ubicación…';status.className='';}
-  navigator.geolocation.getCurrentPosition(
-    pos=>{
-      eppGps={lat:pos.coords.latitude,lng:pos.coords.longitude,precision:pos.coords.accuracy};
-      if(status){
-        status.textContent='Ubicación capturada ('+Math.round(pos.coords.accuracy)+' m de precisión).';
-        status.className='gpsOk';
-      }
-      if(val)val.textContent=pos.coords.latitude.toFixed(6)+', '+pos.coords.longitude.toFixed(6);
-    },
-    err=>{
-      eppGps=null;
-      if(status){
-        status.textContent=err.code===1?'Permiso de ubicación denegado: la entrega se guardará sin GPS.':'No se pudo obtener la ubicación ('+err.message+').';
-        status.className='gpsWarn';
-      }
-      if(val)val.textContent='—';
-    },
-    {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
-  );
+  if(!firmaAl[suf])firmaAl[suf]=new Date().toISOString();
+  if(gpsPedido[suf])return;
+  gpsPedido[suf]=true;
+  captureGps(suf);
 }
 function limpiarGps(suf){
   suf=suf||'';
   eppGps=null;
   const status=document.getElementById('gpsStatus'+suf);
   const val=document.getElementById('gpsVal'+suf);
-  if(status){status.textContent='Sin ubicación capturada.';status.className='';}
+  // Vuelve el texto que explica qué va a pasar, no un "sin ubicación" seco.
+  // Este estado es el de partida de la próxima entrega, y la instrucción es
+  // lo que la persona necesita ver en ese momento.
+  // El texto tiene que ser EXACTAMENTE el mismo que el del HTML, porque al
+  // limpiar el formulario se vuelve a poner este y la persona lee uno y
+  // otro. "empiece" vs "empieza" no es grave, pero dos textos para lo mismo
+  // es una de las cosas que hacen que la pantalla parezca menos cuidado.
+  if(status){status.textContent='Se toma sola cuando el trabajador empieza a firmar.';status.className='';}
   if(val)val.textContent='—';
+}
+// Devuelve una promesa que resuelve con la ubicación, o con null si no se
+// pudo. Antes no devolvía nada, y por eso no se podía esperar: el guardado
+// seguía de largo y se guardaba sin coordenadas sin que nadie se enterara.
+function captureGps(suf){
+  suf=suf||'';
+  const status=document.getElementById('gpsStatus'+suf);
+  const val=document.getElementById('gpsVal'+suf);
+  if(!navigator.geolocation){
+    if(status){status.textContent='Este dispositivo no reporta ubicación.';status.className='gpsWarn';}
+    return Promise.resolve(null);
+  }
+  if(status){status.textContent='Obteniendo ubicación…';status.className='';}
+  const promesa=new Promise(resolve=>{
+    navigator.geolocation.getCurrentPosition(
+      pos=>{
+        eppGps={lat:pos.coords.latitude,lng:pos.coords.longitude,precision:pos.coords.accuracy};
+        if(status){
+          status.textContent='Ubicación capturada ('+Math.round(pos.coords.accuracy)+' m de precisión).';
+          status.className='gpsOk';
+        }
+        if(val)val.textContent=pos.coords.latitude.toFixed(6)+', '+pos.coords.longitude.toFixed(6);
+        resolve(eppGps);
+      },
+      err=>{
+        eppGps=null;
+        if(status){
+          status.textContent=err.code===1?'Permiso de ubicación denegado: la entrega se guardará sin GPS.':'No se pudo obtener la ubicación ('+err.message+').';
+          status.className='gpsWarn';
+        }
+        if(val)val.textContent='—';
+        resolve(null);
+      },
+      {enableHighAccuracy:true,timeout:10000,maximumAge:60000}
+    );
+  });
+  gpsEnCurso[suf]=promesa;
+  return promesa;
+}
+// Espera la ubicación con un tope. El tope importa: si la espera se queda
+// colgada (sin señal, con el teléfono bloqueado), el botón de guardar no
+// puede quedar esperando para siempre. Se suelta el GPS y se guarda igual,
+// diciendo que no se obtuvo.
+async function esperarGps(suf,ms){
+  const p=gpsEnCurso[suf];
+  if(!p)return eppGps;
+  if(eppGps)return eppGps;
+  let fin=null;
+  const reloj=new Promise(r=>{fin=setTimeout(()=>r('timeout'),ms||9000);});
+  const r=await Promise.race([p,reloj]);
+  if(fin)clearTimeout(fin);
+  return r==='timeout'?null:r;
 }
 
 // ---------- EPP: respaldo PDF ----------
@@ -6636,17 +6705,34 @@ async function saveEpp(){
   btn.disabled=true;
   msg.textContent='Generando PDF…';
   msg.style.color='var(--muted)';
+
+  // La ubicación se pidió al firmar, pero es asíncrona: si guardan justo
+  // después de firmar puede que todavía no haya llegado. Se espera un poco
+  // en vez de guardar sin coordenadas a ciegas, y si no llega se guarda
+  // igual avisando que no se obtuvo.
+  let gps=eppGps;
+  if(sigDataUrl&&!gps&&gpsEnCurso['']){
+    msg.textContent='Esperando la ubicación…';
+    gps=await esperarGps('',9000);
+    if(!gps)msg.textContent='No se obtuvo la ubicación; se guarda la firma igual.';
+  }
+  if(!gps)gps=eppGps;
+
   const stamp=new Date();
   const base={code,fecha,detalle:eppDetalleResumen(items),observacion:observacion||null,es_entrega_inicial:esInicial,cargo};
-  const firmaAt=sigDataUrl?stamp.toISOString():null;
+  // La hora que se guarda es la de la FIRMA, no la del guardado. Entre una
+  // y otra puede pasar un rato: se revisa la entrega, se conversa con la
+  // persona, se busca un elemento. Guardar la hora del guardado haría que
+  // la entrega pareciera firmada más tarde de lo que fue.
+  const firmaAt=sigDataUrl?(firmaAl['']||stamp.toISOString()):null;
   const payload={
     ...base,
     firma_url:null,
     firma_at:firmaAt,
     firma_metodo:sigDataUrl?'canvas':null,
-    firma_lat:eppGps?eppGps.lat:null,
-    firma_lng:eppGps?eppGps.lng:null,
-    firma_precision_m:eppGps?eppGps.precision:null,
+    firma_lat:gps?gps.lat:null,
+    firma_lng:gps?gps.lng:null,
+    firma_precision_m:gps?gps.precision:null,
     pdf_url:null
   };
   try{
@@ -6684,8 +6770,15 @@ async function saveEpp(){
     document.getElementById('epp-inicial').checked=false;
     document.getElementById('epp-obs').value='';
     document.getElementById('sigStamp').textContent='';
-    msg.textContent='Entrega registrada con PDF y firma.';
-    msg.style.color='var(--accent)';
+    // El formulario se limpia para la entrega siguiente, así que el estado
+    // de la ubicación se pierde de la pantalla. Por eso la confirmación
+    // dice si esta entrega quedó con ubicación o no: es el único momento en
+    // que la persona puede enterarse de que faltó, y sirve para ir a
+    // regularizarla.
+    msg.textContent=gps
+      ?'Entrega registrada con PDF, firma y ubicación.'
+      :'Entrega registrada con PDF y firma, pero SIN ubicación. Se puede agregar después desde el historial.';
+    msg.style.color=gps?'var(--accent)':'var(--warn-ink)';
   }catch(error){
     msg.textContent='No se pudo guardar: '+error.message;
     msg.style.color='var(--danger)';
