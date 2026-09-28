@@ -878,8 +878,7 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     <div class="row">
       <button class="btn secondary" type="button" onclick="openQrCamera('attendance-supervisor')">Escanear QR supervisor</button>
       <button class="btn secondary" type="button" onclick="openQrCamera('attendance-worker')">Escanear QR trabajador</button>
-    </div>
-      <div><label>Generar tarja</label><button class="btn secondary" onclick="renderMatrix()">Generar tarja</button></div>
+      <div><label>Generar tarja</label><button class="btn secondary" type="button" onclick="renderMatrix()">Generar tarja</button></div>
     </div>
     <div class="kitResumen" id="tarjaPermisoHint"></div>
     <label>Agregar feriado adicional (fecha)</label>
@@ -1921,7 +1920,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-b';
+const APP_VERSION='2026-09-28-c';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
