@@ -542,6 +542,98 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
   </div>
 </section>
 
+<section class="view" id="v-invitar-usuario">
+  <div class="card">
+    <h2>Invitar usuario</h2>
+    <small>Escribes el correo y le dejas los permisos. La persona recibe un enlace, se registra con su
+      contraseña y entra con lo que le hayas marcado: no hay que tocar el panel de Supabase ni buscar
+      su cuenta a mano después.</small>
+
+    <div class="row" style="margin-top:14px">
+      <div><label>Correo</label><input type="email" id="inv-correo" placeholder="persona@empresa.cl"></div>
+      <div><label>Nombre completo</label><input id="inv-nombre" placeholder="Como aparecerá en la app"></div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label>Permisos (puedes marcar más de uno)</label>
+      <div id="inv-roles" style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:5px"></div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label>Ficha del trabajador <small style="color:var(--muted)">(opcional)</small></label>
+        <select id="inv-ficha">
+          <option value="">Sin ficha — ve todos los trabajadores</option>
+        </select>
+        <small style="display:block;color:var(--muted);font-size:.75rem;margin-top:3px">
+          Con ficha de supervisor, solo ve su equipo. Con ficha de cualquier otro trabajador, la app
+          puede mostrarle su propia asistencia.
+        </small>
+      </div>
+      <div><label>Empresa</label><select id="inv-empresa"></select>
+        <small style="display:block;color:var(--muted);font-size:.75rem;margin-top:3px">A qué empresa tendrá acceso.</small></div>
+      <div><label>Vence en</label><select id="inv-vence">
+        <option value="30">30 días</option>
+        <option value="15">15 días</option>
+        <option value="7">7 días</option>
+        <option value="">Sin vencimiento</option>
+      </select>
+        <small style="display:block;color:var(--muted);font-size:.75rem;margin-top:3px">Después de esa fecha el enlace deja de servir.</small></div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label>Nota interna <small style="color:var(--muted)">(opcional)</small></label>
+      <input id="inv-notas" placeholder="Por ejemplo: entra a partir del lunes">
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <button class="btn" type="button" onclick="crearInvitacion()">Generar invitación</button>
+      <small id="invMsg" role="status" aria-live="polite"></small>
+    </div>
+
+    <div id="invResultado" style="margin-top:14px"></div>
+
+    <div class="card" style="margin-top:18px;border:1px dashed var(--line);background:transparent">
+      <h2 style="font-size:1rem">Correo de la obra</h2>
+      <small>Si configuraste el SMTP de Supabase, Soporte puede mandar la invitación por correo
+        con un clic. Sin eso, igual funciona: copias el enlace y se lo mandas por WhatsApp, correo
+        o en persona.</small>
+      <div class="row" style="margin-top:10px">
+        <button class="btn secondary" type="button" id="btnEnviarInv" onclick="enviarInvitacionPorCorreo()">
+          ✉ Enviar invitación por correo
+        </button>
+        <small id="invEnvioMsg" role="status" aria-live="polite"></small>
+      </div>
+      <div id="avisoSiteUrl" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Invitaciones</h2>
+    <div id="invLista"></div>
+  </div>
+</section>
+
+<section class="view" id="v-mi-perfil">
+  <div class="card">
+    <h2>Mis datos</h2>
+    <small>Así te ven los demás en el sistema. Si algo está mal, corrígelo tú mismo: no necesitas
+      pedirle permiso a un administrador.</small>
+    <div class="row" style="margin-top:12px">
+      <div><label>Nombre completo</label><input id="perfil-nombre"></div>
+      <div><label>Teléfono</label><input id="perfil-telefono" placeholder="Opcional"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" type="button" onclick="guardarMiPerfil()">Guardar</button>
+      <small id="perfilMsg" role="status" aria-live="polite"></small>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Mis permisos</h2>
+    <div id="perfilPermisos"></div>
+  </div>
+</section>
+
 <section class="view" id="v-soporte">
   <div class="card">
     <h2>Soporte del sistema</h2>
@@ -1357,6 +1449,13 @@ const navGroups = {
   ],
   soporte: [
     {v:'soporte',label:'Centro de soporte'},
+    {v:'invitar-usuario',label:'Invitar usuario',options:[
+      {v:'invitar-usuario',label:'Invitar usuario'}
+    ]},
+    // "Mis datos" va suelto, no dentro del desplegable de invitar: si
+    // alguien no tiene permiso para invitar, el desplegable quedaría
+    // vacío y su título mentiría sobre lo que hay adentro.
+    {v:'mi-perfil',label:'Mis datos'},
     {v:'soporte',label:'Configuración',options:[
       {v:'usuarios',label:'Usuarios'},
       {v:'permisos',label:'Permisos por rol'},
@@ -1403,6 +1502,8 @@ function initView(v){
   if(v==='empresa'){loadEmpresaForm();}
   if(v==='nuevo-trabajador'){fillWorkerEmpresaSelect();}
   if(v==='usuarios'){loadPerfiles();}
+  if(v==='invitar-usuario'){initInvitarUsuario();}
+  if(v==='mi-perfil'){initMiPerfil();}
   if(v==='alertas-sociales'){renderWorkerAlerts('social');}
   if(v==='alertas-prevencion'){renderWorkerAlerts('prevencion');}
   if(v==='indicaciones-sociales'){initWorkerInstructions('social');}
@@ -3347,12 +3448,14 @@ async function loadPerfiles(){
       `<label style="width:auto;display:inline-flex;align-items:center;gap:4px;margin:0 10px 0 0;text-transform:none;font-size:.78rem">
          <input type="checkbox" class="rolchk-${p.id}" value="${r.rol}" style="width:auto" ${asignados.includes(r.rol)?'checked':''}> ${r.nombre}
        </label>`).join('');
-    // el vínculo con la ficha define qué equipo ve esta persona en Supervisores
-    const sups=workers.filter(w=>w.is_supervisor);
+    // El vínculo con la ficha se ofrece para CUALQUIER trabajador, no
+    // solo los supervisores: un maestro o un bodeguero también puede
+    // tener su propia cuenta. Para un supervisor además acota la vista
+    // de Supervisores a su equipo.
     const vinculo=`<label style="margin:12px 0 0;font-size:.75rem;color:var(--muted)">Ficha del trabajador
         <select id="ficha-${p.id}" style="width:auto;min-width:240px;margin:4px 0 0">
           <option value="">Sin vincular (ve todos los equipos)</option>
-          ${sups.map(s=>`<option value="${s.code}" ${p.trabajador_code===s.code?'selected':''}>${escHtml(s.code+' - '+s.name)}</option>`).join('')}
+          ${workers.map(s=>`<option value="${s.code}" ${p.trabajador_code===s.code?'selected':''}>${escHtml(s.code+' - '+s.name+(s.is_supervisor?' (supervisor)':''))}</option>`).join('')}
         </select></label>`;
     return `<div style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px">
       <div class="list-item" style="cursor:default;border:0;padding:0 0 6px">
@@ -3396,6 +3499,468 @@ async function guardarPerfil(id){
   if(typeof recalcularMiSupervisor==='function')recalcularMiSupervisor();
   alert('Usuario actualizado: '+roles.map(nombreDeRol).join(', ')+(ficha?' · ficha '+ficha:' · sin ficha vinculada'));
   loadPerfiles();
+}
+
+// ============================================================
+// INVITAR USUARIO DESDE LA APP
+// ============================================================
+// El alta se decide acá y no en el panel de Supabase por dos razones:
+//
+//  1. El envío de invitaciones de Supabase manda un enlace a la "Site
+//     URL" configurada en el proyecto, que suele ser localhost: la
+//     persona recibe un link que no abre. Con este flujo no hay correo
+//     ni redirección: la app le da el enlace directo a registro.html.
+//
+//  2. Al registrarse, el trigger handle_new_user (migración 019) le
+//     aplica los roles, la empresa y la ficha que se eligen acá. No
+//     hay que buscarla después a mano para "activarla".
+//
+// La app NO envía correos: eso lo hace el administrador, por el medio
+// que prefiera (WhatsApp, correo, en persona). Lo que hace la app es
+// dejarle el enlace listo para copiar.
+let invitacionesCache=[];
+
+async function initInvitarUsuario(){
+  const cont=document.getElementById('inv-roles');
+  if(!cont)return;
+  if(!exigirPermiso('sistema.usuarios','Solo un administrador puede invitar usuarios.')){
+    cont.innerHTML='<small class="gpsWarn">Sin permiso.</small>';
+    return;
+  }
+  if(!catalogoRoles.length)await cargarCatalogosPermisos();
+  cont.innerHTML=catalogoRoles.map(r=>
+    `<label style="width:auto;display:inline-flex;align-items:center;gap:5px;margin:0 14px 6px 0;text-transform:none;font-size:.8rem;cursor:pointer">
+       <input type="checkbox" class="invRol" value="${r.rol}" style="width:auto"> ${escHtml(r.nombre)}
+     </label>`).join('')
+    ||'<small>No hay catálogo de roles. Falta la migración 013.</small>';
+
+  // Cualquier trabajador puede ser la ficha, no solo los supervisores.
+  const selFicha=document.getElementById('inv-ficha');
+  const previo=selFicha.value;
+  selFicha.innerHTML='<option value="">Sin ficha — ve todos los trabajadores</option>'+
+    workers.map(w=>`<option value="${w.code}">${escHtml(w.code+' - '+w.name+(w.is_supervisor?' (supervisor)':''))}</option>`).join('');
+  if(workers.some(w=>w.code===previo))selFicha.value=previo;
+
+  // Empresas: solo las que este administrador puede ver.
+  const selEmp=document.getElementById('inv-empresa');
+  const previoEmp=selEmp.value;
+  selEmp.innerHTML=empresas.map(e=>`<option value="${e.id}">${escHtml(e.nombre)}</option>`).join('')
+    ||'<option value="">Sin empresa</option>';
+  if(empresas.some(e=>String(e.id)===previoEmp))selEmp.value=previoEmp;
+
+  document.getElementById('invResultado').innerHTML='';
+  loadInvitaciones();
+  avisarSiteUrl();
+}
+
+// El enlace de invitación que manda Supabase vuelve a su "Site URL". Si
+// esa quedó en localhost, la persona recibe un enlace que no abre
+// (ERR_CONNECTION_REFUSED). Desde la app no se puede leer esa
+// configuración, así que se revisa lo que sí se sabe: la dirección con la
+// que se está entrando ahora.
+function avisarSiteUrl(host){
+  const caja=document.getElementById('avisoSiteUrl');
+  if(!caja)return;
+  host=host!==undefined?host:location.hostname;
+  if(host && host!=='localhost' && host!=='127.0.0.1' && !/^\d+\.\d+\.\d+\.\d+$/.test(host)){
+    caja.innerHTML='';   // todo bien: hay una dirección real
+    return;
+  }
+  caja.innerHTML='<div style="background:#fff6e0;border:1px solid #e08b1a;color:#8a5a00;padding:10px 12px;border-radius:8px">'+
+    '<b>Atención: la app está en '+escHtml(host||'una dirección local')+'.</b><br>'+
+    '<small>Si la abriste desde la página de alguien más, su enlace de invitación le va a llegar '+
+    'apuntando a <b>localhost</b>, que no le va a abrir. Se arregla en '+
+    '<b>Supabase → Authentication → URL Configuration → Site URL</b>, poniendo ahí la dirección real '+
+    'de la app. Mientras tanto, el enlace que aparece arriba en "Generar invitación" sí funciona, '+
+    'porque se arma con la dirección desde la que estás entrando.</small></div>';
+}
+
+function enlaceDeRegistro(inv){
+  // El enlace lleva el correo y el nombre ya escritos: a la persona
+  // solo le queda poner la contraseña. Se arma con la dirección real
+  // de la app, no con "localhost", que es lo que rompía el enlace de
+  // Supabase.
+  const base=location.origin+location.pathname.replace(/[^/]*$/,'');
+  const p=new URLSearchParams({email:inv.correo});
+  if(inv.nombre)p.set('nombre',inv.nombre);
+  return base+'registro.html?'+p.toString();
+}
+
+async function crearInvitacion(){
+  const msg=document.getElementById('invMsg');
+  if(!exigirPermiso('sistema.usuarios'))return;
+  const correo=document.getElementById('inv-correo').value.trim().toLowerCase();
+  const nombre=document.getElementById('inv-nombre').value.trim();
+  const roles=[...document.querySelectorAll('.invRol:checked')].map(c=>c.value);
+  const ficha=document.getElementById('inv-ficha').value||null;
+  const empresa=document.getElementById('inv-empresa').value||null;
+  const dias=document.getElementById('inv-vence').value;
+  const notas=document.getElementById('inv-notas').value.trim()||null;
+
+  const limpiar=()=>{msg.textContent='';};
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)){
+    msg.innerHTML='<span class="gpsWarn">Escribe un correo válido.</span>';return;
+  }
+  if(!roles.length){
+    msg.innerHTML='<span class="gpsWarn">Marca al menos un permiso, si no la persona no podrá hacer nada.</span>';return;
+  }
+
+  // Si el correo ya tiene una cuenta, avisar antes de seguir: la
+  // invitación no crearía nada y la persona terminaría con la
+  // contraseña que ya tiene.
+  const {data:yaExiste}=await window.supabaseClient.from('perfiles').select('id,nombre,activo').limit(200);
+  const previo=(yaExiste||[]).find(p=>p.correo&&String(p.correo).toLowerCase()===correo);
+  if(previo){
+    msg.innerHTML=`<span class="gpsWarn">Ese correo ya tiene una cuenta (${escHtml(previo.nombre||'')}). `+
+      'No hace falta invitarlo: cámbale los permisos en <b>Usuarios</b>.</span>';
+    return;
+  }
+
+  // Si ya hay una invitación pendiente para ese correo, se reemplaza en
+  // vez de acumular: el índice único lo impide, así que primero se
+  // cancela la anterior.
+  await window.supabaseClient.from('invitaciones')
+    .update({estado:'cancelada'}).eq('correo',correo).eq('estado','pendiente');
+
+  const {data:sesion}=await window.supabaseClient.auth.getSession();
+  const miId=sesion&&sesion.session&&sesion.session.user&&sesion.session.user.id;
+  const fila={
+    correo,
+    nombre:nombre||null,
+    roles,
+    empresa_id:empresa?Number(empresa):null,
+    trabajador_code:ficha,
+    notas,
+    estado:'pendiente',
+    creado_por:miId,
+    creado_por_nombre:miNombrePerfil(),
+    expira_at:dias?new Date(Date.now()+Number(dias)*86400000).toISOString():null
+  };
+  const {data,error}=await window.supabaseClient.from('invitaciones').insert(fila).select().single();
+  if(error){
+    // Si la tabla no existe, el mensaje dice exactamente qué falta.
+    if(/does not exist|schema cache/i.test(error.message)){
+      msg.innerHTML='<span class="gpsWarn">Falta la migración 019. Ejecuta <b>019_invitaciones_perfiles.sql</b> en el editor de Supabase.</span>';
+    }else if(/duplicate key|unique/i.test(error.message)){
+      msg.innerHTML='<span class="gpsWarn">Ese correo ya tiene una invitación pendiente. Cancélala en la lista de abajo o usa "Volver a invitar".</span>';
+    }else{
+      msg.innerHTML='<span class="gpsWarn">No se pudo crear la invitación: '+escHtml(error.message)+'</span>';
+    }
+    return;
+  }
+
+  invitacionesCache.unshift(data);
+  limpiar();
+  ['inv-correo','inv-nombre','inv-notas'].forEach(id=>document.getElementById(id).value='');
+  document.querySelectorAll('.invRol').forEach(c=>c.checked=false);
+  mostrarInvitacionCreada(data);
+  // Se espera el refresco: quien llama a esta función (o el test) debe
+  // poder confiar en que la lista ya muestra lo que se acaba de crear.
+  await loadInvitaciones();
+  avisarSiteUrl();
+}
+
+// Al crear una, se muestra el enlace listo para copiar: es lo único
+// que tiene que hacer el administrador.
+function mostrarInvitacionCreada(inv){
+  const caja=document.getElementById('invResultado');
+  if(!caja)return;
+  const enlace=enlaceDeRegistro(inv);
+  const texto=`Hola ${inv.nombre||''}, te creamos tu cuenta en Control de Asistencia.
+Entra a este enlace y pon tu contraseña: ${enlace}`;
+  caja.innerHTML=`<div style="border:1px solid var(--accent);border-radius:8px;padding:12px;background:rgba(46,125,50,.06)">
+    <b>Invitación creada para ${escHtml(inv.correo)}</b>
+    <small style="display:block;color:var(--muted);margin:4px 0 8px">Copia el enlace y mándaselo por el medio que quieras.
+      La persona solo tiene que poner su contraseña: los permisos ya quedan asignados.</small>
+    <div class="row">
+      <input id="invEnlace" readonly value="${escHtml(enlace)}" style="flex:1;min-width:220px;font-size:.78rem"
+        onclick="this.select()">
+      <button class="btn" type="button" onclick="copiarEnlaceInvitacion()">Copiar enlace</button>
+      <button class="btn secondary" type="button" onclick="copiarMensajeInvitacion()">Copiar mensaje</button>
+    </div>
+  </div>`;
+}
+// ====================================================================
+// ENVIAR LA INVITACIÓN POR CORREO
+// ====================================================================
+// El correo lo manda Supabase, no la app. Llamar a la API que envía
+// invitaciones exige la service_role, y esa clave no puede estar en el
+// navegador: quien la tuviera podría hacer cualquier cosa con la base.
+// Por eso la llamada pasa por la Edge Function "invitar", que sí la
+// puede usar porque corre en el servidor de Supabase.
+//
+// Si la función no está desplegada, o el proyecto no tiene SMTP
+// configurado, se avisa con el mensaje real y el flujo de copiar el
+// enlace sigue igual: la persona recibe el enlace por el medio que sea.
+async function enviarInvitacionPorCorreo(){
+  if(!exigirPermiso('sistema.usuarios'))return;
+  const msg=document.getElementById('invEnvioMsg');
+  const btn=document.getElementById('btnEnviarInv');
+  // Se envía la última invitación que se acaba de generar; si no hay
+  // ninguna a la vista, se pide el correo.
+  let correo='';
+  const enlace=document.getElementById('invEnlace');
+  if(enlace){
+    try{correo=new URL(enlace.value,location.href).searchParams.get('email')||'';}catch(error){correo='';}
+  }
+  if(!correo){
+    correo=(prompt('¿A qué correo se la enviamos?')||'').trim().toLowerCase();
+  }
+  if(!correo)return;
+
+  btn.disabled=true;
+  btn.textContent='Enviando…';
+  msg.innerHTML='';
+  try{
+    const {data:{session}}=await window.supabaseClient.auth.getSession();
+    if(!session){msg.innerHTML='<span class="gpsWarn">Tu sesión expiró. Vuelve a iniciar sesión.</span>';return;}
+    const {data,error}=await window.supabaseClient.functions.invoke('invitar',{
+      body:{correo},
+      headers:{Authorization:'Bearer '+session.access_token}
+    });
+    if(error){
+      // Estos son los casos que el administrador puede resolver, y cada
+      // uno con su propio mensaje: "algo falló" no le sirve de nada.
+      const texto=error.message||'';
+      if(/not found|404|does not exist/i.test(texto)){
+        msg.innerHTML='<span class="gpsWarn">La función de envío no está desplegada. En un proyecto Supabase: '+
+          '<b>supabase functions deploy invitar</b>. Mientras tanto, copia el enlace y mándalo por el medio que quieras.</span>';
+      }else{
+        msg.innerHTML='<span class="gpsWarn">No se pudo enviar: '+escHtml(texto)+
+          '. El enlace de arriba sirve igual.</span>';
+      }
+      return;
+    }
+    if(data&&data.error){
+      const detalle=String(data.error);
+      // El correo puede no salir por configuración, no por un fallo. En
+      // ese caso el enlace sigue sirviendo, así que se dice qué hacer y
+      // se recuerda el plan B en vez de dejar un error seco.
+      if(/SMTP|mail provider|email provider|rate limit|too many/i.test(detalle)){
+        msg.innerHTML='<span class="gpsWarn">Supabase no pudo enviar el correo ('+escHtml(detalle)+'). '+
+          'Revisa <b>Authentication → Email</b> en el panel de Supabase. '+
+          'Mientras tanto, copia el enlace de arriba y mándaselo por el medio que quieras.</span>';
+      }else{
+        msg.innerHTML='<span class="gpsWarn">'+escHtml(detalle)+'</span>';
+      }
+      return;
+    }
+    msg.innerHTML='<span style="color:var(--accent)">Invitación enviada a '+escHtml(correo)+'. Revisa la carpeta de Correo no deseado.</span>';
+  }catch(error){
+    msg.innerHTML='<span class="gpsWarn">No se pudo enviar: '+escHtml((error&&error.message)||error)+
+      '. El enlace de arriba sirve igual.</span>';
+  }finally{
+    btn.disabled=false;
+    btn.textContent='✉ Enviar invitación por correo';
+  }
+}
+
+// Enviar una invitación que ya estaba en la lista, sin volver a generar
+// el enlace: es el caso de "se le olvidó el correo" o "no le llegó".
+async function enviarInvitacionDe(correo){
+  const enlace=document.getElementById('invEnlace');
+  if(enlace){
+    try{
+      const actual=new URL(enlace.value,location.href).searchParams.get('email');
+      if(actual&&actual===correo){enviarInvitacionPorCorreo();return;}
+    }catch(error){}
+  }
+  document.getElementById('inv-correo').value=correo;
+  await enviarInvitacionPorCorreo();
+}
+
+async function copiarEnlaceInvitacion(){
+  const input=document.getElementById('invEnlace');
+  if(!input)return;
+  input.select();
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(input.value);
+    }else{
+      document.execCommand('copy');
+    }
+    document.getElementById('invMsg').innerHTML='<span style="color:var(--accent)">Enlace copiado.</span>';
+  }catch(error){
+    document.getElementById('invMsg').innerHTML='<span class="gpsWarn">No se pudo copiar. Selecciona el enlace a mano y cópialo con Ctrl+C.</span>';
+  }
+}
+async function copiarMensajeInvitacion(){
+  const input=document.getElementById('invEnlace');
+  if(!input)return;
+  const texto=`Hola, te creamos tu cuenta en Control de Asistencia.\n\nEntra a este enlace y pon tu contraseña:\n${input.value}\n\nTus permisos ya están configurados.`;
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(texto);
+    }else{
+      document.execCommand('copy');
+    }
+    document.getElementById('invMsg').innerHTML='<span style="color:var(--accent)">Mensaje copiado.</span>';
+  }catch(error){
+    document.getElementById('invMsg').innerHTML='<span class="gpsWarn">No se pudo copiar. Copia el enlace a mano.</span>';
+  }
+}
+
+async function loadInvitaciones(){
+  const el=document.getElementById('invLista');
+  if(!el)return;
+  if(!exigirPermiso('sistema.usuarios')){el.innerHTML='<small>Sin permiso.</small>';return;}
+  const {data,error}=await window.supabaseClient.from('invitaciones')
+    .select('*').order('created_at',{ascending:false}).limit(100);
+  if(error){
+    el.innerHTML=`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      <b>No se pudieron leer las invitaciones.</b> <small>${escHtml(error.message)}</small><br>
+      <small>Falta la migración 019: ejecuta 019_invitaciones_perfiles.sql.</small></div>`;
+    return;
+  }
+  invitacionesCache=data||[];
+  if(!invitacionesCache.length){
+    el.innerHTML='<small>No hay invitaciones todavía.</small>';
+    return;
+  }
+  const hoy=new Date();
+  el.innerHTML=`<table><thead><tr>
+      <th class="izq">Correo</th><th class="izq">Nombre</th><th class="izq">Permisos</th>
+      <th>Ficha</th><th>Estado</th><th>Creada</th><th></th>
+    </tr></thead><tbody>${
+    invitacionesCache.map(inv=>{
+      const nombre=inv.nombre||'<small>(sin nombre)</small>';
+      const roles=(inv.roles&&inv.roles.length)?inv.roles.map(nombreDeRol).map(escHtml).join(', '):'<small>ninguno</small>';
+      // Vencida no es lo mismo que pendiente: el trigger ya no la va a
+      // aplicar, así que ofrecer "ver enlace" mandaría a alguien por un
+      // camino que no abre. Se ofrece volver a invitar en su lugar.
+      const vencida=inv.estado==='pendiente'&&!!(inv.expira_at&&new Date(inv.expira_at)<hoy);
+      let estado;
+      if(inv.estado==='aceptada')estado='<span class="eppBadge firmado">Aceptada</span>';
+      else if(inv.estado==='cancelada')estado='<span class="eppBadge sinFirma">Cancelada</span>';
+      else if(vencida)estado='<span class="eppBadge sinFirma">Vencida</span>';
+      else estado='<span class="eppBadge" style="color:#e08b1a;border-color:#e08b1a">Pendiente</span>';
+      let acciones='<small>—</small>';
+      if(inv.estado==='pendiente'&&!vencida){
+        acciones=`<button class="btn secondary" type="button" onclick="reenlaceInvitacion('${inv.id}')">Ver enlace</button>
+                  <button class="btn secondary" type="button" onclick="enviarInvitacionDe('${inv.correo}')">✉ Enviar</button>
+                  <button class="btn secondary" type="button" onclick="cancelarInvitacion('${inv.id}')">Cancelar</button>`;
+      }else if(vencida){
+        acciones=`<button class="btn secondary" type="button" onclick="reinvitar('${inv.id}')">Volver a invitar</button>`;
+      }
+      return `<tr>
+        <td class="izq">${escHtml(inv.correo)}</td>
+        <td class="izq">${escHtml(nombre)}</td>
+        <td class="izq"><small>${roles}</small></td>
+        <td><small>${inv.trabajador_code?escHtml(inv.trabajador_code):'—'}</small></td>
+        <td>${estado}</td>
+        <td><small>${escHtml(fechaLegible(inv.created_at))}</small></td>
+        <td>${acciones}</td>
+      </tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+function reenlaceInvitacion(id){
+  const inv=invitacionesCache.find(i=>i.id===id||String(i.id)===String(id));
+  if(!inv){alert('No se encontró la invitación.');return;}
+  mostrarInvitacionCreada(inv);
+  document.getElementById('invResultado').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+// Reenviar una invitación vencida es, en la práctica, volver a crearla:
+// la anterior ya no sirve y el índice único no deja tener dos pendientes.
+// Se copian los datos al formulario para no tener que volver a escribirlos.
+function reinvitar(id){
+  const inv=invitacionesCache.find(i=>i.id===id);
+  if(!inv){alert('No se encontró la invitación.');return;}
+  document.getElementById('inv-correo').value=inv.correo;
+  document.getElementById('inv-nombre').value=inv.nombre||'';
+  document.getElementById('inv-notas').value=inv.notas||'';
+  document.getElementById('inv-ficha').value=inv.trabajador_code||'';
+  document.getElementById('inv-empresa').value=inv.empresa_id||'';
+  document.querySelectorAll('.invRol').forEach(c=>c.checked=(inv.roles||[]).includes(c.value));
+  document.getElementById('inv-correo').focus();
+  alert('Se copiaron los datos de la invitación vencida al formulario. Revísalos y vuelve a pulsar "Generar invitación".');
+}
+async function cancelarInvitacion(id){
+  if(!exigirPermiso('sistema.usuarios'))return;
+  if(!confirm('¿Cancelar esta invitación? Si la persona ya se registró, esto no le quita los permisos; para eso usa Usuarios.'))return;
+  const {error}=await window.supabaseClient.from('invitaciones')
+    .update({estado:'cancelada'}).eq('id',id);
+  if(error){alert('No se pudo cancelar: '+error.message);return;}
+  await loadInvitaciones();
+}
+
+// ============================================================
+// MIS DATOS
+// ============================================================
+// Cualquier usuario puede corregir su nombre y su teléfono. Lo guarda
+// una función de la base (completar_mi_perfil) y no un UPDATE normal a
+// propósito: con un "update perfiles set ... where id = el mío" sin
+// restricciones, cualquiera podría ascenderse solo con rol='admin'.
+async function initMiPerfil(){
+  const boxNombre=document.getElementById('perfil-nombre');
+  if(!boxNombre)return;
+  // nombreDeRol necesita el catálogo para poner "Administración" y no
+  // "admin". Antes solo se cargaba al abrir Permisos por rol, así que
+  // en el resto de la app salía la clave cruda.
+  if(!catalogoRoles.length)await cargarCatalogosPermisos();
+  boxNombre.value=(miPerfil&&miPerfil.nombre)||'';
+  const ficha=miPerfil&&miPerfil.trabajador_code
+    ?workers.find(w=>w.code===miPerfil.trabajador_code):null;
+  document.getElementById('perfil-telefono').value=
+    (miPerfil&&miPerfil.telefono)||(ficha&&ficha.phone)||'';
+
+  const cont=document.getElementById('perfilPermisos');
+  if(!cont)return;
+  const empresasDeEsta=empresas.filter(e=>misEmpresas.includes(e.id));
+  cont.innerHTML=
+    (miPerfil&&!miPerfil.activo
+      ?'<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+        '<b>Tu cuenta está inactiva.</b> Un administrador tiene que activarla en Soporte → Usuarios. '+
+        'Mientras tanto puedes entrar, pero no vas a poder guardar nada.</div>'
+      :'')+
+    (miPerfil&&miPerfil.perfil_completo===false
+      ?'<div style="background:#fff6e0;border:1px solid #e08b1a;color:#8a5a00;padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+        '<b>Te falta completar tus datos.</b> Arriba está el formulario: pon tu nombre y guarda.</div>'
+      :'')+
+    `<div style="border:1px solid var(--line);border-radius:8px;padding:12px">
+      <div><b>Permisos</b><br>${misRoles.length
+        ?misRoles.map(r=>`<span class="eppBadge firmado">${escHtml(nombreDeRol(r))}</span>`).join(' ')
+        :'<span class="gpsWarn">No tienes ningún permiso asignado. Pídele a un administrador que te asigne uno.</span>'}</div>
+      <div style="margin-top:10px"><b>Correo</b><br><small>${escHtml(miCorreo||'(no disponible)')}</small></div>
+      <div style="margin-top:10px"><b>Ficha de trabajador</b><br>${miPerfil&&miPerfil.trabajador_code
+        ?`<small>${escHtml(miPerfil.trabajador_code)} — ${escHtml(ficha?ficha.name:'(no encontrada)')}${ficha&&ficha.is_supervisor?' · supervisor':''}</small>`
+        :'<small>Sin ficha vinculada. Pídele a un administrador que te vincule a una si necesitas ver tu asistencia.</small>'}</div>
+      <div style="margin-top:10px"><b>Empresas</b><br>${empresasDeEsta.length
+        ?'<small>'+empresasDeEsta.map(e=>escHtml(e.nombre)).join(', ')+'</small>'
+        :'<small class="gpsWarn">Sin empresa asignada: no verás ningún trabajador.</small>'}</div>
+    </div>`;
+}
+
+async function guardarMiPerfil(){
+  const msg=document.getElementById('perfilMsg');
+  const nombre=document.getElementById('perfil-nombre').value.trim();
+  const telefono=document.getElementById('perfil-telefono').value.trim();
+  if(!nombre){
+    msg.innerHTML='<span class="gpsWarn">El nombre no puede quedar vacío.</span>';return;
+  }
+  const {data,error}=await window.supabaseClient.rpc('completar_mi_perfil',{
+    nuevo_nombre:nombre,
+    nuevo_telefono:telefono||null
+  });
+  if(error){
+    // Si la función no está, casi siempre es la 019 sin aplicar.
+    // "Could not find the function" es el mensaje que devuelve
+    // PostgREST cuando lo que falta es una función, no una tabla.
+    if(/does not exist|schema cache|Could not find the function|not found/i.test(error.message)){
+      msg.innerHTML='<span class="gpsWarn">Falta la migración 019: ejecuta 019_invitaciones_perfiles.sql.</span>';
+    }else{
+      msg.innerHTML='<span class="gpsWarn">No se pudo guardar: '+escHtml(error.message)+'</span>';
+    }
+    return;
+  }
+  // El perfil local se actualiza para que el resto de la app vea el
+  // nombre nuevo sin recargar.
+  if(miPerfil){miPerfil.nombre=nombre;miPerfil.telefono=telefono;miPerfil.perfil_completo=true;}
+  quitarAvisoPerfilIncompleto();
+  const cabecera=document.querySelector('header b, header strong');
+  if(cabecera&&miPerfil&&miPerfil.nombre)cabecera.textContent=miPerfil.nombre;
+  msg.innerHTML='<span style="color:var(--accent)">Datos guardados.</span>';
+  initMiPerfil();
 }
 
 // ---------- exportar PDF de tarjetas (varias, frente y reverso) ----------
@@ -5391,6 +5956,7 @@ async function saveEmpresa(){
 let misRoles=[];             // ['rrhh','tecnica',...]
 let misPermisos=new Set();   // ['tarja.ver', ...]
 let miPerfil=null;           // {id,nombre,rol,activo} del usuario conectado
+let miCorreo='';             // correo con el que entró
 let catalogoPermisos=[];     // [{clave,descripcion,categoria,orden}]
 let catalogoRoles=[];        // [{rol,nombre,descripcion,orden}]
 let misPermisosCargados=false;
@@ -5424,6 +5990,7 @@ const VISTAS_POR_PERMISO={
   'v-sup-diaria':'tarja.marcaje',
   'v-aprobar-cambio':'tarja.aprobar_cambio',
   'v-usuarios':'sistema.usuarios',
+  'v-invitar-usuario':'sistema.usuarios',
   'v-permisos':'sistema.permisos',
   'v-empresa':'sistema.empresa'
 };
@@ -5433,7 +6000,7 @@ const GRUPOS_POR_PERMISOS={
   administracion:['trabajadores.ver','tarja.ver','tarja.exportar','tarja.aprobar_cambio','sistema.usuarios','sistema.permisos','sistema.empresa'],
   bodega:['bodega.epp.entregar','bodega.epp.historial','bodega.epp.catalogo','bodega.kits','bodega.herramientas','bodega.qr'],
   supervisores:['tarja.ver','trabajadores.ver','prevencion.ver'],
-  soporte:['sistema.usuarios','sistema.permisos','sistema.empresa','tarja.aprobar_cambio'],
+  soporte:['sistema.usuarios','sistema.permisos','sistema.empresa','tarja.aprobar_cambio','tarja.ver','trabajadores.ver'],
   'asistente-social':['social.ver'],
   prevencion:['prevencion.ver','prevencion.subcontrato']
 };
@@ -5458,8 +6025,14 @@ async function loadPermisosUsuario(){
   misRoles=[];misPermisos=new Set();misPermisosCargados=false;
   try{
     const {data:sessionData}=await window.supabaseClient.auth.getSession();
-    const uid=sessionData&&sessionData.session&&sessionData.session.user&&sessionData.session.user.id;
+    const usuario=sessionData&&sessionData.session&&sessionData.session.user;
+    const uid=usuario&&usuario.id;
     if(!uid)return;
+    miCorreo=(usuario&&usuario.email)||'';
+    // Con una sesión nueva, el trigger puede haber creado el perfil
+    // recién ahora. Si sigue sin aparecer, es que la 019 no está
+    // aplicada: el aviso de más abajo lo dice.
+
     const {data:roles,error:e1}=await window.supabaseClient.from('perfil_roles').select('rol').eq('user_id',uid);
     if(e1)throw new Error(e1.message);
     misRoles=(roles||[]).map(r=>r.rol);
@@ -5491,6 +6064,41 @@ async function loadPermisosUsuario(){
   // Si las dos cosas se desalinean, el síntoma es "envié la solicitud y no
   // aparece en la cola", así que se comprueba y se avisa en pantalla.
   if(typeof comprobarPermisos==='function')comprobarPermisos();
+  if(typeof revisarPerfilIncompleto==='function')revisarPerfilIncompleto();
+}
+
+// Cuando alguien entra por primera vez con una invitación, su perfil
+// existe pero está sin datos y sin teléfono. No se le bloquea la app:
+// entra, pero se le recuerda arriba qué le falta.
+//
+// Va en su propio aviso y no en el de permisos: una persona con los
+// permisos bien asignados (el caso normal de una invitación) no tiene
+// aviso de permisos, y si se colgaran de él este nunca aparecería,
+// justo cuando más hace falta.
+function revisarPerfilIncompleto(){
+  quitarAvisoPerfilIncompleto();
+  if(!miPerfil)return;
+  if(miPerfil.perfil_completo!==false)return;
+  const faltaNombre=!String(miPerfil.nombre||'').trim();
+  if(!faltaNombre&&miPerfil.telefono)return;
+  const div=document.createElement('div');
+  div.id='perfilIncompletoAviso';
+  div.style.cssText='background:#e08b1a;color:#fff;padding:8px 16px;font-size:.82rem;font-weight:600;text-align:center;position:sticky;top:0;z-index:19';
+  div.innerHTML='👤 Te falta '+(faltaNombre?'tu nombre':'tu teléfono')+'. '
+    +'<a href="#" id="perfilIncompletoLink">Completa tus datos aquí</a>';
+  const header=document.querySelector('header');
+  const avisoPermisos=document.getElementById('permisosAviso');
+  if(avisoPermisos)avisoPermisos.insertAdjacentElement('afterend',div);
+  else if(header)header.insertAdjacentElement('afterend',div);
+  else document.body.insertBefore(div,document.body.firstChild);
+  // listener en vez de onclick: dentro del HTML de la app el
+  // escapado de comillas se vuelve un lio y rompe el script.
+  const link=document.getElementById('perfilIncompletoLink');
+  if(link)link.addEventListener('click',e=>{e.preventDefault();showView('mi-perfil');});
+}
+function quitarAvisoPerfilIncompleto(){
+  const viejo=document.getElementById('perfilIncompletoAviso');
+  if(viejo)viejo.remove();
 }
 function mostrarAvisoPermisos(texto){
   quitarAvisoPermisos();

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crear mi cuenta — Control de Asistencia</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabaseConfig.js"></script>
+<script src="../js/supabaseClient.js"></script>
+<script src="../js/theme.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/styles.css">
+<style>
+body{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);font-family:'Montserrat',system-ui,sans-serif;padding:16px}
+.regCard{max-width:420px;width:100%;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:32px;box-shadow:0 10px 30px rgba(0,0,0,.08)}
+.regBrand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+.regBrand .icon{width:36px;height:36px;border-radius:9px;background:var(--accent2);display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px}
+.regCard h1{font-size:1.3rem;margin:6px 0 2px}
+.regCard p.sub{color:var(--muted);margin:0 0 18px;font-size:.9rem}
+.regMsg{font-size:.85rem;margin-top:12px;padding:9px 11px;border-radius:8px;display:none;line-height:1.45}
+.regMsg.ok{display:block;background:rgba(46,125,50,.1);border:1px solid var(--accent);color:var(--accent)}
+.regMsg.err{display:block;background:rgba(198,40,40,.1);border:1px solid var(--danger);color:var(--danger)}
+.regFoot{margin-top:16px;font-size:.8rem;color:var(--muted);text-align:center}
+.pwdWrap{position:relative}
+.pwdWrap input{width:100%;padding-right:62px}
+.pwdToggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;cursor:pointer;font-size:.7rem;color:var(--muted);padding:4px 6px}
+label.chk{display:flex;align-items:flex-start;gap:7px;margin:14px 0 0;font-size:.82rem;font-weight:500;color:var(--text);text-transform:none;cursor:pointer}
+label.chk input{width:auto;margin-top:2px}
+.regHint{color:var(--muted);font-size:.75rem;margin-top:3px;display:block}
+</style>
+</head>
+<body>
+<div class="regCard">
+  <div class="login-theme-toggle"><button type="button" class="btn secondary theme-toggle" data-theme-toggle></button></div>
+  <div class="regBrand">
+    <div class="icon">🪪</div>
+    <div id="brandName">Control de Asistencia</div>
+  </div>
+  <h1>Crea tu cuenta</h1>
+  <p class="sub">Usa el correo con el que te invitaron y pon tu contraseña. Tus permisos ya están configurados.</p>
+
+  <form id="formReg" autocomplete="on">
+    <label for="email">Correo</label>
+    <input type="email" id="email" autocomplete="username" required>
+    <small class="regHint">Debe ser exactamente el correo al que te enviaron la invitación.</small>
+
+    <label for="nombre" style="margin-top:12px">Nombre completo</label>
+    <input type="text" id="nombre" autocomplete="name">
+    <small class="regHint">Déjalo vacío si el nombre que traía la invitación está bien.</small>
+
+    <label for="password" style="margin-top:12px">Contraseña</label>
+    <div class="pwdWrap">
+      <input type="password" id="password" autocomplete="new-password" required>
+      <button type="button" class="pwdToggle" data-ver-password>Ver</button>
+    </div>
+
+    <label for="password2" style="margin-top:12px">Repite la contraseña</label>
+    <div class="pwdWrap">
+      <input type="password" id="password2" autocomplete="new-password" required>
+      <button type="button" class="pwdToggle" data-ver-password>Ver</button>
+    </div>
+    <div style="height:4px;border-radius:2px;background:var(--line);margin-top:7px;overflow:hidden">
+      <div id="fuerzaBarra" style="height:100%;width:0;transition:width .2s,background .2s"></div>
+    </div>
+    <small id="fuerzaTxt" class="regHint">Mínimo 8 caracteres.</small>
+
+    <label class="chk"><input type="checkbox" id="terminos" required>
+      <span>Usaré este sistema solo para los fines de la obra, y trataré los datos de los trabajadores con reserva.</span>
+    </label>
+
+    <button class="btn" style="width:100%;margin-top:16px" id="btnCrear">Crear mi cuenta</button>
+  </form>
+
+  <div id="msg" class="regMsg" role="status" aria-live="polite"></div>
+
+  <div class="regFoot">¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a></div>
+</div>
+
+<script>
+// ------------------------------------------------------------------
+// Alta de una cuenta invitada.
+//
+// Esto NO usa la service_role, que jamás debe ir en el navegador: le
+// daría control total de la base a cualquiera que abra la app. Se usa
+// auth.signUp, que es lo que corresponde a quien se registra a sí
+// mismo.
+//
+// Los roles, la empresa y la ficha del trabajador NO se deciden aquí.
+// Salen de la invitación que dejó el administrador en Soporte →
+// Invitar usuario, y los aplica el trigger handle_new_user de la
+// migración 019 en cuanto se crea la cuenta. Por eso esta pantalla
+// solo pide el correo y la contraseña.
+// ------------------------------------------------------------------
+
+const $=id=>document.getElementById(id);
+const msg=$('msg');
+const btn=$('btnCrear');
+const form=$('formReg');
+
+function avisar(texto,tipo){
+  msg.textContent=texto;
+  msg.className='regMsg'+(tipo?' '+tipo:'');
+}
+
+document.querySelectorAll('[data-ver-password]').forEach(b=>{
+  b.addEventListener('click',()=>{
+    const input=b.parentNode.querySelector('input');
+    const visible=input.type==='password';
+    input.type=visible?'text':'password';
+    b.textContent=visible?'Ocultar':'Ver';
+  });
+});
+
+// Fuerza de la contraseña: se informa, no se bloquea. La regla que
+// manda de verdad es la de Supabase al crear la cuenta.
+$('password').addEventListener('input',e=>{
+  const v=e.target.value;
+  let puntos=0;
+  if(v.length>=8)puntos++;
+  if(v.length>=12)puntos++;
+  if(/[a-z]/.test(v)&&/[A-Z]/.test(v))puntos++;
+  if(/[0-9]/.test(v))puntos++;
+  if(/[^A-Za-z0-9]/.test(v))puntos++;
+  const colores=['var(--danger)','var(--danger)','#e08b1a','#7aa63a','var(--accent)'];
+  const textos=['Muy corta.','Débil.','Aceptable.','Buena.','Muy buena.'];
+  // Con 0 puntos el índice daba -1 y el texto salía vacío.
+  const i=puntos?Math.min(puntos,5)-1:0;
+  // Con la contraseña vacía la barra queda en cero y sin color. Pero si ya
+  // hay algo escrito y es débil, se muestra un trocito en rojo: una barra
+  // vacía parece un fallo de la pantalla en vez de una contraseña mala.
+  $('fuerzaBarra').style.width=(puntos?(puntos/5*100):(v?15:0))+'%';
+  $('fuerzaBarra').style.background=(puntos||v)?(puntos?colores[i]:'var(--danger)'):'transparent';
+  $('fuerzaTxt').textContent=v?textos[i]:'Mínimo 8 caracteres.';
+});
+
+// El enlace que le pasó el administrador puede venir con el correo puesto.
+const params=new URLSearchParams(location.search);
+const correoUrl=(params.get('email')||'').trim();
+if(correoUrl)$('email').value=correoUrl;
+const nombreUrl=(params.get('nombre')||'').trim();
+if(nombreUrl)$('nombre').value=nombreUrl;
+
+// Si ya hay sesión abierta, esta pantalla no hace falta.
+window.supabaseClient.auth.getSession().then(({data:{session}})=>{
+  if(session)window.location.href='app.html';
+});
+
+form.addEventListener('submit',async e=>{
+  e.preventDefault();
+  const correo=$('email').value.trim().toLowerCase();
+  const nombre=$('nombre').value.trim();
+  const p1=$('password').value;
+  const p2=$('password2').value;
+
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)){
+    avisar('Revisa el correo: no parece una dirección válida.','err');return;
+  }
+  if(p1.length<8){
+    avisar('La contraseña necesita al menos 8 caracteres.','err');return;
+  }
+  if(p1!==p2){
+    avisar('Las dos contraseñas no son iguales.','err');return;
+  }
+  if(!$('terminos').checked){
+    avisar('Tienes que aceptar el uso del sistema para continuar.','err');return;
+  }
+
+  btn.disabled=true;
+  btn.textContent='Creando tu cuenta…';
+  avisar('');
+
+  const dejarEstadoInicial=()=>{
+    btn.disabled=false;
+    btn.textContent='Crear mi cuenta';
+  };
+
+  try{
+    const {data,error}=await window.supabaseClient.auth.signUp({
+      email:correo,
+      password:p1,
+      options:{data:{full_name:nombre||undefined}}
+    });
+
+    if(error){
+      const detalle=error.message||'';
+      // "Ya existe" no es un fallo del usuario: se le dice qué hacer.
+      if(/already registered|already exists|already been registered|User already/i.test(detalle)){
+        avisar('Ya hay una cuenta con ese correo. Si eres tú, entra a "Inicia sesión". Si no eres tú, avisa al administrador del sistema.','err');
+        dejarEstadoInicial();
+        return;
+      }
+      avisar('No se pudo crear la cuenta: '+detalle,'err');
+      dejarEstadoInicial();
+      return;
+    }
+
+    // Si el proyecto exige confirmar el correo, Supabase manda un email
+    // en vez de dejar entrar. Se avisa, en vez de dejar una pantalla
+    // en blanco que parece un error.
+    if(!data.session){
+      form.style.display='none';
+      avisar('Cuenta creada. Revisa tu correo y confirma tu dirección; después entra con tu contraseña.','ok');
+      return;
+    }
+
+    // Sesión ya iniciada: el trigger creó el perfil con los roles que
+    // dejó el administrador. La app decide si hay que completar los
+    // datos de perfil antes de dejar trabajar.
+    window.location.href='app.html';
+  }catch(error){
+    avisar('No se pudo crear la cuenta: '+((error&&error.message)||error),'err');
+    dejarEstadoInicial();
+  }
+});
+</script>
+</body>
+</html>
