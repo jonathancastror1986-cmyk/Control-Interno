@@ -564,7 +564,14 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
       <div><label>Tolerancia (minutos)</label><input type="number" min="0" step="1" id="emp-tolerancia"></div>
     </div>
     <div class="row">
-      <div><label>Logo</label><input type="file" accept="image/*" id="emp-logo"></div>
+      <div style="flex:1">
+        <label>Logo</label>
+        <input type="file" accept="image/*" id="emp-logo" onchange="avisarTamanoLogo()">
+        <div id="emp-logo-aviso"></div>
+        <small style="display:block;margin-top:3px">
+          Aparece en las credenciales nuevas. Las ya impresas no cambian.
+        </small>
+      </div>
       <div style="display:flex;align-items:flex-end">
         <label style="width:auto;display:flex;align-items:center;gap:6px;margin-bottom:10px">
           <input type="checkbox" id="emp-activa" style="width:auto" checked> Empresa activa
@@ -1410,6 +1417,68 @@ costo), cómo lee (cámara o lector USB) y qué marca (entrada, salida o
 colación). Las tres cosas se configuran en la misma pantalla porque en la
 obra se definen juntas.
 -->
+<!--
+LOS MARCAJES
+=============
+El dato crudo: una fila por cada vez que alguien pasó su credencial. La
+planilla es un resumen de esto, y cuando un trabajador dice que marcó y no
+le entró, la pregunta es por los marcajes, no por la planilla.
+
+Esta pantalla NO edita. Un marcaje es un hecho: pasó o no pasó. Editarlo es
+otra cosa, y esa otra cosa es la asistencia, con su motivo y su firma.
+-->
+<section class="view" id="v-marcajes">
+  <div class="card">
+    <h2>Marcajes</h2>
+    <small>Cada vez que alguien pasó su credencial, con el reloj, la hora exacta y el origen.
+      Los últimos 7 días. Para editar o anular un marcaje se usa la asistencia, que deja
+      el motivo y quién lo hizo.</small>
+    <div class="row" style="margin-top:12px;align-items:flex-end;gap:10px">
+      <div><label for="marcajesBuscar">Buscar trabajador</label>
+        <input id="marcajesBuscar" placeholder="Nombre o código" oninput="filtrarMarcajes()"></div>
+      <div><label for="marcajesFiltroCentro">Centro de costo</label>
+        <select id="marcajesFiltroCentro" onchange="filtrarMarcajes()"></select></div>
+      <div><label for="marcajesFiltroTipo">Tipo</label>
+        <select id="marcajesFiltroTipo" onchange="filtrarMarcajes()">
+          <option value="">Todos</option>
+          <option value="entrada">Entrada</option>
+          <option value="salida">Salida</option>
+          <option value="colacion_entrada">Colación entrada</option>
+          <option value="colacion_salida">Colación salida</option>
+        </select></div>
+      <div><label for="marcajesFiltroReloj">Reloj</label>
+        <select id="marcajesFiltroReloj" onchange="filtrarMarcajes()"></select></div>
+    </div>
+    <div class="row" style="margin-top:10px;align-items:flex-end;gap:10px">
+      <div><label for="marcajesFiltroDesde">Desde</label>
+        <input type="date" id="marcajesFiltroDesde" onchange="filtrarMarcajes();marcarAtajoMarcajes()"></div>
+      <div><label for="marcajesFiltroHasta">Hasta</label>
+        <input type="date" id="marcajesFiltroHasta" onchange="filtrarMarcajes();marcarAtajoMarcajes()"></div>
+      <div style="flex:1">
+        <label>Atajos</label>
+        <div class="marcajes-atajos">
+          <button type="button" class="btn" data-marcajes-atajo="hoy" onclick="atajoMarcajes('hoy')">Hoy</button>
+          <button type="button" class="btn" data-marcajes-atajo="ayer" onclick="atajoMarcajes('ayer')">Ayer</button>
+          <button type="button" class="btn" data-marcajes-atajo="semana" onclick="atajoMarcajes('semana')">Últimos 7 días</button>
+          <button type="button" class="btn" data-marcajes-atajo="todo" onclick="atajoMarcajes('todo')">Todo</button>
+        </div>
+      </div>
+    </div>
+    <div id="marcajesAviso" style="margin-top:10px"></div>
+    <div id="marcajesLista" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!--
+LOS MARCAJES
+=============
+El dato crudo: una fila por cada vez que alguien pasó su credencial. La
+planilla es un resumen de esto, y cuando un trabajador dice que marcó y no
+le entró, la pregunta es por los marcajes, no por la planilla.
+
+Esta pantalla NO edita. Un marcaje es un hecho: pasó o no pasó. Editarlo es
+otra cosa, y esa otra cosa es la asistencia, con su motivo y su firma.
+-->
 <section class="view" id="v-relojes">
   <div class="card">
     <h2>Relojes y centros de costo</h2>
@@ -1465,13 +1534,27 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
 -->
 <div id="pantallaTotem" role="dialog" aria-modal="true" aria-label="Marcaje de asistencia">
   <div class="totem-barra">
-    <span id="totemRelojActual"></span>
+    <div class="totem-hora-caja">
+      <span id="totemRelojActual"></span>
+      <span class="totem-hora" id="totemHoraActual">--:--:--</span>
+      <span class="totem-fecha" id="totemFechaActual"></span>
+    </div>
     <span class="totem-barra-der">
       <label for="totemTipo" class="totem-barra-label">Marca</label>
       <select id="totemTipo" onchange="cambiarTipoTotem()"></select>
       <button type="button" class="totem-salir" onclick="cerrarTotem()">Salir</button>
     </span>
   </div>
+  <!-- La zona del kiosco. Transparente y sin ícono: si se le pone un ícono,
+       es un botón de salida, y entonces el bloqueo no protege de nada.
+       Va al final para que quede por encima de todo lo demás. -->
+  <div id="totemZonaKiosco" style="display:none" onpointerdown="pulsacionKiosco()"></div>
+  <div id="totemPistaKiosco" aria-hidden="true"></div>
+  <!-- La zona del kiosco. Transparente y sin ícono: si se le pone un ícono,
+       es un botón de salida, y entonces el bloqueo no protege de nada.
+       Va al final para que quede por encima de todo lo demás. -->
+  <div id="totemZonaKiosco" style="display:none" onpointerdown="pulsacionKiosco()"></div>
+  <div id="totemPistaKiosco" aria-hidden="true"></div>
   <div class="totem-zona" id="totemZonaCamara" style="display:none">
     <div id="totemCamara"></div>
   </div>
@@ -1533,7 +1616,7 @@ dónde está, cómo lee y cuánto antirrebote.
     <div id="relojError" style="color:var(--danger);margin-top:6px" role="alert"></div>
     <div class="row" style="margin-top:14px;justify-content:flex-end">
       <button class="btn" type="button" onclick="document.getElementById('dlgReloj').close()">Cancelar</button>
-      <button class="btn primary" id="relojGuardo" type="button" onclick="guardarReloj()">Crear reloj</button>
+      <button class="btn primary" id="relojGuardar" type="button" onclick="guardarReloj()">Crear reloj</button>
     </div>
   </div>
 </dialog>
@@ -1545,6 +1628,51 @@ Se muestra UNA vez. En la base solo queda el hash, así que si se pierde no
 se recupera: se rota y se reinstala. Por eso el texto viene seleccionado
 para copiar, y el aviso dice exactamente eso.
 -->
+<!--
+LA CLAVE DEL KIOSCO
+===================
+Se pide después de las cinco pulsaciones. La verificación va al servidor: el
+hash del reloj es lo único que hay guardado, así que acá no hay clave que
+leer, y alguien que abra DevTools no obtiene nada con esto.
+-->
+<dialog id="dlgClaveKiosco" style="max-width:400px;width:92vw">
+  <div class="card" style="margin:0">
+    <h2 style="margin-top:0">Clave del kiosco</h2>
+    <small>La pantalla está bloqueada. Escribí la clave del reloj para poder salir.</small>
+    <div style="margin-top:10px">
+      <input id="claveCampo" type="text" inputmode="numeric" autocomplete="off"
+             maxlength="6" placeholder="6 dígitos"
+             style="width:100%;font-size:1.6rem;letter-spacing:.4em;text-align:center"
+             onkeydown="if(event.key==='Enter')verificarClaveKiosco()">
+    </div>
+    <div id="claveError" style="color:var(--danger);margin-top:8px;min-height:1.2em" role="alert"></div>
+    <div class="row" style="margin-top:8px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="cancelarClaveKiosco()">Volver al reloj</button>
+      <button class="btn primary" type="button" onclick="verificarClaveKiosco()">Abrir</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- La clave nueva, mostrada una sola vez. Después queda solo el hash. -->
+<dialog id="dlgClaveReloj" style="max-width:440px;width:92vw">
+  <div class="card" style="margin:0">
+    <h2 style="margin-top:0">Clave del reloj</h2>
+    <p>La clave del reloj <b id="claveRelojQuien"></b> es:</p>
+    <div id="claveRelojTexto" style="font-size:2.4rem;letter-spacing:.5em;text-align:center;
+         font-family:ui-monospace,monospace;background:var(--surface);padding:14px;
+         border-radius:8px;margin:12px 0"></div>
+    <div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);
+         padding:9px 11px;border-radius:8px;font-size:.85rem">
+      Anotala ahora. No se puede volver a leer: en la base solo queda el hash.
+      Si la perdés, generás una nueva desde esta misma pantalla.
+    </div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <button class="btn primary" type="button" onclick="document.getElementById('dlgClaveReloj').close()">Ya la anoté</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
 <dialog id="dlgToken" style="max-width:520px;width:94vw">
   <div class="card" style="margin:0">
     <h2 style="margin-top:0">Token de este reloj</h2>
@@ -1553,16 +1681,24 @@ para copiar, y el aviso dice exactamente eso.
       Si lo perdés, se genera uno nuevo desde la lista, y hay que reinstalar la pantalla en el tótem
       porque el anterior deja de servir.
     </div>
+    <small style="display:block;margin-top:6px">
+      <b>Dónde se ve el token:</b> sale acá al rotarlo, y desde ese momento
+      queda guardado en el navegador del equipo donde lo instalaste. En la base
+      no está, y esa es la idea: si estuviera, cualquiera con acceso a la base
+      podría marcar por cualquier reloj.
+    </small>
     <label for="tokenValor" style="margin-top:12px">Token</label>
     <input id="tokenValor" readonly style="font-family:ui-monospace,monospace">
-    <label for="tokenInstalarCampo" style="margin-top:10px">Instalar este token en ESTE equipo</label>
+    <label for="tokenInstalarCampo" style="margin-top:10px">Pegar el token para que ESTE equipo marque con este reloj</label>
     <div class="row" style="margin-top:6px;gap:8px">
       <div style="flex:1"><input id="tokenInstalarCampo" placeholder="pegalo acá si querés probar la pantalla en este navegador"></div>
       <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="guardarTotemToken()">Instalar</button></div>
     </div>
     <small style="display:block;margin-top:4px">Se guarda en este navegador, no en el archivo de la app. En un equipo compartido cualquiera con acceso al navegador podría marcar: por eso el tótem tiene que ser un aparato dedicado.</small>
-    <div id="tokenRelojCodigo" style="display:none"></div>
-    <div class="row" style="margin-top:14px;justify-content:flex-end">
+    <input type="hidden" id="tokenRelojCodigo">
+    <div id="tokenEstado" style="margin-top:12px"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end;gap:8px">
+      <button class="btn" type="button" onclick="copiarTokenReloj()">Copiar el token</button>
       <button class="btn primary" type="button" onclick="document.getElementById('dlgToken').close()">Listo</button>
     </div>
   </div>
@@ -2112,7 +2248,10 @@ const navGroups = {
       {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
       {v:'aprobar-cambio',label:'Aprobar solicitudes'}
     ]},
-    {v:'relojes',label:'Relojes y centros de costo'},
+    {v:'relojes',label:'Relojes y centros de costo',options:[
+      {v:'relojes',label:'Relojes'},
+      {v:'marcajes',label:'Marcajes'}
+    ]},
     {v:'kit',label:'Kit de contratación',options:[
       {v:'kit',label:'Papeles del trabajador'},
       {v:'plantillas-kit',label:'Editar plantillas y timbre'}
@@ -2200,6 +2339,19 @@ function initView(v){
   if(v==='just-diaria'){initJustificacionDiaria();}
   if(v==='auditoria'){initAuditoria();}
   if(v==='relojes'){cargarRelojes();}
+  if(v==='marcajes'){
+    // Encadenado, no con await: initView no es async. Los filtros por reloj
+    // necesitan la lista de relojes, y cargarMarcajes la necesita para saber
+    // de qué reloj son los marcajes que trae.
+    (relojCargado?Promise.resolve():cargarRelojes())
+      .then(()=>cargarMarcajes())
+      .then(llenarFiltroRelojesMarcajes)
+      // El centro de costo va después de los relojes porque depende de la
+      // misma lista de centros que se acaba de cargar.
+      .then(llenarFiltroCentrosMarcajes)
+  }
+  // Un usuario reloj no navega vistas: se queda en la pantalla de marcaje.
+  if(soyUsuarioReloj()){abrirTotemPorRelojDelUsuario();return;}
   if(v==='kit'){cargarContratacion().then(cargarEspecialidadesContratacion).then(()=>initKitView());}
   if(v==='plantillas-kit'){cargarContratacion().then(cargarEspecialidadesContratacion).then(()=>{renderPlantillas();renderEditorTimbre();});}
   if(v==='asistencia'){
@@ -2438,26 +2590,52 @@ function ocultarSubNavSinPermiso(){
       b.style.display='';
       return;
     }
+    // Sin permiso, no se muestra. Se deja el atributo puesto igual, porque
+    // abrirPrimeraVistaPermitida() lo usa para saber qué secciones existen
+    // aunque estén ocultas: si se borrara el atributo, esa función no
+    // tendría cómo distinguir "no tenés permiso" de "esta vista ya no
+    // existe".
     b.setAttribute('data-sin-permiso',permiso||'(sin permiso asociado)');
-    b.setAttribute('aria-disabled','true');
-    b.classList.add('bloqueado');
-    b.title='Te falta el permiso "'+(permiso||'?')+'". Se lo tiene que habilitar un administrador en Soporte → Permisos por rol.';
-    b.style.display='';
+    b.setAttribute('aria-hidden','true');
+    b.setAttribute('tabindex','-1');
+    b.style.display='none';
   });
   // Un desplegable se oculta solo si TODOS sus hijos están bloqueados, y
   // además avisa de que hay algo que falta adentro.
   document.querySelectorAll('#subNav details.nav-dropdown, #subNav details.nav-dropdown-nested').forEach(d=>{
+    // Un padre se oculta solo si NO le queda ningún hijo visible. El
+    // criterio mira el estilo, no el atributo, porque los hijos sin permiso
+    // ahora tienen el atributo y están ocultos: contar atributos daría
+    // "nunca visible" y escondería un desplegable que sí tiene cosas
+    // permitidas.
     const hijos=[...d.querySelectorAll('button[data-v]')];
-    const visibles=hijos.filter(b=>!b.hasAttribute('data-sin-permiso')).length;
+    const visibles=hijos.filter(b=>b.style.display!=='none').length;
     d.style.display=visibles?'':'none';
     d.classList.toggle('parcial',visibles>0&&visibles<hijos.length);
+  });
+
+  // Y el GRUPO del menú principal, si se quedó sin nada. Un grupo vacío es
+  // un botón arriba que abre una barra en blanco.
+  document.querySelectorAll('#mainNav button').forEach(g=>{
+    // El booleano de "ya cargué mis permisos" se llama misPermisosCargados.
+    // Escribir "misPermisos" referenciaba una variable que no existe, y eso
+    // lanza ReferenceError y corta el filtrado de los grupos.
+    if(typeof misPermisosCargados==='undefined'||!misPermisosCargados)return;
+    const reqs=GRUPOS_POR_PERMISOS[g.dataset.group];
+    if(!reqs)return;
+    const tieneAlgo=reqs.some(p=>puede(p));
+    g.style.display=tieneAlgo?'':'none';
   });
 }
 // Cuando no hay permiso para una vista, se abre la primera que sí tenga
 // la persona: primero del submenú actual, y si no, la primera visible.
 function abrirPrimeraVistaPermitida(){
+  // Se busca entre los botones que están A LA VISTA. La versión anterior
+  // miraba "data-sin-permiso" en el botón, que ahora lo tienen todos los
+  // ocultos: con ese criterio no encuentra ninguna y caería al
+  // cualquier vista, que es justo lo que se quería evitar.
   const delGrupo=[...document.querySelectorAll('#subNav button[data-v]')]
-    .find(b=>b.style.display!=='none'&&!document.getElementById('v-'+b.dataset.v)?.dataset.sinPermiso);
+    .find(b=>b.style.display!=='none'&&!b.hasAttribute('data-sin-permiso'));
   if(delGrupo){showView(delGrupo.dataset.v);return;}
   const cualquiera=[...document.querySelectorAll('section.view')].find(s=>s.dataset.sinPermiso!=='1');
   if(!cualquiera)return;
@@ -2838,7 +3016,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-o';
+const APP_VERSION='2026-09-28-p';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -10159,6 +10337,8 @@ function editarEmpresa(id){
   document.getElementById('emp-tolerancia').value=(e.tolerancia_minutos!=null)?e.tolerancia_minutos:10;
   document.getElementById('emp-activa').checked=e.activa;
   document.getElementById('emp-logo-preview').src=e.logo||'';
+  const aviso=document.getElementById('emp-logo-aviso');
+  if(aviso)aviso.innerHTML='';
   document.getElementById('empFormTitle').textContent='Editando: '+e.nombre;
   document.getElementById('empForm').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -10171,6 +10351,8 @@ function nuevaEmpresa(){
   document.getElementById('emp-name').value='';
   document.getElementById('emp-activa').checked=true;
   document.getElementById('emp-logo-preview').src='';
+  const avisoLogo=document.getElementById('emp-logo-aviso');
+  if(avisoLogo)avisoLogo.innerHTML='';
   document.getElementById('empFormTitle').textContent='Nueva empresa';
   document.getElementById('empForm').scrollIntoView({behavior:'smooth',block:'start'});
 }
@@ -10381,6 +10563,85 @@ async function revisarMigraciones(){
     '</ul></div>';
 }
 
+// ------------------------------------------------------------------
+// EL LOGO, LEÍDO Y ACHICADO
+// ------------------------------------------------------------------
+// Se lee el archivo que eligió la persona y se devuelve un data URL de como
+// mucho 600 px de ancho.
+//
+// POR QUÉ 600: la credencial se imprime a 86 mm de ancho. A 300 dpi eso
+// son unos 1000 px, pero el logo nunca ocupa toda la tarjeta, así que 600
+// alcanza de sobra y pesa una fracción. Un logo de 600 px pesa entre 20 y
+// 60 KB; el mismo archivo sin achicar, con fotos incrustadas, pesa 400 KB o
+// más, y la diferencia se nota en cada consulta de la lista de empresas.
+//
+// POR QUÉ EN EL NAVEGADOR: porque pedir un archivo más chico a la persona
+// casi nunca rinde. Nadie tiene el logo optimizado, y la respuesta a "te
+//_ERROR_LOGO_GRANDE_" va a ser "no sé cómo".
+async function leerLogoAchicado(archivo){
+  const dataUrl=await leerArchivoComoTexto(archivo);
+  // Si no es una imagen (alguien subió un PDF), se devuelve tal cual: que
+  // falle al mostrar es más claro que un error raro acá.
+  if(!/^data:image\//.test(dataUrl))return dataUrl;
+  try{
+    const img=await cargarImagen(dataUrl);
+    const ANCHO=600;
+    if(img.width<=ANCHO)return dataUrl;
+    const alto=Math.round(img.height*ANCHO/img.width);
+    // Un canvas sin argumentar devuelve un PNG. El JPG se pide explícito
+    // porque un logo de fotos con transparencia necesita PNG, y ahí el
+    // tamaño ya no es problema a 600 px.
+    const esJpg=/jpe?g/.test(dataUrl);
+    const c=document.createElement('canvas');
+    c.width=ANCHO;c.height=alto;
+    const g=c.getContext('2d');
+    g.imageSmoothingQuality='high';
+    g.drawImage(img,0,0,ANCHO,alto);
+    return c.toDataURL(esJpg?'image/jpeg':'image/png',0.92);
+  }catch(error){
+    // Si el canvas falla (imagen corrupta, formato raro), se devuelve la
+    // original. Es preferible guardar algo grande a no guardar nada.
+    console.warn('No se pudo achicar el logo:',error);
+    return dataUrl;
+  }
+}
+function leerArchivoComoTexto(archivo){
+  return new Promise((resolver,rechazar)=>{
+    const r=new FileReader();
+    r.onload=e=>resolver(e.target.result);
+    r.onerror=()=>rechazar(new Error('No se pudo leer el archivo del logo.'));
+    r.readAsDataURL(archivo);
+  });
+}
+function cargarImagen(src){
+  return new Promise((resolver,rechazar)=>{
+    const img=new Image();
+    img.onload=()=>resolver(img);
+    img.onerror=()=>rechazar(new Error('La imagen no se pudo abrir.'));
+    img.src=src;
+  });
+}
+
+// ------------------------------------------------------------------
+// AVISAR EL TAMAÑO ANTES DE SUBIR
+// ------------------------------------------------------------------
+// El error "no guarda el logo" casi siempre es tamaño. Un archivo de 6 MB
+// de una foto del logo tomada con el celular se convierte en 8 MB de texto,
+// y eso no entra. Se avisa al elegir el archivo, no después de guardar.
+function avisarTamanoLogo(){
+  const caja=document.getElementById('emp-logo-aviso');
+  const f=document.getElementById('emp-logo').files[0];
+  if(!caja)return;
+  if(!f){caja.innerHTML='';return;}
+  const KB=Math.round(f.size/1024);
+  const grande=f.size>900*1024;
+  caja.innerHTML=grande
+    ?'<div class="aviso-fila" style="margin:6px 0 0">Este archivo pesa '+KB+' KB. Se va a achicar a 600 px '
+      +'de ancho antes de guardarse, que es lo que necesita una credencial de 86 mm. Si aun así no sale, '
+      +'el logo no es una imagen válida.</div>'
+    :'<small style="display:block;margin:4px 0 0">Archivo de '+KB+' KB.</small>';
+}
+
 async function saveEmpresa(){
   if(!exigirPermiso('sistema.empresa','No tienes permiso para guardar empresas.'))return;
   const nombre=document.getElementById('emp-name').value.trim();
@@ -10426,13 +10687,25 @@ async function saveEmpresa(){
     // empresa quedó guardada. Antes se llamaba finish() sin esperar, así
     // que saveEmpresa() retornaba antes de terminar: quien la llamaba no
     // podía saber si se guardó o no.
-    const archivoComoTexto=new Promise((resolver,rechazar)=>{
-      const r=new FileReader();
-      r.onload=e=>resolver(e.target.result);
-      r.onerror=()=>rechazar(new Error('No se pudo leer el archivo del logo.'));
-      r.readAsDataURL(file);
-    });
-    return finish(await archivoComoTexto);
+    try{
+      const icono=await leerLogoAchicado(file);
+      if(!icono){
+        alert('No se pudo leer el archivo del logo. Se guardó la empresa sin cambiar el logo anterior.');
+        return finish(null);
+      }
+      await finish(icono);
+    }catch(error){
+      alert('No se pudo procesar el logo: '+error.message+'\n\nSe guardó la empresa sin cambiar el logo anterior.');
+      return finish(null);
+    }
+    // Se avisa de lo que quedó guardado, no de lo que se eligió. Es la
+    // diferencia entre "subí el logo" y "el logo está en la tarjeta".
+    if(icono){
+      const KB=Math.round(icono.length*0.75/1024);
+      alert('Empresa guardada. El logo quedó guardado en '+KB+' KB y se verá en las tarjetas nuevas.\n\n'
+        +'Las tarjetas ya impresas llevan el logo anterior: hay que reimprimirlas.');
+    }
+    return;
   }
   return finish(null);
 }
@@ -10480,6 +10753,7 @@ const VISTAS_POR_PERMISO={
   'v-just-diaria':'tarja.justificar',
   'v-auditoria':'asistencia.auditar',
   'v-relojes':'relojes.ver',
+  'v-marcajes':'relojes.ver',
   'v-kit':'contratacion.ver',
   'v-plantillas-kit':'contratacion.editar',
   'v-aprobar-cambio':'tarja.aprobar_cambio',
@@ -10825,13 +11099,30 @@ function renderRelojes(){
   lista.innerHTML=relojes.map(r=>{
     const sinToken=!r.token_hash;
     const sinCentro=!r.centro_costo_id;
+    // Un reloj sin clave de kiosco no esta roto, pero es un reloj que se
+    // puede sacar de la pantalla con cinco toques. Se avisa en la lista en
+    // vez de dejarlo pasar: es el aviso que lleva a la pantalla correcta.
+    const sinClave=!r.hash_pin;
     const alertas=[];
     if(sinCentro)alertas.push('sin centro de costo');
     if(sinToken)alertas.push('sin token');
+    if(sinClave)alertas.push('sin clave de kiosco');
+    if(r.kiosco_activo===false)alertas.push('kiosco desactivado');
     if(!r.activo)alertas.push('desactivado');
     const ultima=r.ultima_lectura_at
       ?'Última lectura: '+escHtml(new Date(r.ultima_lectura_at).toLocaleString('es-CL'))
       :'Nunca leyó nada';
+    // El token no se puede ver (en la base solo está su huella), pero sí se
+    // puede saber si ESTE navegador lo tiene instalado, porque al instalar
+    // queda guardado acá. Es el dato que decide si hace falta rotarlo: si
+    // ya está instalado en el equipo del tótem, rotarlo deja ese aparato
+    // sin marcar hasta que se reinstale.
+    const instaladoAqui=!!totemTokenDe(r.code);
+    const estadoToken=!r.token_hash
+      ?'<small style="color:var(--danger)">sin token: hay que generarlo</small>'
+      :(instaladoAqui
+        ?'<small style="color:var(--accent)">token instalado en este equipo</small>'
+        :'<small style="color:var(--warn-ink)">token no está en este equipo: rotalo e instalalo en el tótem</small>');
     return `<div class="list-item" style="cursor:default;display:block">
       <div>
         <b>${escHtml(r.code)}</b> — ${escHtml(r.nombre)}
@@ -10840,14 +11131,23 @@ function renderRelojes(){
         <br><small>
           ${escHtml(centroDe(r)||'Sin centro de costo')}${r.ubicacion?' · '+escHtml(r.ubicacion):''}
           · antirrebote ${escHtml(String(r.segundos_antirrebote))} s
+          · kiosco ${r.kiosco_activo===false?'desactivado':escHtml(String(r.kiosco_pulsaciones||5))+' pulsaciones'}
           · ${ultima}
+          · ${estadoToken}
         </small>
         ${alertas.length?'<br><small style="color:var(--warn-ink)">Ojo: '+escHtml(alertas.join(', '))+'</small>':''}
       </div>
       <span style="display:flex;gap:6px;flex:0 0 auto">
         <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="editarReloj('${escHtml(r.code)}')">Configurar</button>
-        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="rotarTokenReloj('${escHtml(r.code)}')">Rotar token</button>
-        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="abrirTotem('${escHtml(r.code)}')">Abrir pantalla</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="rotarTokenReloj('${escHtml(r.code)}')">${sinToken?'Generar token':'Rotar token'}</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="${sinClave?'generarClaveReloj':'mostrarClaveExistente'}('${escHtml(r.code)}')">
+          ${sinClave?'Generar clave':'Cambiar clave'}</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="asignarRelojAUsuario('${escHtml(r.code)}')">Asignar a cuenta</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="abrirTotem('${escHtml(r.code)}')">Abrir pantalla</button>
       </span>
     </div>`;
   }).join('');
@@ -10868,7 +11168,7 @@ function abrirFormularioReloj(code){
   const dlg=document.getElementById('dlgReloj');
   document.getElementById('relojTitulo').textContent=r?('Configurar '+r.nombre):'Agregar reloj';
   document.getElementById('relojError').textContent='';
-  document.getElementById('relojGuardo').textContent=r?'Guardar cambios':'Crear reloj';
+  document.getElementById('relojGuardar').textContent=r?'Guardar cambios':'Crear reloj';
   document.getElementById('relojCode').value=r?r.code:'';
   document.getElementById('relojCode').readOnly=!!r;
   document.getElementById('relojNombre').value=r?r.nombre:'';
@@ -10920,7 +11220,7 @@ async function guardarReloj(){
   }
   if(!nombre){err.textContent='Falta el nombre del reloj.';return;}
   btn.disabled=true;btn.textContent='Guardando…';
-  const empresa=(typeof empresaActual!=='undefined'&&empresaActual)?empresaActual.id:null;
+  const empresa=empresaActual||null;   // empresaActual ya ES el id
   const {data:existente}=await window.supabaseClient.from('relojes').select('id').eq('code',code).maybeSingle();
   let error=null;
   const cuerpo={
@@ -10986,6 +11286,7 @@ function mostrarToken(token){
   inp.value=token;
   document.getElementById('tokenInstalarCampo').value=token;
   document.getElementById('tokenRelojCodigo').value=relojEnTurno||'';
+  pintarEstadoToken(relojEnTurno||'',true);
   dlg.showModal();
   setTimeout(()=>{inp.focus();inp.select();},60);
 }
@@ -11003,7 +11304,7 @@ async function guardarCentroCosto(){
   err.textContent='';
   if(!code){err.textContent='Falta el código.';return;}
   if(!nombre){err.textContent='Falta el nombre.';return;}
-  const empresa=(typeof empresaActual!=='undefined'&&empresaActual)?empresaActual.id:null;
+  const empresa=empresaActual||null;   // empresaActual ya ES el id
   const {error}=await window.supabaseClient.from('centros_costo').insert({code,nombre,empresa_id:empresa});
   if(error){
     err.textContent=/duplicate|unique/i.test(error.message)
@@ -11031,6 +11332,70 @@ function editarReloj(code){
   if(!exigirPermiso('relojes.editar','No tienes permiso para configurar relojes.'))return;
   abrirFormularioReloj(code);
 }
+// ------------------------------------------------------------------
+// EL ESTADO DEL TOKEN, DICHO ANTES DE PREGUNTAR
+// ------------------------------------------------------------------
+// La pregunta "no encuentro el token del reloj" viene de abrir el formulario
+// y ver un campo vacío. Un campo vacío no dice si hay que pegar algo, si ya
+// está instalado, o si hay que rotarlo. Con las tres respuestas posibles
+// escritas, la persona sabe qué hacer sin preguntar.
+function pintarEstadoToken(code,instalado){
+  const caja=document.getElementById('tokenEstado');
+  if(!caja)return;
+  if(instalado){
+    caja.innerHTML='<div class="aviso-fila" style="margin:0">'
+      +'<b>Este reloj ya está instalado en ESTE navegador.</b><br>'
+      +'El reloj <b>'+escHtml(code)+'</b> puede marcar desde acá. '
+      +'Si estás en el computador de la oficina y querés probarlo, abrí la '
+      +'pantalla de marcaje de este reloj con "Abrir pantalla".</div>';
+    return;
+  }
+  caja.innerHTML='<div class="aviso-fila" style="margin:0">'
+    +'<b>Este reloj NO está instalado en este navegador.</b><br>'
+    +'El token no se puede recuperar: en el sistema solo queda su huella, '
+    +'por diseño. Para marcar desde acá hay dos caminos:<br>'
+    +'· Si tenés el token anotado, pegalo abajo y presioná <b>Instalar</b>.<br>'
+    +'· Si no lo tenés, cerrá esto y presioná <b>Rotar token</b> en la lista '
+    +'de relojes. Se muestra una sola vez: copialo antes de cerrar.</div>';
+}
+
+// ------------------------------------------------------------------
+// COPIAR EL TOKEN
+// ------------------------------------------------------------------
+// El token hay que llevarlo al Android TV Box, que está en otra obra. A mano
+// se pierde un carácter, y un token equivocado responde TOKEN_INVALIDO, que
+// no dice "te equivocaste al copiar": dice que el reloj no existe, y se
+// pierde tiempo buscando el problema en el lugar equivocado.
+function copiarTokenReloj(){
+  const v=document.getElementById('tokenValor').value
+    ||document.getElementById('tokenInstalarCampo').value;
+  if(!v){
+    alert('No hay un token en pantalla para copiar.\n\n'
+      +'Si lo perdiste, cerrá esto y presioná "Rotar token" en la lista de relojes.');
+    return;
+  }
+  // La API del portapapeles no funciona sin HTTPS, y esta app se sirve por
+  // HTTP en la red de la obra. Se avisa igual, pero se deja el texto
+  // seleccionado para que se copie a mano: si no, la persona pierde el token
+  // por un requisito del navegador.
+  if(!navigator.clipboard||!navigator.clipboard.writeText){
+    seleccionarTokenParaCopiar();
+    return;
+  }
+  navigator.clipboard.writeText(v).then(
+    ()=>alert('Token copiado.\n\nPegalo en el apartado "Pegar el token" del equipo donde vaya a marcar.'),
+    ()=>{
+      seleccionarTokenParaCopiar();
+      alert('El navegador no dejó copiar solo.\n\nEl token quedó seleccionado: copialo con Ctrl+C.');
+    }
+  );
+}
+function seleccionarTokenParaCopiar(){
+  const i=document.getElementById('tokenValor');
+  i.focus();i.select();
+  try{document.execCommand('copy');}catch(error){}
+}
+
 function abrirFormularioToken(){
   const code=document.getElementById('totemReloj').value
     ||(relojes.filter(r=>r.activo)[0]||{}).code;
@@ -11064,12 +11429,17 @@ function abrirTotem(code){
   totemActual=r;
   document.body.classList.add('modoTotem');
   document.getElementById('pantallaTotem').classList.add('abierta');
+  arrancarHoraTotem();
   const sel=document.getElementById('totemTipo');
   sel.innerHTML=ESTADOS_TARJA_TOTEM.map(t=>`<option value="${t.v}">${escHtml(t.t)}</option>`).join('');
   sel.value=totemTipo;
   pintarTotemInicial();
   if(r.tipo_lector==='camara')arrancarCamaraTotem();
   else detenerCamaraTotem();
+  // El kiosco se arma acá y no antes: si la cámara no arrancó, el reloj igual
+  // tiene que poder bloquearse. Un kiosco que depende de que la cámara
+  // funcione es un kiosco que no bloquea en la mitad de los casos.
+  activarKiosco();
   // El foco va al campo apenas se abre. Sin esto el lector USB marca la
   // primera vez y las siguientes no: nadie lo va a tocar.
   setTimeout(()=>document.getElementById('totemCampo').focus(),120);
@@ -11100,6 +11470,40 @@ const ESTADOS_TARJA_TOTEM=[
   {v:'colacion_entrada',t:'Salida a colación'},
   {v:'colacion_salida',t:'Vuelta de colación'}
 ];
+// ------------------------------------------------------------------
+// LA HORA DEL TÓTEM
+// ------------------------------------------------------------------
+// Un reloj sin hora en pantalla genera el mismo problema que un reloj con
+// la hora mala: la gente sospecha. Se actualiza cada segundo con el reloj
+// LOCAL del aparato, que es el mismo que usa la base para sellar el
+// marcaje: si el aparato tiene la hora mal, el problema se ve en pantalla
+// antes que en la planilla, que es mucho mejor.
+//
+// Se usa la hora del aparato y no la del servidor a propósito. Si el
+// aparato no tiene señal, el reloj sigue marcando: eso es justamente lo
+// que permite marcar en una faena sin cobertura (art. 10 de la Resolución
+// Exenta 38/2024).
+let relojTotemTimer=null;
+function pintarHoraTotem(){
+  const d=new Date();
+  const h=document.getElementById('totemHoraActual');
+  if(h)h.textContent=String(d.getHours()).padStart(2,'0')
+    +':'+String(d.getMinutes()).padStart(2,'0')
+    +':'+String(d.getSeconds()).padStart(2,'0');
+  const f=document.getElementById('totemFechaActual');
+  if(f)f.textContent=d.toLocaleDateString('es-CL',{weekday:'long',day:'2-digit',month:'long'});
+}
+function arrancarHoraTotem(){
+  pintarHoraTotem();
+  // Un solo intervalo. Si se llama dos veces sin parar el anterior, quedan
+  // dos timers y la hora avanza al doble: se ve en el segundero.
+  if(relojTotemTimer)clearInterval(relojTotemTimer);
+  relojTotemTimer=setInterval(pintarHoraTotem,1000);
+}
+function pararHoraTotem(){
+  if(relojTotemTimer){clearInterval(relojTotemTimer);relojTotemTimer=null;}
+}
+
 function pintarTotemInicial(){
   const t=document.getElementById('totemMensaje');
   t.innerHTML='<div class="totem-idle">'
@@ -11210,6 +11614,12 @@ function mostrarTotem(clase,titulo,detalle){
   },2200);
 }
 function cerrarTotem(){
+  // Si está bloqueado, salir pasa por la clave. El botón está oculto en
+  // el kiosco, pero la función sigue siendo alcanzable desde el historial
+  // del navegador o desde un atajo: la guarda va acá, no en el botón.
+  if(kioscoActivo){abrirClaveKiosco();return;}
+  pararHoraTotem();
+  desactivarKiosco();
   if(totemTimer)clearTimeout(totemTimer);
   if(totemTimerFoco){clearInterval(totemTimerFoco);totemTimerFoco=null;}
   detenerCamaraTotem();
@@ -11296,12 +11706,19 @@ function abrirTotemPorURL(){
         escHtml(code)+'</b>.</p><p>Revisá el código en Administración → Relojes, o pedile a alguien que lo registre.</p></div>';
       return;
     }
-    if(!puede('relojes.totem')){
+    // El rol `reloj` tiene `relojes.marcaje`, no `relojes.totem`: son
+    // permisos distintos y el aparato no necesita el segundo. Se aceptan
+    // los dos para que un supervisor con el permiso viejo siga entrando.
+    if(!puede('relojes.marcaje')&&!puede('relojes.totem')){
       document.body.innerHTML='<div style="padding:40px;font-family:system-ui">'+
-        '<h1>Sin permiso</h1><p>Tu usuario no tiene el permiso <b>relojes.totem</b>, así que no puede marcar asistencia.</p>'+
-        '<p>Un administrador lo habilita en Soporte → Permisos por rol.</p></div>';
+        '<h1>Sin permiso</h1><p>Tu usuario no puede marcar asistencia: no tiene el permiso '
+        +'<b>relojes.marcaje</b> ni el <b>relojes.totem</b>.</p>'+
+        '<p>Un administrador lo habilita en Soporte → Permisos por rol, o le crea una '
+        +'cuenta con el rol <b>Reloj</b>.</p></div>';
       return;
     }
+    // Un usuario que es solo un reloj no ve el panel: entra directo.
+    if(soyUsuarioReloj())esconderTodoParaReloj();
     abrirTotem(code);
   })();
 }
@@ -11641,6 +12058,656 @@ async function comprobarContratacion(){
 }
 
 // ===================================================================
+// ============================================================
+// ============================================================
+// ============================================================
+// EL KIOSCO DEL RELOJ
+// ============================================================
+//
+// LA PANTALLA DEL ANDROID TV BOX
+// ------------------------------
+// El reloj se deja ahí, en la portería, plugged in, con la pantalla siempre
+// encendida. Eso obliga a que la pantalla esté bloqueada: si el trabajador
+// puede tocar la barra del navegador o cerrar la pestaña, el reloj deja de
+// marcar y nadie se entera hasta que se revisa la asistencia del día.
+//
+// CÓMO SE SALE
+// ------------
+// Con el botón no. Con CINCO pulsaciones seguidas en una esquina, y después
+// una clave de seis dígitos.
+//
+// Las cinco pulsaciones no son un adorno: son para que el que está en la
+// portería no saque el kiosco sin querer. Un dedo apoyado durante un segundo
+// en un kiosco genera cinco eventos de toque.
+//
+// Y las cinco van en una ESQUINA, no en toda la pantalla. En una obra con
+// paso de gente, cinco toques consecutivos en cualquier parte pasan todos los
+// días; en la esquina superior izquierda, casi nunca. La esquina es invisible:
+// si se le pone un ícono, es un botón de salida, y entonces el bloqueo no
+// protege de nada.
+//
+// POR QUÉ LA CLAVE SE VERIFICA EN EL SERVIDOR Y NO EN EL NAVEGADOR
+// ---------------------------------------------------------------
+// La clave viaja al servidor, se hashea ahí y se compara con el hash. En el
+// navegador nunca hay una clave, y leer el código no sirve para desarmar el
+// kiosco. Es lo mismo que se hizo con el token del reloj en la migración 030,
+// y por el mismo motivo: un secreto que está en el cliente no es un secreto.
+//
+// EL BLOQUEO REAL
+// ---------------
+// `modo-kiosco` oculta la barra del tótem y el botón de salir, quita el
+// cursor y bloquea el scroll. NO bloquea el campo de texto, porque el lector
+// QR USB escribe por teclado: si el campo no acepta foco, el reloj no marca.
+//
+// Y no es un candado de verdad contra alguien que sabe lo que hace: con
+// DevTools abierto se puede quitar la clase del body. Contra eso está la
+// clave del servidor, no el CSS. Lo que el CSS evita es el accidente, que es
+// lo que de verdad pasa.
+// ============================================================
+
+let kioscoActivo = false;        // ¿está bloqueada la pantalla?
+let kioscoPulsas = 0;            // cuántas lleva de las pedidas
+let kioscoTemporizador = null;   // reinicia el contador si se corta la racha
+let kioscoUltimoToque = 0;
+let kioscoPideClave = false;     // la ventana de clave está abierta
+
+const KIOSCO_PULSAS_MAX = 1500;   // ms entre pulsaciones: si pasa más, cuenta desde 1
+const KIOSCO_CLAVE_INTENTOS = 5;  // intentos antes de frenar
+const KIOSCO_CLAVE_ESPERA = 60000; // ms de freno tras agotar los intentos
+
+// ¿Este reloj debe bloquearse? Un reloj nuevo sí. En el escritorio, para
+// probar, se puede apagar desde la pantalla de relojes.
+function kioscoDebeBloquear(){
+  if(!totemActual)return false;
+  return totemActual.kiosco_activo !== false;
+}
+// Cuántas pulsaciones pide este reloj. La migración lo deja en 5.
+function kioscoPulsacionesPedidas(){
+  const n=Number(totemActual&&totemActual.kiosco_pulsaciones);
+  return (n>=3&&n<=10)?n:5;
+}
+function armarKiosco(){
+  const zona=document.getElementById('totemZonaKiosco');
+  if(!zona)return;
+  zona.style.display=kioscoDebeBloquear()?'block':'none';
+  limpiarZonaKiosco();
+}
+function limpiarZonaKiosco(){
+  kioscoPulsas=0;
+  if(kioscoTemporizador){clearTimeout(kioscoTemporizador);kioscoTemporizador=null;}
+  const pista=document.getElementById('totemPistaKiosco');
+  if(pista)pista.textContent='';
+  const zona=document.getElementById('totemZonaKiosco');
+  if(zona)zona.style.outline='';
+}
+// Una pulsación en la esquina.
+function pulsacionKiosco(){
+  if(!kioscoActivo)return;
+  const ahora=Date.now();
+  // Una racha se corta si pasa mucho rato entre toques: son cinco followed,
+  // no cinco en la vida del reloj.
+  if(ahora-kioscoUltimoToque>KIOSCO_PULSAS_MAX)kioscoPulsas=0;
+  kioscoUltimoToque=ahora;
+  kioscoPulsas++;
+  const pedidas=kioscoPulsacionesPedidas();
+  // La pista aparece recién en la tercera. Antes sería un contador que le
+  // recuerda a cualquiera mirando que hay algo que tocar cinco veces.
+  const pista=document.getElementById('totemPistaKiosco');
+  if(pista)pista.textContent=kioscoPulsas>=3?('·'.repeat(kioscoPulsas-2)+'·'.repeat(pedidas-kioscoPulsas)):'';
+  const zona=document.getElementById('totemZonaKiosco');
+  if(zona)zona.style.outline=kioscoPulsas>=3?'1px solid rgba(255,255,255,.14)':'';
+  if(kioscoTemporizador)clearTimeout(kioscoTemporizador);
+  kioscoTemporizador=setTimeout(()=>{
+    if(kioscoPulsas<pedidas)limpiarZonaKiosco();
+  },KIOSCO_PULSAS_MAX+400);
+  if(kioscoPulsas>=pedidas){
+    limpiarZonaKiosco();
+    abrirClaveKiosco();
+  }
+}
+function activarKiosco(){
+  if(!kioscoDebeBloquear()){kioscoActivo=false;desactivarKiosco();return;}
+  kioscoActivo=true;
+  document.body.classList.add('modo-kiosco');
+  armarKiosco();
+  pedirPantallaCompleta();
+}
+function desactivarKiosco(){
+  kioscoActivo=false;
+  document.body.classList.remove('modo-kiosco');
+  const zona=document.getElementById('totemZonaKiosco');
+  if(zona)zona.style.display='none';
+  limpiarZonaKiosco();
+  document.exitFullscreen&&document.exitFullscreen().catch(()=>{});
+}
+// El navegador pide pantalla completa solo desde un clic, no desde un
+// temporizador. Si se pierde, se avisa una vez y no se insiste: pedirla en
+// bucle es la forma de que Chrome la termine bloqueando para siempre.
+let avisoPantallaCompleta=false;
+function pedirPantallaCompleta(){
+  const el=document.documentElement;
+  const pedir=el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen;
+  if(!pedir)return;
+  if(document.fullscreenElement||document.webkitFullscreenElement)return;
+  try{
+    const p=pedir.call(el);
+    if(p&&p.catch)p.catch(()=>{
+      if(!avisoPantallaCompleta){
+        mostrarTotem('info','Sin pantalla completa','Podés apretar F11, o tocar dos veces la barra, para salir del modo ventana.');
+        avisoPantallaCompleta=true;
+      }
+    });
+  }catch(e){ /* el navegador no lo permite: se sigue igual */ }
+}
+// ------------------------------------------------------------------
+// LA CLAVE
+// ------------------------------------------------------------------
+// El freno por intentos es lo que hace que una clave de 6 dígitos sea una
+// clave. Sin él, un millón de intentos es una tarde de trabajo.
+// El contador vive en la sesión, no en el reloj: reiniciar la pantalla
+// reinicia el freno, y eso es aceptable porque el que reinicia tiene las
+// manos en el aparato.
+let intentosClave=0;
+let frenoClaveHasta=0;
+function abrirClaveKiosco(){
+  if(kioscoPideClave)return;
+  const ahora=Date.now();
+  if(ahora<frenoClaveHasta){
+    const seg=Math.ceil((frenoClaveHasta-ahora)/1000);
+    mostrarTotem('error','Demasiados intentos',`Quedan ${seg} segundos. Probá con la clave correcta.`);
+    return;
+  }
+  kioscoPideClave=true;
+  intentosClave=0;
+  const dlg=document.getElementById('dlgClaveKiosco');
+  document.getElementById('claveError').textContent='';
+  document.getElementById('claveCampo').value='';
+  dlg.showModal();
+  setTimeout(()=>document.getElementById('claveCampo').focus(),80);
+}
+async function verificarClaveKiosco(){
+  const pin=document.getElementById('claveCampo').value.trim();
+  const err=document.getElementById('claveError');
+  if(!pin){err.textContent='Escribí la clave.';return;}
+  if(!totemActual){err.textContent='No hay un reloj abierto.';return;}
+  const {data,error}=await window.supabaseClient.rpc('verificar_pin_reloj',{
+    p_code:totemActual.code,p_pin:pin
+  });
+  if(error){
+    // Si la función no existe todavía, es la 033 sin aplicar. Se dice con el
+    // nombre del archivo y no con el error crudo de Postgres.
+    if(faltaLaMigracion(error,['verificar_pin_reloj'])){
+      err.innerHTML='Falta aplicar la migración <b>033_reloj_kiosco.sql</b>.';
+    }else{
+      err.textContent=escHtml(error.message);
+    }
+    return;
+  }
+  if(data===true){
+    intentosClave=0;frenoClaveHasta=0;
+    kioscoPideClave=false;
+    document.getElementById('dlgClaveKiosco').close();
+    desactivarKiosco();
+    mostrarTotem('ok','Kiosco abierto','Ahora se puede salir de la pantalla de marcaje.');
+    return;
+  }
+  intentosClave++;
+  if(intentosClave>=KIOSCO_CLAVE_INTENTOS){
+    frenoClaveHasta=Date.now()+KIOSCO_CLAVE_ESPERA;
+    intentosClave=0;
+    const seg=Math.ceil(KIOSCO_CLAVE_ESPERA/1000);
+    err.textContent='Demasiados intentos. Esperá '+seg+' segundos.';
+    document.getElementById('dlgClaveKiosco').close();
+    mostrarTotem('error','Bloqueado por un momento','La clave queda frenada '+seg+' segundos.');
+    return;
+  }
+  err.textContent='Clave incorrecta. ('+intentosClave+' de '+KIOSCO_CLAVE_INTENTOS+')';
+  document.getElementById('claveCampo').value='';
+  document.getElementById('claveCampo').focus();
+}
+function cancelarClaveKiosco(){
+  kioscoPideClave=false;
+  document.getElementById('dlgClaveKiosco').close();
+  document.getElementById('totemCampo').focus();
+}
+
+// ============================================================
+// GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES
+// ============================================================
+// La clave se ve UNA vez, como el token. Después queda solo el hash. Si se
+// pierde, se rota: no hay forma de recuperarla, y no debería haberla.
+async function generarClaveReloj(code){
+  if(!code)return;
+  if(!confirm('Se genera una clave nueva para el reloj '+code+'.\n\nLa clave anterior deja de servir. Se muestra una sola vez: anótala antes de cerrar esta pantalla.\n\n¿Seguir?'))return;
+  const {data,error}=await window.supabaseClient.rpc('generar_pin_reloj',{p_code:code});
+  if(error){
+    if(faltaLaMigracion(error,['generar_pin_reloj'])){
+      alert('Falta aplicar la migración 033_reloj_kiosco.sql. Sin ella los relojes no tienen clave de kiosco.');
+    }else{
+      alert('No se pudo generar la clave: '+error.message);
+    }
+    return;
+  }
+  mostrarClaveReloj(String(data),code);
+}
+function mostrarClaveReloj(clave,code){
+  document.getElementById('claveRelojTexto').textContent=clave;
+  document.getElementById('claveRelojQuien').textContent=code;
+  document.getElementById('dlgClaveReloj').showModal();
+}
+// ============================================================
+// ¿ES UN USUARIO RELOJ?
+// ============================================================
+//
+// Un usuario con SOLO el rol `reloj` no es una persona: es un aparato. No
+// tiene panel, no tiene planilla, no tiene nombre de otro trabajador. Lo
+// único que hace es marcar.
+//
+// Por eso la app no le muestra nada más. Si se le dejara el panel, el rol
+// serviría para mirar quién sale a qué hora, que es justo lo que no se
+// quiere que un reloj vea.
+const PERMISOS_DE_MARCAR=['relojes.marcaje','relojes.totem'];
+function soyUsuarioReloj(){
+  // ANTES DE QUE CARGUEN LOS PERMISOS, ESTA FUNCION DEVUELVE FALSE.
+  //
+  // Sin esta guarda, el recorrido del catalogo no encuentra nada (todavia
+  // esta vacio), no encuentra ningun permiso ajeno, y concluye que esta
+  // persona es un aparato. Con eso, el ADMINISTRADOR entra a la app, ve
+  // la pantalla de "Cuenta de reloj" y no ve NADA del panel. Es lo que
+  // pasó: con el catalogo vacio, "no tiene ningún otro permiso" es
+  // cierto de mentira.
+  if(typeof misPermisosCargados!=='undefined'&&!misPermisosCargados)return false;
+  const catalogo=(typeof catalogoPermisos!=='undefined')?catalogoPermisos:null;
+  if(!catalogo||!catalogo.length)return false;
+  if(!PERMISOS_DE_MARCAR.some(k=>puede(k)))return false;
+  // Que tenga el permiso de marcar NO la convierte en aparato. Lo que la
+  // define es no tener NADA mas.
+  //
+  // Un jefe de turno puede tener el rol reloj y el de supervisor, y a ese
+  // no se le esconde el panel: esconderselo seria dejar sin acceso a una
+  // persona que si lo necesita, por un permiso que no le hace falta para
+  // marcar.
+  //
+  // Se recorre el catalogo REAL, asi que un permiso que se agregue mas
+  // adelante no queda adelante por olvido.
+  for(const fila of catalogo){
+    const clave=fila&&fila.clave?fila.clave:fila;
+    if(PERMISOS_DE_MARCAR.includes(clave))continue;
+    if(puede(clave))return false;
+  }
+  return true;
+}
+// ------------------------------------------------------------------
+// LOS DOS SECRETOS DEL RELOJ, Y POR QUE SON DOS
+// ------------------------------------------------------------------
+// El TOKEN deja marcar. La CLAVE deja desarmar el kiosco. Son permisos
+// distintos, asi que son secretos distintos: que alguien tenga el token de
+// un reloj no le da el derecho a desarmar el kiosco de otro.
+//
+// En la base no hay ninguno de los dos en claro. Solo sus hashes.
+// ------------------------------------------------------------------
+function mostrarClaveExistente(boton,code){
+  // La clave no se puede mostrar: no existe en ningun lado del sistema.
+  // Lo que se puede es decir eso, y ofrecer generar una nueva.
+  if(confirm('La clave del reloj '+code+' no se puede ver: en la base solo queda su hash.\n\nEs a proposito: si se pudiera leer, alguien con acceso a la base abriria kioscos.\n\nSi la perdió, genero una nueva. La anterior deja de servir.\n\n¿Generar una nueva?')){
+    generarClaveReloj(code);
+  }
+}
+// Asignarle un reloj a una cuenta de usuario.
+//
+// La asignacion va al navegador del usuario reloj, no a la base: es una
+// relacion entre una persona y un aparato que esta en una obra, y no un dato
+// que otro tenga que ver. Ademas, si estuviera en la base, cada vez que el
+// aparato cambiara habria que volver a elegirlo desde el panel.
+//
+// El codigo del reloj NO es un secreto: va en la URL (/totem/RELOJ-01) y lo
+// lee cualquiera que mire la direccion. Lo que protege de verdad es el token,
+// que va en el cuerpo de la peticion y no aparece por ningun lado visible.
+function asignarRelojAUsuario(code){
+  const actual=localStorage.getItem('relojAsignado')||'';
+  if(actual===code){localStorage.removeItem('relojAsignado');alert('Se desasigno el reloj '+code+' de esta cuenta.');return;}
+  localStorage.setItem('relojAsignado',code);
+  alert('Esta cuenta quedo asignada al reloj '+code+'.\n\nPara que sirva, la cuenta tiene que tener el rol Reloj. Con solo ese rol, al entrar va directo a la pantalla de marcaje y no ve el panel.');
+}
+function abrirTotemPorRelojDelUsuario(){
+  // Que reloj tiene asignado este usuario-reloj?
+  //
+  // La asignacion vive en localStorage y NO en la base, a proposito. Es una
+  // relacion entre una persona y un aparato que esta en una obra: si se
+  // guardara en la tabla, un administrador tendria que elegir el reloj cada
+  // vez que elEquipo cambia de aparato en la obra, que es todos los meses.
+  //
+  // Y la clave del reloj, que es lo que de verdad protege, si esta en la base.
+  const code=localStorage.getItem('relojAsignado')||'';
+  if(!code){
+    document.body.innerHTML=pantallaDeEsperaReloj();
+    return;
+  }
+  abrirTotem(code);
+}
+function esconderTodoParaReloj(){
+  // Se oculta la navegación y el contenido. La pantalla del tótem es lo
+  // único que queda.
+  const nav=document.querySelector('nav,#nav,#subNav,.nav,#header,#appHeader');
+  if(nav)nav.style.display='none';
+  document.body.classList.add('solo-reloj');
+}
+function pantallaDeEsperaReloj(){
+  // Lo que se ve antes de que haya un reloj asignado: explica qué hacer en
+  // vez de mostrar un panel vacío con error.
+  return '<div style="position:fixed;inset:0;display:flex;align-items:center;'
+    +'justify-content:center;background:#0b0f0c;color:#e8f0ea;font-family:system-ui;'
+    +'text-align:center;padding:30px">'
+    +'<div><h1 style="font-size:26px;margin:0 0 14px">Cuenta de reloj</h1>'
+    +'<p style="max-width:460px;line-height:1.5;color:#9fb3a6">Este usuario marca asistencia y no ve nada más.\n\n'
+    +'Para usar un reloj, pedile a alguien de soporte que te asigne uno. Después '
+    +'entrás con <b>/totem/RELOJ-01</b> y no tenés que hacer nada más.</p></div></div>';
+}
+
+// ============================================================
+// LOS MARCAJES
+// ============================================================
+//
+// QUÉ ES ESTA PANTALLA
+// --------------------
+// La tabla `marcajes` es lo que el reloj escribe cada vez que alguien pasa
+// su credencial. La planilla (vista `asistencia`) es un RESUMEN de esto: día
+// por día, con entrada, salida y horas. Los marcajes son el dato crudo.
+//
+// POR QUÉ FALTA SI LA PLANILLA YA ESTÁ
+// -------------------------------------
+// Porque cuando un trabajador dice "yo marqué y no me entró", la pregunta no
+// es qué dice la planilla sino qué hay en el marcaje: qué reloj, a qué hora
+// exacta, de qué tipo, con qué origen. La planilla ya pasó por el motor de
+// cálculo y puede no coincidir con lo que el reloj vio.
+//
+// Y hay un segundo motivo, que es el importante: el reloj puede estar
+// marcado y la planilla vacía. Cuando eso pasa, la causa suele ser que el
+// reloj se cayó, que la persona no estaba en la jornada del día, o que la
+// marcación quedó en un reloj desactivado. Sin ver los marcajes uno por uno,
+// eso no se distingue de "no-worked".
+//
+// Y TERCERO, que es el que pesa: mientras estos datos se puedan ver y leer
+// sin la planilla de por medio, sirve para comparar. Con esto a la vista,
+// comparando la lista de marcajes contra el turno del vigilante, la
+// diferencia entre lo que dice el reloj y lo que dice la planilla salta a
+// la vista sin tener que hacer nada.
+//
+// LO QUE NO HACE
+// --------------
+// Esta pantalla NO edita marcajes. Un marcaje es un hecho: pasó o no pasó.
+// Editarlo es otra cosa, y esa otra cosa es la vista de asistencia, con su
+// motivo y su firma de quien lo hizo.
+//
+// Los marcajes se muestran y se filtran. Nada más.
+// ============================================================
+
+let marcajesCargados=false;
+let marcajesDatos=[];
+// Antes: {reloj, fecha, tipo, buscar}. Se agrega el centro de costo y el
+// rango como par, porque una fecha suelta no puede decir "del lunes al
+// viernes", que es la pregunta que se hace cuando alguien denuncia que
+// le faltan días.
+let filtroMarcajes={reloj:'',centro:'',tipo:'',buscar:'',desde:'',hasta:''};
+
+async function cargarMarcajes(){
+  marcajesCargados=false;
+  const lista=document.getElementById('marcajesLista');
+  const aviso=document.getElementById('marcajesAviso');
+  if(!lista)return;
+  lista.innerHTML='<small>Cargando…</small>';
+  const hoy=new Date();
+  // Por defecto los ultimos 7 dias. Es el rango que se mira el 95% de las
+  // veces, y son los que caben en pantalla sin paginar de mas.
+  const desde=hoy.getTime()-7*24*60*60*1000;
+  const {data,error}=await window.supabaseClient
+    .from('marcajes')
+    .select('*')
+    .gte('fecha',new Date(desde).toISOString().slice(0,10))
+    .order('fecha',{ascending:false})
+    .limit(1000);
+  if(error){
+    aviso.innerHTML=faltaLaMigracion(error,['marcajes'])
+      ?'<div class="aviso-fila">Falta aplicar la migración 017_marcajes_diarios.sql.</div>'
+      :'<div class="aviso-fila">No se pudieron cargar los marcajes: '+escHtml(error.message)+'</div>';
+    lista.innerHTML='';
+    return;
+  }
+  marcajesDatos=data||[];
+  marcajesCargados=true;
+  // Se pone el rango que se trajo. Si ya había fechas puestas (se vuelve
+  // desde otra vista), no se pisan: el filtro de la persona manda.
+  const cajaDesde=document.getElementById('marcajesFiltroDesde');
+  const cajaHasta=document.getElementById('marcajesFiltroHasta');
+  if(cajaDesde&&cajaHasta&&!cajaDesde.value&&!cajaHasta.value){
+    const hoy=new Date();
+    cajaDesde.value=fechaLocalISO(new Date(hoy.getTime()-7*24*60*60*1000));
+    cajaHasta.value=fechaLocalISO(hoy);
+  }
+  marcarAtajoMarcajes();
+  filtrarMarcajes();
+}
+function renderMarcajes(){
+  const lista=document.getElementById('marcajesLista');
+  if(!lista)return;
+  if(!marcajesDatos.length){
+    lista.innerHTML='<div class="vacio">No hay marcajes cargados. Si esperabas ver marcas,\n      es que la migración 017 no está aplicada, o el reloj no está enviando: el token del\n      aparato no se instaló, o el reloj quedó sin señal.</div>';
+    return;
+  }
+  // El filtro se aplica en memoria. Son 1000 filas, no 100 mil: filtrar en
+  // el servidor en cada tecla seria un viaje por la red en cada tecla escrita.
+  const f=filtroMarcajes;
+  let datos=marcajesDatos;
+  if(f.reloj)datos=datos.filter(m=>String(m.reloj_id)===String(f.reloj));
+  if(f.tipo)datos=datos.filter(m=>m.tipo===f.tipo);
+  // El rango va primero porque es el que más descarta. Comparar fechas
+  // como texto funciona porque el formato es AAAA-MM-DD, que ordena
+  // lexicográficamente igual que por fecha. Con otro formato, como
+  // DD-MM-AAAA que es como lo escribe la gente, esto daríaonsense.
+  if(f.desde)datos=datos.filter(m=>String(m.fecha||'')>=f.desde);
+  if(f.hasta)datos=datos.filter(m=>String(m.fecha||'')<=f.hasta);
+  // El centro de costo se resuelve por el reloj: el marcaje guarda el
+  // reloj, y el reloj tiene el centro. No se desnormaliza en el marcaje
+  // una columna más para no tener que mirar dos tablas, porque entonces
+  // hay que actualizarla cada vez que se mueve un reloj de centro, y ese
+  // es un forget que a la larga siempre deja alguna fila vieja.
+  if(f.centro){
+    // String() en los dos lados, y no === estricto. El <select> entrega
+    // texto: sin esto, 1 === '1' es falso y el filtro deja pasar cero
+    // marcajes, sin decir nada.
+    const enEste=new Set(
+      relojes
+        .filter(x=>String(x.centro_costo_id)===String(f.centro))
+        .map(x=>String(x.id))
+    );
+    datos=datos.filter(m=>enEste.has(String(m.reloj_id)));
+  }
+  if(f.buscar){
+    const q=f.buscar.toLowerCase();
+    datos=datos.filter(m=>{
+      const w=workers.find(x=>x.code===m.code);
+      const nombre=w?w.name.toLowerCase():'';
+      return m.code.toLowerCase().includes(q)||nombre.includes(q)
+        ||codigoMostrar(m.code).includes(q);
+    });
+  }
+  // Los mas recientes primero, y dentro del dia el mas reciente arriba.
+  datos=datos.slice().sort((a,b)=>{
+    if(a.fecha!==b.fecha)return a.fecha<b.fecha?1:-1;
+    return (b.hora||'')<(a.hora||'')?-1:1;
+  });
+  const relojDe=(id)=>{
+    const r=relojes.find(x=>x.id===id);
+    return r?r.nombre:(id?'(reloj dado de baja)':'(sin reloj)');
+  };
+  // El centro se saca del reloj, que es donde está guardado. Un marcaje sin
+  // reloj (cargado a mano por RRHH) no tiene centro, y se dice: dejarlo en
+  // blanco haría creer que se olvidó.
+  const centroDeReloj=(id)=>{
+    // String() en el id del reloj: el id viene de la fila del marcaje, y
+    // se compara contra el id del reloj, que viene de otra consulta. Que
+    // los dos sean el mismo tipo no es algo que se pueda dar por hecho.
+    const r=relojes.find(x=>String(x.id)===String(id));
+    const c=r?centrosCosto.find(x=>String(x.id)===String(r.centro_costo_id)):null;
+    return c?(c.code+' · '+c.nombre):(id?'(sin centro)':'(sin reloj)');
+  };
+  const origenTexto=(o)=>({qr:'QR',excel:'Excel',manual:'A mano',porteria:'Portería',app:'App',reloj:'Reloj',sistema:'Sistema',offline_csv:'CSV sin conexión'})[o]||o;
+  lista.innerHTML=
+    '<div class="marcajes-tabla">'+
+    '<div class="marcajes-cabecera">'+
+      '<span class="m1">Fecha</span><span class="m2">Hora</span>'+
+      '<span class="m3">Trabajador</span><span class="m4">Marca</span>'+
+      '<span class="m5">Origen</span><span class="m6">Reloj</span>'+
+      '<span class="m7">Centro de costo</span>'+
+    '</div>'+
+    datos.map(m=>{
+      const w=workers.find(x=>x.code===m.code);
+      return '<div class="marcajes-fila">'+
+        '<span class="m1">'+escHtml(m.fecha||'')+'</span>'+
+        '<span class="m2"><b>'+escHtml((m.hora||'').slice(0,5))+'</b></span>'+
+        '<span class="m3">'+escHtml(codigoMostrar(m.code))+' · '+escHtml(w?w.name:m.code)+
+          (m.registrado_por_nombre?'<small> por '+escHtml(m.registrado_por_nombre)+'</small>':'')+'</span>'+
+        '<span class="m4">'+(m.tipo==='entrada'?'Entrada':m.tipo==='salida'?'Salida':escHtml(m.tipo))+'</span>'+
+        '<span class="m5">'+escHtml(origenTexto(m.origen))+'</span>'+
+        '<span class="m6">'+escHtml(relojDe(m.reloj_id))+'</span>'+
+      '<span class="m7">'+escHtml(centroDeReloj(m.reloj_id))+'</span>'+
+      '</div>';
+    }).join('')+
+    '</div>'+
+    '<div style="margin-top:8px;font-size:.85rem;color:var(--muted)">Mostrando '+
+      datos.length+' de '+marcajesDatos.length+' marcajes cargados.'+
+      descripcionFiltroMarcajes()+'</div>';
+}
+function filtrarMarcajes(){
+  const rango=leerRangoMarcajes();
+  filtroMarcajes={
+    reloj:document.getElementById('marcajesFiltroReloj')?.value||'',
+    centro:document.getElementById('marcajesFiltroCentro')?.value||'',
+    tipo:document.getElementById('marcajesFiltroTipo')?.value||'',
+    buscar:document.getElementById('marcajesBuscar')?.value.trim()||'',
+    desde:rango.desde,
+    hasta:rango.hasta
+  };
+  renderMarcajes();
+}
+function llenarFiltroRelojesMarcajes(){
+  const sel=document.getElementById('marcajesFiltroReloj');
+  if(!sel)return;
+  const actual=sel.value;
+  sel.innerHTML='<option value="">Todos los relojes</option>'+
+    relojes.map(r=>'<option value="'+escHtml(r.id)+'">'+escHtml(r.nombre)+'</option>').join('');
+  if([...sel.options].some(o=>o.value===actual))sel.value=actual;
+}
+
+// ------------------------------------------------------------------
+// EL CENTRO DE COSTO
+// ------------------------------------------------------------------
+// El filtro por reloj no contesta "¿quién trabajó en la obra Norte?". El
+// reloj es el aparato; el centro de costo es contra qué se paga, y es lo que
+// necesita la planilla. Son dos cosas distintas y se piden las dos.
+function llenarFiltroCentrosMarcajes(){
+  const sel=document.getElementById('marcajesFiltroCentro');
+  if(!sel)return;
+  const actual=sel.value;
+  sel.innerHTML='<option value="">Todos los centros</option>'+
+    centrosCosto.map(c=>'<option value="'+escHtml(c.id)+'">'+escHtml(c.code)+' — '+escHtml(c.nombre)+'</option>').join('');
+  if([...sel.options].some(o=>o.value===actual))sel.value=actual;
+}
+
+// ------------------------------------------------------------------
+// EL RANGO
+// ------------------------------------------------------------------
+function leerRangoMarcajes(){
+  return {
+    desde:document.getElementById('marcajesFiltroDesde')?.value||'',
+    hasta:document.getElementById('marcajesFiltroHasta')?.value||''
+  };
+}
+
+// La fecha local, en AAAA-MM-DD.
+//
+// toISOString() NO sirve: convierte a UTC, y Chile está cuatro horas atrás.
+// Entre las 20:00 y las 24:00 devuelve el día SIGUIENTE. Un filtro de "hoy"
+// que a las 21:00 muestra las marcas de mañana no es un detalle de formato:
+// hace creer que alguien@Api marcó antes de existir.
+function fechaLocalISO(d){
+  return d.getFullYear()+'-'
+    +String(d.getMonth()+1).padStart(2,'0')+'-'
+    +String(d.getDate()).padStart(2,'0');
+}
+
+// ------------------------------------------------------------------
+// LOS ATAJOS
+// ------------------------------------------------------------------
+// Escriben las fechas y llaman al filtrado, que es el mismo camino que el
+// resto del filtro. No hay atajos con lógica aparte: si la hubiera, el atajo
+// y el filtro se desincronizan sin que nadie lo note hasta que las cifras no
+// cuadran con la planilla.
+function atajoMarcajes(cual){
+  const hoy=new Date();
+  if(cual==='hoy'){return ponerRangoMarcajes(fechaLocalISO(hoy),fechaLocalISO(hoy));}
+  if(cual==='ayer'){
+    const a=new Date(hoy);a.setDate(a.getDate()-1);
+    return ponerRangoMarcajes(fechaLocalISO(a),fechaLocalISO(a));
+  }
+  if(cual==='semana'){
+    // Últimos 7 días, el mismo rango que trae la carga. No es "la semana
+    // laboral": es "la semana pasada", que es lo que se pregunta cuando
+    // alguien denuncia que le faltan días.
+    const d=new Date(hoy);d.setDate(d.getDate()-7);
+    return ponerRangoMarcajes(fechaLocalISO(d),fechaLocalISO(hoy));
+  }
+  if(cual==='todo')return ponerRangoMarcajes('','');
+}
+function ponerRangoMarcajes(desde,hasta){
+  const a=document.getElementById('marcajesFiltroDesde');
+  const b=document.getElementById('marcajesFiltroHasta');
+  if(a)a.value=desde;
+  if(b)b.value=hasta;
+  marcarAtajoMarcajes();
+  filtrarMarcajes();
+}
+function marcarAtajoMarcajes(){
+  const hoy=fechaLocalISO(new Date());
+  const a=document.getElementById('marcajesFiltroDesde')?.value||'';
+  const b=document.getElementById('marcajesFiltroHasta')?.value||'';
+  document.querySelectorAll('[data-marcajes-atajo]').forEach(x=>{
+    const c=x.dataset.marcajesAtajo;
+    let activo=false;
+    if(c==='hoy')activo=(a===hoy&&b===hoy);
+    if(c==='todo')activo=(!a&&!b);
+    if(c==='ayer'||c==='semana')activo=false;
+    x.classList.toggle('activo',activo);
+  });
+}
+
+// ------------------------------------------------------------------
+// QUÉ SE ESTÁ VIENDO
+// ------------------------------------------------------------------
+// El pie decía siempre "de los últimos 7 días", estén o no los filtros
+// puestos. Con un filtro activo, ese texto pasa por cierto: la persona ve
+// 6 marcajes y un rótulo que dice que hay 100. Se escribe lo que hay.
+function descripcionFiltroMarcajes(){
+  const f=filtroMarcajes;
+  const partes=[];
+  if(f.buscar)partes.push('trabajador "'+f.buscar+'"');
+  if(f.centro){
+    const c=centrosCosto.find(x=>String(x.id)===String(f.centro));
+    partes.push('centro '+(c?c.code:'(desconocido)'));
+  }
+  if(f.reloj){
+    const r=relojes.find(x=>String(x.id)===String(f.reloj));
+    partes.push('reloj '+(r?r.nombre:'(desconocido)'));
+  }
+  if(f.tipo)partes.push('tipo '+(f.tipo==='entrada'?'entrada':f.tipo==='salida'?'salida':f.tipo.replace('colacion_','colación ')));
+  if(f.desde||f.hasta){
+    partes.push(f.desde&&f.hasta?(f.desde===f.hasta?('el '+f.desde):('del '+f.desde+' al '+f.hasta))
+      :(f.desde?('desde el '+f.desde):('hasta el '+f.hasta)));
+  }
+  if(!partes.length)return' Sin filtros: todo lo cargado.';
+  return' Filtros: '+partes.join(', ')+'.';
+}
+
 // KIT DE CONTRATACIÓN
 // ===================================================================
 //
@@ -11932,7 +12999,7 @@ function abrirPapel(plantillaCode,code){
     document.getElementById('papelError').innerHTML=escHtml(avisoSinEmpresaUnica());
   }
   donde.innerHTML=reemplazarCampos(p.contenido,w,{
-    centro:centroDeRelojDe(w)||(typeof empresaActual!=='undefined'&&empresaActual?empresaActual.nombre:'')
+    centro:centroDeRelojDe(w)||((empresaDelPapel()||{}).nombre||'')
   })+htmlFirmas(p,entrega)+htmlTimbre();
   // Los dos recuadros de firma se vuelven a dibujar vacíos, con la
   // firma ya puesta de fondo si la había.

@@ -182,8 +182,12 @@ create table if not exists public.plantillas_contratacion (
   vigente boolean not null default true,
   -- Orden en el checklist del kit.
   orden int not null default 100,
-  -- Si tiene que ir firmado por el supervisor además del trabajador.
-  requiere_supervisor boolean not null default true,
+  -- Quién firma este papel. Un solo valor, no un sí/no, porque hay tres
+  -- casos y el booleano sólo alcanza para dos: si el papel no lo firma
+  -- nadie (un informativo), lo firma el trabajador, o lo firman los dos.
+  -- Con un booleano, el caso "nadie" se confunde con "el trabajador".
+  firmas text not null default 'trabajador_supervisor'
+    check (firmas in ('ninguno','trabajador','trabajador_supervisor')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -337,7 +341,7 @@ returns table (
   especialidad_clave text,
   version int,
   orden int,
-  requiere_supervisor boolean,
+  firmas text,
   estado text,               -- '' = no entregada
   entrega_id uuid,
   firmado_trabajador_at timestamptz,
@@ -350,7 +354,7 @@ set search_path = public
 as $$
   select
     p.id, p.code, p.nombre, p.tipo, p.especialidad_clave, p.version, p.orden,
-    p.requiere_supervisor,
+    coalesce(p.firmas, 'trabajador'),
     coalesce(e.estado, ''),
     e.id,
     e.firmado_trabajador_at,
@@ -462,7 +466,7 @@ begin
   -- La firma del supervisor va aparte, y SOLO si la plantilla la pide.
   -- Meterla siempre dejaría papeles con dos firmas donde la plantilla pide
   -- una, que es un documento mal hecho.
-  if v_p.requiere_supervisor and nullif(p_firma_supervisor,'') is not null then
+  if v_p.firmas in ('trabajador','trabajador_supervisor') and nullif(p_firma_supervisor,'') is not null then
     update public.entregas_contratacion
        set firma_supervisor = p_firma_supervisor,
            firmado_supervisor_at = now(),

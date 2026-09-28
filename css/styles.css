@@ -194,6 +194,199 @@ El fondo es blanco SIEMPRE, incluso en modo oscuro. Un acta firmada en
 negro sobre negro no se lee, y el que la va a imprimir es un usuario que
 puede tener el modo oscuro activado por accidente.
 ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+EL KIOSCO
+------------------------------------------------------------------
+La pantalla del reloj se muestra a pantalla completa con el navegador en
+modo kiosco. Eso obliga a que el CSS apague todo lo que no sirve para marcar
+y que se abra la pantalla completa: sin las dos cosas, el "bloqueo" es solo
+una barra de direcciones que el trabajador puede cerrar.
+
+`overflow: hidden` en html y body quita el scroll de todo el documento,
+incluido el scroll interno de las tarjetas: si queda, con el dedo en la
+pantalla se mueve la página y la zona de escaneo se va.
+
+`cursor: none` esconde el puntero tras 3 segundos sin moverlo. En una pantalla
+táctil no se nota; en un escritorio de prueba, sí, y por eso el kiosco se
+puede desactivar por reloj. */
+.modo-kiosco html, .modo-kiosco body {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+.modo-kiosco { cursor: none; }
+.modo-kiosco #totemZonaKiosco,
+.modo-kiosco #totemMensaje,
+.modo-kiosco #totemPistaKiosco { cursor: none; }
+
+/* La barra del tótem (el reloj, el selector de tipo, el botón salir) se
+   esconde. El tipo de marca lo elige quien instala el reloj, no el
+   trabajador, y si se deja puesto cualquier dedo lo cambia por error. */
+.modo-kiosco .totem-barra { display: none !important; }
+.modo-kiosco .totem-salir { display: none !important; }
+
+/* La zona de las cinco pulsaciones. Transparente, sin ícono y con el área
+   de la esquina superior izquierda. Es invisible a propósito: si se le
+   pusiera un ícono, sería un botón de salida y el bloqueo no serviría. */
+#totemZonaKiosco {
+  position: fixed;
+  top: 0; left: 0;
+  width: 18vw; height: 18vh;
+  min-width: 90px; min-height: 90px;
+  z-index: 60;
+  /* Sin fondo, sin borde: es una zona de captura, no un control. */
+  background: transparent;
+  /* El outline se enciende a partir de la tercera pulsación, como
+     confirmación de que algo está pasando. */
+  outline: none;
+  /* Sin esto el toque se traduce en un click y hace scroll en varios
+     navegadores de Android. */
+  touch-action: manipulation;
+}
+#totemZonaKiosco:active { background: rgba(255,255,255,.02); }
+
+/* La cuenta de pulsaciones. Aparece a partir de la tercera, en el medio
+   abajo, donde no tapa la zona de escaneo. */
+#totemPistaKiosco {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: 14vh;
+  text-align: center;
+  color: rgba(255,255,255,.5);
+  font-size: 1.4rem;
+  letter-spacing: .3em;
+  pointer-events: none;
+  z-index: 59;
+  min-height: 1.6em;
+}
+
+/* Un usuario reloj no ve el panel: la pantalla de marcaje es todo. */
+.solo-reloj #subNav,
+.solo-reloj #mainNav,
+.solo-reloj header { display: none !important; }
+
+/* ------------------------------------------------------------------
+LA TABLA DE MARCAJES
+------------------------------------------------------------------
+Se hace con divs y no con una <table> porque cada fila es un registro
+dentro de un contenedor con scroll, y una tabla con muchos miles de filas
+deja de scrollear bien en varios navegadores. Con la cabecera fija y las
+filas con `display: grid` en las mismas proporciones, el scroll es fluido y
+las columnas quedan alineadas.
+
+Las proporciones son de la más ancha a la más chica: nombre del trabajador
+(que es lo más largo), fecha, hora, marca, origen y reloj. */
+.marcajes-tabla {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 62vh;
+  background: var(--surface);
+}
+.marcajes-cabecera,
+.marcajes-fila {
+  display: grid;
+  grid-template-columns:
+    100px   /* fecha   */
+    62px    /* hora    */
+    minmax(0, 1fr)  /* nombre */
+    92px    /* marca   */
+    86px    /* origen  */
+    minmax(0, 0.7fr)   /* reloj */
+    minmax(0, 0.9fr);  /* centro de costo */
+  }
+  /* En pantallas angostas la septima columna no cabe. Se oculta la CELDA,
+     no el dato: el filtro por centro sigue funcionando y el reloj ya
+     identifica la fila. Es preferible a dejar el texto cortado a la
+     mitad, que parece un error de la pantalla. */
+  @media (max-width: 1150px) {
+    .marcajes-fila,
+    .marcajes-cabecera { grid-template-columns: 96px 58px minmax(0, 1fr) 88px 82px minmax(0, 0.8fr); }
+    .marcajes-fila .m7,
+    .marcajes-cabecera .m7 { display: none; }
+  }
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  font-size: .88rem;
+}
+.marcajes-cabecera {
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  font-weight: 600;
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--muted);
+  z-index: 2;
+}
+.marcajes-fila {
+  border-bottom: 1px solid var(--line);
+}
+.marcajes-fila:last-child { border-bottom: 0; }
+.marcajes-fila:hover { background: var(--surface-hover); }
+.marcajes-fila .m2 { font-family: ui-monospace, monospace; }
+.marcajes-fila .m5,
+.marcajes-fila .m6,
+.marcajes-fila .m7 { color: var(--muted); font-size: .82rem; }
+.marcajes-fila small { color: var(--muted); }
+
+/* Los atajos de fecha de los marcajes. Un botón que está puesto tiene que
+   verse puesto: si no, la persona aprieta "Hoy", ve la lista cambiar, y no
+   puede confirmar que el filtro quedó bien. */
+.marcajes-atajos { display: flex; gap: 6px; flex-wrap: wrap; }
+.marcajes-atajos .btn { padding: .4rem .85rem; font-size: .85rem; }
+.marcajes-atajos .btn.activo {
+  /* --accent es el verde de la paleta. Escribir --brand, que no existe,
+     deja el fondo transparente: el botón queda igual de apretado que sin
+     estarlo, y no hay forma de saber qué filtro está puesto. */
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.marcajes-atajos .btn.activo:hover { filter: brightness(1.08); }
+
+/* La hora del reloj. Va en grande arriba a la derecha de la barra. Un
+   Android TV Box colgado en la portería se mira a dos metros: letra de
+   cuerpo no se lee a esa distancia. */
+.totem-hora {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.totem-fecha {
+  font-size: .85rem;
+  color: var(--muted);
+}
+.totem-barra .totem-hora-caja {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.15;
+  margin-right: auto;
+}
+
+.aviso-fila {
+  background: var(--warn-surface);
+  border: 1px solid var(--warn);
+  color: var(--warn-ink);
+  padding: 9px 11px;
+  border-radius: 8px;
+  font-size: .88rem;
+}
+.vacio {
+  padding: 26px;
+  text-align: center;
+  color: var(--muted);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+}
+
 .hoja-papel{
   width:794px;min-height:1123px;background:#fff;color:#111;
   margin:0 auto;padding:56px 62px;box-sizing:border-box;

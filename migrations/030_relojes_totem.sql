@@ -404,6 +404,13 @@ grant execute on function public.marcar_por_reloj(text, text, text, integer) to 
 -- ------------------------------------------------------------
 -- 7) DIAGNÓSTICO
 -- ------------------------------------------------------------
+-- Hay que eliminarla antes: "create or replace" no puede cambiar el tipo
+-- de retorno de una funcion que ya existe, y la base puede tenerla de una
+-- corrida anterior. El error que sale es
+--   42P13: cannot change return type of existing function
+-- que no dice en que linea esta el problema.
+drop function if exists public.diagnostico_relojes();
+
 create or replace function public.diagnostico_relojes()
 returns table (
   tabla_relojes boolean,
