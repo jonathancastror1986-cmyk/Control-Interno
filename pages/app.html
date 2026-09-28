@@ -80,6 +80,40 @@ small{color:var(--muted)}
 .camUpload:hover{background:var(--accent2);color:#fff}
 .camActions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:4px}
 .camActions .btn{margin-top:10px}
+/* ---- asistencia diaria del supervisor ---- */
+.mkResumen{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:.85rem;margin:10px 0}
+.mkFila{display:grid;grid-template-columns:minmax(180px,2fr) minmax(130px,1fr) 110px auto;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid var(--line)}
+.mkFila:last-child{border-bottom:0}
+.mkFila.mkAusente{background:rgba(247,201,208,.18)}
+.mkNombre b{font-weight:700}
+.mkNombre small{color:var(--muted);margin-left:6px}
+.mkTags{margin-left:8px}
+.mkTags em{font-style:normal;font-size:.65rem;padding:2px 7px;border-radius:99px;margin-right:5px;white-space:nowrap}
+.tagSocial{background:#e6dcf5;color:#4a2d80}
+.tagPrev{background:#fde8cf;color:#8a4b06}
+.mkEstado{display:flex;flex-direction:column;gap:3px}
+.mkEstado small{color:var(--muted);font-size:.72rem}
+.mkEstado small b.late{color:var(--danger)}
+.mkPill{display:inline-block;font-size:.68rem;font-weight:700;padding:3px 9px;border-radius:99px;white-space:nowrap}
+.mkPill.ok{background:#d8efdc;color:var(--accent)}
+.mkPill.no{background:#f7c9d0;color:var(--danger)}
+.mkPill.warn{background:#ffe9b0;color:#7a5200}
+.mkAcciones{text-align:right}
+/* ventana de avisos al marcar */
+#marcajeModal{position:fixed;inset:0;z-index:102;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,18,.74)}
+#marcajeModal.open{display:flex}
+.mkBox{width:min(540px,100%);max-height:92vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.mkBox h3{margin:0 0 2px}
+.mkQuien{font-size:.85rem;color:var(--muted);margin-bottom:14px}
+.mkQuien b{color:var(--ink)}
+.mkAviso{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);margin-bottom:8px;font-size:.85rem}
+.mkAvisoIcono{font-size:1.2rem;line-height:1.2}
+.mkAvisoDonde{margin-top:5px;font-size:.78rem;color:var(--accent2)}
+.mkFoot{display:flex;justify-content:flex-end;margin-top:12px}
+@media (max-width:640px){
+  .mkFila{grid-template-columns:1fr 1fr}
+  .mkAcciones{grid-column:1/-1;text-align:left}
+}
 /* ---- modal de solicitud de cambio de estado ---- */
 #solModal{position:fixed;inset:0;z-index:101;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,18,.74)}
 #solModal.open{display:flex}
@@ -447,6 +481,10 @@ small{color:var(--muted)}
       <div><label>Teléfono</label><input id="emp-telefono"></div>
       <div><label>Email</label><input id="emp-email" type="email"></div>
       <div><label>Sitio web</label><input id="emp-web"></div>
+    </div>
+    <div class="row">
+      <div><label>Hora de entrada</label><input type="time" id="emp-hora-entrada"></div>
+      <div><label>Tolerancia (minutos)</label><input type="number" min="0" step="1" id="emp-tolerancia"></div>
     </div>
     <div class="row">
       <div><label>Logo</label><input type="file" accept="image/*" id="emp-logo"></div>
@@ -1003,6 +1041,41 @@ small{color:var(--muted)}
   </div>
 </div>
 
+<section class="view" id="v-sup-diaria">
+  <div id="diariaAviso" style="display:none;margin-bottom:12px"></div>
+  <div class="card">
+    <h2>Asistencia diaria</h2>
+    <small>Cada trabajador de tu equipo pasa su tarjeta y queda <b>presente</b> con la hora real. Si al fichar hay algo que resolver, sale una ventana indicando a qué tiene que ir.</small>
+    <div class="row">
+      <div id="diariaSupWrap"><label>Supervisor</label><select id="supDiariaSup" onchange="renderDiaria()"></select></div>
+      <div><label>Fecha</label><input type="date" id="diariaFecha" onchange="cambiarFechaDiaria()"></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn" type="button" onclick="openQrCamera('sup-diaria')">📷 Escanear tarjeta</button>
+        <button class="btn secondary" type="button" onclick="initDiaria()">Actualizar</button>
+      </div>
+    </div>
+    <div class="mkResumen" id="diariaResumen"></div>
+    <div class="overflow"><div id="diariaLista"></div></div>
+    <p><small>El marcaje queda guardado en la tabla <b>marcajes</b> y la entrada también se refleja como <b>X</b> en la tarja del día.</small></p>
+  </div>
+  <div class="card">
+    <h2>Avisos del día</h2>
+    <small>Atrasos, mensajes de la asistente social y de prevención, se anotan solos al marcar la tarjeta.</small>
+    <div id="diariaAvisosLista"></div>
+  </div>
+</section>
+
+<div id="marcajeModal" role="dialog" aria-modal="true" aria-labelledby="marcajeModalTitle">
+  <div class="mkBox">
+    <h3 id="marcajeModalTitle">Marcaje registrado</h3>
+    <div class="mkQuien" id="marcajeQuien"></div>
+    <div id="marcajeLista"></div>
+    <div class="mkFoot">
+      <button class="btn" type="button" onclick="cerrarAvisoMarcaje()">Entendido</button>
+    </div>
+  </div>
+</div>
+
 <section class="view" id="v-exportar">
   <div class="card">
     <h2>Exportar códigos para carga masiva a remuneraciones</h2>
@@ -1252,7 +1325,10 @@ const navGroups = {
       {v:'bodega-qr',label:'QR / Etiquetas'}
     ]}
   ],
-  supervisores: [{v:'supervisores',label:'Equipos y tarja'}]
+  supervisores: [{v:'supervisores',label:'Supervisores',options:[
+    {v:'supervisores',label:'Equipos y tarja'},
+    {v:'sup-diaria',label:'Asistencia diaria'}
+  ]}]
 };
 function initView(v){
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
@@ -1278,6 +1354,7 @@ function initView(v){
   if(v==='bodega-epp-catalogo'){renderEppCatalog();}
   if(v==='bodega-qr'){initQrView();}
   if(v==='supervisores'){initSupervisores();}
+  if(v==='sup-diaria'){initDiaria();}
   if(v==='asistencia'){
     showAttendancePanel('tarja');
     const yearInput=document.getElementById('matYear');
@@ -1979,6 +2056,7 @@ function handleScannedCode(rawCode,purpose){
   const code=String(rawCode||'').trim();
   if(!code)return;
   if(purpose==='attendance-worker'||purpose==='attendance-supervisor'){applyAttendanceQr(code,purpose);return;}
+  if(purpose==='sup-diaria'){marcarPorEscaneo(code);return;}
   if(purpose==='epp-worker'){selectEppWorkerByScan(code);return;}
   if(purpose==='kit-worker'){selectKitWorkerByScan(code);return;}
   if(purpose==='epp-historial'){filtrarHistorialPorScan(code);return;}
@@ -2249,6 +2327,393 @@ function addHoliday(){
   renderMatrix();
 }
 // ---------- supervisores ----------
+// ============================================================
+// ASISTENCIA DIARIA DEL SUPERVISOR
+// Lista de su gente para un día. Cada uno pasa su tarjeta y queda
+// presente con la hora real de entrada. Si al fichar hay algo que
+// resolver (llegó tarde, la asistente social lo busca, prevención
+// tiene algo que decirle) se abre una ventana con el detalle y a qué
+// tiene que ir.
+// ============================================================
+let marcajes=[];        // marcajes del día que se está viendo
+let avisosMarcaje=[];   // alertas generadas
+let fechaDiaria=hoyLocal();
+
+function empresaDeEquipo(supCode){
+  const jefe=workers.find(w=>w.code===(supCode||miCodigoSupervidor));
+  return jefe?empresas.find(e=>mismoId(e.id,jefe.empresa_id))||empresas[0]:empresas[0];
+}
+function horaEntradaDe(supCode){
+  const emp=empresaDeEquipo(supCode);
+  return (emp&&emp.hora_entrada)||'08:00';
+}
+function toleranciaDe(supCode){
+  const emp=empresaDeEquipo(supCode);
+  return (emp&&emp.tolerancia_minutos!=null)?Number(emp.tolerancia_minutos):10;
+}
+function hhmmActual(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function minutosDe(hhmm){
+  const p=String(hhmm||'').split(':');
+  if(p.length<2)return null;
+  const h=parseInt(p[0],10), m=parseInt(p[1],10);
+  if(isNaN(h)||isNaN(m))return null;
+  return h*60+m;
+}
+
+async function loadMarcajesDia(){
+  const {data,error}=await window.supabaseClient.from('marcajes')
+    .select('*').eq('fecha',fechaDiaria);
+  if(error){
+    const box=document.getElementById('diariaAviso');
+    if(box){
+      box.style.display='';
+      box.innerHTML=`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+        <b>No se pudieron leer los marcajes.</b> <small>${escHtml(error.message)}</small><br>
+        <small>Falta la migración 017: ejecuta 017_marcajes_diarios.sql.</small></div>`;
+    }
+    marcajes=[];
+    renderDiaria();
+    return;
+  }
+  const box=document.getElementById('diariaAviso');
+  if(box)box.style.display='none';
+  marcajes=data||[];
+  renderDiaria();
+}
+async function loadAvisosDia(){
+  const {data}=await window.supabaseClient.from('avisos_marcaje')
+    .select('*').eq('fecha',fechaDiaria).order('created_at',{ascending:false});
+  avisosMarcaje=data||[];
+}
+function marcajeDe(code,tipo){
+  return marcajes.find(m=>m.code===code&&m.tipo===tipo)||null;
+}
+
+// Las alertas de un trabajador: social, prevención y atraso.
+function revisarAlertas(w,horaMarcaje){
+  const avisos=[];
+  const entradaEsp=horaEntradaDe(miCodigoSupervisor);
+  const tolerancia=toleranciaDe(miCodigoSupervisor);
+  const minMarcaje=minutosDe(horaMarcaje);
+  const minEntrada=minutosDe(entradaEsp);
+  if(minMarcaje!=null&&minEntrada!=null&&minMarcaje>minEntrada+tolerancia){
+    const atraso=minMarcaje-(minEntrada+tolerancia);
+    const h=Math.floor(atraso/60), m=atraso%60;
+    const texto=[h?`${h} h`:'',m?`${m} min`:''].filter(Boolean).join(' ') || 'unos minutos';
+    avisos.push({
+      tipo:'atraso',
+      titulo:'Marcaje fuera de hora',
+      texto:`Marcaste a las <b>${horaMarcaje}</b> y la hora de entrada es <b>${entradaEsp}</b> (tolerancia de ${tolerancia} min). Llevas ${texto} de atraso.`,
+      donde:'Administración',
+      icono:'⏰'
+    });
+  }
+  if(w.alerta_social){
+    avisos.push({
+      tipo:'social',
+      titulo:'La asistente social quiere hablar contigo',
+      texto:w.alerta_social_nota?escHtml(w.alerta_social_nota):'Tienes una anotación de la asistente social pendiente de revisar.',
+      donde:'Asistente Social',
+      icono:'💬'
+    });
+  }
+  if(w.alerta_prevencion){
+    avisos.push({
+      tipo:'prevencion',
+      titulo:'Prevención tiene algo que indicarte',
+      texto:w.alerta_prevencion_nota?escHtml(w.alerta_prevencion_nota):'Tienes una anotación de prevención pendiente de revisar.',
+      donde:'Prevención',
+      icono:'🦺'
+    });
+  }
+  return avisos;
+}
+
+async function registrarMarcaje(code,tipo,origen,nota,horaPedida){
+  const w=workers.find(x=>x.code===code);
+  if(!w)return null;
+  const yaExiste=marcajeDe(code,tipo);
+  if(yaExiste)return yaExiste;
+  // si el supervisor escribió una hora, esa es la que manda; si no, la de ahora
+  const hora=horaPedida||hhmmActual();
+  const {data:sesion}=await window.supabaseClient.auth.getSession();
+  const miId=sesion&&sesion.session&&sesion.session.user&&sesion.session.user.id;
+  const {data,error}=await window.supabaseClient.from('marcajes').insert({
+    code,fecha:fechaDiaria,hora,tipo,
+    origen:origen||'qr',
+    nota:nota||null,
+    registrado_por:miId,
+    registrado_por_nombre:miNombrePerfil()
+  }).select().single();
+  if(error){
+    alert('No se pudo guardar el marcaje: '+error.message);
+    return null;
+  }
+  marcajes.push(data);
+  // La entrada deja la asistencia en X con la hora, para que la tarja lo
+  // vea al tiro sin tener que sincronizar nada más.
+  if(tipo==='entrada'){
+    await saveAttendanceState(code,fechaDiaria,'X');
+    const rec=attendance.find(a=>a.code===code&&a.date===fechaDiaria);
+    if(rec)rec.hora_llegada=hora;
+  }
+  return data;
+}
+async function guardarAvisos(code,marcaje,avisos){
+  if(!avisos.length)return;
+  const filas=avisos.map(a=>({
+    marcaje_id:marcaje?marcaje.id:null,
+    code,fecha:fechaDiaria,
+    tipo_alerta:a.tipo,
+    mensaje:`${a.titulo}: ${a.texto.replace(/<[^>]*>/g,'')}`,
+    visto:false
+  }));
+  const {error}=await window.supabaseClient.from('avisos_marcaje').insert(filas);
+  if(error)console.warn('No se pudieron guardar los avisos:',error.message);
+  else avisosMarcaje.unshift(...filas);
+}
+
+// Escaneo de tarjeta en la asistencia diaria.
+async function marcarPorEscaneo(scanned){
+  const w=resolverCodigoTrabajador(scanned);
+  if(!w)return;
+  // Solo su equipo. Si es RRHH o administración, se avisa y no se marca.
+  if(miCodigoSupervisor&&w.supervisor_code!==miCodigoSupervisor){
+    alert(w.name+' no está a tu cargo. Solo puedes registrar el marcaje de tu equipo.');
+    return;
+  }
+  if(!miCodigoSupervisor&&!soyAdmin()){
+    alert('Tu usuario no está vinculado a un supervisor, así que no hay equipo al que registrarle el marcaje. Un administrador lo vincula en Soporte → Usuarios.');
+    return;
+  }
+  const entrada=marcajeDe(w.code,'entrada');
+  const salida=marcajeDe(w.code,'salida');
+  const hora=hhmmActual();
+  if(navigator.vibrate){try{navigator.vibrate(120);}catch(error){}}
+  // Ya fichó entrada y salida: solo se informa.
+  if(entrada&&salida){
+    renderDiaria();
+    abrirAvisoMarcaje(w,{yaCompleto:true,entrada,salida});
+    return;
+  }
+  // Todavía no sale: el siguiente escaneo es la salida.
+  const tipo=entrada?'salida':'entrada';
+  const m=await registrarMarcaje(w.code,tipo,'qr');
+  if(!m)return;
+  const avisos=tipo==='entrada'?revisarAlertas(w,hora):[];
+  await guardarAvisos(w.code,m,avisos);
+  await loadAvisosDia();
+  renderDiaria();
+  abrirAvisoMarcaje(w,{tipo,hora,marcaje:m,avisos});
+}
+
+// Ajustar manualmente (se le olvidó la tarjeta, se le olvidó el reloj).
+async function marcarManual(code,tipo){
+  const w=workers.find(x=>x.code===code);
+  if(!w)return;
+  const hora=prompt(`¿A qué hora fichó ${w.name}?`,hhmmActual());
+  if(hora===null)return;
+  if(!/^\d{1,2}:\d{2}$/.test(hora.trim())){alert('Escribe la hora como HH:MM.');return;}
+  if(marcajeDe(code,tipo)){alert('Ya tiene ese marcaje registrado hoy.');return;}
+  const m=await registrarMarcaje(code,tipo,'manual',null,hora.trim());
+  if(!m)return;
+  if(tipo==='entrada'){
+    const avisos=revisarAlertas(w,hora.trim());
+    await guardarAvisos(code,m,avisos);
+  }
+  await loadAvisosDia();
+  renderDiaria();
+  alert('Marcaje registrado: '+tipo+' a las '+hora.trim()+'.');
+}
+
+// La ventana que ve el supervisor (y que se le puede mostrar al worker).
+function abrirAvisoMarcaje(w,info){
+  const {tipo,hora,avisos,entrada,salida,yaCompleto}=info;
+  // se guarda el código para poder marcar los avisos como atendidos al cerrar
+  modalCtx={code:w.code,fecha:fechaDiaria,estadoActual:null};
+  const lista=yaCompleto
+    ?[{icono:'✅',titulo:'Marcaje completo',texto:`Entrada a las <b>${entrada.hora}</b> y salida a las <b>${salida.hora}</b>.`,donde:null}]
+    :[{icono:'✅',titulo:tipo==='entrada'?'Presente registrado':'Salida registrada',
+        texto:tipo==='entrada'
+          ? `Tu marcaje quedó guardado a las <b>${hora}</b>.`
+          : `Se registró tu salida a las <b>${hora}</b>.`,
+        donde:null}
+      ].concat(avisos||[]);
+  document.getElementById('marcajeQuien').innerHTML=
+    `<b>${escHtml(w.name)}</b> · código ${escHtml(w.code)} · ${escHtml(fechaDiaria)}`;
+  document.getElementById('marcajeLista').innerHTML=lista.map(a=>
+    `<div class="mkAviso">
+      <div class="mkAvisoIcono">${a.icono}</div>
+      <div>
+        <b>${escHtml(a.titulo)}</b>
+        <div>${a.texto}</div>
+        ${a.donde?`<div class="mkAvisoDonde">Debe pasar por <b>${escHtml(a.donde)}</b></div>`:''}
+      </div>
+    </div>`).join('');
+  document.getElementById('marcajeModal').classList.add('open');
+}
+
+// Formatea una fecha sin arriesgarse a mostrar "Invalid Date" si el dato
+// viene vacío o con un formato inesperado.
+function fechaLegible(valor,conHora){
+  if(!valor)return '';
+  const d=new Date(valor);
+  if(isNaN(d.getTime()))return '';
+  try{
+    return conHora
+      ? d.toLocaleString('es-CL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})
+      : d.toLocaleDateString('es-CL');
+  }catch(error){return '';}
+}
+function renderAvisosDia(){
+  const el=document.getElementById('diariaAvisosLista');
+  if(!el)return;
+  if(!avisosMarcaje.length){el.innerHTML='<small>Nada anotado todavia.</small>';return;}
+  el.innerHTML=avisosMarcaje.map(a=>{
+    const w=workers.find(x=>x.code===a.code);
+    const icono=a.tipo_alerta==='atraso'?'⏰':a.tipo_alerta==='social'?'💬':a.tipo_alerta==='prevencion'?'🦺':'ℹ️';
+    const donde=a.tipo_alerta==='atraso'?'Administración':a.tipo_alerta==='social'?'Asistente Social':a.tipo_alerta==='prevencion'?'Prevención':'';
+    return `<div class="mkAviso" style="${a.visto?'opacity:.6':''}">
+      <div class="mkAvisoIcono">${icono}</div>
+      <div><b>${escHtml(a.code)} ${w?escHtml(w.name):''}</b>${fechaLegible(a.created_at,true)?` <small>${fechaLegible(a.created_at,true)}</small>`:''}${a.visto?' <small>(atendido)</small>':''}
+        <div>${escHtml(a.mensaje)}</div>
+        ${donde?`<div class="mkAvisoDonde">Debe pasar por <b>${escHtml(donde)}</b></div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function renderDiaria(){
+  const list=document.getElementById('diariaLista');
+  if(!list)return;
+  const selSup=document.getElementById('supDiariaSup');
+  const supCode=selSup?selSup.value:miCodigoSupervisor;
+  if(!supCode){list.innerHTML='<small>Selecciona un supervisor.</small>';return;}
+  const equipo=equipoDe(supCode);
+  if(!equipo.length){list.innerHTML='<small>Este supervisor no tiene trabajadores asignados.</small>';return;}
+
+  const entradaEsp=horaEntradaDe(supCode);
+  const tolerancia=toleranciaDe(supCode);
+  const filas=equipo.map(w=>{
+    const ent=marcajeDe(w.code,'entrada');
+    const sal=marcajeDe(w.code,'salida');
+    const minEnt=ent?minutosDe(ent.hora):null;
+    const minEsp=minutosDe(entradaEsp);
+    const tarde=minEnt!=null&&minEsp!=null&&minEnt>minEsp+tolerancia;
+    const pendientes=avisosMarcaje.filter(a=>a.code===w.code&&!a.visto);
+    const social=w.alerta_social?'social ':'';
+    const prev=w.alerta_prevencion?'prevencion ':'';
+    return `<div class="mkFila${ent?'':' mkAusente'}" data-code="${escHtml(w.code)}">
+      <div class="mkNombre">
+        <b>${escHtml(w.code)}</b> ${escHtml(w.name)}
+        <small>${escHtml(w.spec||'')}</small>
+        ${(social||prev)?`<span class="mkTags">${social?'<em class="tagSocial">Asist. social</em>':''}${prev?'<em class="tagPrev">Prevención</em>':''}</span>`:''}
+      </div>
+      <div class="mkEstado">
+        ${ent
+          ? `<span class="mkPill ok">${sal?'Completo':'Presente'}</span>
+             <small>${ent.hora}${sal?' · sale '+sal.hora:''}${tarde?' · <b class="late">tarde</b>':''}</small>`
+          : `<span class="mkPill no">Sin marcar</span>`}
+      </div>
+      <div class="mkAvisosPend">
+        ${pendientes.length?`<span class="mkPill warn" title="Ver avisos">${pendientes.length} aviso(s)</span>`:''}
+      </div>
+      <div class="mkAcciones">
+        <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
+          onclick="marcarManual('${escHtml(w.code)}','${ent?'salida':'entrada'}')">
+          ${ent?'Marcar salida':'Marcar entrada'}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  const presentes=equipo.filter(w=>marcajeDe(w.code,'entrada')).length;
+  const completos=equipo.filter(w=>marcajeDe(w.code,'entrada')&&marcajeDe(w.code,'salida')).length;
+  const conAviso=avisosMarcaje.filter(a=>!a.visto).length;
+  list.innerHTML=filas;
+  renderAvisosDia();
+  const resumen=document.getElementById('diariaResumen');
+  if(resumen){
+    resumen.innerHTML=`<b>${presentes}</b> de <b>${equipo.length}</b> presentes · <b>${completos}</b> con salida registrada`+
+      (conAviso?` · <b style="color:var(--accent2)">${conAviso}</b> aviso(s) por atender`:'');
+  }
+}
+
+async function cambiarFechaDiaria(){
+  fechaDiaria=(document.getElementById('diariaFecha')||{}).value||hoyLocal();
+  loadMarcajesDia().then(loadAvisosDia).then(renderDiaria);
+}
+async function initDiaria(){
+  const sel=document.getElementById('supDiariaSup');
+  if(sel){
+    const sups=workers.filter(w=>w.is_supervisor);
+    if(miCodigoSupervisor){
+      sel.innerHTML=`<option value="${escHtml(miCodigoSupervisor)}">${escHtml((workers.find(w=>w.code===miCodigoSupervisor)||{}).name||'')}</option>`;
+      sel.value=miCodigoSupervisor;
+      sel.disabled=true;
+    }else{
+      sel.disabled=false;
+      sel.innerHTML=sups.map(s=>`<option value="${escHtml(s.code)}">${escHtml(s.name)}</option>`).join('');
+      if(sups[0])sel.value=sups[0].code;
+    }
+  }
+  const f=document.getElementById('diariaFecha');
+  if(f&&!f.value)f.value=fechaDiaria;
+  await loadMarcajesDia();
+  await loadAvisosDia();
+  renderDiaria();
+}
+async function verAvisosDelTrabajador(code){
+  const w=workers.find(x=>x.code===code);
+  if(!w)return;
+  const ent=marcajeDe(code,'entrada');
+  const sal=marcajeDe(code,'salida');
+  const propios=avisosMarcaje.filter(a=>a.code===code);
+  if(!ent&&!sal){
+    const hora=prompt(`¿A qué hora fichó ${w.name}?`,hhmmActual());
+    if(hora===null)return;
+    if(!/^\d{1,2}:\d{2}$/.test(hora.trim())){alert('Escribe la hora como HH:MM.');return;}
+    const m=await registrarMarcaje(code,'entrada','manual',null,hora.trim());
+    if(!m)return;
+    const avisos=revisarAlertas(w,hora.trim());
+    await guardarAvisos(code,m,avisos);
+    await loadAvisosDia();
+    renderDiaria();
+    abrirAvisoMarcaje(w,{tipo:'entrada',hora:hora.trim(),marcaje:m,avisos});
+    return;
+  }
+  const suyas=propios.map(a=>({
+    icono:a.tipo_alerta==='atraso'?'⏰':a.tipo_alerta==='social'?'💬':'🦺',
+    titulo:a.mensaje.split(':')[0]||'Aviso',
+    texto:escHtml(a.mensaje.split(':').slice(1).join(':').trim()),
+    donde:a.tipo_alerta==='atraso'?'Administración':a.tipo_alerta==='social'?'Asistente Social':'Prevención'
+  }));
+  abrirAvisoMarcaje(w,{entrada:ent,salida:sal,yaCompleto:!!(ent&&sal)});
+  if(suyas.length){
+    document.getElementById('marcajeLista').innerHTML+=suyas.map(a=>
+      `<div class="mkAviso"><div class="mkAvisoIcono">${a.icono}</div><div><b>${escHtml(a.titulo)}</b><div>${a.texto}</div>
+       <div class="mkAvisoDonde">Debe pasar por <b>${escHtml(a.donde)}</b></div></div></div>`).join('');
+  }
+}
+async function marcarAvisosAtendidos(code){
+  const sinVer=avisosMarcaje.filter(a=>a.code===code&&!a.visto);
+  if(!sinVer.length)return;
+  const {data:sesion}=await window.supabaseClient.auth.getSession();
+  const miId=sesion&&sesion.session&&sesion.session.user&&sesion.session.user.id;
+  const {error}=await window.supabaseClient.from('avisos_marcaje')
+    .update({visto:true,visto_por:miId,visto_at:new Date().toISOString()})
+    .eq('code',code).eq('fecha',fechaDiaria).eq('visto',false);
+  if(error){console.warn('No se pudieron marcar los avisos como atendidos:',error.message);return;}
+  sinVer.forEach(a=>{a.visto=true;});
+}
+function cerrarAvisoMarcaje(){
+  document.getElementById('marcajeModal').classList.remove('open');
+  const code=modalCtx?modalCtx.code:'';
+  modalCtx=null;
+  marcarAvisosAtendidos(code).then(()=>renderDiaria());
+}
+
 // ============================================================
 // TARJA DE SUPERVISORES
 // Un supervisor ve solo a la gente que tiene a cargo. Para saber
@@ -4394,6 +4859,8 @@ function dbToEmpresa(r){
     id:r.id, nombre:r.nombre, logo:r.logo_url||'',
     rut:r.rut||'', giro:r.giro||'', direccion:r.direccion||'',
     telefono:r.telefono||'', email:r.email||'', sitio_web:r.sitio_web||'',
+    hora_entrada:r.hora_entrada||'08:00',
+    tolerancia_minutos:(r.tolerancia_minutos!=null)?Number(r.tolerancia_minutos):10,
     activa:r.activa!==false
   };
 }
@@ -4402,6 +4869,7 @@ function empresaToDb(e){
     nombre:e.nombre, logo_url:e.logo||null,
     rut:e.rut||null, giro:e.giro||null, direccion:e.direccion||null,
     telefono:e.telefono||null, email:e.email||null, sitio_web:e.sitio_web||null,
+    hora_entrada:e.hora_entrada||null, tolerancia_minutos:(e.tolerancia_minutos!=null)?Number(e.tolerancia_minutos):null,
     activa:e.activa!==false
   };
 }
@@ -4542,6 +5010,8 @@ function editarEmpresa(id){
   document.getElementById('emp-telefono').value=e.telefono||'';
   document.getElementById('emp-email').value=e.email||'';
   document.getElementById('emp-web').value=e.sitio_web||'';
+  document.getElementById('emp-hora-entrada').value=e.hora_entrada||'08:00';
+  document.getElementById('emp-tolerancia').value=(e.tolerancia_minutos!=null)?e.tolerancia_minutos:10;
   document.getElementById('emp-activa').checked=e.activa;
   document.getElementById('emp-logo-preview').src=e.logo||'';
   document.getElementById('empFormTitle').textContent='Editando: '+e.nombre;
@@ -4552,7 +5022,7 @@ function nuevaEmpresa(){
     alert('Crear una empresa nueva es tarea de administración. Pídele a un administrador que la registre.');
     return;
   }
-  ['emp-id','emp-rut','emp-giro','emp-direccion','emp-telefono','emp-email','emp-web'].forEach(id=>document.getElementById(id).value='');
+  ['emp-id','emp-rut','emp-giro','emp-direccion','emp-telefono','emp-email','emp-web','emp-hora-entrada'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('emp-name').value='';
   document.getElementById('emp-activa').checked=true;
   document.getElementById('emp-logo-preview').src='';
@@ -4573,6 +5043,8 @@ async function saveEmpresa(){
     telefono:document.getElementById('emp-telefono').value.trim(),
     email:document.getElementById('emp-email').value.trim(),
     sitio_web:document.getElementById('emp-web').value.trim(),
+    hora_entrada:document.getElementById('emp-hora-entrada').value||'08:00',
+    tolerancia_minutos:parseInt(document.getElementById('emp-tolerancia').value,10)||0,
     activa:document.getElementById('emp-activa').checked
   });
   const file=document.getElementById('emp-logo').files[0];
@@ -4634,6 +5106,8 @@ const VISTAS_POR_PERMISO={
   'v-bodega-asignar':'bodega.herramientas',
   'v-bodega-qr':'bodega.qr',
   'v-solicitar-cambio':'tarja.solicitar_cambio',
+  'v-supervisores':'tarja.ver',
+  'v-sup-diaria':'tarja.marcaje',
   'v-aprobar-cambio':'tarja.aprobar_cambio',
   'v-usuarios':'sistema.usuarios',
   'v-permisos':'sistema.permisos',
