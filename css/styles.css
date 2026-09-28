@@ -108,6 +108,78 @@ th{background:var(--accent2);color:#fff;font-weight:600}
 small{color:var(--muted)}
 .list-item{display:flex;justify-content:space-between;align-items:center;padding:11px 8px;border-bottom:1px solid var(--line);cursor:pointer}
 .list-item:hover{background:var(--surface-hover)}
+/* ------------------------------------------------------------------
+LA PANTALLA DEL TÓTEM
+------------------------------------------------------------------
+Pensada para un cartel fijo de 10 a 15 pulgadas a la altura de los ojos.
+Por eso es "grande" y no "lleno de cosas": la persona está parada, mira de
+reojo, y tiene dos segundos para entender si su marca entró.
+
+Lo que NO está acá a propósito: el menú de la aplicación, los botones de
+la attendance normal, y los textos de ayuda largos. Un tótem con menú es un
+tótem donde alguien apretó algo que no debía.
+------------------------------------------------------------------ */
+#pantallaTotem{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;
+  background:var(--bg);color:var(--ink);font-size:clamp(16px,1.6vw,22px)}
+#pantallaTotem.abierta{display:flex}
+/* El cuerpo entra en modo tótem para que la navegación de atrás no quede
+   como fondo visible si algo se dibuja mal. */
+body.modoTotem{overflow:hidden}
+
+.totem-barra{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--line);
+  font-size:.8em;color:var(--secondary-text);flex:0 0 auto}
+.totem-barra-der{display:flex;align-items:center;gap:10px}
+.totem-barra-label{margin:0}
+.totem-salir{background:var(--secondary);color:var(--ink);border:1px solid var(--line);
+  border-radius:8px;padding:6px 14px;cursor:pointer;font:inherit;font-size:1em}
+.totem-salir:hover{background:var(--secondary-text)}
+
+.totem-zona{flex:0 0 auto;display:flex;justify-content:center;padding:10px}
+#totemCamara{width:min(46vh,420px);border-radius:12px;overflow:hidden}
+#totemCamara video{width:100%!important;display:block}
+
+.totem-zona-central{flex:1 1 auto;display:flex;align-items:center;justify-content:center;padding:2vh 4vw;min-height:0}
+/* El mensaje es lo único grande de la pantalla. Cada estado tiene su
+   color y su forma, y el color no es lo único: un cartel rojo y verde se
+   distinguen igual para quien no distingue los colores. */
+#totemMensaje{display:flex;align-items:center;justify-content:center;gap:clamp(16px,3vw,40px);
+  text-align:center;max-width:1000px}
+#totemMensaje .totem-icono{font-size:clamp(56px,10vw,120px);line-height:1;flex:0 0 auto}
+#totemMensaje .totem-texto b{font-size:clamp(28px,4.4vw,54px);display:block;line-height:1.15}
+#totemMensaje .totem-texto span{font-size:clamp(16px,2.1vw,28px);color:var(--secondary-text);display:block;margin-top:.4em}
+#totemMensaje.totem-ok{color:var(--accent)}
+#totemMensaje.totem-ya_marcado,#totemMensaje.totem-duplicado{color:var(--warn-ink)}
+#totemMensaje.totem-error{color:var(--danger)}
+#totemMensaje.totem-idle{color:var(--secondary-text)}
+#totemMensaje .totem-idle-icono{font-size:clamp(40px,7vw,84px);opacity:.35;flex:0 0 auto}
+#totemMensaje .totem-idle-texto b{font-size:clamp(22px,3vw,40px);color:var(--ink);display:block}
+#totemMensaje .totem-idle-texto span{font-size:clamp(16px,2.1vw,28px);display:block;margin-top:.2em}
+
+.totem-pie{flex:0 0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:12px 18px;background:var(--surface);border-top:1px solid var(--line)}
+.totem-campo-label{font-size:.8em;color:var(--secondary-text);margin:0}
+/* El campo tiene que ser visible y grande aunque el foco esté en otro
+   lado: si queda transparente, en un cartel de la portería parece que no
+   hay campo y nadie entiende por qué no hay que tocar nada. */
+#totemCampo{flex:1 1 320px;min-height:56px;font-size:1.1em;padding:10px 14px;
+  background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:10px;
+  opacity:1}
+#totemCampo:focus{outline:3px solid var(--accent);outline-offset:1px}
+#totemCampo::placeholder{color:var(--muted);font-size:.85em}
+
+.totem-pill{font-size:.75em;padding:4px 10px;border-radius:999px;border:1px solid var(--line);
+  color:var(--secondary-text);min-width:9em;text-align:center}
+.totem-pill-ok{color:var(--accent);border-color:var(--accent)}
+.totem-pill-ya_marcado,.totem-pill-duplicado{color:var(--warn-ink);border-color:var(--warn)}
+.totem-pill-error{color:var(--danger);border-color:var(--danger)}
+
+@media (max-width:700px){
+  .totem-barra{flex-wrap:wrap}
+  .totem-pie{gap:8px}
+  #totemCampo{min-height:48px}
+}
+
 /* Los iconos de acción de una fila. Sin gap, dos emojis pegados no se
    distinguen al apretar. */
 .lista-iconos{display:flex;gap:6px;align-items:center;flex:0 0 auto}

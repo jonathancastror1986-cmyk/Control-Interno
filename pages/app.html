@@ -1397,6 +1397,174 @@ Va fuera del <script> porque es contenido, no lógica. Y está después del
 cuadro de la bitácora para que los dos dialogos, que son cosas distintas
 que se llenan por motivos distintos, no se confundan al leerlos.
 -->
+
+<!--
+RELOJES
+=======
+Un "reloj" acá es el dispositivo: el Android TV Box con HDMI, o el equipo al
+que se le enchufa un lector QR USB. De él cuelgan dónde está (centro de
+costo), cómo lee (cámara o lector USB) y qué marca (entrada, salida o
+colación). Las tres cosas se configuran en la misma pantalla porque en la
+obra se definen juntas.
+-->
+<section class="view" id="v-relojes">
+  <div class="card">
+    <h2>Relojes y centros de costo</h2>
+    <small>Cada reloj es un aparato. Se le dice en qué centro de costo está (que es contra el dato que se
+      revisa y se paga la asistencia), cómo lee la credencial, y cuánto espera antes de dar por repetida una
+      lectura.</small>
+
+    <div class="card" style="margin-top:14px">
+      <h3>Centros de costo</h3>
+      <small>Los de la obra. El nombre es libre; el código es lo que va en la planilla.</small>
+      <div class="row" style="margin-top:8px">
+        <div><label>Código</label><input id="ccCode" placeholder="CC-01"></div>
+        <div style="flex:1"><label>Nombre</label><input id="ccNombre" placeholder="ALTO CIRUELOS"></div>
+        <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="guardarCentroCosto()">Agregar</button></div>
+      </div>
+      <div id="ccError" style="color:var(--danger);margin-top:6px" role="alert"></div>
+      <div id="ccLista" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>Relojes</h3>
+      <div class="row" style="margin-top:8px">
+        <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="abrirFormularioReloj('')">Agregar reloj</button></div>
+      </div>
+      <div id="relojAviso" style="margin-top:10px"></div>
+      <div id="relojLista" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>Abrir la pantalla de marcaje</h3>
+      <small>La pantalla que va en el tótem: grande, sin menú, con el campo siempre enfocado. Podés probarla
+        acá antes de instalarla en el aparato.</small>
+      <div class="row" style="margin-top:8px">
+        <div style="flex:1"><label>Reloj</label><select id="totemReloj" onchange="if(this.value)abrirTotem(this.value)"></select></div>
+        <div style="align-self:flex-end">
+          <button class="btn" type="button" onclick="abrirFormularioToken()">Instalar token en este equipo</button>
+        </div>
+      </div>
+      <small style="display:block;margin-top:8px">
+        Para el Android TV Box la dirección es <b>/totem/CODIGO</b>. Ejemplo: <b>/totem/RELOJ-01</b>.
+        La primera vez hay que instalar el token en ese aparato (botón de arriba).
+      </small>
+    </div>
+  </div>
+</section>
+
+<!--
+LA PANTALLA DEL TÓTEM
+====================
+A pantalla completa y sin el menú de la aplicación. En un cartel fijo de la
+portería no tiene sentido que se vea la navegación, y un botón a medio
+apretar cambiaría de vista y dejaría el reloj sin marcar.
+-->
+<div id="pantallaTotem" role="dialog" aria-modal="true" aria-label="Marcaje de asistencia">
+  <div class="totem-barra">
+    <span id="totemRelojActual"></span>
+    <span class="totem-barra-der">
+      <label for="totemTipo" class="totem-barra-label">Marca</label>
+      <select id="totemTipo" onchange="cambiarTipoTotem()"></select>
+      <button type="button" class="totem-salir" onclick="cerrarTotem()">Salir</button>
+    </span>
+  </div>
+  <div class="totem-zona" id="totemZonaCamara" style="display:none">
+    <div id="totemCamara"></div>
+  </div>
+  <div id="totemMensaje" class="totem-idle"></div>
+  <div class="totem-pie">
+    <span id="totemCodigoLeido" class="totem-pill"></span>
+    <label for="totemCampo" class="totem-campo-label">Tarjeta</label>
+    <input id="totemCampo" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      inputmode="none" placeholder="Presenta la tarjeta o escribe el código y presiona Enter">
+  </div>
+</div>
+
+<!--
+CONFIGURAR UN RELOJ
+===================
+Un solo formulario para las tres cosas que se definen juntas en la obra:
+dónde está, cómo lee y cuánto antirrebote.
+-->
+<dialog id="dlgReloj" style="max-width:560px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 id="relojTitulo" style="margin-top:0">Agregar reloj</h2>
+    <div class="row">
+      <div><label for="relojCode">Código</label><input id="relojCode" placeholder="RELOJ-01"></div>
+      <div style="flex:1"><label for="relojNombre">Nombre</label><input id="relojNombre" placeholder="Portón principal"></div>
+    </div>
+    <small style="display:block;margin-top:4px">El código es el que va en la dirección de la pantalla del tótem, y no se cambia después.</small>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1"><label for="relojCentro">Centro de costo</label><select id="relojCentro"></select></div>
+      <div style="flex:1"><label for="relojUbicacion">Ubicación (texto)</label><input id="relojUbicacion" placeholder="Portón 1"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1"><label for="relojTipoLector">Cómo lee la credencial</label>
+        <select id="relojTipoLector" onchange="explicarTipoLector()">
+          <option value="teclado">Lector QR USB (se ve como teclado)</option>
+          <option value="camara">Cámara del aparato</option>
+        </select>
+      </div>
+      <div id="relojCamaraWrap" style="display:none"><label for="relojCamara">Cámara</label>
+        <select id="relojCamara">
+          <option value="trasera">La de arriba (apunta a la gente)</option>
+          <option value="frontal">La de enfrente</option>
+          <option value="auto">Que elija el aparato</option>
+        </select>
+      </div>
+    </div>
+    <div id="relojLectorAyuda" class="small" style="margin-top:6px"></div>
+    <div class="row" style="margin-top:10px">
+      <div><label for="relojAntirrebote">Antirrebote (segundos)</label>
+        <input type="number" id="relojAntirrebote" min="5" max="600" step="5">
+        <small style="display:block">Cuánto espera antes de ignorar una lectura repetida. 45 sirve para la mayoría.</small>
+      </div>
+      <div style="align-self:flex-end">
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="relojActivo"> Reloj activo
+        </label>
+      </div>
+    </div>
+    <div id="relojTokenWrap" class="small" style="margin-top:10px"></div>
+    <div id="relojError" style="color:var(--danger);margin-top:6px" role="alert"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="document.getElementById('dlgReloj').close()">Cancelar</button>
+      <button class="btn primary" id="relojGuardo" type="button" onclick="guardarReloj()">Crear reloj</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
+EL TOKEN DEL RELOJ
+==================
+Se muestra UNA vez. En la base solo queda el hash, así que si se pierde no
+se recupera: se rota y se reinstala. Por eso el texto viene seleccionado
+para copiar, y el aviso dice exactamente eso.
+-->
+<dialog id="dlgToken" style="max-width:520px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 style="margin-top:0">Token de este reloj</h2>
+    <div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">
+      <b>Copiá esto ahora.</b> Se muestra una sola vez: en la base queda solo su huella, no el token.
+      Si lo perdés, se genera uno nuevo desde la lista, y hay que reinstalar la pantalla en el tótem
+      porque el anterior deja de servir.
+    </div>
+    <label for="tokenValor" style="margin-top:12px">Token</label>
+    <input id="tokenValor" readonly style="font-family:ui-monospace,monospace">
+    <label for="tokenInstalarCampo" style="margin-top:10px">Instalar este token en ESTE equipo</label>
+    <div class="row" style="margin-top:6px;gap:8px">
+      <div style="flex:1"><input id="tokenInstalarCampo" placeholder="pegalo acá si querés probar la pantalla en este navegador"></div>
+      <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="guardarTotemToken()">Instalar</button></div>
+    </div>
+    <small style="display:block;margin-top:4px">Se guarda en este navegador, no en el archivo de la app. En un equipo compartido cualquiera con acceso al navegador podría marcar: por eso el tótem tiene que ser un aparato dedicado.</small>
+    <div id="tokenRelojCodigo" style="display:none"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn primary" type="button" onclick="document.getElementById('dlgToken').close()">Listo</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="dlgDesvincula" style="max-width:560px;width:94vw">
   <div class="card" style="margin:0">
     <h2 id="desvTitulo" style="margin-top:0">Desvincular trabajador</h2>
@@ -1765,6 +1933,7 @@ const navGroups = {
       {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
       {v:'aprobar-cambio',label:'Aprobar solicitudes'}
     ]},
+    {v:'relojes',label:'Relojes y centros de costo'},
     {v:'porteria',label:'Consultar trabajador'}
   ],
   soporte: [
@@ -1847,6 +2016,7 @@ function initView(v){
   if(v==='sup-diaria'){initDiaria();}
   if(v==='just-diaria'){initJustificacionDiaria();}
   if(v==='auditoria'){initAuditoria();}
+  if(v==='relojes'){cargarRelojes();}
   if(v==='asistencia'){
     showAttendancePanel('tarja');
     const yearInput=document.getElementById('matYear');
@@ -2480,7 +2650,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-m';
+const APP_VERSION='2026-09-28-n';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -10079,6 +10249,7 @@ const VISTAS_POR_PERMISO={
   'v-sup-diaria':'tarja.marcaje',
   'v-just-diaria':'tarja.justificar',
   'v-auditoria':'asistencia.auditar',
+  'v-relojes':'relojes.ver',
   'v-aprobar-cambio':'tarja.aprobar_cambio',
   'v-usuarios':'sistema.usuarios',
   'v-invitar-usuario':'sistema.usuarios',
@@ -10159,6 +10330,7 @@ async function loadPermisosUsuario(){
   // verlo al entrar como la coherencia de permisos.
   if(typeof comprobarAuditoria==='function')comprobarAuditoria();
   if(typeof comprobarDesvinculacion==='function')comprobarDesvinculacion();
+  if(typeof comprobarRelojes==='function')comprobarRelojes();
   if(typeof revisarPerfilIncompleto==='function')revisarPerfilIncompleto();
 }
 
@@ -10312,6 +10484,600 @@ async function comprobarPermisos(){
     }
   }catch(error){
     console.info('No se pudo comprobar la coherencia de permisos:',error.message);
+  }
+}
+
+// ===================================================================
+// RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
+// ===================================================================
+//
+// QUÉ ES "UN RELOJ" ACÁ
+//
+// Es el dispositivo: el Android TV Box con HDMI, o el equipo al que se le
+// enchufa un lector QR USB. De él cuelgan tres cosas que se configuran
+// juntas, y por eso viven en la misma pantalla:
+//
+//   dónde está    -> centro de costo (y un texto de ubicación)
+//   cómo lee      -> cámara, o lector que se comporta como teclado
+//   qué marca      -> entrada, salida, o los dos semiciclos de colación
+//
+// EL LECTOR USB Y POR QUÉ ES "MODO TECLADO"
+//
+// Esos lectores no son cámaras. Se enumeran en el sistema como teclado y
+// escriben el código, muy rápido, y mandan Enter al final. De ahí salen
+// las dos cosas que hay que hacer y que no son detalles:
+//
+//   - autofocus permanente en un campo de texto, porque en un tótem nadie
+//     va a tocar la pantalla;
+//   - ignorarlo todo lo que se escriba mientras ya hay un código en el
+//     campo, porque el lector a veces manda el código dos veces seguidas.
+//
+// LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ
+//
+// La aplica la base (marcar_por_reloj), no esta pantalla. Si la aplicara
+// el navegador, un tótem con la hora desfasada o alguien que recarga la
+// página se saltaría el control. Ver la migración 030.
+// ===================================================================
+
+const ESTADOS_TOTEM={
+  ok:          {t:'Marcaje registrado',    c:'var(--accent)'},
+  ya_marcado:  {t:'Ya lo habías marcado',  c:'var(--warn)'},
+  duplicado:   {t:'Marcaje ya registrado', c:'var(--warn)'},
+  error:       {t:'No se pudo marcar',     c:'var(--danger)'}
+};
+// Lo que se le dice a la persona, en la pantalla grande del tótem. Cada
+// caso dice qué hacer, no solo qué pasó: una pantalla que dice "ERROR" y
+// nada más hace que la persona pruebe con otra tarjeta y empeore.
+const MENSAJES_TOTEM={
+  CODIGO_VACIO:['No se leyó nada','Acerca la tarjeta otra vez.'],
+  CODIGO_DESCONOCIDO:['Tarjeta desconocida','Esa credencial no está en el sistema. Avisa a portería.'],
+  TARJETA_BLOQUEADA:['Tarjeta bloqueada','Esta tarjeta no sirve para marcar. Pídela en portería.'],
+  TARJETA_ANULADA:['Tarjeta anulada','Esta tarjeta fue anulada. Pide la nueva en portería.'],
+  TRABAJADOR_NO_ACTIVO:['Ya no trabajas aquí','Tu ficha está cerrada. Habla con administración.'],
+  OTRA_EMPRESA:['Tarjeta de otra empresa','Esta tarjeta es de otra empresa. No se puede marcar acá.'],
+  TIPO_INVALIDO:['Tipo de marca inválido','El reloj está mal configurado. Avisa a administración.'],
+  RELOJ_INACTIVO:['Reloj desactivado','Este reloj no está en uso.'],
+  TOKEN_INVALIDO:['Reloj sin credencial','El reloj no está registrado en el sistema. Avisa a administración.']
+};
+
+let relojes=[];
+let centrosCosto=[];
+let relojCargado=false;
+let relojError='';
+let totemActual=null;
+let totemTipo='entrada';
+let totemTimer=null;
+let totemEscaner=null;
+let totemTimerFoco=null;
+
+async function cargarRelojes(){
+  relojError='';
+  const {data:cc,error:e1}=await window.supabaseClient.from('centros_costo').select('*').order('nombre');
+  if(e1){
+    relojError='No se pudieron cargar los centros de costo. Aplicá la migración 030_relojes_totem.sql. Detalle: '+e1.message;
+    centrosCosto=[];relojes=[];relojCargado=true;renderRelojes();return;
+  }
+  centrosCosto=cc||[];
+  const {data:rj,error:e2}=await window.supabaseClient.from('relojes').select('*').order('nombre');
+  if(e2){
+    relojError='No se pudieron cargar los relojes: '+e2.message;
+    relojes=[];relojCargado=true;renderRelojes();return;
+  }
+  relojes=rj||[];
+  relojCargado=true;
+  renderRelojes();
+}
+function relojPorCodigo(code){
+  return relojes.find(r=>normalizarCodigo(r.code)===normalizarCodigo(code))||null;
+}
+function centroDe(reloj){
+  if(!reloj)return '';
+  if(reloj.centro_costo_id)return (centrosCosto.find(c=>c.id===reloj.centro_costo_id)||{}).nombre||'';
+  return '';
+}
+function renderRelojes(){
+  const lista=document.getElementById('relojLista');
+  const aviso=document.getElementById('relojAviso');
+  if(!lista)return;
+  aviso.innerHTML=relojError
+    ?'<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+     '<b>Falta la migración 030_relojes_totem.sql.</b> <small>'+escHtml(relojError)+'</small></div>'
+    :'';
+  if(!relojes.length){
+    lista.innerHTML='<small>No hay relojes todavía. Creá el primero con "Agregar reloj".</small>';
+    renderSelectorRelojes();
+    renderCentrosCosto();
+    return;
+  }
+  lista.innerHTML=relojes.map(r=>{
+    const sinToken=!r.token_hash;
+    const sinCentro=!r.centro_costo_id;
+    const alertas=[];
+    if(sinCentro)alertas.push('sin centro de costo');
+    if(sinToken)alertas.push('sin token');
+    if(!r.activo)alertas.push('desactivado');
+    const ultima=r.ultima_lectura_at
+      ?'Última lectura: '+escHtml(new Date(r.ultima_lectura_at).toLocaleString('es-CL'))
+      :'Nunca leyó nada';
+    return `<div class="list-item" style="cursor:default;display:block">
+      <div>
+        <b>${escHtml(r.code)}</b> — ${escHtml(r.nombre)}
+        <span class="pill" style="margin-left:6px">${r.tipo_lector==='camara'?'Cámara':'Lector USB'}</span>
+        ${r.activo?'':'<span class="pill" style="color:var(--danger);border-color:var(--danger)">Desactivado</span>'}
+        <br><small>
+          ${escHtml(centroDe(r)||'Sin centro de costo')}${r.ubicacion?' · '+escHtml(r.ubicacion):''}
+          · antirrebote ${escHtml(String(r.segundos_antirrebote))} s
+          · ${ultima}
+        </small>
+        ${alertas.length?'<br><small style="color:var(--warn-ink)">Ojo: '+escHtml(alertas.join(', '))+'</small>':''}
+      </div>
+      <span style="display:flex;gap:6px;flex:0 0 auto">
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="editarReloj('${escHtml(r.code)}')">Configurar</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="rotarTokenReloj('${escHtml(r.code)}')">Rotar token</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="abrirTotem('${escHtml(r.code)}')">Abrir pantalla</button>
+      </span>
+    </div>`;
+  }).join('');
+  renderSelectorRelojes();
+  renderCentrosCosto();
+}
+function renderSelectorRelojes(){
+  const sel=document.getElementById('totemReloj');
+  if(!sel)return;
+  const anterior=sel.value;
+  sel.innerHTML='<option value="">Elegí un reloj…</option>'+
+    relojes.filter(r=>r.activo).sort((a,b)=>a.nombre.localeCompare(b.nombre))
+      .map(r=>`<option value="${escHtml(r.code)}">${escHtml(r.code+' — '+r.nombre)}</option>`).join('');
+  if([...sel.options].some(o=>o.value===anterior))sel.value=anterior;
+}
+function abrirFormularioReloj(code){
+  const r=code?relojPorCodigo(code):null;
+  const dlg=document.getElementById('dlgReloj');
+  document.getElementById('relojTitulo').textContent=r?('Configurar '+r.nombre):'Agregar reloj';
+  document.getElementById('relojError').textContent='';
+  document.getElementById('relojGuardo').textContent=r?'Guardar cambios':'Crear reloj';
+  document.getElementById('relojCode').value=r?r.code:'';
+  document.getElementById('relojCode').readOnly=!!r;
+  document.getElementById('relojNombre').value=r?r.nombre:'';
+  document.getElementById('relojUbicacion').value=r?(r.ubicacion||''):'';
+  document.getElementById('relojAntirrebote').value=r?r.segundos_antirrebote:45;
+  document.getElementById('relojActivo').checked=r?!!r.activo:true;
+  const sel=document.getElementById('relojCentro');
+  sel.innerHTML='<option value="">— sin centro de costo —</option>'+
+    centrosCosto.map(c=>`<option value="${c.id}">${escHtml(c.code+' — '+c.nombre)}</option>`).join('');
+  sel.value=r&&r.centro_costo_id?String(r.centro_costo_id):'';
+  const tl=document.getElementById('relojTipoLector');
+  tl.value=r?r.tipo_lector:'teclado';
+  document.getElementById('relojCamaraWrap').style.display=tl.value==='camara'?'':'none';
+  document.getElementById('relojCamara').value=r?r.camara:'trasera';
+  document.getElementById('relojTokenWrap').innerHTML=r
+    ?'<small>El token ya existe. Rotarlo deja de servir el anterior: hay que reinstallar la app del tótem.</small>'
+    :'<small>Se genera solo al crear el reloj, y se muestra una sola vez.</small>';
+  explicarTipoLector();
+  dlg.showModal();
+  document.getElementById(r?'relojNombre':'relojCode').focus();
+}
+// Muestra la ayuda de los dos tipos de lector. No es decoración: la
+// diferencia entre cámara y teclado no se ve hasta que alguien enchufa
+// el aparato equivocado y nadie marca.
+function explicarTipoLector(){
+  const esCamara=document.getElementById('relojTipoLector').value==='camara';
+  document.getElementById('relojCamaraWrap').style.display=esCamara?'':'none';
+  const caja=document.getElementById('relojLectorAyuda');
+  caja.innerHTML=esCamara
+    ?'<b>Cámara.</b> El tótem abre la cámara y lee el código QR de la credencial. '+
+      'Sirve para un lector de códigos QR conectado, o para la cámara del mismo aparato. '+
+      'La cámara de un Android TV Box está fija, así que conviene apuntarla un poco hacia abajo.'
+    :'<b>Lector QR USB (modo teclado).</b> Es el más común en la obra: se enchufa y el equipo lo ve como un teclado. '+
+      'Al pasar la tarjeta escribe el código y manda Enter. No hay que tocar nada, pero el lector tiene que estar '+
+      'configurado para enviar Enter al final (casi todos lo vienen así). '+
+      'Si el lector trae el prefijo "ENTER" o "TAB" configurado, hay que ponerlo en Enter o none.';
+}
+async function guardarReloj(){
+  const dlg=document.getElementById('dlgReloj');
+  const err=document.getElementById('relojError');
+  const code=document.getElementById('relojCode').value.trim().toUpperCase();
+  const nombre=document.getElementById('relojNombre').value.trim();
+  const btn=document.getElementById('relojGuardar');
+  err.textContent='';
+  if(!code){err.textContent='Falta el código del reloj. Es el que va en la URL de la pantalla.';return;}
+  if(!/^[A-Z0-9][A-Z0-9._-]{0,29}$/.test(code)){
+    err.textContent='El código solo puede tener letras, números, punto, guion y guion bajo. Máximo 30 caracteres.';
+    return;
+  }
+  if(!nombre){err.textContent='Falta el nombre del reloj.';return;}
+  btn.disabled=true;btn.textContent='Guardando…';
+  const empresa=(typeof empresaActual!=='undefined'&&empresaActual)?empresaActual.id:null;
+  const {data:existente}=await window.supabaseClient.from('relojes').select('id').eq('code',code).maybeSingle();
+  let error=null;
+  const cuerpo={
+    code,nombre,
+    ubicacion:document.getElementById('relojUbicacion').value.trim()||null,
+    centro_costo_id:document.getElementById('relojCentro').value?Number(document.getElementById('relojCentro').value):null,
+    empresa_id:empresa,
+    tipo_lector:document.getElementById('relojTipoLector').value,
+    camara:document.getElementById('relojCamara').value,
+    activo:document.getElementById('relojActivo').checked,
+    segundos_antirrebote:Number(document.getElementById('relojAntirrebote').value)||45
+  };
+  if(existente){
+    const r=await window.supabaseClient.from('relojes').update(cuerpo).eq('code',code);
+    error=r.error;
+  }else{
+    const r=await window.supabaseClient.from('relojes').insert(cuerpo).select().single();
+    error=r.error;
+    if(!error){
+      // El token se genera acá y se muestra UNA vez. La base guarda solo el
+      // hash, así que si se pierde hay que rotarlo, no recuperarlo.
+      const {data:rotado,error:e2}=await window.supabaseClient.rpc('rotar_token_reloj',{p_code:code});
+      if(e2){
+        err.innerHTML='El reloj se creó, pero no se pudo generar el token: '+escHtml(e2.message)+
+          '<br>La migración 030 tiene que estar aplicada. Podés generar el token desde la lista con "Rotar token".';
+        btn.disabled=false;btn.textContent='Crear reloj';
+        await cargarRelojes();
+        return;
+      }
+      dlg.close();
+      await cargarRelojes();
+      mostrarToken(rotado.rotar_token_reloj||rotado);
+      return;
+    }
+  }
+  btn.disabled=false;btn.textContent='Guardar cambios';
+  if(error){
+    err.textContent=/duplicate|unique/i.test(error.message)
+      ?'Ya existe un reloj con el código "'+code+'". Los códigos tienen que ser distintos.'
+      :'No se pudo guardar: '+error.message;
+    return;
+  }
+  dlg.close();
+  await cargarRelojes();
+}
+let relojEnTurno='';
+async function rotarTokenReloj(code){
+  relojEnTurno=code;
+  const r=relojPorCodigo(code);
+  if(!r){alert('No se encontró el reloj.');return;}
+  if(!confirm('Rotar el token de '+r.nombre+'?\n\nEl token anterior deja de servir al instante. Si el tótem ya está instalado, hay que volver a instalar la app con el token nuevo, o el reloj deja de marcar.\n\n¿Continuar?'))return;
+  const {data,error}=await window.supabaseClient.rpc('rotar_token_reloj',{p_code:code});
+  if(error){alert('No se pudo rotar el token: '+error.message);return;}
+  await cargarRelojes();
+  mostrarToken(data.rotar_token_reloj||data);
+}
+// El token se muestra una vez, con el texto ya seleccionado para copiarlo.
+// Decir "anotálo" y cerrarlo es la forma de que se pierda y quede un reloj
+// que no marca sin que nadie sepa por qué.
+function mostrarToken(token){
+  const dlg=document.getElementById('dlgToken');
+  const inp=document.getElementById('tokenValor');
+  inp.value=token;
+  document.getElementById('tokenInstalarCampo').value=token;
+  document.getElementById('tokenRelojCodigo').value=relojEnTurno||'';
+  dlg.showModal();
+  setTimeout(()=>{inp.focus();inp.select();},60);
+}
+
+// ------------------------------------------------------------------
+// CENTROS DE COSTO
+// ------------------------------------------------------------------
+// Se dan de alta acá y no por el CSV de trabajadores, porque no son
+// trabajadores: son los centros de costo de la obra, y los importa el
+// sistema de planillas, no esta app.
+async function guardarCentroCosto(){
+  const code=document.getElementById('ccCode').value.trim().toUpperCase();
+  const nombre=document.getElementById('ccNombre').value.trim();
+  const err=document.getElementById('ccError');
+  err.textContent='';
+  if(!code){err.textContent='Falta el código.';return;}
+  if(!nombre){err.textContent='Falta el nombre.';return;}
+  const empresa=(typeof empresaActual!=='undefined'&&empresaActual)?empresaActual.id:null;
+  const {error}=await window.supabaseClient.from('centros_costo').insert({code,nombre,empresa_id:empresa});
+  if(error){
+    err.textContent=/duplicate|unique/i.test(error.message)
+      ?'Ya existe un centro de costo con el código "'+code+'" en esta empresa.'
+      :'No se pudo guardar: '+error.message;
+    return;
+  }
+  document.getElementById('ccCode').value='';
+  document.getElementById('ccNombre').value='';
+  await cargarRelojes();
+}
+function renderCentrosCosto(){
+  const box=document.getElementById('ccLista');
+  if(!box)return;
+  if(!centrosCosto.length){box.innerHTML='<small>No hay centros de costo todavía.</small>';return;}
+  box.innerHTML=centrosCosto.map(c=>{
+    const usados=relojes.filter(r=>r.centro_costo_id===c.id).length;
+    return '<div class="list-item" style="cursor:default">'
+      +'<span><b>'+escHtml(c.code)+'</b> — '+escHtml(c.nombre)
+      +'<small> · '+(usados?usados+' reloj(es)':'sin relojes')+'</small></span>'
+      +'<span>'+(c.activo?'':'<small style="color:var(--warn-ink)">inactivo</small>')+'</span></div>';
+  }).join('');
+}
+function editarReloj(code){
+  if(!exigirPermiso('relojes.editar','No tienes permiso para configurar relojes.'))return;
+  abrirFormularioReloj(code);
+}
+function abrirFormularioToken(){
+  const code=document.getElementById('totemReloj').value
+    ||(relojes.filter(r=>r.activo)[0]||{}).code;
+  if(!code){
+    alert('Primero creá un reloj. El token es de un reloj, no de la app.');
+    return;
+  }
+  document.getElementById('tokenInstalarCampo').value=totemTokenDe(code);
+  document.getElementById('tokenRelojCodigo').value=code;
+  document.getElementById('dlgToken').showModal();
+}
+function totemTokenDe(code){
+  try{return localStorage.getItem('totemToken_'+code)||'';}
+  catch(error){return '';}
+}
+
+// ------------------------------------------------------------------
+// LA PANTALLA DEL TÓTEM
+// ------------------------------------------------------------------
+// Se abre aparte del resto de la app, sin el menú de arriba: en un cartel
+// fijo de la portería no tiene sentido que se vea la navegación, y un
+// botón a medio apretar podría cambiar de vista y dejar el reloj sin
+// marcar. Es una pantalla completa con su propio botón de salir.
+function abrirTotem(code){
+  const r=relojPorCodigo(code);
+  if(!r){
+    alert('No se encontró el reloj "'+code+'".\n\nRevisá la lista de relojes: el código es el que pusiste al crearlo.');
+    return;
+  }
+  if(!exigirPermiso('relojes.totem','No tienes permiso para usar la pantalla de marcaje.'))return;
+  totemActual=r;
+  document.body.classList.add('modoTotem');
+  document.getElementById('pantallaTotem').classList.add('abierta');
+  const sel=document.getElementById('totemTipo');
+  sel.innerHTML=ESTADOS_TARJA_TOTEM.map(t=>`<option value="${t.v}">${escHtml(t.t)}</option>`).join('');
+  sel.value=totemTipo;
+  pintarTotemInicial();
+  if(r.tipo_lector==='camara')arrancarCamaraTotem();
+  else detenerCamaraTotem();
+  // El foco va al campo apenas se abre. Sin esto el lector USB marca la
+  // primera vez y las siguientes no: nadie lo va a tocar.
+  setTimeout(()=>document.getElementById('totemCampo').focus(),120);
+  // Y un vigilante que lo devuelve cada 1,5 s mientras el tótem esté
+  // abierto.
+  //
+  // Un solo listener de "blur" no alcanza, y el síntoma es el peor posible:
+  // si el foco se va a un diálogo del navegador, a la barra de direcciones
+  // o al autocompletado, NO VUELVE, el lector sigue escribiendo en un campo
+  // que no tiene el foco, y el reloj deja de marcar sin que nadie lo note
+  // hasta que alguien revisa la asistencia del día.
+  //
+  // La condición `!campo.value` está a propósito: si la persona está a
+  // medio escribir, no se le roba el foco de debajo de la mano.
+  if(totemTimerFoco)clearInterval(totemTimerFoco);
+  totemTimerFoco=setInterval(()=>{
+    if(!totemActual)return;
+    const campo=document.getElementById('totemCampo');
+    if(campo&&!campo.value&&document.activeElement!==campo)campo.focus();
+  },1500);
+}
+// Los tipos que un tótem registra. "entrada" y "salida" están; la
+// colación son los dos semiciclos, porque con un solo tipo el segundo
+// fichaje rebotaría contra el índice único de la base.
+const ESTADOS_TARJA_TOTEM=[
+  {v:'entrada',t:'Entrada'},
+  {v:'salida',t:'Salida'},
+  {v:'colacion_entrada',t:'Salida a colación'},
+  {v:'colacion_salida',t:'Vuelta de colación'}
+];
+function pintarTotemInicial(){
+  const t=document.getElementById('totemMensaje');
+  t.innerHTML='<div class="totem-idle">'
+    +'<div class="totem-idle-icono">▮</div>'
+    +'<div class="totem-idle-texto">'
+    +'<b>'+escHtml(totemActual?totemActual.nombre:'')+'</b>'
+    +(totemActual&&centroDe(totemActual)?'<br><span>'+escHtml(centroDe(totemActual))+'</span>':'')
+    +'<br>Presenta tu tarjeta'
+    +(totemActual&&totemActual.tipo_lector==='camara'
+      ?' frente a la cámara'
+      :' o pásala por el lector')
+    +'</div></div>';
+  const caja=document.getElementById('totemCodigoLeido');
+  caja.textContent='';
+  document.getElementById('totemRelojActual').textContent=
+    (totemActual?totemActual.code+' · ':'')+(totemActual?centroDe(totemActual):'');
+}
+async function registrarDesdeTotem(codigo){
+  if(!totemActual)return;
+  const leido=String(codigo||'').trim();
+  if(!leido){
+    mostrarTotem('error','No se leyó nada','Acerca la tarjeta otra vez.');
+    return;
+  }
+  // Un lector USB manda la misma lectura varias veces seguidas. Sin esta
+  // fila, la primera gana y las otras llenan la pantalla de "ya lo
+  // habías marcado" mientras la persona todavía no levantó la tarjeta.
+  if(Date.now()-(registrarDesdeTotem.ultima||0)<1500)return;
+  registrarDesdeTotem.ultima=Date.now();
+  const {data,error}=await window.supabaseClient.rpc('marcar_por_reloj',{
+    // El token lo tiene que mandar el tótem, no la pantalla. Si no hay
+    // ninguno cargado, se avisa en vez de mandar un marcaje que va a
+    // rebotar sin explicación.
+    p_token:totemTokenActual(),
+    p_codigo:leido,
+    p_tipo:document.getElementById('totemTipo').value
+  });
+  if(error){
+    const msg=String(error.message||'');
+    const codigoError=(msg.match(/[A-Z_]{6,}/)||[''])[0];
+    const par=MENSAJES_TOTEM[codigoError]||['No se pudo marcar',msg||'Intenta de nuevo.'];
+    mostrarTotem('error',par[0],par[1]);
+    return;
+  }
+  const d=Array.isArray(data)?data[0]:data;
+  if(!d){mostrarTotem('error','No se pudo marcar','Intenta de nuevo.');return;}
+  if(d.resultado==='ok'){
+    mostrarTotem('ok',d.trabajador_nombre,
+      (d.marca_tipo==='entrada'?'Entrada':d.marca_tipo==='salida'?'Salida'
+        :d.marca_tipo==='colacion_entrada'?'Salida a colación':'Vuelta de colación')
+      +' registrada a las '+escHtml(d.marca_hora));
+  }else if(d.resultado==='ya_marcado'){
+    mostrarTotem('ya_marcado',d.trabajador_nombre,
+      'Ya tenías esta marca de hoy, a las '+escHtml(d.marca_hora)+'.');
+  }else{
+    mostrarTotem('duplicado',d.trabajador_nombre,
+      'Ya quedó registrada a las '+escHtml(d.marca_hora)+'.');
+  }
+}
+// El token se guarda en el navegador del tótem, no en el HTML. Por eso la
+// pantalla puede vivir en un archivo solo y el token se configura una vez
+// en el aparato. En un equipo compartido es un riesgo, y se dice: por eso
+// el tótem tiene que ser un aparato dedicado, no un navegador de escritorio.
+function totemTokenActual(){
+  try{return localStorage.getItem('totemToken_'+totemActual.code)||'';}
+  catch(error){return '';}
+}
+function guardarTotemToken(code){
+  code=code||document.getElementById('tokenRelojCodigo').value;
+  const inp=document.getElementById('tokenInstalarCampo');
+  const t=inp.value.trim();
+  if(!t){alert('Pegá el token.');return;}
+  if(!relojPorCodigo(code)){alert('Ese código de reloj no existe.');return;}
+  try{
+    localStorage.setItem('totemToken_'+code,t);
+    alert('Token guardado en este aparato.\n\nA partir de ahora este navegador marca con ese reloj. Para probarlo, abrí la pantalla de ese reloj.');
+  }catch(error){
+    alert('No se pudo guardar: '+error.message+'\n\nSi el navegador está en modo privado, no guarda nada y el token hay que ponerlo cada vez.');
+  }
+}
+function mostrarTotem(clase,titulo,detalle){
+  const caja=document.getElementById('totemMensaje');
+  caja.className='totem-'+clase;
+  caja.innerHTML='<div class="totem-icono">'
+    +(clase==='ok'?'✓':clase==='error'?'✕':'!')
+    +'</div><div class="totem-texto"><b>'+escHtml(titulo)+'</b><br><span>'+detalle+'</span></div>';
+  const leido=document.getElementById('totemCodigoLeido');
+  leido.textContent=clase==='ok'?'Marcaje OK':(clase==='error'?'Sin registro':'Ya registrado');
+  leido.className='totem-pill totem-pill-'+clase;
+  // Se vuelve sola al estado de reposo. El tiempo depende de cuánto tarda
+  // la persona en levantar la tarjeta: 2,2 s es suficiente para leer el
+  // nombre sin quedarse mirando la pantalla.
+  if(totemTimer)clearTimeout(totemTimer);
+  totemTimer=setTimeout(()=>{
+    if(!totemActual)return;
+    pintarTotemInicial();
+    document.getElementById('totemCampo').value='';
+    document.getElementById('totemCampo').focus();
+  },2200);
+}
+function cerrarTotem(){
+  if(totemTimer)clearTimeout(totemTimer);
+  if(totemTimerFoco){clearInterval(totemTimerFoco);totemTimerFoco=null;}
+  detenerCamaraTotem();
+  totemActual=null;
+  document.body.classList.remove('modoTotem');
+  document.getElementById('pantallaTotem').classList.remove('abierta');
+}
+// La cámara del tótem. Es la MISMA librería que usa el escaneo normal de la
+// app, a propósito: son el mismo problema y duplicar el lector de QR sería
+// tener dos cosas que se rompen por motivos distintos.
+async function arrancarCamaraTotem(){
+  const area=document.getElementById('totemCamara');
+  if(totemEscaner)return;
+  if(typeof Html5Qrcode==='undefined'){
+    mostrarTotem('error','La cámara no cargó','Revisa la conexión a internet de este equipo y recarga.');
+    return;
+  }
+  try{
+    const camara=document.getElementById('relojCamara')?document.getElementById('relojCamara').value:(totemActual.camara||'trasera');
+    const faceMode=camara==='frontal'||camara==='auto';
+    totemEscaner=new Html5Qrcode('totemCamara',{verbose:false,formatsToSupport:qrSupportedFormats()});
+    await totemEscaner.start(
+      {facingMode:faceMode?'user':'environment'},
+      {fps:10,qrbox:{width:320,height:320}},
+      (texto)=>{
+        // Se detiene y se reinicia porque la librería sigue disparando
+        // detectando el mismo código: sin esto seShot miles de veces por
+        // segundo.
+        try{totemEscaner.stop();}catch(error){}
+        totemEscaner=null;
+        registrarDesdeTotem(texto);
+        setTimeout(()=>{if(totemActual&&totemActual.tipo_lector==='camara')arrancarCamaraTotem();},2300);
+      },
+      ()=>{}
+    );
+    document.getElementById('totemZonaCamara').style.display='';
+  }catch(error){
+    totemEscaner=null;
+    mostrarTotem('error','No se pudo abrir la cámara',String(error.message||error).slice(0,80));
+  }
+}
+function detenerCamaraTotem(){
+  if(!totemEscaner)return;
+  try{totemEscaner.stop();}catch(error){}
+  try{totemEscaner.clear();}catch(error){}
+  totemEscaner=null;
+  if(document.getElementById('totemZonaCamara'))document.getElementById('totemZonaCamara').style.display='none';
+}
+function cambiarTipoTotem(){totemTipo=document.getElementById('totemTipo').value;pintarTotemInicial();}
+// La entrada del lector QR USB. Un input normal con autofocus: el lector
+// escribe los caracteres y manda Enter, y eso es todo.
+document.addEventListener('DOMContentLoaded',()=>{
+  const campo=document.getElementById('totemCampo');
+  if(campo){
+    campo.addEventListener('keydown',(ev)=>{
+      if(ev.key!=='Enter')return;
+      ev.preventDefault();
+      registrarDesdeTotem(campo.value);
+    });
+    // El foco NO se recupera con un listener de "blur".
+    //
+    // Se probó y no sirve: cuando el campo tiene algo escrito y alguien
+    // está a medio pasar la tarjeta, el blur lo devuelve igual y le roba el
+    // foco de debajo de la mano. Con dos mecanismos (blur e intervalo)
+    // uno le gana al otro y el resultado depende de cuál dispara primero.
+    //
+    // Queda solo el intervalo de `abrirTotem`, que tiene una sola regla
+    // clara: si el campo está vacío, vuelve a él. Si hay algo escrito, la
+    // persona está usándolo y no se lo toca.
+  }
+  abrirTotemPorURL();
+});
+function abrirTotemPorURL(){
+  // /totem/RELOJ-01 abre directo. Es la dirección que se le pone al
+  // Android TV Box: no hay que buscar nada en un menú a pantalla completa.
+  const m=location.pathname.match(/\/totem\/([^/?#]+)/);
+  if(!m)return;
+  const code=decodeURIComponent(m[1]);
+  (async()=>{
+    if(!relojCargado)await cargarRelojes();
+    if(!relojPorCodigo(code)){
+      document.body.innerHTML='<div style="padding:40px;font-family:system-ui">'+
+        '<h1>Reloj no encontrado</h1><p>No hay ningún reloj con el código <b>'+
+        escHtml(code)+'</b>.</p><p>Revisá el código en Administración → Relojes, o pedile a alguien que lo registre.</p></div>';
+      return;
+    }
+    if(!puede('relojes.totem')){
+      document.body.innerHTML='<div style="padding:40px;font-family:system-ui">'+
+        '<h1>Sin permiso</h1><p>Tu usuario no tiene el permiso <b>relojes.totem</b>, así que no puede marcar asistencia.</p>'+
+        '<p>Un administrador lo habilita en Soporte → Permisos por rol.</p></div>';
+      return;
+    }
+    abrirTotem(code);
+  })();
+}
+async function comprobarRelojes(){
+  try{
+    const {data,error}=await window.supabaseClient.rpc('diagnostico_relojes');
+    if(error)return;
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d)return;
+    const problemas=[];
+    if(!d.colacion_ok)problemas.push('la colación no está habilitada');
+    if(!d.col_reloj_ok)problemas.push('no se guarda de qué reloj vino la marca');
+    if(!d.marca_fn)problemas.push('no existe la función de marcaje');
+    if(problemas.length){
+      mostrarAvisoPermisos('La parte de relojes está incompleta ('+problemas.join(', ')+'). Vuelve a aplicar la migración 030_relojes_totem.sql.');
+    }
+  }catch(error){
+    console.info('No se pudo comprobar los relojes:',error.message);
   }
 }
 
