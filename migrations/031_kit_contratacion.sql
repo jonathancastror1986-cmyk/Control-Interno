@@ -332,6 +332,8 @@ on conflict (empresa_id) do nothing;
 -- 46 personas y cuatro plantillas, la diferencia es chica, pero el día que
 -- haya un compendio son 200 y la lista mal armada es un papel que no se
 -- entrega.
+drop function if exists public.kit_de_un_trabajador(text);
+
 create or replace function public.kit_de_un_trabajador(p_code text)
 returns table (
   plantilla_id uuid,
@@ -387,6 +389,10 @@ grant execute on function public.kit_de_un_trabajador(text) to authenticated;
 --   - si la plantilla cambió entre que se abrió el papel y el momento de
 --     firmar, hay que rechazarlo. Signar un papel con el texto viejo, en
 --     silencio, es peor que no tener el módulo.
+-- Se elimina antes: si una versión posterior de esta migración le
+-- cambió la firma, el "create or replace" no puede aplicarse encima.
+drop function if exists public.registrar_firma_contratacion(text, text, int, text, text, jsonb, boolean);
+
 create or replace function public.registrar_firma_contratacion(
   p_plantilla_code text,
   p_trabajador_code text,
@@ -486,6 +492,14 @@ grant execute on function public.registrar_firma_contratacion(text, text, int, t
 -- ------------------------------------------------------------
 -- 8) DIAGNÓSTICO
 -- ------------------------------------------------------------
+-- El "drop" va antes del "create or replace" porque esta función se
+-- vuelve a escribir más adelante con más columnas de retorno, y Postgres
+-- no permite cambiar la lista de salida de una función que ya existe:
+--     42P13: cannot change return type of existing function
+-- Sin el drop, volver a aplicar esta migración falla en este punto, que es
+-- el último, y parece que la migración anda bien hasta que llega acá.
+drop function if exists public.diagnostico_contratacion();
+
 create or replace function public.diagnostico_contratacion()
 returns table (
   tabla_plantillas boolean,

@@ -1533,12 +1533,18 @@ portería no tiene sentido que se vea la navegación, y un botón a medio
 apretar cambiaría de vista y dejaría el reloj sin marcar.
 -->
 <div id="pantallaTotem" role="dialog" aria-modal="true" aria-label="Marcaje de asistencia">
+  <!-- La hora va FUERA de la barra a propósito. El modo kiosco esconde la
+       barra entera (el selector de tipo de marca no puede quedar al alcance
+       de un dedo, porque cualquier toque lo cambia), y con la hora adentro
+       se escondía también: el código andaba bien, la prueba pasaba, y en
+       el aparato no se veía nunca. -->
+  <div id="totemHoraCaja">
+    <span class="totem-hora" id="totemHoraActual">--:--:--</span>
+    <span class="totem-fecha" id="totemFechaActual"></span>
+    <span class="totem-nombre" id="totemRelojActual"></span>
+  </div>
   <div class="totem-barra">
-    <div class="totem-hora-caja">
-      <span id="totemRelojActual"></span>
-      <span class="totem-hora" id="totemHoraActual">--:--:--</span>
-      <span class="totem-fecha" id="totemFechaActual"></span>
-    </div>
+    <span class="totem-barra-izq" id="totemCentroActual"></span>
     <span class="totem-barra-der">
       <label for="totemTipo" class="totem-barra-label">Marca</label>
       <select id="totemTipo" onchange="cambiarTipoTotem()"></select>
@@ -1834,13 +1840,36 @@ no se pueden editar con la barra.
     <div class="row" style="margin-top:8px">
       <div style="flex:1"><label>Especialidad</label><select id="plantillaEspecialidad" onchange="actualizarAyudaPlantilla()"></select></div>
       <div><label>Orden en el kit</label><input type="number" id="plantillaOrden" min="1" step="10" value="100"></div>
-      <div style="align-self:flex-end">
-        <label style="display:flex;gap:6px;align-items:center;cursor:pointer">
-          <input type="checkbox" id="plantillaSupervisor" checked> La firma el supervisor
-        </label>
-      </div>
+      <div><label>Quién lo firma</label>
+        <select id="plantillaFirmas" onchange="actualizarAyudaPlantilla()">
+          <option value="trabajador_supervisor">El trabajador y el supervisor</option>
+          <option value="trabajador">Solo el trabajador</option>
+          <option value="ninguno">Nadie (es un aviso)</option>
+        </select></div>
     </div>
     <div id="plantillaAyuda" class="small" style="margin-top:8px"></div>
+  <!-- Importar desde Word y la lista de variables -->
+  <div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">
+    <div class="row" style="align-items:center;gap:10px">
+      <button type="button" class="btn primary" onclick="importarPlantillaDesdeWord()">
+        Pegar desde Word
+      </button>
+      <div style="flex:1">
+        <small>
+          En el documento de Word, donde va un dato del trabajador, escribe el
+          nombre entre corchetes con mayúsculas: <b>[NOMBRE]</b>, <b>[RUT]</b>,
+          <b>[FECHA]</b>. Copiá todo el documento, volvé acá y apretá el botón.
+          <br>
+          El texto entra con sus párrafos, listas y tablas. La fuente y los colores
+          del Word no se copian: el formato sale de la plantilla.
+        </small>
+      </div>
+      <button type="button" class="btn" onclick="pintarListaVariables()">Ver variables</button>
+    </div>
+    <div id="plantillaAvisoWord" style="margin-top:8px"></div>
+    <div id="plantillaAvisoVariables" style="margin-top:8px"></div>
+    <div id="plantillaListaVariables" style="margin-top:8px;display:none"></div>
+  </div>
     <div class="editor-barra" style="margin-top:10px">
       <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('bold')"><b>N</b></button>
       <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('italic')"><i>C</i></button>
@@ -3016,7 +3045,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-p';
+const APP_VERSION='2026-09-28-q';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -10710,6 +10739,460 @@ async function saveEmpresa(){
   return finish(null);
 }
 
+// ===================================================================
+// IMPORTAR UNA PLANTILLA DESDE WORD
+// ===================================================================
+//
+// POR QUÉ EXISTE
+//
+// Las plantillas se escriben en Word, no en esta pantalla. El técnico de
+// Prevención tiene el documento que le pasó la mutual, le pone su logo, lo
+// edita, y después hay que copiar todo eso a un cuadro de texto.
+//
+// "Copiar y pegar" trae el formato pero rompe los estilos; "pegar sin
+// formato" trae el texto pero se pierde la tabla, que en una inducción es
+// media información.
+//
+// Con este botón se pega el texto de un .docx y se arma el HTML solo: se
+// mantienen los párrafos, las listas y las tablas, que es lo que importa.
+//
+// LO QUE NO HACE, Y SE DICE ANTES DE HACERLO
+//
+//   - No lee el archivo .docx directamente. Un .docx es un ZIP con el
+//     documento adentro, y descomprimirlo en el navegador es más código del
+//     que vale: se pega el contenido desde Word, que es lo mismo en un
+//     clic.
+//   - No copia el logo. La imagen del Word no se pega; el logo de la
+//     plantilla se sube aparte, en la pantalla de la empresa.
+//   - No trae las variables convertidas. Convierte lo que reconoce y avisa
+//     cuáles no.
+//
+// EL RECONOCIMIENTO DE VARIABLES
+//
+// Se buscan tres formas, que son las que la gente escribe:
+//
+//     {{nombre}}      con llaves dobles  (lo que ya usaba la app)
+//     [NOMBRE]        con corchetes y MAYÚSCULAS  (lo que pide el usuario)
+//     {nombre}        con una sola llave
+//
+// Y en las tres, el nombre se puede escribir con guion bajo o con espacio:
+// [NOMBRE_TRABAJADOR], [NOMBRE TRABAJADOR] y [nombre] son la misma variable.
+//
+// Lo que NO se reconoce:
+//   - [NOMBRE COMPLETO] sí: el nombre de la variable es "nombre_completo".
+//   - Un texto entre corchetes que no sea una variable conocida, como
+//     [FIRMA] o [SELLO]: se deja tal cual y se avisa, porque puede ser que
+//     la persona haya escrito un rótulo y no un campo.
+//
+// POR QUÉ NO SE CONVIERTE SOLO LO QUE SE CONOCE
+//
+// Si se reemplazara a ciegas, "x [precio] y" se convertiría en un hueco
+// invisible en un documento que va firmado por un trabajador. Es peor que
+// dejarlo escrito. Se avisa y se decide.
+
+// ------------------------------------------------------------------
+// EL CATÁLOGO DE VARIABLES
+// ------------------------------------------------------------------
+// Cada variable dice de dónde sale el valor. Es la lista que la persona
+// necesita para saber qué puede escribir en Word.
+//
+// El nombre interno es el que va en las llaves ({{nombre}}). El texto
+// después es para leerlo, no para escribirlo.
+const VARIABLES_PLANTILLA = [
+  {clave:'nombre',           etiqueta:'Nombre del trabajador',      de:'trabajadores.name'},
+  {clave:'nombre_completo',  etiqueta:'Nombre y apellido',           de:'trabajadores.name'},
+  {clave:'rut',              etiqueta:'RUT',                          de:'trabajadores.rut'},
+  {clave:'codigo',           etiqueta:'Código del trabajador',        de:'trabajadores.code'},
+  {clave:'especialidad',     etiqueta:'Oficio o especialidad',        de:'trabajadores.especialidad_clave'},
+  {clave:'empresa',          etiqueta:'Nombre de la empresa',         de:'empresa.nombre'},
+  {clave:'empresa_rut',      etiqueta:'RUT de la empresa',            de:'empresa.rut'},
+  {clave:'centro',           etiqueta:'Centro de costo',              de:'centros_costo.nombre'},
+  {clave:'obra',             etiqueta:'Nombre de la obra',            de:'centros_costo.nombre'},
+  {clave:'fecha',            etiqueta:'Fecha de hoy',                 de:'la del sistema'},
+  {clave:'fecha_ingreso',    etiqueta:'Fecha de ingreso',             de:'trabajadores.fecha_ingreso'},
+  {clave:'supervisor',       etiqueta:'Nombre del supervisor',        de:'el que firma'},
+  {clave:'cargo',            etiqueta:'Cargo',                        de:'trabajadores.cargo'}
+];
+
+// ------------------------------------------------------------------
+// RECONOCER LAS VARIABLES
+// ------------------------------------------------------------------
+//
+// Se arman tres patrones. Con tres en vez de uno con dos alternativas, el
+// código es más legible y cada forma se puede probar sola.
+//
+// El nombre se normaliza antes de comparar: minúsculas, sin acentos, con
+// los guiones bajos convertidos en espacio. Así [NOMBRE], [Nombre] y
+// [nombre ] son la misma variable, que es como las escribe la gente.
+function normalizarNombreVariable(s){
+  return String(s||'')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')   // saca los acentos
+    .replace(/[\s-]+/g,' ')            // guiones y espacios son lo mismo
+    .trim();
+}
+
+// El mapa de nombres aceptados, armado una sola vez. Sin esto, cada
+// variable se compararía con 40 cadenas en cada búsqueda.
+const aliasVariables=(()=>{
+  const m=new Map();
+  for(const v of VARIABLES_PLANTILLA){
+    const base=normalizarNombreVariable(v.clave);
+    m.set(base,v.clave);
+    m.set(normalizarNombreVariable(v.etiqueta),v.clave);
+    // [nombre_completo] y [nombre completo] tienen que ser lo mismo.
+    m.set(base.replace(/_/g,' '),v.clave);
+    // "trabajador" a secas, que es como lo escribe la gente.
+    if(base==='nombre')m.set('trabajador',v.clave);
+    if(base==='nombre_completo'){m.set('nombre y apellido',v.clave);m.set('nombre y apellidos',v.clave);}
+  }
+  return m;
+})();
+
+const PATRONES_VARIABLE=[
+  // {{nombre}}, con llaves dobles
+  /\{\{\s*([^}]{1,60}?)\s*\}\}/g,
+  // [NOMBRE], con corchetes
+  /\[\s*([A-Za-zÁÉÍÓÚÑáéíóúñ_ ]{2,60}?)\s*\]/g,
+  // {nombre}, con una sola llave
+  /\{\s*([A-Za-zÁÉÍÓÚÑáéíóúñ_ ]{2,60}?)\s*\}/g
+];
+
+// Convierte el texto pegado. Devuelve el HTML y la lista de lo que se
+// encontró y lo que no, para poder avisar.
+function convertirVariablesDePlantilla(texto){
+  const html=[];
+  const encontradas=[];
+  const desconocidas=[];
+  let i=0;
+  // Se busca en los tres patrones por turno sobre el texto ENTERO, y se
+  // toma siempre el que empieza antes. Si se hicieran por separado, un
+  // {{nombre}} dentro de un [otro] se pisarían.
+  while(i<texto.length){
+    let mejor=null;
+    for(const re of PATRONES_VARIABLE){
+      re.lastIndex=i;
+      const m=re.exec(texto);
+      if(m&&(!mejor||m.index<mejor.m.index)){
+        mejor={m,forma:re.source};
+      }
+    }
+    if(!mejor){
+      html.push(escaparParaHTML(texto.slice(i)));
+      break;
+    }
+    // Lo que viene antes del hallazgo, tal cual.
+    if(mejor.m.index>i)html.push(escaparParaHTML(texto.slice(i,mejor.m.index)));
+    const crudo=mejor.m[1];
+    const clave=aliasVariables.get(normalizarNombreVariable(crudo));
+    if(clave){
+      html.push('{{'+clave+'}}');
+      if(!encontradas.includes(clave))encontradas.push(clave);
+    }else{
+      // No se toca. Si se reemplazara a ciegas, "precio [total]" quedaría
+      // con un hueco invisible en un papel que firma un trabajador.
+      html.push(escaparParaHTML(mejor.m[0]));
+      if(!desconocidas.includes(crudo))desconocidas.push(crudo);
+    }
+    i=mejor.m.index+mejor.m[0].length;
+  }
+  return {html:html.join(''),encontradas,desconocidas};
+}
+
+// ------------------------------------------------------------------
+// QUÉ HTML SE DEJA PASAR
+// ------------------------------------------------------------------
+//
+// La lista es CERRADA. Lo que no está acá, se escapa y queda escrito.
+//
+// Antes la regla era "si la línea empieza por <, se respeta", y por eso
+// pasaban <img onerror=...>, <a href="javascript:...">, <iframe> y
+// <script>. Eso es un XSS servido desde el propio archivo de la app: quien
+// pegara eso leería el token del reloj, que vive en el localStorage del
+// aparato. Una lista abierta ("pasa lo que parezca HTML") deja pasar lo que
+// uno se acuerde de pegar, y lo que uno se acuerda de pegar puede ser de
+// donde sea.
+//
+// Lo que Word produce al copiar: <p>, <div>, <b>, <strong>, <i>, <em>, <u>,
+// <sup>, <sub>, <small>, <br>, <hr>, los <h1> a <h6>, las listas <ul>/<ol>
+// con sus <li>, y las tablas <table>/<tr>/<td>/<th>.
+//
+// Lo que NO está, y por qué:
+//   <img>   traería un archivo de otro servidor, y el papel se imprimiría
+//           con una imagen que nadie revisó.
+//   <script>, <iframe>, <object>, <embed>  ejecutan. No hay motivo alguno.
+//   <a href="javascript:...">  ejecuta al apretarlo.
+//   <style>   repinta el papel entero.
+//   <form>    manda datos a otro lado al apretar.
+const TAG_PERMITIDA=
+  /^<\/?(?:p|div|b|strong|i|em|u|sup|sub|small|br|hr|h[1-6]|ul|ol|li|table|tr|td|th|tbody|thead|tfoot)(?:\s[^>]*)?>$/i;
+
+// Una línea con texto y etiquetas mezcladas: "Hola <b>mundo</b>".
+//
+// Se arma parte por parte. El texto va escapado, y de las etiquetas solo
+// pasan las de la lista, y todavía sin los atributos que hacen algo:
+// on*, style, src, href. Se quitan sin perder nada de lo que Word trae.
+//
+// Sin esto habría que elegir entre perder el texto o dejar pasar la línea
+// entera, y lo segundo es lo que abre la puerta.
+function lineaConHtmlDeWord(linea){
+  const trozos=String(linea).split(/(<[^>]*>)/g);
+  return trozos.map((trozo,indice)=>{
+    if(indice%2===0)return escaparParaHTML(trozo);
+    // Es una etiqueta. Pasa solo si es de la lista.
+    if(!TAG_PERMITIDA.test(trozo))return escaparParaHTML(trozo);
+    const limpio=trozo.replace(
+      /\s+(?:on\w+|style|src|href|formaction|srcdoc|xlink:href|background|poster)\s*=\s*"[^"]*"/gi,'');
+    return TAG_PERMITIDA.test(limpio)?limpio:escaparParaHTML(trozo);
+  }).join('');
+}
+
+// ------------------------------------------------------------------
+// EL TEXTO PEGADO A HTML
+// ------------------------------------------------------------------
+//
+// Se hace a mano y no con innerHTML, porque el texto viene de un archivo
+// externo: ponerlo con innerHTML sería meter HTML ajeno en un documento que
+// se imprime y se firma. Con este conversor solo salen las etiquetas que
+// se generan abajo.
+function escaparParaHTML(s){
+  return String(s)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;');
+}
+
+// El texto plano de Word a HTML: párrafos, listas y tablas.
+//
+// Las listas de Word vienen con archivos .docx que no se pueden leer
+// desde el navegador, así que se cubren los dos casos: el pegado de Word
+// como HTML (con <ul> y <ol> ya hechos) y el pegado como texto plano (con
+// "- " o "• " adelante).
+function textoAHtml(texto){
+  const lineas=String(texto).replace(/\r\n?/g,'\n').split('\n');
+  const out=[];
+  let enLista=false;
+  let enTabla=false;
+  let celdaAbierta=false;
+  const cerrarLista=()=>{if(enLista){out.push('</ul>');enLista=false;}};
+  const cerrarCelda=()=>{if(celdaAbierta){out.push('</td>');celdaAbierta=false;}};
+  const cerrarTabla=()=>{cerrarCelda();if(enTabla){out.push('</tbody></table>');enTabla=false;}};
+
+  for(const cruda of lineas){
+    const linea=cruda.replace(/\s+$/,'');
+    const sinEspacios=linea.trim();
+
+    // Una celda de tabla. Word pega las tablas con tabuladores.
+    if(linea.indexOf('\t')>=0&&sinEspacios){
+      if(!enTabla){
+        out.push('<table class="docx-tabla"><tbody>');
+        enTabla=true;
+      }
+      for(const celda of linea.split('\t')){
+        if(celda.trim()==='')continue;
+        cerrarCelda();
+        // Word envuelve el texto de cada celda en un <p> o un <span>. Con
+        // eso la fila queda con un margen vertical que la desarma, y la
+        // tabla se ve con separaciones raras. Se limpian.
+        const limpia=escaparParaHTML(celda.trim())
+          .replace(/^<(?:p|span|div)\b[^>]*>/i,'')
+          .replace(/<\/(?:p|span|div)>$/i,'');
+        out.push('<td>'+limpia+'</td>');
+        celdaAbierta=true;
+      }
+      continue;
+    }
+    cerrarTabla();
+
+    if(!sinEspacios){cerrarLista();continue;}
+
+    // Viene de una lista de Word.
+    if(/^<\/?(ul|ol|li)/i.test(sinEspacios)){
+      if(/^<li/i.test(sinEspacios)){
+        if(!enLista){out.push('<ul>');enLista=true;}
+        out.push('<li>'+escaparParaHTML(sinEspacios.replace(/^<\/?li[^>]*>/i,'').replace(/<\/li>$/i,''))+'</li>');
+        continue;
+      }
+      cerrarLista();
+      out.push(sinEspacios);
+      continue;
+    }
+
+    // Viene de una lista de texto plano: "- " o "• " o "1) ".
+    const vineta=sinEspacios.match(/^(?:[-•*]\s+|\d+[.)]\s+)/);
+    if(vineta){
+      if(!enLista){out.push('<ul>');enLista=true;}
+      out.push('<li>'+escaparParaHTML(sinEspacios.slice(vineta[0].length))+'</li>');
+      continue;
+    }
+
+    // El HTML de Word se respeta, y solo el de Word. Ver la lista
+    // cerrada arriba: lo que no está en ella se escapa, porque el texto
+    // viene de un archivo externo y va a un papel que firma alguien.
+    if(TAG_PERMITIDA.test(sinEspacios)){
+      cerrarLista();
+      out.push(sinEspacios);
+      continue;
+    }
+
+    // Una línea con texto y etiquetas mezcladas ("Hola <b>mundo</b>") se
+    // arma parte por parte. Con esto, un <img> pegado en medio de una
+    // frase queda escrito y no ejecutable, sin perder el resto del texto.
+    const conHtmlDeWord=lineaConHtmlDeWord(sinEspacios);
+    if(conHtmlDeWord!==escaparParaHTML(sinEspacios)){
+      cerrarLista();
+      out.push(conHtmlDeWord);
+      continue;
+    }
+
+    cerrarLista();
+    out.push('<p>'+escaparParaHTML(sinEspacios)+'</p>');
+  }
+  cerrarLista();
+  cerrarTabla();
+  return out.join('\n');
+}
+
+// ------------------------------------------------------------------
+// EL BOTÓN
+// ------------------------------------------------------------------
+// Se lee del portapapeles y se convierte, en un solo paso.
+//
+// Sin pegado con Ctrl+V a mano, porque pegar dentro de un contenteditable
+// mete estilos que después hay que sacar uno por uno, y nadie los saca.
+async function importarPlantillaDesdeWord(){
+  if(!lecturaPegadaLista){
+    alert('Primero hay que autorizar la lectura del portapapeles.\n\n'
+      +'Chrome y Edge preguntan la primera vez. Si no aparece la pregunta, '
+      +'el navegador está bloqueando el acceso: se puede pegar con Ctrl+V '
+      +'directo en el editor.');
+    return;
+  }
+  let texto='';
+  try{
+    texto=await navigator.clipboard.readText();
+  }catch(error){
+    alert('No se pudo leer el portapapeles.\n\n'
+      +'Chrome lo pide una vez y después lo permite. Si sigue sin funcionar, '
+      +'abrí el Word, seleccioná todo (Ctrl+A) y pegá con Ctrl+V en el editor.');
+    return;
+  }
+  if(!String(texto).trim()){
+    alert('El portapapeles está vacío.\n\nCopiá primero el contenido del documento de Word.');
+    return;
+  }
+  aplicarTextoPegado(texto);
+}
+
+// El mismo camino cuando la persona pega con Ctrl+V en el editor.
+function aplicarTextoPegado(texto){
+  const limpio=String(texto).replace(/\r\n?/g,'\n');
+  const html=textoAHtml(limpio);
+  const conversion=convertirVariablesDePlantilla(html);
+
+  // El id es "plantillaEditor". Con "plantillaContenido" el pegado
+  // entraba en un elemento que no existe: sin error visible, y el texto
+  // no aparecía en ninguna parte. La persona pensaba que el botón no
+  // hacía nada.
+  const editor=document.getElementById('plantillaEditor');
+  if(!editor){
+    alert('No se encontró el editor de la plantilla.\n\n'
+      +'Cerrá esta ventana y abrí la plantilla de nuevo.');
+    return;
+  }
+  editor.innerHTML=conversion.html;
+
+  avisarImportacionWord(conversion);
+  avisarVariablesEnPlantilla(conversion);
+  // La versión sube porque el contenido cambió, y el editor tiene que
+  // enterarse: si no, se firmaría con la versión vieja y la entrega
+  // quedaría apuntando a un texto que ya no existe.
+  try{marcarContenidoCambiado();}catch(error){}
+}
+
+function avisarImportacionWord(conversion){
+  const caja=document.getElementById('plantillaAvisoWord');
+  if(!caja)return;
+  const n=(conversion.html.match(/<(p|li|td|h[1-6])/g)||[]).length;
+  caja.innerHTML='<div class="aviso-fila" style="margin:6px 0 0">'
+    +'Contenido pegado: '+n+' párrafo'+(n===1?'':'s')+' y '
+    +'<b>'+conversion.encontradas.length+' variable'+(conversion.encontradas.length===1?'':'s')
+    +'</b> reconocida'+(conversion.encontradas.length===1?'':'s')+'.'
+    +'<br><small>Revisá el texto antes de guardar. La fuente y el color del '
+    +'Word no se copian: el formato sale de la plantilla, no del documento.</small>'
+    +'</div>';
+}
+
+function avisarVariablesEnPlantilla(conversion){
+  const caja=document.getElementById('plantillaAvisoVariables');
+  if(!caja)return;
+  const partes=[];
+  if(conversion.encontradas.length){
+    partes.push('Reconocidas: '+conversion.encontradas.map((c)=>'{{'+c+'}}').join(', '));
+  }else{
+    partes.push('<b>No se encontró ninguna variable.</b> Si el documento tiene '
+      +'campos para llenar, escríbelos entre corchetes con mayúsculas, como '
+      +'[NOMBRE] o [RUT], y volvé a pegar.');
+  }
+  if(conversion.desconocidas.length){
+    partes.push('<b>Sin reconocer (se dejaron tal cual):</b> '
+      +conversion.desconocidas.map((c)=>'['+c+']').join(', ')
+      +'. Si alguno era un campo para llenar, probablemente esté escrito de otra manera: '
+      +'miralos en la lista de variables de abajo.');
+  }
+  caja.innerHTML='<div class="aviso-fila" style="margin:6px 0 0">'
+    +partes.join('<br>')+'</div>';
+}
+
+// La lista de variables, siempre a la vista mientras se pega. Es la
+// respuesta a "¿qué puedo escribir en el Word?".
+function pintarListaVariables(){
+  const caja=document.getElementById('plantillaListaVariables');
+  if(!caja)return;
+  caja.innerHTML=VARIABLES_PLANTILLA
+    .map((v)=>'<tr><td><code>{{'+v.clave+'}}</code></td>'
+      +'<td>'+escaparParaHTML(v.etiqueta)+'</td>'
+      +'<td><small>'+escaparParaHTML(v.de)+'</small></td></tr>')
+    .join('');
+}
+
+// Poner una variable en el cursor, con un clic. Para quien no quiere
+// acordarse de los nombres.
+function insertarVariableEnPlantilla(clave){
+  const editor=document.getElementById('plantillaEditor');
+  if(!editor)return;
+  const texto='{{'+clave+'}}';
+  // execCommand está obsoleto y sigue siendo la única forma de insertar
+  // en el punto del cursor sin reescribir el contenido entero y perder el
+  // cursor. Se usa dentro de un try: si el navegador ya no lo soporta, se
+  // avisa en vez de fallar en silencio.
+  try{
+    editor.focus();
+    if(!document.execCommand('insertText',false,texto)){
+      throw new Error('no');
+    }
+  }catch(error){
+    alert('Este navegador no deja escribir en el cursor.\n\nPegá la variable a mano: {{'+clave+'}}');
+  }
+  try{marcarContenidoCambiado();}catch(e){}
+}
+
+// Si el navegador no deja leer el portapapeles, el botón lo dice al
+// apretarlo en vez de no hacer nada. Se consulta una vez al cargar.
+let lecturaPegadaLista=false;
+function comprobarLecturaPegada(){
+  if(!navigator.clipboard||!navigator.clipboard.readText){
+    lecturaPegadaLista=false;
+    return;
+  }
+  // No se puede preguntar permiso sin preguntar: pedirlo al cargar asusta
+  // con un cartel que nadie entiende. Se marca disponible y se pregunta
+  // recién cuando la persona aprieta el botón.
+  lecturaPegadaLista=true;
+}
+
 // ============================================================
 // ROLES Y PERMISOS
 // Un usuario puede tener varios roles; cada rol tiene un conjunto
@@ -11044,7 +11527,10 @@ const MENSAJES_TOTEM={
   OTRA_EMPRESA:['Tarjeta de otra empresa','Esta tarjeta es de otra empresa. No se puede marcar acá.'],
   TIPO_INVALIDO:['Tipo de marca inválido','El reloj está mal configurado. Avisa a administración.'],
   RELOJ_INACTIVO:['Reloj desactivado','Este reloj no está en uso.'],
-  TOKEN_INVALIDO:['Reloj sin credencial','El reloj no está registrado en el sistema. Avisa a administración.']
+  // El texto NO dice "el reloj no está registrado": con token puesto, lo
+  // que se rechaza es el token, no el reloj. Ver registrarDesdeTotem, que
+  // distingue los dos casos antes de llamar.
+  TOKEN_INVALIDO:['El token no sirve','El token de este aparato no es el del reloj. Avisa a administración.']
 };
 
 let relojes=[];
@@ -11518,6 +12004,8 @@ function pintarTotemInicial(){
     +'</div></div>';
   const caja=document.getElementById('totemCodigoLeido');
   caja.textContent='';
+  const barraCentro=document.getElementById('totemCentroActual');
+  if(barraCentro)barraCentro.textContent=totemActual?centroDe(totemActual):'';
   document.getElementById('totemRelojActual').textContent=
     (totemActual?totemActual.code+' · ':'')+(totemActual?centroDe(totemActual):'');
 }
@@ -11533,11 +12021,33 @@ async function registrarDesdeTotem(codigo){
   // habías marcado" mientras la persona todavía no levantó la tarjeta.
   if(Date.now()-(registrarDesdeTotem.ultima||0)<1500)return;
   registrarDesdeTotem.ultima=Date.now();
+
+  // ------------------------------------------------------------------
+  // SIN TOKEN EN ESTE APARATO
+  // ------------------------------------------------------------------
+  // Se comprueba acá y no después de la respuesta. La base responde
+  // TOKEN_INVALIDO tanto si el token no está como si es de otro reloj, y
+  // el mensaje que salía ("El reloj no está registrado en el sistema")
+  // mandaba a revisar un reloj que sí existe y está sano. El problema, en
+  // este caso, es de ESTE aparato.
+  //
+  // Se dice antes de llamar, porque la llamada no puede saber la
+  // diferencia y porque un marcaje que va a fallar no se manda.
+  const token=totemTokenActual();
+  if(!token){
+    mostrarTotem('error','Este aparato no tiene el token',
+      'El reloj '+String(totemActual&&totemActual.code||'')+' es correcto, pero en este equipo no se instaló su token.'
+      +'\n\nSe arregla desde la pantalla de Relojes: presioná "Rotar token" y copialo,'
+      +' después volvé a abrir la pantalla de marcaje y presioná "Pegar el token" con ese valor.'
+      +'\n\nSe hace una sola vez por reloj y por aparato.');
+    return;
+  }
+
   const {data,error}=await window.supabaseClient.rpc('marcar_por_reloj',{
     // El token lo tiene que mandar el tótem, no la pantalla. Si no hay
     // ninguno cargado, se avisa en vez de mandar un marcaje que va a
     // rebotar sin explicación.
-    p_token:totemTokenActual(),
+    p_token:token,
     p_codigo:leido,
     p_tipo:document.getElementById('totemTipo').value
   });
@@ -11553,6 +12063,18 @@ async function registrarDesdeTotem(codigo){
     }
     const msg=String(error.message||'');
     const codigoError=(msg.match(/[A-Z_]{6,}/)||[''])[0];
+    // Con token puesto y rechazo, el caso normal es que el token sea de
+    // otro reloj: alguien instaló el equivocado, o se rotó el token y
+    // este aparato quedó con el viejo. Se dice eso, y no "el reloj no
+    // existe", que lleva a revisar un reloj sano.
+    if(codigoError==='TOKEN_INVALIDO'){
+      mostrarTotem('error','El token no es de este reloj',
+        'Este equipo tiene un token, pero no es el del reloj '
+        +String(totemActual&&totemActual.code||'')+'.'
+        +'\n\nO se instaló el token de otro reloj, o se rotó el token de este y este aparato quedó con el anterior.'
+        +'\n\nSe arregla desde Relojes: "Rotar token", y después instalar el nuevo en este equipo.');
+      return;
+    }
     const par=MENSAJES_TOTEM[codigoError]||['No se pudo marcar',msg||'Intenta de nuevo.'];
     mostrarTotem('error',par[0],par[1]);
     return;
@@ -11807,7 +12329,7 @@ function renderPlantillas(){
       (p.vigente?'':' <span class="pill" style="color:var(--danger);border-color:var(--danger)">No vigente</span>')+
       (vacio?' <span class="pill" style="color:var(--warn);border-color:var(--warn)">Sin contenido</span>':'')+
       '<br><small>'+escHtml(p.especialidad_clave?especialidadNombre(p.especialidad_clave):'General (le toca a todos)')+
-      (p.requiere_supervisor?' · firma del supervisor':'')+
+      (p.firmas==='ninguno'?'':' · firma'+(p.firmas==='trabajador_supervisor'?' del trabajador y del supervisor':' del trabajador'))+
       (hechas?' · '+hechas+' firmada(s)':'')+'</small></div>'+
       '<span style="display:flex;gap:6px;flex:0 0 auto">'+
       '<button class="btn" style="padding:4px 8px;font-size:.8rem" type="button" onclick="abrirEditorPlantilla(\''+escHtml(p.code)+'\')">Editar</button>'+
@@ -11819,7 +12341,7 @@ function renderPlantillas(){
 }
 function actualizarAyudaPlantilla(){
   const esp=document.getElementById('plantillaEspecialidad').value;
-  const conSup=document.getElementById('plantillaSupervisor').checked;
+  const conSup=document.getElementById('plantillaFirmas').value!=='ninguno';
   const esCharla=document.getElementById('plantillaTipo').value==='charla';
   document.getElementById('plantillaAyuda').innerHTML=
     (esp
@@ -11829,12 +12351,19 @@ function actualizarAyudaPlantilla(){
     (esCharla
       ?'<br>Una charla es para explicarla: texto corrido, y los {{campos}} donde vaya el nombre.'
       :'')+
-    (conSup
-      ?'<br>Se firma el trabajador <b>y</b> el supervisor: si falta una de las dos, no se guarda.'
-      :'<br>Se firma solo el trabajador. Se desmarca para las actas que solo lleva su firma.');
+    (document.getElementById('plantillaFirmas').value==='ninguno'
+      ?'<br>No se firma nadie. Se usa para los avisos informativos, que se entregan pero no se firman.'
+      :(document.getElementById('plantillaFirmas').value==='trabajador'
+        ?'<br>Se firma solo el trabajador. Para las actas que llevan una sola firma.'
+        :'<br>Se firma el trabajador <b>y</b> el supervisor: si falta una de las dos, no se guarda.'));
 }
 async function abrirEditorPlantilla(code){
   if(!exigirPermiso('contratacion.editar','No tienes permiso para escribir las plantillas.'))return;
+  // Si este navegador no deja leer el portapapeles, el botón de Word lo
+  // tiene que decir al apretarlo. Se comprueba al abrir, sin pedir
+  // permiso: preguntar al cargar asusta con un cartel que nadie
+  // entiende y casi siempre se responde que no.
+  comprobarLecturaPegada();
   const p=code?plantillasContratacion.find(x=>x.code===code):null;
   const dlg=document.getElementById('dlgPlantilla');
   document.getElementById('plantillaTitulo').textContent=p?('Editar '+p.nombre):'Agregar plantilla';
@@ -11844,7 +12373,11 @@ async function abrirEditorPlantilla(code){
   document.getElementById('plantillaNombre').value=p?p.nombre:'';
   document.getElementById('plantillaTipo').value=p?p.tipo:'charla';
   document.getElementById('plantillaOrden').value=p?p.orden:100;
-  document.getElementById('plantillaSupervisor').checked=p?!!p.requiere_supervisor:true;
+  // Antes era una caja de sí/no. Con la columna nueva hay tres casos, y
+  // una caja de dos no alcanza: el caso "nadie firma" se confundía con
+  // "solo el trabajador".
+  document.getElementById('plantillaFirmas').value=
+    p?(p.firmas||'trabajador_supervisor'):'trabajador_supervisor';
   const sel=document.getElementById('plantillaEspecialidad');
   sel.innerHTML='<option value="">General (le toca a todos)</option>'+
     (typeof especialidades!=='undefined'?especialidades:[]).map(e=>`<option value="${escHtml(e.clave)}">${escHtml(e.nombre)}</option>`).join('');
@@ -11878,7 +12411,7 @@ async function guardarPlantilla(){
     tipo:document.getElementById('plantillaTipo').value,
     especialidad_clave:document.getElementById('plantillaEspecialidad').value||null,
     orden:Number(document.getElementById('plantillaOrden').value)||100,
-    requiere_supervisor:document.getElementById('plantillaSupervisor').checked,
+    firmas:document.getElementById('plantillaFirmas').value||'trabajador_supervisor',
     contenido
   };
   btn.disabled=true;btn.textContent='Guardando…';
@@ -12968,7 +13501,12 @@ function htmlTimbre(){
 // plantilla lo pide: un papel con dos firmas donde la plantilla pide una
 // es un documento mal hecho.
 function htmlFirmas(plantilla,conFirmas){
-  const conSup=plantilla.requiere_supervisor;
+  // 'ninguno' no muestra ni un recuadro: un aviso informativo que se
+  // firma es un documento mal hecho, y el papel queda con una firma de
+  // alguien que no firmó.
+  const modoFirmas=plantilla.firmas||'trabajador_supervisor';
+  const conSup=modoFirmas!=='ninguno';
+  const soloTrabajador=modoFirmas==='trabajador';
   const bloque=(titulo,campo,quien)=>{
     const hay=campo&&String(campo).startsWith('data:image');
     return '<div class="firma-bloque">'
@@ -12981,7 +13519,7 @@ function htmlFirmas(plantilla,conFirmas){
   const firmaSup=(conFirmas&&conFirmas.firma_supervisor)||null;
   return '<div class="firmas">'
     +bloque('Firma del trabajador',conWorkers,'')
-    +(conSup?bloque('Firma y nombre del supervisor',firmaSup,''):'')
+    +(conSup&&!soloTrabajador?bloque('Firma y nombre del supervisor',firmaSup,''):'')
     +'</div>';
 }
 function abrirPapel(plantillaCode,code){
@@ -13004,7 +13542,11 @@ function abrirPapel(plantillaCode,code){
   // Los dos recuadros de firma se vuelven a dibujar vacíos, con la
   // firma ya puesta de fondo si la había.
   montarFirmaPapel('papelFirmaTrab',entrega?entrega.firma_trabajador:null);
-  if(p.requiere_supervisor)montarFirmaPapel('papelFirmaSup',entrega?entrega.firma_supervisor:null);
+  // Con la columna nueva: el recuadro del supervisor se monta si la plantilla
+// lo pide. Con la vieja (un sí/no) bastaba con el valor directo; con tres
+// casos hay que comparar contra 'ninguno', porque ese es el que no
+// muestra nada.
+if((p.firmas||'trabajador_supervisor')!=='ninguno')montarFirmaPapel('papelFirmaSup',entrega?entrega.firma_supervisor:null);
   else document.getElementById('papelFirmaSupWrap').style.display='none';
   document.getElementById('papelGuardar').textContent=entrega&&entrega.estado==='completa'?'Volver a guardar':'Guardar firma';
   dlg._plantilla=p;dlg._code=code;dlg._entrega=entrega;
@@ -13077,13 +13619,28 @@ async function guardarPapel(){
   const btn=document.getElementById('papelGuardar');
   err.textContent='';
   const firmaT=firmaComoDatos('papelFirmaTrab');
-  const firmaS=p.requiere_supervisor?firmaComoDatos('papelFirmaSup'):null;
-  if(!firmaT&&!firmaS){
-    err.textContent='Firmá al menos una de las dos para guardar el papel.';
-    return;
-  }
-  if(firmaT&&!firmaS&&p.requiere_supervisor){
-    err.textContent='Este papel lo firma el trabajador Y el supervisor. Falta una de las dos.';
+  // Con la columna nueva hay tres casos, no dos:
+  //   'ninguno'               -> no se pide ninguna firma
+  //   'trabajador'            -> se pide solo la del trabajador
+  //   'trabajador_supervisor' -> se piden las dos, y no se guarda con una
+  // Antes, con un sí/no, el caso "nadie" no se distinguía de "solo el
+  // trabajador": una plantilla informativa terminaba exigiendo una firma.
+  const modoFirmas=p.firmas||'trabajador_supervisor';
+  const firmaS=(modoFirmas!=='ninguno')?firmaComoDatos('papelFirmaSup'):null;
+  if(modoFirmas==='ninguno'){
+    // Un aviso informativo se entrega sin firmar. Se guarda igual: es lo
+    // que pidió la plantilla, y la base lo registra.
+  }else if(modoFirmas==='trabajador_supervisor'){
+    if(!firmaT&&!firmaS){
+      err.textContent='Este papel lo firma el trabajador Y el supervisor. Firmá las dos.';
+      return;
+    }
+    if(firmaT!==firmaS){
+      err.textContent='Este papel lo firma el trabajador Y el supervisor. Falta una de las dos.';
+      return;
+    }
+  }else if(!firmaT){
+    err.textContent='Firmá el trabajador para guardar el papel.';
     return;
   }
   const w=workers.find(x=>x.code===code);
