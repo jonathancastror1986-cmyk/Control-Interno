@@ -1240,7 +1240,7 @@ async function issueCard(code,tipo){
   const previas=tarjetas.filter(t=>t.code===code&&t.estado==='activa');
   if(previas.length){
     const {error:errAnular}=await window.supabaseClient.from('tarjetas')
-      .update({estado:'anulada',motivo_anulacion:`Reemplazada por nueva tarjeta ${tipo}`})
+      .update({estado:'anulada',motivo_anulacion:`Reemplazada por nueva tarjeta ${tipo}`,motivo_bloqueo:null})
       .in('id',previas.map(p=>p.id));
     if(errAnular){alert('No se pudo anular la tarjeta anterior: '+errAnular.message);}
   }
@@ -2065,16 +2065,53 @@ function handleScannedCode(rawCode,purpose){
   if(input)input.value=code;
   doScan();
 }
-// El QR de la tarjeta puede ser el id de la tarjeta emitida o el código del trabajador.
-function resolverCodigoTrabajador(scanned){
-  const card=tarjetas.find(t=>mismoId(t.id,scanned));
-  if(card&&card.estado==='anulada'){
-    alert('⚠️ TARJETA ANULADA\nEsta tarjeta ya no es válida ('+(card.motivo_anulacion||'fue reemplazada')+'). Pide la tarjeta vigente.');
+// Resuelve lo que se escaneó a un trabajador validando la TARJETA.
+//
+// El QR de la tarjeta codifica el id de la tarjeta, no el código del
+// trabajador: así se puede anular una tarjeta perdida y emitir otra sin
+// que la vieja siga sirviendo. Al escanear se lee la tarjeta y con ella
+// se sabe de quién es, si sigue vigente y si el trabajador continúa
+// trabajando acá.
+//
+// Acepta también el código del trabajador a mano, por si alguien teclea
+// el número en vez de pasar la tarjeta, pero avisa que no es lo mismo.
+function resolverCodigoTrabajador(scanned,opciones){
+  opciones=opciones||{};
+  const leido=String(scanned||'').trim();
+  if(!leido)return null;
+  const card=tarjetas.find(t=>mismoId(t.id,leido));
+  if(card){
+    if(card.estado==='anulada'){
+      alert('⚠️ TARJETA ANULADA\nEsta tarjeta ya no es válida'+(card.motivo_anulacion?' ('+card.motivo_anulacion+')':'')+'. Pide la tarjeta vigente.');
+      return null;
+    }
+    if(card.estado==='bloqueada'){
+      alert('⛔ TARJETA BLOQUEADA\nEsta tarjeta no sirve para pasar asistencia.'+
+        (card.motivo_bloqueo?'\nMotivo: '+card.motivo_bloqueo:'')+
+        '\n\nDebe pasar por Administración para regularizar su situación.');
+      return null;
+    }
+    const w=workers.find(x=>x.code===card.code);
+    if(!w){alert('⚠️ La tarjeta pertenece al código '+card.code+', que no está en la lista de trabajadores.');return null;}
+    if(w.status==='desvinculado'&&!opciones.permitirDesvinculado){
+      alert('⛔ TRABAJADOR DESVINCULADO\n'+w.name+' ya no está activo en la empresa, por lo que su tarjeta no habilita el marcaje.'+
+        '\n\nDebe pasar por Administración.');
+      return null;
+    }
+    return w;
+  }
+  // No es una tarjeta emitida: se acepta el código del trabajador, pero
+  // informed, porque el control de tarjeta es justamente lo que importa.
+  const w=workers.find(x=>x.code===leido);
+  if(!w){alert('No se encontró ni una tarjeta ni un trabajador con el código '+leido+'.');return null;}
+  if(w.status==='desvinculado'&&!opciones.permitirDesvinculado){
+    alert('⛔ TRABAJADOR DESVINCULADO\n'+w.name+' ya no está activo en la empresa.'+'\n\nDebe pasar por Administración.');
     return null;
   }
-  const code=card?card.code:scanned;
-  const w=workers.find(x=>x.code===code);
-  if(!w){alert('No se encontró un trabajador con el código '+code+'.');return null;}
+  if(!opciones.sinAviso){
+    alert('Se leyó el código del trabajador ('+w.code+'), no el de una tarjeta.'+
+      '\n\nLa tarjeta permite comprobar que no esté bloqueada ni anulada. Pasa la tarjeta.');
+  }
   return w;
 }
 function selectEppWorkerByScan(scanned){
@@ -2363,9 +2400,18 @@ function minutosDe(hhmm){
   return h*60+m;
 }
 
+// Se cargan los marcajes de hoy Y de los últimos días: hace falta el
+// historial para detectar los días que quedaron con entrada pero sin
+// salida (el reloj abierto), que son los que hay que mandar a RRHH.
+const DIAS_HISTORIA_MARCAJES=60;
 async function loadMarcajesDia(){
+  const desde=(()=>{
+    const d=new Date();
+    d.setDate(d.getDate()-DIAS_HISTORIA_MARCAJES);
+    return isoLocal(d);
+  })();
   const {data,error}=await window.supabaseClient.from('marcajes')
-    .select('*').eq('fecha',fechaDiaria);
+    .select('*').gte('fecha',desde).order('fecha',{ascending:false});
   if(error){
     const box=document.getElementById('diariaAviso');
     if(box){
@@ -2388,8 +2434,12 @@ async function loadAvisosDia(){
     .select('*').eq('fecha',fechaDiaria).order('created_at',{ascending:false});
   avisosMarcaje=data||[];
 }
-function marcajeDe(code,tipo){
-  return marcajes.find(m=>m.code===code&&m.tipo===tipo)||null;
+// El marcaje de HOY. Se filtra por fecha a propósito: la lista trae
+// varios días y, sin este filtro, el marcaje de ayer se tomaría por el
+// de hoy (y al escanear se registraría una salida en vez de una entrada).
+function marcajeDe(code,tipo,fecha){
+  const f=fecha||fechaDiaria;
+  return marcajes.find(m=>m.code===code&&m.tipo===tipo&&m.fecha===f)||null;
 }
 
 // Las alertas de un trabajador: social, prevención y atraso.
@@ -2430,6 +2480,20 @@ function revisarAlertas(w,horaMarcaje){
     });
   }
   return avisos;
+}
+
+// Cuando ya fichó la entrada pero no la salida, el marcaje del día queda
+// abierto. Se avisa al supervisor para que lo regularice en RRHH en vez
+// de dejarlo colgado para siempre.
+//
+// El día de hoy NO cuenta: es normal entrar y salir más tarde. Y las
+// salidas se juntan en un Set para no recorrer todos los marcajes una vez
+// por cada día (esto corre por cada trabajador en cada render).
+function diasSinSalida(code){
+  const hoy=hoyLocal();
+  const salidas=new Set();
+  marcajes.forEach(m=>{if(m.code===code&&m.tipo==='salida')salidas.add(m.fecha);});
+  return marcajes.filter(m=>m.code===code&&m.tipo==='entrada'&&m.fecha<hoy&&!salidas.has(m.fecha));
 }
 
 async function registrarMarcaje(code,tipo,origen,nota,horaPedida){
@@ -2476,6 +2540,22 @@ async function guardarAvisos(code,marcaje,avisos){
   else avisosMarcaje.unshift(...filas);
 }
 
+// Días con entrada pero sin salida: el reloj quedó abierto. Se avisa al
+// escanear para que RRHH lo regularice en vez de dejarlo colgado.
+function avisosSinSalida(w){
+  const abiertas=diasSinSalida(w.code);
+  if(!abiertas.length)return [];
+  const dias=abiertas.map(m=>fechaLegible(m.fecha)||m.fecha).join(', ');
+  return [{
+    tipo:'sin_salida',
+    icono:'⏳',
+    titulo:'Marcaje de salida pendiente',
+    texto:`Hay una entrada registrada el ${dias} pero no la salida. El día quedó abierto en el reloj.`,
+    donde:'RRHH',
+    aviso:'Marcaje sin salida'
+  }];
+}
+
 // Escaneo de tarjeta en la asistencia diaria.
 async function marcarPorEscaneo(scanned){
   const w=resolverCodigoTrabajador(scanned);
@@ -2496,14 +2576,14 @@ async function marcarPorEscaneo(scanned){
   // Ya fichó entrada y salida: solo se informa.
   if(entrada&&salida){
     renderDiaria();
-    abrirAvisoMarcaje(w,{yaCompleto:true,entrada,salida});
+    abrirAvisoMarcaje(w,{yaCompleto:true,entrada,salida,avisos:avisosSinSalida(w)});
     return;
   }
   // Todavía no sale: el siguiente escaneo es la salida.
   const tipo=entrada?'salida':'entrada';
   const m=await registrarMarcaje(w.code,tipo,'qr');
   if(!m)return;
-  const avisos=tipo==='entrada'?revisarAlertas(w,hora):[];
+  const avisos=(tipo==='entrada'?revisarAlertas(w,hora):[]).concat(avisosSinSalida(w));
   await guardarAvisos(w.code,m,avisos);
   await loadAvisosDia();
   renderDiaria();
@@ -2520,13 +2600,14 @@ async function marcarManual(code,tipo){
   if(marcajeDe(code,tipo)){alert('Ya tiene ese marcaje registrado hoy.');return;}
   const m=await registrarMarcaje(code,tipo,'manual',null,hora.trim());
   if(!m)return;
-  if(tipo==='entrada'){
-    const avisos=revisarAlertas(w,hora.trim());
-    await guardarAvisos(code,m,avisos);
-  }
+  const avisos=(tipo==='entrada'?revisarAlertas(w,hora.trim()):[]).concat(avisosSinSalida(w));
+  await guardarAvisos(code,m,avisos);
   await loadAvisosDia();
   renderDiaria();
-  alert('Marcaje registrado: '+tipo+' a las '+hora.trim()+'.');
+  // La misma ventana que al escanear: si hay algo que el trabajador tenga
+  // que hacer en otra oficina, se le avisa igual. El ajuste manual es
+  // justo el caso en que más le sirve ver el aviso.
+  abrirAvisoMarcaje(w,{tipo,hora:hora.trim(),marcaje:m,avisos});
 }
 
 // La ventana que ve el supervisor (y que se le puede mostrar al worker).
@@ -2534,8 +2615,12 @@ function abrirAvisoMarcaje(w,info){
   const {tipo,hora,avisos,entrada,salida,yaCompleto}=info;
   // se guarda el código para poder marcar los avisos como atendidos al cerrar
   modalCtx={code:w.code,fecha:fechaDiaria,estadoActual:null};
+  // Aunque el día de hoy ya esté completo igual se muestran los avisos
+  // pendientes: si escanea de nuevo porque tiene un día abierto de antes,
+  // es justo ese aviso el que le sirve ver.
   const lista=yaCompleto
     ?[{icono:'✅',titulo:'Marcaje completo',texto:`Entrada a las <b>${entrada.hora}</b> y salida a las <b>${salida.hora}</b>.`,donde:null}]
+      .concat(avisos||[])
     :[{icono:'✅',titulo:tipo==='entrada'?'Presente registrado':'Salida registrada',
         texto:tipo==='entrada'
           ? `Tu marcaje quedó guardado a las <b>${hora}</b>.`
@@ -2558,9 +2643,17 @@ function abrirAvisoMarcaje(w,info){
 
 // Formatea una fecha sin arriesgarse a mostrar "Invalid Date" si el dato
 // viene vacío o con un formato inesperado.
+//
+// Ojo con las fechas de Postgres: una columna "date" llega como
+// "2026-09-20", y new Date() la interpreta como MEDIANOCHE UTC. En Chile
+// eso es el 19 a las 21:00, así que el día se mostría corrido en uno. Por
+// eso las fechas "YYYY-MM-DD" se arman a mano en hora local.
 function fechaLegible(valor,conHora){
   if(!valor)return '';
-  const d=new Date(valor);
+  const soloFecha=typeof valor==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(valor);
+  const d=soloFecha
+    ?new Date(+valor.slice(0,4),+valor.slice(5,7)-1,+valor.slice(8,10))
+    :new Date(valor);
   if(isNaN(d.getTime()))return '';
   try{
     return conHora
@@ -2574,8 +2667,8 @@ function renderAvisosDia(){
   if(!avisosMarcaje.length){el.innerHTML='<small>Nada anotado todavia.</small>';return;}
   el.innerHTML=avisosMarcaje.map(a=>{
     const w=workers.find(x=>x.code===a.code);
-    const icono=a.tipo_alerta==='atraso'?'⏰':a.tipo_alerta==='social'?'💬':a.tipo_alerta==='prevencion'?'🦺':'ℹ️';
-    const donde=a.tipo_alerta==='atraso'?'Administración':a.tipo_alerta==='social'?'Asistente Social':a.tipo_alerta==='prevencion'?'Prevención':'';
+    const icono=a.tipo_alerta==='atraso'?'⏰':a.tipo_alerta==='social'?'💬':a.tipo_alerta==='prevencion'?'🦺':a.tipo_alerta==='sin_salida'?'⏳':'ℹ️';
+    const donde=a.tipo_alerta==='atraso'?'Administración':a.tipo_alerta==='social'?'Asistente Social':a.tipo_alerta==='prevencion'?'Prevención':a.tipo_alerta==='sin_salida'?'RRHH':'';
     return `<div class="mkAviso" style="${a.visto?'opacity:.6':''}">
       <div class="mkAvisoIcono">${icono}</div>
       <div><b>${escHtml(a.code)} ${w?escHtml(w.name):''}</b>${fechaLegible(a.created_at,true)?` <small>${fechaLegible(a.created_at,true)}</small>`:''}${a.visto?' <small>(atendido)</small>':''}
@@ -2603,6 +2696,7 @@ function renderDiaria(){
     const minEsp=minutosDe(entradaEsp);
     const tarde=minEnt!=null&&minEsp!=null&&minEnt>minEsp+tolerancia;
     const pendientes=avisosMarcaje.filter(a=>a.code===w.code&&!a.visto);
+    const abiertas=diasSinSalida(w.code);
     const social=w.alerta_social?'social ':'';
     const prev=w.alerta_prevencion?'prevencion ':'';
     return `<div class="mkFila${ent?'':' mkAusente'}" data-code="${escHtml(w.code)}">
@@ -2616,6 +2710,7 @@ function renderDiaria(){
           ? `<span class="mkPill ok">${sal?'Completo':'Presente'}</span>
              <small>${ent.hora}${sal?' · sale '+sal.hora:''}${tarde?' · <b class="late">tarde</b>':''}</small>`
           : `<span class="mkPill no">Sin marcar</span>`}
+        ${abiertas.length?`<small class="late">⏳ salida pendiente del ${abiertas.map(m=>fechaLegible(m.fecha)||m.fecha).join(', ')}</small>`:''}
       </div>
       <div class="mkAvisosPend">
         ${pendientes.length?`<span class="mkPill warn" title="Ver avisos">${pendientes.length} aviso(s)</span>`:''}
@@ -5809,8 +5904,22 @@ async function desvincularWorker(code){
   const fecha=hoyLocal();
   const {error}=await window.supabaseClient.from('trabajadores').update({status:'desvinculado',fecha_desvinculacion:fecha}).eq('code',code);
   if(error){alert('No se pudo actualizar en la base de datos: '+error.message);return;}
+  // El trigger de la migración 018 bloquea las tarjetas activas, pero se
+  // recarga la lista para mostrarlo en pantalla y no prometer algo que
+  // no ocurrió (por ejemplo si la 018 no está aplicada todavía).
   await loadWorkers();
+  await loadTarjetas();
+  const bloqueadas=tarjetas.filter(t=>t.code===code&&t.estado==='bloqueada');
+  const siguenActivas=tarjetas.filter(t=>t.code===code&&t.estado==='activa');
   renderList('');
+  if(siguenActivas.length){
+    alert(`⚠️ A ${w.name} le quedan ${siguenActivas.length} tarjeta(s) en estado activo.\n\n`+
+      'Se bloquean solas al desvincular. Si no se bloquearon, ejecuta la migración 018_tarjetas_bloqueo.sql.');
+  }else if(bloqueadas.length){
+    alert(`${w.name} quedó desvinculado. Se bloquearon ${bloqueadas.length} tarjeta(s): ya no sirven para pasar asistencia.`);
+  }else{
+    alert(`${w.name} quedó desvinculado. No tenía tarjetas emitidas.`);
+  }
 }
 
 function exportPayroll(){
