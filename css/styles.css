@@ -108,6 +108,10 @@ th{background:var(--accent2);color:#fff;font-weight:600}
 small{color:var(--muted)}
 .list-item{display:flex;justify-content:space-between;align-items:center;padding:11px 8px;border-bottom:1px solid var(--line);cursor:pointer}
 .list-item:hover{background:var(--surface-hover)}
+/* Los iconos de acción de una fila. Sin gap, dos emojis pegados no se
+   distinguen al apretar. */
+.lista-iconos{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+.lista-iconos>span{cursor:pointer;line-height:1}
 #scanResult{margin-top:12px}
 .photoRow{display:flex;gap:14px}
 .photoBox{flex:1;text-align:center}

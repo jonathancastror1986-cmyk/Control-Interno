@@ -1389,6 +1389,51 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 </section>
 
 <!--
+DESVINCULAR
+===========
+Fecha de término y artículo, no un confirm() con la fecha de hoy.
+
+Va fuera del <script> porque es contenido, no lógica. Y está después del
+cuadro de la bitácora para que los dos dialogos, que son cosas distintas
+que se llenan por motivos distintos, no se confundan al leerlos.
+-->
+<dialog id="dlgDesvincula" style="max-width:560px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 id="desvTitulo" style="margin-top:0">Desvincular trabajador</h2>
+    <div id="desvInfo" class="small" style="margin-bottom:12px"></div>
+    <input type="hidden" id="desvCodigo">
+    <div class="row">
+      <div>
+        <label for="desvFecha">Fecha de término</label>
+        <input type="date" id="desvFecha" max="2099-12-31">
+        <small style="display:block">Cuándo terminó el contrato. Es la fecha que va a la planilla, y puede ser anterior a hoy.</small>
+      </div>
+      <div>
+        <label for="desvArticulo">Artículo del Código del Trabajo</label>
+        <select id="desvArticulo" onchange="document.getElementById('desvArticuloTexto').style.display=this.value==='otro'?'':'none'"></select>
+        <small style="display:block">Lo elige una persona. La app no lo valida.</small>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <label for="desvArticuloTexto">Artículo, si no está en la lista</label>
+      <input id="desvArticuloTexto" placeholder="Por ejemplo: finiquito firmado con acuerdo">
+    </div>
+    <div style="margin-top:8px">
+      <label for="desvMotivo">Motivo</label>
+      <textarea id="desvMotivo" rows="2" placeholder="Por ejemplo: se fue por decisión propia, entregó carta de renuncia"></textarea>
+    </div>
+    <div id="desvError" style="color:var(--danger);margin-top:6px;min-height:1.2em" role="alert"></div>
+    <small style="display:block;margin-top:6px">
+      Queda registrado con tu nombre, la fecha y el artículo. Podés corregirlo después, pero la corrección también queda anotada.
+    </small>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn" id="desvCancelar" type="button" onclick="document.getElementById('dlgDesvincula').close()">Cancelar</button>
+      <button class="btn primary" id="desvGuardar" type="button" onclick="ejecutarDesvinculacion()">Desvincular</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
 BITÁCORA DE AUDITORÍA
 ====================
 Una bitácora que no se puede leer no sirve de nada: se cumpliría el papel de
@@ -1509,6 +1554,12 @@ function workerToDb(w){
     alerta_prevencion: !!w.alerta_prevencion, alerta_prevencion_nota: w.alerta_prevencion_nota||null,
     indicaciones_sociales:w.indicaciones_sociales||null, indicaciones_prevencion:w.indicaciones_prevencion||null,
     status: w.status||'activo', fecha_desvinculacion: w.fecha_desvinculacion||null,
+    // Los tres de la desvinculación (migración 029). Van en el upsert de
+    // todas partes: sin ellos, cualquier guardado que use workerToDb los
+    // pondría en null.
+    fecha_termino: w.fecha_termino||null,
+    articulo_termino: w.articulo_termino||null,
+    motivo_desvinculacion: w.motivo_desvinculacion||null,
     empresa_id: w.empresa_id||null
   };
 }
@@ -1523,6 +1574,15 @@ function dbToWorker(r){
     alerta_prevencion:r.alerta_prevencion, alerta_prevencion_nota:r.alerta_prevencion_nota,
     indicaciones_sociales:r.indicaciones_sociales, indicaciones_prevencion:r.indicaciones_prevencion,
     status:r.status, fecha_desvinculacion:r.fecha_desvinculacion,
+    // Los tres de la desvinculación (migración 029). Sin mapearlos acá, la
+    // lista no muestra la fecha de término, el cuadro de desvinculación no
+    // propone la que ya tiene, y el aviso de fichas repetidas no puede
+    // distinguir la vieja de la nueva. El dato estaba en la base y no
+    // llegaba a ninguna parte.
+    fecha_termino:r.fecha_termino,
+    articulo_termino:r.articulo_termino,
+    motivo_desvinculacion:r.motivo_desvinculacion,
+    desvinculado_por_nombre:r.desvinculado_por_nombre,
     empresa_id:r.empresa_id||null
   };
 }
@@ -1691,11 +1751,20 @@ const navGroups = {
         {v:'imprimir-tarjetas',label:'Imprimir varias tarjetas'}
       ]}
     ]},
-    {v:'asistencia',label:'Asistencia mensual'},{v:'exportar',label:'Exportar remuneraciones'},
-    {v:'just-diaria',label:'Justificación diaria'},
-    {v:'auditoria',label:'Bitácora de asistencia'},
-    {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
-    {v:'aprobar-cambio',label:'Aprobar solicitudes'},
+    {v:'asistencia',label:'Asistencia mensual',options:[
+      {v:'asistencia',label:'Tarja mensual'},
+      {v:'just-diaria',label:'Justificación diaria'},
+      {v:'auditoria',label:'Bitácora de asistencia'},
+      {v:'exportar',label:'Exportar remuneraciones'}
+    ]},
+    // Aprobaciones y estados: los dos caminos para cambiar un estado de la
+    // tarja, juntos. Antes estaban sueltos y en cualquier orden, lo que
+    // hacía fácil apretar el que no era: solicitar un cambio que uno mismo
+    // puede aprobar, o buscar dónde se aprueban las solicitudes.
+    {v:'aprobar-cambio',label:'Aprobaciones y estados',options:[
+      {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
+      {v:'aprobar-cambio',label:'Aprobar solicitudes'}
+    ]},
     {v:'porteria',label:'Consultar trabajador'}
   ],
   soporte: [
@@ -1959,6 +2028,11 @@ function showGroup(group){
       return;
     }
     showView(b.dataset.v);
+    // El desplegable se cierra al elegir. Sin esto queda abierto encima de
+    // la vista que se acaba de abrir, tapándola, y hay que apretar en otra
+    // parte de la pantalla para deshacerse. Con los submenús nuevos, que
+    // tienen más cosas adentro, se nota todavía más.
+    b.closest('details.nav-dropdown')?.removeAttribute('open');
   }));
   // Solo un desplegable abierto a la vez. Sin esto, en Bodega se podían
   // dejar EPP, KITS y HERRAMIENTAS abiertos al mismo tiempo, uno encima
@@ -2089,35 +2163,286 @@ function fillWorkerSupervisorFilter(){
   avisarNombresRepetidos();
 }
 // Hay fichas con el MISMO nombre y códigos distintos. No es un error de
-// esta pantalla: son dos trabajadores reales en la base, y por eso las
-// opciones llevan el código, para poder distinguirlos.
+// esta pantalla: son dos fichas en la base, y por eso las opciones llevan
+// el código, para poder distinguirlas.
 //
-// Antes de avisar, se tiene en cuenta que en un listado de 46 personas es fácil que
-// dos se llamen igual, y una advertencia permanente por eso sería ruido
-// que nadie lee. Solo avisa cuando los repetidos coinciden en el nombre
-// tal cual, que es donde de verdad no se sabe a cuál se está eligiendo.
-function avisarNombresRepetidos(){
+// LO QUE ESTA MAL ERA AVISAR SIEMPRE
+//
+// Antes contaba los nombres repetidos sin mirar el estado de las fichas, y
+// decía "hay que desvincular la que sobra". Cuando la otra ya estaba
+// desvinculada, no había NADA que desvincular: la advertencia era una
+// orden imposible de cumplir, y la persona se quedaba buscando cuál era
+// la que había que cerrar.
+//
+// Ahora solo alerta cuando hay DOS fichas ACTIVAS con el mismo nombre, que
+// es el único caso donde de verdad hay un problema: dos fichas vivas de la
+// misma persona, cada una con su propia asistencia.
+//
+// Cuando la repetida ya está desvinculada, se dice en una línea que no hay
+// nada que hacer, y se nombra cuál es la vieja. Eso también es información
+// útil: si la vieja tiene la asistencia del año pasado y la nueva está
+// vacía, hay que traspasarla antes de borrar nada.
+const DUP_ACTIVOS='activos';
+function agruparPorNombre(lista){
   const porNombre=new Map();
-  workers.forEach(w=>{
+  (lista||[]).forEach(w=>{
     const k=sinTildes(w.name).trim().replace(/\s+/g,' ').toUpperCase();
     if(!k)return;
     if(!porNombre.has(k))porNombre.set(k,[]);
     porNombre.get(k).push(w);
   });
-  const repetidos=[...porNombre.values()].filter(l=>l.length>1);
+  return porNombre;
+}
+function avisarNombresRepetidos(){
   const cont=document.getElementById('dupNamesWarn');
   if(!cont)return;
   // Se usa codigosVisibles y no codigoMostrar: con dos fichas de código
-  // "1" y "001", el aviso salía como "0001 / 0001", que es exactamente
+  // "1" y "001", el aviso salía como "0001 = 0001", que es exactamente
   // inútil. El aviso tiene que decir CÓMO distinguirlas.
   const vis=codigosVisibles(workers);
-  cont.innerHTML=repetidos.length
-    ?'<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
-     '<b>Ojo: '+repetidos.length+' nombre(s) están repetidos en fichas distintas.</b> Por eso los desplegables muestran el código. '+
-     repetidos.slice(0,8).map(l=>l.map(w=>escHtml(vis.get(w.code)||codigoMostrar(w.code))).join(' = ')).join(' · ')+
-     (repetidos.length>8?' · … y '+(repetidos.length-8)+' más':'')+
-     '<br><small>Si son la misma persona cargada dos veces, hay que desvincular o eliminar la ficha que sobra: si no, cada una tiene su propia asistencia, y la asistencia de una no aparece en la otra.</small></div>'
-    :'';
+  const etiqueta=w=>(vis.get(w.code)||codigoMostrar(w.code))+' ('+w.name+')';
+  const grupos=[...agruparPorNombre(workers).values()].filter(l=>l.length>1);
+  // El caso que hay que resolver: dos fichas VIVAS del mismo nombre.
+  const conflictos=grupos.filter(l=>l.filter(w=>w.status==='activo').length>1);
+  // El caso que NO es un problema: la vieja ya se cerró. Se avisa igual,
+  // pero como información, para que quede claro cuál es la antigua.
+  const yaResueltos=grupos.filter(l=>l.filter(w=>w.status==='activo').length===1);
+
+  let html='';
+  if(conflictos.length){
+    html+='<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px;margin-bottom:10px">'+
+      '<b>'+conflictos.length+' nombre(s) tienen DOS fichas activas a la vez.</b><br>'+
+      '<small>Si es la misma persona cargada dos veces, cada ficha tiene su propia asistencia y la de una no aparece en la otra. '+
+      'Hay que cerrar una con su fecha de término real y su artículo.</small>'+
+      '<ul style="margin:6px 0 0;padding-left:18px">'+
+      conflictos.slice(0,8).map(l=>{
+        const activas=l.filter(w=>w.status==='activo');
+        return '<li>'+escHtml(activas.map(etiqueta).join('  =  '))+
+          '<br><button class="btn" style="margin-top:4px;font-size:.8rem;padding:3px 8px" type="button" onclick="elegirFichaParaCerrar(\''+
+          escHtml(activas[0].code)+'\',\''+escHtml(activas[1].code)+'\')">Cerrar una de las dos</button></li>';
+      }).join('')+
+      (conflictos.length>8?'<li>… y '+(conflictos.length-8)+' más</li>':'')+
+      '</ul></div>';
+  }
+  if(yaResueltos.length){
+    const linea=l=>{
+      const activa=l.find(w=>w.status==='activo');
+      const viejas=l.filter(w=>w.status!=='activo');
+      const termino=w=>w.fecha_termino?' (término '+w.fecha_termino+')':' (sin fecha de término)';
+      return '<li>'+escHtml('Ficha activa: '+(vis.get(activa.code)||codigoMostrar(activa.code)))+
+        '<br><small>Cerrada: '+escHtml(viejas.map(v=>(vis.get(v.code)||codigoMostrar(v.code))+termino(v)).join(', '))+'</small></li>';
+    };
+    html+='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:10px">'+
+      '<b>'+yaResueltos.length+' nombre(s) tienen una ficha vieja ya desvinculada.</b> '+
+      '<small>No hay nada que hacer acá: no son dos personas activas. Se avisa para que sepas cuál es la antigua, '+
+      'y para que borres la vieja solo cuando estés seguro de que su asistencia ya no se necesita.</small>'+
+      '<ul style="margin:6px 0 0;padding-left:18px">'+
+      yaResueltos.slice(0,8).map(linea).join('')+
+      (yaResueltos.length>8?'<li>… y '+(yaResueltos.length-8)+' más</li>':'')+
+      '</ul></div>';
+  }
+  // Las fichas desvinculadas sin fecha de término no se pueden ordenar bien
+  // en la planilla, así que se avisa en la misma caja.
+  const sinFecha=workers.filter(w=>w.status!=='activo'&&!w.fecha_termino);
+  if(sinFecha.length){
+    html+='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:10px">'+
+      '<b>'+sinFecha.length+' ficha(s) desvinculadas sin fecha de término.</b> '+
+      '<small>En la planilla de los meses en que encore trabajaba, la baja queda en la fecha en que se hizo clic en el botón, que puede no ser la real.</small>'+
+      '<ul style="margin:6px 0 0;padding-left:18px">'+
+      sinFecha.slice(0,8).map(w=>'<li>'+escHtml(etiqueta(w))+
+        ' <small>(se desvinculó '+(w.fecha_desvinculacion?escHtml(String(w.fecha_desvinculacion).slice(0,10)):'sin fecha')+')</small>'+
+        '<button class="btn" style="margin-left:6px;font-size:.8rem;padding:3px 8px" type="button" onclick="abrirDesvinculacion(\''+
+        escHtml(w.code)+'\')">Completar fecha y artículo</button></li>').join('')+
+      (sinFecha.length>8?'<li>… y '+(sinFecha.length-8)+' más</li>':'')+
+      '</ul></div>';
+  }
+  cont.innerHTML=html;
+}
+// Abre el cuadro de desvinculación para las dos fichas, para que la persona
+// elija cuál cerrar sin tener que acordarse de los códigos.
+function elegirFichaParaCerrar(codeA,codeB){
+  const a=workers.find(w=>w.code===codeA);
+  const b=workers.find(w=>w.code===codeB);
+  if(!a||!b)return;
+  const vis=codigosVisibles(workers);
+  const linea=w=>{
+    const abiertas=attendance.filter(r=>r.code===w.code).length;
+    return escHtml(codigoMostrar(w.code))+' — '+escHtml(w.name)+
+      '<br><small>'+abiertas+' día(s) de asistencia · '+
+      (w.fecha_ingreso?'ingresó '+escHtml(String(w.fecha_ingreso).slice(0,10)):'sin fecha de ingreso')+
+      (w.supervisor_code?' · supervisor '+escHtml((vis.get(w.supervisor_code)||codigoMostrar(w.supervisor_code))):'')+'</small>';
+  };
+  const botones=`<div class="row" style="margin-top:12px">
+      <div style="flex:1"><small><b>Ficha A</b></small><p>${linea(a)}</p>
+        <button class="btn primary" type="button" onclick="cerrarDialogo();abrirDesvinculacion('${escHtml(a.code)}')">Cerrar A</button></div>
+      <div style="flex:1"><small><b>Ficha B</b></small><p>${linea(b)}</p>
+        <button class="btn primary" type="button" onclick="cerrarDialogo();abrirDesvinculacion('${escHtml(b.code)}')">Cerrar B</button></div>
+    </div>
+    <p style="margin-top:12px"><small>Se muestra cuántos días tiene cada ficha para que elijas con los datos a la vista. `+
+    `Cerrar una no borra la otra ni su asistencia.</small></p>`;
+  abrirDialogoSimple('¿Cuál de las dos fichas se cierra?',
+    '<p>Las dos están activas y se llaman igual. Elegí la que sobra: '+
+    '<b>no se elimina nada</b>, la ficha se marca como desvinculada con su fecha de término y su artículo, y queda en la bitácora.</p>'+
+    botones);
+}
+// ------------------------------------------------------------------
+// DESVINCULAR: CON FECHA DE TERMINO Y ARTICULO
+// ------------------------------------------------------------------
+// Antes era un confirm() y nada mas: ponia la fecha de HOY y se acababa.
+// Eso esta bien para el caso facil, y esta mal para el que mas se da al
+// ordenar un plano: una persona que se fue hace meses y quedo con la ficha
+// abierta. Al cerrarla hoy, la app pasa a decir que termino hoy, y la
+// planilla de los meses en que todavia trabajaba queda con la baja en la
+// fecha equivocada. Eso no se corrige despues, porque la asistencia ya se
+// cargo.
+//
+// Por eso son DOS fechas y no una:
+//  - fecha de termino: cuando termino el contrato. Va en la planilla.
+//  - fecha en que se hizo clic: cuando alguien la cerro en la app. Es un
+//    dato del sistema, sirve para saber si el dato se puso tarde.
+//
+// Y el articulo: el del Codigo del Trabajo que se aplico. Lo elige una
+// persona y la app NO lo valida. Es un dato que se anota, no que la
+// aplicacion pueda calcular, y no se fuerza un valor para que el formulario
+// se complete: un articulo inventado es peor que ninguno.
+//
+// La lista es una ayuda y el campo es de texto libre. Hay casos reales (un
+// finiquito, un acuerdo) que no son un numero de articulo y tienen que
+// poder anotarse igual.
+//
+// OJO CON LA LISTA: estos son los articulos que la gente cites de memoria,
+// y la lista es una AYUDA, no una lista oficial. Si el caso no esta, se
+// escribe. La app no valida nada de esto: colocar un articulo equivocado es
+// responsabilidad de quien lo escribe, y por eso el campo acepta texto
+// libre en vez de una lista cerrada.
+const ARTICULOS_TERMINO=[
+  {v:'',t:'— sin especificar —'},
+  {v:'158',t:'158 — Terminacion del contrato por tiempo'},
+  {v:'159',t:'159 — Desahucio'},
+  {v:'161',t:'161 — Mutuo acuerdo'},
+  {v:'161 N°3',t:'161 N°3 — Despido por justa causa'},
+  {v:'162',t:'162 — Renuncia del trabajador'},
+  {v:'163',t:'163 — Terminacion por justa causa'},
+  {v:'164',t:'164 — Por conducta del trabajador'},
+  {v:'165',t:'165 — Cambio de funciones o de lugar'},
+  {v:'168',t:'168 — Terminacion por necessidade de la empresa'},
+  {v:'177',t:'177 — Despido con indemnizacion'},
+  {v:'182',t:'182 — Finiquito'},
+  {v:'otro',t:'Otro (escribirlo abajo)'}
+];
+function abrirDesvinculacion(code){
+  const w=workers.find(x=>x.code===code);
+  if(!w){alert('No se encontro al trabajador.');return;}
+  if(!exigirPermiso('trabajadores.editar','No tienes permiso para modificar fichas de trabajadores.'))return;
+  const dlg=document.getElementById('dlgDesvincula');
+  document.getElementById('desvTitulo').textContent='Desvincular a '+w.name;
+  document.getElementById('desvCodigo').value=w.code;
+  // Si ya estaba desvinculada, se propone la fecha y el artículo que tiene:
+  // la persona viene a corregirlos, no a volver a escribirlos de cero.
+  const yaEsta=w.status!=='activo';
+  document.getElementById('desvInfo').innerHTML=
+    '<b>'+escHtml(codigoMostrar(w.code))+' — '+escHtml(w.name)+'</b>'+
+    (yaEsta
+      ?'<br><span style="color:var(--warn)">Esta ficha ya esta desvinculada'+
+        (w.fecha_termino?' (termino '+escHtml(String(w.fecha_termino).slice(0,10))+')':'')+
+        '. Si venis a corregir la fecha o el articulo, pone los valores correctos.</span>'
+      :'<br><small>Va a quedar desvinculada. No se borra ni su asistencia.</small>');
+  const sel=document.getElementById('desvArticulo');
+  sel.innerHTML=ARTICULOS_TERMINO.map(a=>`<option value="${escHtml(a.v)}">${escHtml(a.t)}</option>`).join('');
+  sel.value=(w.articulo_termino&&ARTICULOS_TERMINO.some(a=>a.v===w.articulo_termino))
+    ?w.articulo_termino
+    :(w.articulo_termino?'otro':'');
+  document.getElementById('desvArticuloTexto').value=sel.value==='otro'?(w.articulo_termino||''):'';
+  document.getElementById('desvArticuloTexto').style.display=sel.value==='otro'?'':'none';
+  // Por omision se propone la fecha que ya se conoce y, si no hay ninguna,
+  // hoy. Nunca una fecha vieja que nadie eligio: proponerla seria repetir
+  // el error que se quiere evitar.
+  document.getElementById('desvFecha').value=w.fecha_termino||hoyLocal();
+  document.getElementById('desvMotivo').value=w.motivo_desvinculacion||'';
+  document.getElementById('desvError').textContent='';
+  document.getElementById('desvGuardar').textContent=yaEsta?'Guardar la correccion':'Desvincular';
+  dlg.showModal();
+  document.getElementById('desvFecha').focus();
+}
+async function ejecutarDesvinculacion(){
+  const code=document.getElementById('desvCodigo').value;
+  const fecha=document.getElementById('desvFecha').value;
+  const selArt=document.getElementById('desvArticulo');
+  const articulo=(selArt.value==='otro'
+    ?document.getElementById('desvArticuloTexto').value.trim()
+    :selArt.value).trim();
+  const motivo=document.getElementById('desvMotivo').value.trim();
+  const err=document.getElementById('desvError');
+  err.textContent='';
+  if(!fecha){err.textContent='Falta la fecha de término. Sin ella la baja queda con la fecha de hoy.';return;}
+  if(fecha>hoyLocal()){err.textContent='La fecha de término no puede ser futura.';return;}
+  if(motivo.length<5){err.textContent='Escribe el motivo (al menos 5 caracteres). Queda registrado en la bitácora.';return;}
+  const btn=document.getElementById('desvGuardar');
+  btn.disabled=true;btn.textContent='Guardando…';
+  const {error}=await window.supabaseClient.rpc('desvincular_trabajador',{
+    p_code:code, p_fecha_termino:fecha, p_articulo:articulo||null,
+    p_motivo:motivo, p_revivir:false
+  });
+  btn.disabled=false;
+  btn.textContent='Desvincular';
+  if(error){
+    const falta=/desvincular_trabajador/.test(error.message||'')&&/does not exist|no existe/i.test(error.message||'');
+    err.innerHTML=falta
+      ?'La migracion <b>029_desvinculacion_articulo.sql</b> no esta aplicada. Sin ella no se puede desvincular con fecha de termino.'
+      :escHtml(error.message);
+    return;
+  }
+  document.getElementById('dlgDesvincula').close();
+  await loadWorkers();
+  await loadTarjetas();
+  renderList('');
+  fillWorkerSupervisorFilter();
+  const bloqueadas=tarjetas.filter(t=>t.code===code&&t.estado==='bloqueada');
+  const w=workers.find(x=>x.code===code);
+  alert((w?w.name:'El trabajador')+' quedo desvinculado con termino el '+fecha+
+    (articulo?' (articulo '+articulo+')':'')+'.'+
+    (bloqueadas.length?'\n\nSe bloquearon '+bloqueadas.length+' tarjeta(s).':''));
+}
+async function revivirWorker(code){
+  const w=workers.find(x=>x.code===code);
+  if(!w)return;
+  if(!exigirPermiso('trabajadores.editar','No tienes permiso para modificar fichas de trabajadores.'))return;
+  if(!confirm('Revivir a '+w.name+'?\n\nLa ficha vuelve a estar activa. La fecha de termino y el articulo se borran, porque la persona no dejo de trabajar.\n\nQueda anotado en la bitacora quien lo hizo.'))return;
+  const {error}=await window.supabaseClient.rpc('desvincular_trabajador',{
+    p_code:code, p_fecha_termino:null, p_articulo:null,
+    p_motivo:'Se revivio la ficha: estaba cerrada por error', p_revivir:true
+  });
+  if(error){alert('No se pudo revivir: '+error.message);return;}
+  await loadWorkers();await loadTarjetas();
+  renderList('');
+  fillWorkerSupervisorFilter();
+  alert(w.name+' quedo activo de nuevo.');
+}
+// Aviso al entrar: si la 029 no esta, se avisa. Sin esto el problema
+// aparece en el momento de desvincular, que es cuando alguien esta haciendo
+// un tramite de verdad y no puede quedarse esperando.
+async function comprobarDesvinculacion(){
+  try{
+    const {data,error}=await window.supabaseClient.rpc('diagnostico_desvinculacion');
+    if(error){
+      mostrarAvisoPermisos('La desvinculación con fecha de término y artículo NO está puesta: falta aplicar la migración 029_desvinculacion_articulo.sql. '+
+        'Hasta entonces, desvincular pone la fecha de HOY, que puede ser incorrecta.');
+      return;
+    }
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d)return;
+    const problemas=[];
+    if(!d.columnas_puestas)problemas.push('faltan columnas');
+    if(!d.bitacora_existe)problemas.push('falta la bitácora');
+    if(!d.funcion_existe)problemas.push('falta la función');
+    if(problemas.length){
+      mostrarAvisoPermisos('La desvinculación está incompleta ('+problemas.join(', ')+'). Vuelve a aplicar la migración 029_desvinculacion_articulo.sql.');
+    }else if(Number(d.desvinculados_sin_fecha)>0){
+      mostrarAvisoPermisos('Hay '+d.desvinculados_sin_fecha+' ficha(s) desvinculadas sin fecha de término. Se ven en Listado de trabajadores, con un botón para completarlas.');
+    }
+  }catch(error){
+    console.info('No se pudo comprobar la desvinculación:',error.message);
+  }
 }
 function updateSupervisorAssignment(){
   const code=document.getElementById('trans-worker').value;
@@ -2155,7 +2480,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-l';
+const APP_VERSION='2026-09-28-m';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -2502,7 +2827,7 @@ function parseCsvBoolean(value,fallback){
   return null;
 }
 function downloadWorkersCsvTemplate(){
-  const headers=['codigo','nombre','cargo','telefono','fecha_ingreso','tipo_trabajador','es_supervisor','codigo_supervisor','nombre_contacto_emergencia','telefono_emergencia','relacion_emergencia','salud','medicamentos','precauciones','alerta_social','nota_alerta_social','alerta_prevencion','nota_alerta_prevencion','indicaciones_sociales','indicaciones_prevencion','status'];
+  const headers=['codigo','nombre','cargo','telefono','fecha_ingreso','tipo_trabajador','es_supervisor','codigo_supervisor','nombre_contacto_emergencia','telefono_emergencia','relacion_emergencia','salud','medicamentos','precauciones','alerta_social','nota_alerta_social','alerta_prevencion','nota_alerta_prevencion','indicaciones_sociales','indicaciones_prevencion','status','fecha_termino','articulo_termino','motivo_desvinculacion'];
   const blob=new Blob(['\ufeff'+headers.join(';')+'\r\n'],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const link=document.createElement('a');
@@ -2663,7 +2988,22 @@ async function importWorkersCsv(){
         indicaciones_sociales:readOrCurrent(['indicaciones_sociales','indicaciones sociales'],'indicaciones_sociales'),
         indicaciones_prevencion:readOrCurrent(['indicaciones_prevencion','indicaciones prevencion'],'indicaciones_prevencion'),
         status,
-        fecha_desvinculacion:existing?.fecha_desvinculacion||null
+        fecha_desvinculacion:existing?.fecha_desvinculacion||null,
+        // Los datos de la desvinculación (migración 029) se leen del archivo
+        // si vienen, y si no se CONSERVAN los que ya estaban.
+        //
+        // Esto no es un detalle: la carga masiva hace un upsert con el objeto
+        // completo, así que omitir estos campos los ponía en null y se
+        // perdía la fecha de término de todas las fichas desvinculadas cada
+        // vez que se recargaba el CSV. Y no se nota: el trabajador sigue
+        // desvinculado, solo que la planilla vuelve a mostrar la baja en la
+        // fecha en que se corrió el CSV.
+        fecha_termino:parseCsvDate(read('fecha_termino','fecha de termino','termino')).value
+          ||existing?.fecha_termino||null,
+        articulo_termino:readOrCurrent(['articulo_termino','articulo','articulo de termino'],'articulo_termino')
+          ||existing?.articulo_termino||null,
+        motivo_desvinculacion:readOrCurrent(['motivo_desvinculacion','motivo de desvinculacion'],'motivo_desvinculacion')
+          ||existing?.motivo_desvinculacion||null
       }));
     });
     if(issues.length){message.innerHTML=`<span class="gpsWarn">No se importó nada. ${escHtml(issues.slice(0,5).join(' '))}${issues.length>5?` Hay ${issues.length-5} errores más.`:''}</span>`;return;}
@@ -2714,21 +3054,80 @@ function renderList(filter){
   filteredWorkers.forEach(w=>{
     const d=document.createElement('div');
     d.className='list-item';
-    const estado = w.status==='desvinculado' ? ' <span class="pill" style="color:var(--danger);border-color:var(--danger)">Desvinculado</span>' : '';
-    d.innerHTML=`<span><b>${escHtml(codigoMostrar(w.code))}</b> — ${escHtml(w.name)} <small>(${escHtml(w.spec||'—')})</small>${estado}</span><span>🚪&nbsp;🗑️</span>`;
+    // La fecha de término va a la vista cuando existe: es lo que ordena el
+    // plano de obra. Si no existe, se dice, porque "desvinculado" a secas no
+    // dice cuándo se fue y en la planilla queda con la fecha en que alguien
+    // apretó el botón.
+    const desvinculado=w.status==='desvinculado';
+    const termino=w.fecha_termino?'<small> · término '+escHtml(String(w.fecha_termino).slice(0,10))+'</small>':'';
+    const sinFecha=desvinculado&&!w.fecha_termino
+      ?' <span class="pill" style="color:var(--warn-ink);border-color:var(--warn)" title="Sin fecha de término: la baja queda en la fecha en que se cerró la ficha">sin fecha de término</span>'
+      :'';
+    const estado=desvinculado
+      ?' <span class="pill" style="color:var(--danger);border-color:var(--danger)">Desvinculado</span>'+termino+sinFecha
+      :'';
+    d.innerHTML=`<span><b>${escHtml(codigoMostrar(w.code))}</b> — ${escHtml(w.name)} <small>(${escHtml(w.spec||'—')})</small>${estado}</span>`+
+      `<span class="lista-iconos">${desvinculado?'<span title="Revivir" style="cursor:pointer">♻️</span><span title="Completar fecha y artículo" style="cursor:pointer">📅</span>':''}<span title="${desvinculado?'Corregir desvinculación':'Desvincular'}" style="cursor:pointer">🚪</span><span title="Eliminar" style="cursor:pointer">🗑️</span></span>`;
     d.onclick=()=>editWorker(w.code);
-    const icons=d.querySelector('span:last-child');
-    icons.childNodes[0]&&(icons.innerHTML=`<span title="Desvincular" style="cursor:pointer">🚪</span> <span title="Eliminar" style="cursor:pointer">🗑️</span>`);
-    icons.children[0].onclick=(ev)=>{ev.stopPropagation();desvincularWorker(w.code);};
-    icons.children[1].onclick=async (ev)=>{ev.stopPropagation();if(confirm('¿Eliminar '+w.name+'?')){
-      const {error}=await window.supabaseClient.from('trabajadores').delete().eq('code',w.code);
-      if(error){alert('No se pudo eliminar: '+error.message);return;}
-      await loadWorkers();
-      fillWorkerSupervisorFilter();
-      renderList();
-    }};
+    // Se busca por clase y no con "span:last-child": ese selector también
+    // matchea el último ícono interno, y el código terminaba conectando los
+    // manejadores al ícono de la papelera en vez de al contenedor. Revivir
+    // o completar la fecha no hacían nada.
+    const icons=d.querySelector('.lista-iconos');
+    const botones=[...icons.children];
+    if(desvinculado){
+      // Revivir. Va primero: la ficha desvinculada por error es el caso más
+      // común y el más caro de dejar así, porque la persona no aparece en
+      // ninguna planilla.
+      botones[0].onclick=(ev)=>{ev.stopPropagation();revivirWorker(w.code);};
+      botones[1].onclick=(ev)=>{ev.stopPropagation();abrirDesvinculacion(w.code);};
+    }
+    botones[botones.length-2].onclick=(ev)=>{ev.stopPropagation();desvincularWorker(w.code);};
+    botones[botones.length-1].onclick=(ev)=>{ev.stopPropagation();eliminarWorker(w);};
     el.appendChild(d);
   });
+}
+// Eliminar es distinto de desvincular, y por eso pregunta distinto.
+//
+// Desvincular deja la ficha y toda su asistencia. Eliminar borra la ficha, y
+// asistencia tiene llave foránea con "on delete cascade": se va la
+// asistencia del año pasado con ella. Eso no se puede deshacer.
+//
+// Por eso el aviso dice qué se va a perder y cuántas filas son, y pide
+// escribir BORRAR. Una tarjeta de plástico no vale para una confirmación que borra
+// un año de asistencia: el ok de un alert() se aprieta sin leer.
+async function eliminarWorker(w){
+  const dias=attendance.filter(r=>r.code===w.code).length;
+  const marcajes=marcajes.filter(m=>m.code===w.code).length;
+  const herramientas=herramientasAsignacionesFijas(w.code);
+  let resumen='';
+  if(dias)resumen+='\n• '+dias+' día(s) de asistencia';
+  if(marcajes)resumen+='\n• '+marcajes+' marcaje(s) de reloj';
+  if(herramientas)resumen+='\n• '+herramientas.length+' entrega(s) de herramientas';
+  if(!resumen)resumen='\n• (no tiene datos de asistencia, pero igual se borra la ficha)';
+  const escrito=prompt(
+    `Eliminar a ${w.name} (${codigoMostrar(w.code)})?\n\n`+
+    'Esto NO es desvincular. Se borra la ficha y TODO lo que tiene colgando:'+
+    resumen+'\n\nNo se puede deshacer. Para cerrar una ficha sin perder la asistencia, '+
+    'desvínculala en vez de eliminarla.\n\nEscribí BORRAR para confirmar:',
+    ''
+  );
+  if(escrito===null)return;
+  if(String(escrito).trim().toUpperCase()!=='BORRAR'){
+    alert('No se eliminó nada. Para eliminar hay que escribir BORRAR.');
+    return;
+  }
+  const {error}=await window.supabaseClient.from('trabajadores').delete().eq('code',w.code);
+  if(error){alert('No se pudo eliminar: '+error.message);return;}
+  await loadWorkers();
+  fillWorkerSupervisorFilter();
+  renderList();
+  alert(w.name+' quedó eliminado, junto con su asistencia.');
+}
+function herramientasAsignacionesFijas(code){
+  return (typeof herramientasAsignadas!=='undefined'&&Array.isArray(herramientasAsignadas))
+    ?herramientasAsignadas.filter(a=>a.code===code)
+    :[];
 }
 function editWorker(code){
   const w=workers.find(x=>x.code===code);
@@ -9759,6 +10158,7 @@ async function loadPermisosUsuario(){
   // Va junto a la otra: si la bitácora no está puesta, es tan importante
   // verlo al entrar como la coherencia de permisos.
   if(typeof comprobarAuditoria==='function')comprobarAuditoria();
+  if(typeof comprobarDesvinculacion==='function')comprobarDesvinculacion();
   if(typeof revisarPerfilIncompleto==='function')revisarPerfilIncompleto();
 }
 
@@ -10661,6 +11061,11 @@ async function guardarPermiso(checkbox){
 }
 
 // ---------- desvinculación ----------
+// Desvincular ahora es `abrirDesvinculacion`, que pide la fecha de término
+// y el artículo (migración 029). Esta función quedó solo como el aviso de
+// herramientas sin devolver, que tiene que salir ANTES del cuadro: si se
+// descubre al confirmar, el descuento del finiquito ya se anotó en la
+// cabeza de la persona.
 async function desvincularWorker(code){
   const w=workers.find(x=>x.code===code);
   if(!w)return;
@@ -10670,26 +11075,15 @@ async function desvincularWorker(code){
     const detalle=pendientes.map(a=>`- ${a.herramienta_nombre||'herramienta'}: $${Number(a.precio||0).toLocaleString('es-CL')}`).join('\n');
     alert(`⚠️ ${w.name} tiene herramientas sin devolver:\n${detalle}\n\nTotal a descontar del finiquito: $${total.toLocaleString('es-CL')}`);
   }
-  if(!confirm(`¿Confirmar desvinculación de ${w.name}?`))return;
-  const fecha=hoyLocal();
-  const {error}=await window.supabaseClient.from('trabajadores').update({status:'desvinculado',fecha_desvinculacion:fecha}).eq('code',code);
-  if(error){alert('No se pudo actualizar en la base de datos: '+error.message);return;}
-  // El trigger de la migración 018 bloquea las tarjetas activas, pero se
-  // recarga la lista para mostrarlo en pantalla y no prometer algo que
-  // no ocurrió (por ejemplo si la 018 no está aplicada todavía).
-  await loadWorkers();
-  await loadTarjetas();
-  const bloqueadas=tarjetas.filter(t=>t.code===code&&t.estado==='bloqueada');
-  const siguenActivas=tarjetas.filter(t=>t.code===code&&t.estado==='activa');
-  renderList('');
-  if(siguenActivas.length){
-    alert(`⚠️ A ${w.name} le quedan ${siguenActivas.length} tarjeta(s) en estado activo.\n\n`+
-      'Se bloquean solas al desvincular. Si no se bloquearon, ejecuta la migración 018_tarjetas_bloqueo.sql.');
-  }else if(bloqueadas.length){
-    alert(`${w.name} quedó desvinculado. Se bloquearon ${bloqueadas.length} tarjeta(s): ya no sirven para pasar asistencia.`);
-  }else{
-    alert(`${w.name} quedó desvinculado. No tenía tarjetas emitidas.`);
+  // Las tarjetas se avisan acá y no después de guardar, porque después de
+  // guardar ya no hay vuelta atrás. El aviso va primero a propósito: es
+  // información que la persona necesita antes de confirmar, no después.
+  const suyas=tarjetas.filter(t=>t.code===code&&t.estado==='activa');
+  if(suyas.length){
+    alert(`Esta ficha tiene ${suyas.length} tarjeta(s) en estado activo. `+
+      'Se bloquean solas al desvincular, así que la tarjeta deja de servir para pasar asistencia.');
   }
+  abrirDesvinculacion(code);
 }
 
 function exportPayroll(){
