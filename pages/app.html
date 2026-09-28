@@ -888,12 +888,23 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
   </div>
   <div class="card attendance-panel" role="tabpanel" data-attendance-panel="marcaje">
     <h2>Registrar marcaje manual</h2>
+    <small>La fecha y la hora se ponen solas: hoy, y la hora que sea en ese momento. Si necesitas otra hora, cámbiala a mano.</small>
+    <label>Escanear tarjeta, o escribir código o nombre</label>
+    <input id="man-buscar" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarParaMarcajeManual();}" placeholder="Escaneá la tarjeta, o escribí 021 o parte del nombre" autocomplete="off">
+    <div class="row">
+      <button class="btn secondary" type="button" onclick="buscarParaMarcajeManual()">Buscar</button>
+      <button class="btn secondary" type="button" onclick="openQrCamera('marcaje-manual')">📷 Escanear con cámara</button>
+    </div>
+    <div id="man-buscar-msg"></div>
     <div class="row">
       <div><label>Trabajador</label><select id="man-worker"></select></div>
       <div><label>Fecha</label><input type="date" id="man-fecha"></div>
       <div><label>Hora de llegada</label><input type="time" id="man-hora"></div>
     </div>
-    <button class="btn" onclick="marcajeManual()">Registrar marcaje</button>
+    <div class="row">
+      <button class="btn" onclick="marcajeManual()">Registrar marcaje</button>
+      <button class="btn secondary" type="button" onclick="prepararMarcajeManual()">Poner la hora de ahora</button>
+    </div>
   </div>
   <div class="card attendance-panel" role="tabpanel" data-attendance-panel="justificar">
     <h2>Justificar inasistencia / permiso / licencia</h2>
@@ -1751,6 +1762,9 @@ function showAttendancePanel(name){
     tab.classList.toggle('active',active);
     tab.setAttribute('aria-selected',String(active));
   });
+  // La hora del marcaje manual tiene que ser la de ahora, no la que quedó
+  // de la última vez que se abrió la pestaña.
+  if(name==='marcaje'&&typeof prepararMarcajeManual==='function')prepararMarcajeManual();
 }
 function showView(v){
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
@@ -1920,7 +1934,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-c';
+const APP_VERSION='2026-09-28-d';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -2652,6 +2666,7 @@ function handleScannedCode(rawCode,purpose){
   if(!code)return;
   if(purpose==='attendance-worker'||purpose==='attendance-supervisor'){applyAttendanceQr(code,purpose);return;}
   if(purpose==='sup-diaria'){marcarPorEscaneo(code);return;}
+  if(purpose==='marcaje-manual'){buscarParaMarcajeManual(code);return;}
   if(purpose==='epp-worker'){selectEppWorkerByScan(code);return;}
   if(purpose==='kit-worker'){selectKitWorkerByScan(code);return;}
   if(purpose==='epp-historial'){filtrarHistorialPorScan(code);return;}
@@ -2918,18 +2933,95 @@ function pedirConfirmacionMarcaje(text,purpose){
   if(navigator.vibrate){try{navigator.vibrate([40,60,40]);}catch(error){}}
 }
 
-// Busca a qué trabajador corresponde un código leído, sin marcar nada.
-// Se separa de resolverCodigoTrabajador porque ese muestra alertas y
-// decide qué hacer: acá solo se necesita saber QUIÉN es.
+// Lo que llega del lector hay que compararlo por una forma única.
+//
+// El lector USB se comporta como teclado: manda el texto y un retorno de
+// carro. Según el modelo el ID sale en mayúsculas o en minúsculas, y
+// algunos meten espacios. Comparar con "===" sobre el texto crudo hacía que
+// la misma tarjeta se encontrara desde la cámara y no desde el lector, sin
+// que hubiera ninguna razón visible para eso.
+function normalizarCodigo(txt){
+  return String(txt==null?'':txt)
+    .replace(/[\s\u0000-\u001f]+/g,'')
+    .toUpperCase();
+}
+
+// La lista de tarjetas en memoria es una CACHÉ, no la fuente.
+//
+// Antes la búsqueda solo miraba ese arreglo, así que una tarjeta que sí
+// estaba en la base pero no había cargado — porque la carga falló, porque
+// una política la filtró, o porque se emitió con la pantalla ya abierta —
+// salía como "Código no encontrado", que no dice ni qué pasó ni qué hacer.
+//
+// Ahora: primero la caché (rápido), y si no está, se pregunta a la base.
+// La base manda.
+let tarjetasAvisoCarga='';   // por qué quedó la lista vacía, si fue el caso
+async function tarjetaRegistrada(leido){
+  const clave=normalizarCodigo(leido);
+  if(!clave)return null;
+  const enMemoria=tarjetas.find(t=>normalizarCodigo(t.id)===clave);
+  if(enMemoria)return enMemoria;
+
+  // Consulta exacta primero. Se usa el arreglo (no .maybeSingle) a
+  // propósito: maybeSingle devuelve un ERROR cuando no hay filas, y
+  // "no existe esta tarjeta" no es un error, es la respuesta.
+  const bruto=String(leido).trim();
+  let r=await window.supabaseClient.from('tarjetas').select('*').eq('id',bruto).limit(1);
+  if(!r.error&&r.data&&r.data.length)return guardarTarjetaEnCache(r.data[0]);
+
+  // El ID en la base puede diferir del que manda el lector solo en la caja.
+  // Un ID de tarjeta no lleva % ni _, así que ilike es seguro aquí.
+  r=await window.supabaseClient.from('tarjetas').select('*').ilike('id',clave).limit(1);
+  if(!r.error&&r.data&&r.data.length)return guardarTarjetaEnCache(r.data[0]);
+  return null;
+}
+// Lo que se encuentra en la base se guarda en la caché, para que el
+// siguiente escaneo de la misma tarjeta no vuelva a viajar.
+function guardarTarjetaEnCache(card){
+  tarjetas.push(card);
+  return card;
+}
+// Un trabajador puede estar en "todosWorkers" y no en "workers" cuando
+// pertenece a otra empresa. Preguntar solo por "workers" convertía un
+// "es de otra empresa" en un "no existe", que son cosas muy distintas.
+function trabajadorEnAlcance(code){
+  return workers.find(x=>normalizarCodigo(x.code)===normalizarCodigo(code))||null;
+}
+function trabajadorEnCualquierEmpresa(code){
+  return todosWorkers.find(x=>normalizarCodigo(x.code)===normalizarCodigo(code))||null;
+}
+// Búsqueda por nombre, para cuando no se tiene ni la tarjeta ni el código.
+// Se busca sobre el nombre ya sin tildes ni mayúsculas, porque nadie
+// escribe "Verdugo" y espera que el sistema lo entienda como "verdugo".
+function sinTildes(txt){
+  return String(txt==null?'':txt)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+}
+function trabajadorPorNombre(texto, alcance){
+  const clave=sinTildes(texto).trim();
+  if(!clave)return null;
+  const lista=(alcance==='todos')?todosWorkers:workers;
+  // Primero que empiece con lo tecleado, después que lo contenga: buscar
+  // "san" debe elegir a "Sánchez" sobre "Constanza".
+  const contiene=lista.filter(w=>sinTildes(w.name).includes(clave));
+  if(!contiene.length)return null;
+  const empieza=contiene.filter(w=>sinTildes(w.name).startsWith(clave));
+  return (empieza[0]||contiene[0]);
+}
+
+// Variante SINCRÓNICA, para los caminos que no pueden esperar un viaje a la
+// base: confirmar un escaneo con la cámara. Solo mira la caché; si no está,
+// no encuentra, y el llamador avisa y sigue. Para la búsqueda de portería se
+// usa resolverConsulta(), que sí consulta la base.
 function buscarTrabajadorPorCodigo(text){
-  const leido=String(text||'').trim();
-  if(!leido)return null;
-  const card=tarjetas.find(t=>mismoId(t.id,leido));
+  const clave=normalizarCodigo(text);
+  if(!clave)return null;
+  const card=tarjetas.find(t=>normalizarCodigo(t.id)===clave);
   if(card){
     if(card.estado!=='activa')return null;
-    return workers.find(x=>x.code===card.code)||null;
+    return trabajadorEnAlcance(card.code);
   }
-  return workers.find(x=>x.code===leido)||null;
+  return trabajadorPorNombre(text)||trabajadorEnAlcance(text);
 }
 async function openQrCamera(purpose='porteria'){
   qrScanPurpose=purpose;
@@ -3027,24 +3119,80 @@ async function scanQrImage(file,purpose='porteria'){
   }
 }
 
-function doScan(){
+// Resuelve lo escaneado para CONSULTAR (no marca nada). A diferencia de
+// resolverCodigoTrabajador, que marca, aquí no interesa bloquear: lo que
+// importa es devolver el motivo exacto por el que no se encontró, para que
+// quien está en portería sepa si es una tarjeta sin registrar, una anulada
+// o un trabajador de otra empresa. Antes todo eso era el mismo texto.
+async function resolverConsulta(leido){
+  const clave=normalizarCodigo(leido);
+  if(!clave)return {error:'Vacio'};
+
+  // 1) ¿Es el ID de una tarjeta emitida?
+  const card=await tarjetaRegistrada(leido);
+  if(card){
+    if(card.estado==='anulada')return {tarjeta:card,error:'Anulada',motivo:card.motivo_anulacion||'fue reemplazada por una más reciente'};
+    if(card.estado==='bloqueada')return {tarjeta:card,error:'Bloqueada',motivo:card.motivo_bloqueo||''};
+    const w=trabajadorEnAlcance(card.code);
+    if(w)return {trabajador:w,tarjeta:card};
+    // La tarjeta existe pero su código no está en el alcance actual. Puede
+    // ser de otra empresa, o un dato roto. Decir cuál.
+    const fuera=trabajadorEnCualquierEmpresa(card.code);
+    if(fuera)return {tarjeta:card,error:'OtraEmpresa',nombre:fuera.name,code:fuera.code};
+    return {tarjeta:card,error:'SinTrabajador',code:card.code};
+  }
+
+  // 2) No es una tarjeta: se acepta el código del trabajador, tecleado a mano.
+  const w=trabajadorPorNombre(leido)||trabajadorEnAlcance(leido);
+  if(w)return {trabajador:w,aviso:'No es una tarjeta, es el código o nombre escrito a mano'};
+  const porNombre=trabajadorPorNombre(leido);
+  if(porNombre)return {trabajador:porNombre,aviso:'No es una tarjeta, es el código o nombre escrito a mano'};
+
+  // 3) Tampoco. Se reporta el ID limpio y el motivo probable, no un "no".
+  return {error:'NoEncontrado',id:String(leido).trim(),listaVacia:!tarjetas.length};
+}
+async function doScan(){
   const scanned=document.getElementById('scanCode').value.trim();
   const res=document.getElementById('scanResult');
-  // primero intenta resolver como ID de tarjeta emitida (QR/código de barras actuales)
-  const card=tarjetas.find(t=>mismoId(t.id,scanned));
-  if(card&&card.estado==='anulada'){
-    res.innerHTML=`<div class="card" style="border-color:var(--danger)">
-      <p style="background:var(--danger);color:#fff;padding:10px;border-radius:6px;font-size:1.05rem"><b>⚠️ TARJETA ANULADA</b><br>Esta tarjeta ya no es válida (${card.motivo_anulacion||'fue reemplazada por una más reciente'}). Solicita la tarjeta vigente antes de dar acceso.</p>
-    </div>`;
+  if(!scanned){res.innerHTML='<p style="color:var(--danger)">Escaneá una tarjeta o escribí un código.</p>';return;}
+
+  const r=await resolverConsulta(scanned);
+  if(r.error){
+    let html='';
+    if(r.error==='Anulada'){
+      html=`<p style="background:var(--danger);color:#fff;padding:10px;border-radius:6px;font-size:1.05rem"><b>⚠️ TARJETA ANULADA</b><br>Esta tarjeta ya no es válida (${r.motivo}). Solicita la tarjeta vigente antes de dar acceso.</p>`;
+    }else if(r.error==='Bloqueada'){
+      html=`<p style="background:var(--danger);color:#fff;padding:10px;border-radius:6px;font-size:1.05rem"><b>⛔ TARJETA BLOQUEADA</b><br>Esta tarjeta no sirve para pasar asistencia.${r.motivo?('<br>Motivo: '+r.motivo):''}<br>Debe pasar por Administración para regularizar su situación.</p>`;
+    }else if(r.error==='OtraEmpresa'){
+      html=`<p style="background:var(--accent);color:#1c1206;padding:10px;border-radius:6px"><b>La tarjeta es de ${escHtml(r.nombre)} (código ${escHtml(r.code)}), que pertenece a otra empresa.</b><br>No se puede consultar desde esta empresa. Cambia de empresa en Soporte, o pídele a Administración que lo revise.</p>`;
+    }else if(r.error==='SinTrabajador'){
+      html=`<p style="background:var(--danger);color:#fff;padding:10px;border-radius:6px"><b>La tarjeta apunta al código ${escHtml(r.code)}, que no está en la lista de trabajadores.</b><br>Datos inconsistentes: Administración tiene que emitir la tarjeta de nuevo.</p>`;
+    }else if(r.error==='Vacio'){
+      html='<p style="color:var(--danger)">Escaneá una tarjeta o escribí un código.</p>';
+    }else{
+      // El caso que el usuario está viendo: un ID que no está en ninguna
+      // tarjeta. Se dice el ID exacto y por dónde se arregla, en vez de un
+      // "no encontrado" que deja a portería sin saber qué hacer.
+      html=`<p style="color:var(--danger)"><b>No hay ninguna tarjeta registrada con el ID "${escHtml(r.id)}".</b></p>`
+        +`<p><small>Eso no significa que la persona no exista. Puede ser:</small></p>`
+        +`<ul style="font-size:.9rem">`
+        +(r.listaVacia?'<li>La lista de tarjetas no cargó al entrar a la app. Recargá la página con <b>Ctrl+F5</b>.</li>':'')
+        +`<li>La tarjeta se imprimió antes de que existiera el registro de tarjetas: hay que <b>emitirla de nuevo</b> en Administración → Imprimir tarjetas.</li>`
+        +`<li>El lector manda el ID con un formato distinto al impreso: probá la cámara.</li>`
+        +`<li>No es una tarjeta: entonces puede ser el <b>código del trabajador</b> (por ejemplo 021) o su <b>nombre</b>, y también se buscan aquí.</li>`
+        +`</ul>`
+        +`<p><small>Si la persona es <code>${escHtml(r.id)}</code> y su tarjeta debería existir, Administración lo ve en Soporte → Diagnóstico.</small></p>`;
+    }
+    res.innerHTML=`<div class="card" style="border-color:var(--danger)">${html}</div>`;
     document.getElementById('scanCode').value='';
     return;
   }
-  // si el escaneo coincide con una tarjeta activa, resolvemos al código del trabajador;
-  // si no coincide con ninguna tarjeta, se acepta como código de trabajador directo
-  // (compatibilidad con tarjetas antiguas o búsqueda manual por código)
-  const code=card?card.code:scanned;
-  const w=workers.find(x=>x.code===code);
-  if(!w){res.innerHTML='<p style="color:var(--danger)">Código no encontrado.</p>';return;}
+  if(r.aviso){
+    res.innerHTML=`<div class="card" style="border-color:var(--accent)"><p style="background:var(--accent);color:#1c1206;padding:10px;border-radius:6px"><b>⚠️ ${escHtml(r.aviso)}</b><br>La tarjeta permite comprobar que no esté anulada ni bloqueada. Pasa la tarjeta.</p></div>`;
+  }
+  const w=r.trabajador;
+  const code=w.code;
+  const card=r.tarjeta;
   const hoy=hoyLocal();
   const hoyRec=attendance.find(a=>a.code===code&&a.date===hoy);
   const nombresEstado={X:'Presente',F:'Falla',P:'Permiso',L:'Licencia',A:'Accidente Mutual',PP:'Permiso Pagado',V:'Vacaciones',LL:'Día lluvia'};
@@ -4546,12 +4694,72 @@ function renderSupervisorMatrix(){
 }
 
 // ---------- marcaje manual ----------
+// Pone la fecha de hoy y la hora que sea en este momento.
+//
+// Se recalcula cada vez que se abre la pestaña, no solo al arrancar la app:
+// una pantalla abierta toda la mañana con la hora de las 8 registraría de más
+// las entradas de las 15. El reloj va, la fecha no.
+function prepararMarcajeManual(){
+  const f=document.getElementById('man-fecha');
+  const h=document.getElementById('man-hora');
+  if(f)f.value=hoyLocal();
+  if(h)h.value=hhmmActual();
+  const msg=document.getElementById('man-buscar-msg');
+  if(msg)msg.innerHTML='';
+  const inp=document.getElementById('man-buscar');
+  if(inp)inp.value='';
+}
+// Elige al trabajador en el desplegable. Se separa de la búsqueda para que
+// ambas entradas (escanear y escribir) lleguen al mismo lugar.
+function elegirParaMarcajeManual(w,aviso){
+  const sel=document.getElementById('man-worker');
+  if(sel)sel.value=w.code;
+  prepararMarcajeManual();
+  const msg=document.getElementById('man-buscar-msg');
+  if(!msg)return;
+  // El aviso va PRIMERO, porque prepararMarcajeManual() limpia el mensaje y
+  // si se escribiera después, quedaría tapado. Antes se perdía solo.
+  if(aviso)msg.innerHTML+=`<p style="background:var(--accent);color:#1c1206;padding:8px 10px;border-radius:6px;margin-bottom:6px"><b>${escHtml(aviso)}.</b> Se eligió igual, pero conviene pasar la tarjeta.</p>`;
+  msg.innerHTML+=`<p style="background:var(--accent2);color:#fff;padding:8px 10px;border-radius:6px">Elegido: <b>${escHtml(w.name)}</b> (código ${escHtml(w.code)}). Fecha ${escHtml(hoyLocal())}, hora ${escHtml(hhmmActual())}. Si es otra, cámbiala y dale <b>Registrar marcaje</b>.</p>`;
+}
+// Busca por tarjeta, por código o por nombre, y deja al trabajador elegido.
+//
+// Acepta las tres cosas porque en portería pasa cualquiera de las tres: se
+// pasa la tarjeta, se teclea el código, o no está el código a la vista y se
+// busca por nombre. Antes esto solo aceptaba elegir del desplegable.
+async function buscarParaMarcajeManual(texto){
+  const inp=document.getElementById('man-buscar');
+  const msg=document.getElementById('man-buscar-msg');
+  const leido=String(texto!=null?texto:(inp?inp.value:'')).trim();
+  if(!leido){if(msg)msg.innerHTML='<p style="color:var(--danger)">Escaneá una tarjeta o escribí un código o un nombre.</p>';return;}
+  if(msg)msg.innerHTML='<p><small>Buscando…</small></p>';
+
+  const r=await resolverConsulta(leido);
+  if(r.trabajador){
+    elegirParaMarcajeManual(r.trabajador,r.aviso);
+    if(inp)inp.value='';
+    return;
+  }
+  if(msg){
+    if(r.error==='Anulada')msg.innerHTML=`<p style="background:var(--danger);color:#fff;padding:8px 10px;border-radius:6px"><b>⚠️ TARJETA ANULADA</b><br>${escHtml(r.motivo||'')}. No se puede registrar con una tarjeta anulada.</p>`;
+    else if(r.error==='Bloqueada')msg.innerHTML=`<p style="background:var(--danger);color:#fff;padding:8px 10px;border-radius:6px"><b>⛔ TARJETA BLOQUEADA</b><br>${escHtml(r.motivo?('Motivo: '+r.motivo):'')} Debe pasar por Administración.</p>`;
+    else if(r.error==='OtraEmpresa')msg.innerHTML=`<p style="color:var(--danger)">La tarjeta es de <b>${escHtml(r.nombre)}</b>, que pertenece a otra empresa.</p>`;
+    else if(r.error==='SinTrabajador')msg.innerHTML=`<p style="color:var(--danger)">La tarjeta apunta al código <b>${escHtml(r.code)}</b>, que no está en la lista de trabajadores.</p>`;
+    else msg.innerHTML=`<p style="color:var(--danger)">No encontré a nadie con <b>${escHtml(leido)}</b>.<br><small>Prueba con la tarjeta, con el código (por ejemplo 021) o con parte del nombre.</small></p>`;
+  }
+}
 async function marcajeManual(){
   if(!exigirPermiso('tarja.marcaje','No tienes permiso para registrar marcajes.'))return;
-  const code=document.getElementById('man-worker').value;
+  const sel=document.getElementById('man-worker');
+  const code=sel?sel.value:'';
   const fecha=document.getElementById('man-fecha').value;
-  const hora=document.getElementById('man-hora').value;
-  if(!code||!fecha||!hora){alert('Completa trabajador, fecha y hora.');return;}
+  // Si la fecha es hoy y no se escribió una hora, se usa la de ahora. Antes
+  // esto era un error y obligaba a teclear la hora a mano siempre.
+  const hora=(document.getElementById('man-hora').value||'').trim()||(fecha===hoyLocal()?hhmmActual():'');
+  if(!code){alert('Elige o escanea un trabajador.');return;}
+  if(!fecha){alert('Pon la fecha.');return;}
+  if(!hora){alert('Pon la hora, o deja la fecha en hoy para que se ponga sola.');return;}
+  const w=workers.find(x=>x.code===code);
   const {error}=await window.supabaseClient.from('asistencia').upsert(
     attToDb({code,date:fecha,estado:'X',hora_llegada:hora,nota:'',origen:'manual'}),
     {onConflict:'code,fecha'}
@@ -4559,7 +4767,10 @@ async function marcajeManual(){
   if(error){alert('No se pudo guardar en la base de datos: '+error.message);return;}
   await loadAttendanceFromDB();
   renderMatrix();
-  alert('Marcaje registrado.');
+  // El mensaje dice a quién y a qué hora, para que un marcaje manual sea
+  // rastreable después. Un "Marcaje registrado." a secas no dice de quién.
+  alert('Marcaje registrado.\n\n'+(w?w.name+' ('+w.code+')':'Código '+code)+'\nFecha: '+fecha+'   Hora: '+hora);
+  prepararMarcajeManual();
 }
 
 function showJustSupervisor(){
