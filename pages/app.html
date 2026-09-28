@@ -495,6 +495,7 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 <section class="view" id="v-listado-trabajadores">
   <div class="card">
     <h2>Listado de trabajadores</h2>
+    <div id="dupNamesWarn"></div>
     <div class="row">
       <div><label>Buscar</label><input id="workerSearch" placeholder="Código o nombre" oninput="renderList()"></div>
       <div><label>Estado</label><select id="workerStatusFilter" onchange="renderList()"><option value="">Todos</option><option value="activo">Activos</option><option value="desvinculado">Desvinculados</option></select></div>
@@ -1755,8 +1756,9 @@ function initView(v){
 function fillAttendanceFilters(){
   const supervisorSelect=document.getElementById('matSupervisorFilter');
   const selectedSupervisor=supervisorSelect.value;
-  const supervisors=workers.filter(worker=>worker.is_supervisor);
-  supervisorSelect.innerHTML='<option value="">Todos los supervisores</option>'+supervisors.map(worker=>`<option value="${worker.code}">${worker.name}</option>`).join('');
+  const supervisors=supervisoresActivos();
+  const visMat=codigosVisibles(supervisors);
+  supervisorSelect.innerHTML='<option value="">Todos los supervisores</option>'+supervisors.map(worker=>`<option value="${escHtml(worker.code)}">${escHtml(etiquetaSupervisor(worker,visMat))}</option>`).join('');
   if(supervisors.some(worker=>worker.code===selectedSupervisor))supervisorSelect.value=selectedSupervisor;
   updateAttendanceWorkerOptions();
 }
@@ -1785,7 +1787,7 @@ function applyAttendanceQr(code,purpose){
       alert(worker.name+' no está a tu cargo. Solo puedes consultar a tu equipo.');
       return;
     }
-    const sups=workers.filter(w=>w.is_supervisor);
+    const sups=supervisoresActivos();
     if(!miCodigoSupervisor){
       // quien no es supervisor: se ubica el equipo al que pertenece el
       // escaneado (su supervisor, no el supervisor de su supervisor)
@@ -2008,16 +2010,73 @@ document.addEventListener('keydown',event=>{
 document.querySelectorAll('[data-attendance-tab]').forEach(tab=>tab.addEventListener('click',()=>showAttendancePanel(tab.dataset.attendanceTab)));
 document.getElementById('epp-worker').addEventListener('change',updateEppWorkerHint);
 document.getElementById('assign-fecha').value=hoyLocal();
+// Los supervisores que se pueden ASIGNAR.
+//
+// Se filtra por estado activo. Antes no se filtraba, y un supervisor
+// desvinculado seguía apareciendo en el desplegable: se le podía asignar
+// gente a alguien que ya no trabaja acá, y el error no se veía hasta que
+// el equipo no cargaba.
+//
+// El código va en la etiqueta porque hay nombres repetidos: en la base hay
+// fichas distintas con el mismo nombre, y sin el código no se sabe cuál
+// se está eligiendo. No se "arregla" deduplicando la lista, porque eso
+// escondería que hay dos fichas; el aviso va en el listado de
+// trabajadores, que es donde se ve la duplicidad.
+function supervisoresActivos(excludeCode){
+  return workers.filter(w=>w.is_supervisor&&w.status==='activo'&&w.code!==excludeCode)
+    .sort((a,b)=>compararPorCodigo(a.code,b.code)||a.name.localeCompare(b.name));
+}
+// La etiqueta lleva el código de la lista a la que pertenece, para que dos
+// fichas con el mismo nombre y códigos parecidos no queden indistinguibles.
+function etiquetaSupervisor(s,visibles){
+  const v=(visibles&&visibles.get(s.code))||codigoMostrar(s.code);
+  return v+' — '+s.name;
+}
 function fillSupervisorSelect(id,excludeCode){
-  const sups=workers.filter(w=>w.is_supervisor && w.code!==excludeCode);
-  document.getElementById(id).innerHTML='<option value="">Sin asignar</option>'+sups.map(s=>`<option value="${s.code}">${s.name}</option>`).join('');
+  const sups=supervisoresActivos(excludeCode);
+  const vis=codigosVisibles(sups);
+  document.getElementById(id).innerHTML='<option value="">Sin asignar</option>'+
+    sups.map(s=>`<option value="${escHtml(s.code)}">${escHtml(etiquetaSupervisor(s,vis))}</option>`).join('');
 }
 function fillWorkerSupervisorFilter(){
   const select=document.getElementById('workerSupervisorFilter');
   const selected=select.value;
-  const options=workers.filter(w=>w.is_supervisor).map(s=>`<option value="${s.code}">${s.name}</option>`).join('');
+  const visSup=codigosVisibles(supervisoresActivos());
+  const options=supervisoresActivos().map(s=>`<option value="${escHtml(s.code)}">${escHtml(etiquetaSupervisor(s,visSup))}</option>`).join('');
   select.innerHTML='<option value="">Todos</option><option value="__none__">Sin asignar</option>'+options;
   if([...select.options].some(option=>option.value===selected))select.value=selected;
+  avisarNombresRepetidos();
+}
+// Hay fichas con el MISMO nombre y códigos distintos. No es un error de
+// esta pantalla: son dos trabajadores reales en la base, y por eso las
+// opciones llevan el código, para poder distinguirlos.
+//
+// Antes de avisar, se tiene en cuenta que en un listado de 46 personas es fácil que
+// dos se llamen igual, y una advertencia permanente por eso sería ruido
+// que nadie lee. Solo avisa cuando los repetidos coinciden en el nombre
+// tal cual, que es donde de verdad no se sabe a cuál se está eligiendo.
+function avisarNombresRepetidos(){
+  const porNombre=new Map();
+  workers.forEach(w=>{
+    const k=sinTildes(w.name).trim().replace(/\s+/g,' ').toUpperCase();
+    if(!k)return;
+    if(!porNombre.has(k))porNombre.set(k,[]);
+    porNombre.get(k).push(w);
+  });
+  const repetidos=[...porNombre.values()].filter(l=>l.length>1);
+  const cont=document.getElementById('dupNamesWarn');
+  if(!cont)return;
+  // Se usa codigosVisibles y no codigoMostrar: con dos fichas de código
+  // "1" y "001", el aviso salía como "0001 / 0001", que es exactamente
+  // inútil. El aviso tiene que decir CÓMO distinguirlas.
+  const vis=codigosVisibles(workers);
+  cont.innerHTML=repetidos.length
+    ?'<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+     '<b>Ojo: '+repetidos.length+' nombre(s) están repetidos en fichas distintas.</b> Por eso los desplegables muestran el código. '+
+     repetidos.slice(0,8).map(l=>l.map(w=>escHtml(vis.get(w.code)||codigoMostrar(w.code))).join(' = ')).join(' · ')+
+     (repetidos.length>8?' · … y '+(repetidos.length-8)+' más':'')+
+     '<br><small>Si son la misma persona cargada dos veces, hay que desvincular o eliminar la ficha que sobra: si no, cada una tiene su propia asistencia, y la asistencia de una no aparece en la otra.</small></div>'
+    :'';
 }
 function updateSupervisorAssignment(){
   const code=document.getElementById('trans-worker').value;
@@ -2055,7 +2114,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-j';
+const APP_VERSION='2026-09-28-k';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -3105,6 +3164,27 @@ function codigoMostrar(code){
   if(!esCodigoNumerico(s))return s;
   return s.padStart(CODIGO_DIGITOS,'0');
 }
+// Rellenar con ceros puede hacer que dos fichas DISTINTAS se vean iguales:
+// el código "1" y el "001" los dos a 4 dígitos dan "0001". En un desplegable
+// donde se elige a quién asignarle el turno, dos etiquetas iguales son peor
+// que no tener código: no se sabe a cuál se está eligiendo.
+//
+// Se calculan los dígitos necesarios para que no haya choque dentro de la
+// lista que se está mostrando, y solo los que chocan se ven sin rellenar.
+// Los que no chocan siguen con 4 dígitos, que es lo que se pidió.
+function codigosVisibles(lista){
+  const out=new Map();
+  const conteo=new Map();
+  (lista||[]).forEach(w=>{
+    const v=codigoMostrar(w.code);
+    conteo.set(v,(conteo.get(v)||0)+1);
+  });
+  (lista||[]).forEach(w=>{
+    const v=codigoMostrar(w.code);
+    out.set(w.code,conteo.get(v)>1?String(w.code).trim():v);
+  });
+  return out;
+}
 // Ordena por código como número cuando los dos son numéricos, y como texto
 // en cualquier otro caso. Comparar "7" con "0021" como texto los pone en el
 // orden equivocado, que es justo lo que se vino a arreglar.
@@ -3881,7 +3961,7 @@ function initJustificacionDiaria(){
   if(sup){
     const anterior=sup.value;
     sup.innerHTML='<option value="">Todos los supervisores</option>'+
-      workers.filter(w=>w.is_supervisor)
+      supervisoresActivos()
         .map(opcionTrabajador).join('');
     if(anterior)sup.value=anterior;
   }
@@ -5038,14 +5118,15 @@ function totalDeFilas(a){
 async function initDiaria(){
   const sel=document.getElementById('supDiariaSup');
   if(sel){
-    const sups=workers.filter(w=>w.is_supervisor);
+    const sups=supervisoresActivos();
     if(miCodigoSupervisor){
       sel.innerHTML=`<option value="${escHtml(miCodigoSupervisor)}">${escHtml((workers.find(w=>w.code===miCodigoSupervisor)||{}).name||'')}</option>`;
       sel.value=miCodigoSupervisor;
       sel.disabled=true;
     }else{
       sel.disabled=false;
-      sel.innerHTML=sups.map(s=>`<option value="${escHtml(s.code)}">${escHtml(s.name)}</option>`).join('');
+      const visSel=codigosVisibles(sups);
+  sel.innerHTML=sups.map(s=>`<option value="${escHtml(s.code)}">${escHtml(etiquetaSupervisor(s,visSel))}</option>`).join('');
       if(sups[0])sel.value=sups[0].code;
     }
   }
@@ -5155,8 +5236,12 @@ function initSupervisores(){
   recalcularMiSupervisor();
   ponerPeriodoActualEnTarja();
   const sel=document.getElementById('sup-view');
-  const sups=workers.filter(w=>w.is_supervisor);
+  const sups=supervisoresActivos();
   const propio=miCodigoSupervisor;
+  // El mapa se calcula una vez, antes de las dos ramas: las dos arman el
+  // desplegable y se necesita en las dos. Declarado adentro de una rama,
+  // la otra lo usaba sin existir y reventaba.
+  const visSel=codigosVisibles(sups);
 
   if(propio){
     // solo su equipo: se oculta el listado de supervisores y el selector
@@ -5191,18 +5276,29 @@ function initSupervisores(){
     document.getElementById('supSelWrap').style.display='';
     document.getElementById('supSoloEqWrap').style.display='none';
     renderSupervisorList();
-    sel.innerHTML=sups.map(s=>`<option value="${s.code}">${escHtml(s.name)}</option>`).join('')
+    sel.innerHTML=sups.map(s=>`<option value="${escHtml(s.code)}">${escHtml(etiquetaSupervisor(s,visSel))}</option>`).join('')
       ||'<option value="">Sin supervisores</option>';
   }
   sel.value=propio||(sups[0]?sups[0].code:'');
   renderSupervisorMatrix();
 }
 function renderSupervisorList(){
-  const sups=workers.filter(w=>w.is_supervisor);
-  document.getElementById('supervisorList').innerHTML = sups.map(s=>{
+  // Activos solamente. Un supervisor desvinculado con gente todavía asignada
+  // es un caso que hay que ver, no para esconderlo: por eso la lista dice
+  // cuántos quedaron afuera y por qué.
+  const sups=supervisoresActivos();
+  const visLista=codigosVisibles(sups);
+  const ocultos=workers.filter(w=>w.is_supervisor&&w.status!=='activo');
+  const conGente=ocultos.filter(w=>equipoDe(w.code).length>0);
+  const visOcultos=codigosVisibles(ocultos);
+  document.getElementById('supervisorList').innerHTML = (sups.map(s=>{
     const n=equipoDe(s.code).length;
-    return `<div class="list-item" style="cursor:default"><span><b>${escHtml(s.name)}</b> — ${escHtml(s.phone||'sin teléfono')} <small>(${n} trabajador${n===1?'':'es'} a cargo)</small></span></div>`;
-  }).join('') || '<small>No hay trabajadores marcados como supervisor todavía. Marca la casilla "Este trabajador es supervisor" en su ficha.</small>';
+    return `<div class="list-item" style="cursor:default"><span><b>${escHtml(visLista.get(s.code)||codigoMostrar(s.code))} ${escHtml(s.name)}</b> — ${escHtml(s.phone||'sin teléfono')} <small>(${n} trabajador${n===1?'':'es'} a cargo)</small></span></div>`;
+  }).join('') || '<small>No hay trabajadores activos marcados como supervisor todavía. Marca la casilla "Este trabajador es supervisor" en su ficha.</small>')+
+  (conGente.length?'<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:8px 10px;border-radius:8px;margin-top:8px">'+
+    '<b>Ojo: '+conGente.length+' supervisor(es) que ya no trabajan acá todavía tienen gente asignada.</b> '+
+    conGente.map(w=>escHtml((visOcultos.get(w.code)||codigoMostrar(w.code))+' '+w.name)).join(', ')+
+    '. Reasigná su equipo en Asignar supervisor, o el filtro de la tarja no los va a mostrar.</div>':'');
 }
 async function trasladarTrabajador(){
   const code=document.getElementById('trans-worker').value;
