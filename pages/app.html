@@ -403,6 +403,8 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
       <div><label>Nombre</label><input id="w-name"></div>
       <div><label>Cargo / Especialidad</label><input id="w-spec"></div>
       <div><label>Teléfono</label><input id="w-phone"></div>
+      <div><label>RUT</label><input id="w-rut" placeholder="13.199.887-2">
+        <small style="display:block;color:var(--muted);font-size:.72rem">Sirve para que las importaciones desde Excel reconozcan al trabajador sin depender del nombre.</small></div>
     </div>
     <div class="row">
       <div><label><input type="checkbox" id="w-is-supervisor" style="width:auto;display:inline-block;margin-right:6px">Este trabajador es supervisor</label></div>
@@ -1199,6 +1201,22 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     <small>Atrasos, mensajes de la asistente social y de prevención, se anotan solos al marcar la tarjeta.</small>
     <div id="diariaAvisosLista"></div>
   </div>
+  <div class="card">
+    <h2>Importar marcajes desde Excel</h2>
+    <small>Para cuando el reloj de la obra manda el reporte y no se puede pasar tarjeta por tarjeta.
+      Se leen las columnas <b>Tipo</b> o <b>Evento</b> (entrada / salida), <b>Fecha</b>, <b>Hora</b>,
+      <b>Rut</b> y <b>Colaborador</b>. Primero se muestra un resumen de lo que se va a guardar y
+      solo después se importa: si el archivo está mal, no se toca nada.</small>
+    <div class="row" style="margin-top:10px">
+      <div><label>Archivo del reloj (.xlsx o .csv)</label><input type="file" id="marcajesFile" accept=".xlsx,.xls,.csv"></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn" type="button" onclick="analizarMarcajesExcel()">Revisar archivo</button>
+        <button class="btn" type="button" id="btnImportarMarcajes" onclick="importarMarcajesExcel()" disabled>Importar</button>
+      </div>
+    </div>
+    <div id="marcajesExcelMsg" style="margin-top:10px" role="status" aria-live="polite"></div>
+    <div id="marcajesExcelPreview" style="margin-top:10px"></div>
+  </div>
 </section>
 
 <div id="marcajeModal" role="dialog" aria-modal="true" aria-labelledby="marcajeModalTitle">
@@ -1263,9 +1281,17 @@ function save(){
 }
 
 // ---------- puente Supabase <-> objetos en memoria ----------
+// El RUT se guarda solo con números y K, sin puntos ni guiones, para que
+// "13.199.887-2", "13199887-2" y "131998872" sean el mismo RUT. Vacío
+// devuelve '' y no "null": así el índice único no rechaza a los
+// trabajadores que todavía no lo tienen informado.
+function normalizarRut(valor){
+  return String(valor==null?'':valor).replace(/[^0-9kK]/g,'').toUpperCase();
+}
 function workerToDb(w){
   return {
     code:w.code, name:w.name, cargo:w.spec||null, phone:w.phone||null,
+    rut: normalizarRut(w.rut)||null,
     fecha_ingreso:w.fecha_ingreso||null, tipo_trabajador:w.tipo_trabajador||'interno',
     is_supervisor: !!w.is_supervisor, supervisor_code: w.supervisor_code||null,
     foto_casual_url: w.casual||null, foto_seguridad_url: w.safety||null,
@@ -1280,7 +1306,7 @@ function workerToDb(w){
 }
 function dbToWorker(r){
   return {
-    code:r.code, name:r.name, spec:r.cargo, phone:r.phone, fecha_ingreso:r.fecha_ingreso, tipo_trabajador:r.tipo_trabajador||'interno',
+    code:r.code, name:r.name, spec:r.cargo, phone:r.phone, rut:r.rut, fecha_ingreso:r.fecha_ingreso, tipo_trabajador:r.tipo_trabajador||'interno',
     is_supervisor:r.is_supervisor, supervisor_code:r.supervisor_code,
     casual:r.foto_casual_url, safety:r.foto_seguridad_url,
     emerg_name:r.emerg_nombre, emerg_phone:r.emerg_telefono, emerg_rel:r.emerg_relacion,
@@ -1835,7 +1861,7 @@ wirephoto('w-casual','pre-casual','casual');
 wirephoto('w-safety','pre-safety','safety');
 
 function clearForm(){
-  ['w-code','w-name','w-spec','w-phone','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>document.getElementById(id).value='');
+  ['w-code','w-name','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('w-is-supervisor').checked=false;
   document.getElementById('w-tipo-trabajador').value='interno';
   fillWorkerEmpresaSelect();
@@ -1868,6 +1894,7 @@ async function saveWorker(){
     code,name,spec,
     empresa_id: (empSel&&empSel.value)?parseInt(empSel.value):(existing?existing.empresa_id:null),
     phone: document.getElementById('w-phone').value.trim(),
+    rut: document.getElementById('w-rut').value.trim() || (existing?existing.rut:''),
     is_supervisor: document.getElementById('w-is-supervisor').checked,
     fecha_ingreso: document.getElementById('w-fecha-ingreso').value || (existing?existing.fecha_ingreso:null),
     tipo_trabajador: document.getElementById('w-tipo-trabajador').value || 'interno',
@@ -1890,7 +1917,21 @@ async function saveWorker(){
     fecha_desvinculacion: existing?existing.fecha_desvinculacion:null
   };
   const {error}=await window.supabaseClient.from('trabajadores').upsert(workerToDb(worker),{onConflict:'code'});
-  if(error){alert('No se pudo guardar en la base de datos: '+error.message);return;}
+  if(error){
+    // El índice único de "rut" salta si dos trabajadores tienen el mismo.
+    // Decirlo en palabras ayuda más que soltar el error de Postgres.
+    if(/trabajadores_rut_unico|duplicate key/i.test(error.message)&&normalizarRut(worker.rut)){
+      const choque=(workers.concat(todosWorkers)).find(w=>w.code!==code&&normalizarRut(w.rut)===normalizarRut(worker.rut));
+      alert('El RUT '+worker.rut+' ya está cargado en '+(choque?choque.code+' - '+choque.name:'otro trabajador')+'.\n\n'+
+        'Un RUT identifica a una sola persona, así que no puede repetirse. Corrige el RUT o bórralo si no lo tienes.');
+      return;
+    }
+    const archivo=migracionQueFalta(error);
+    alert(archivo
+      ? errorDeGuardar('No se pudo guardar el trabajador',error)
+      : 'No se pudo guardar en la base de datos: '+error.message);
+    return;
+  }
   await loadWorkers();
   clearForm();
   showView('listado-trabajadores');
@@ -2067,6 +2108,7 @@ function editWorker(code){
   document.getElementById('w-name').value=w.name;
   document.getElementById('w-spec').value=w.spec||'';
   document.getElementById('w-phone').value=w.phone||'';
+  document.getElementById('w-rut').value=w.rut||'';
   document.getElementById('w-is-supervisor').checked=!!w.is_supervisor;
   document.getElementById('w-fecha-ingreso').value=w.fecha_ingreso||'';
   document.getElementById('w-tipo-trabajador').value=w.tipo_trabajador||'interno';
@@ -2580,6 +2622,11 @@ function minutosDe(hhmm){
 // Se cargan los marcajes de hoy Y de los últimos días: hace falta el
 // historial para detectar los días que quedaron con entrada pero sin
 // salida (el reloj abierto), que son los que hay que mandar a RRHH.
+//
+// Además se carga SIEMPRE el día que se está mirando, aunque caiga
+// fuera de esa ventana: el reporte del reloj puede ser de hace meses
+// (por ejemplo, una obra que se está regularizando) y al supervisory
+// le tiene que salir vacío, no en blanco.
 const DIAS_HISTORIA_MARCAJES=60;
 async function loadMarcajesDia(){
   const desde=(()=>{
@@ -2587,15 +2634,28 @@ async function loadMarcajesDia(){
     d.setDate(d.getDate()-DIAS_HISTORIA_MARCAJES);
     return isoLocal(d);
   })();
+  const fueraDeVentana=fechaDiaria&&fechaDiaria<desde;
   const {data,error}=await window.supabaseClient.from('marcajes')
-    .select('*').gte('fecha',desde).order('fecha',{ascending:false});
+    .select('*')
+    // "o" de PostgREST: los últimos 60 días O el día que se está mirando.
+    .or(fueraDeVentana?('fecha.gte.'+desde+',fecha.eq.'+fechaDiaria):('fecha.gte.'+desde))
+    .order('fecha',{ascending:false});
   if(error){
     const box=document.getElementById('diariaAviso');
     if(box){
       box.style.display='';
-      box.innerHTML=`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
-        <b>No se pudieron leer los marcajes.</b> <small>${escHtml(error.message)}</small><br>
-        <small>Falta la migración 017: ejecuta 017_marcajes_diarios.sql.</small></div>`;
+      // El error de Postgres no dice qué hacer. Se traduce con la misma
+      // tabla que usa el resto de la app, para que salga el archivo
+      // exacto y no un "column not found" incomprensible.
+      const archivo=migracionQueFalta(error);
+      box.innerHTML=archivo
+        ?`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">
+          <b>Falta la migración ${escHtml(archivo)}.</b> Sin ella no hay tabla de marcajes y esta pantalla no puede mostrar nada.<br>
+          <small>Ejecútala en el <b>SQL Editor</b> de Supabase. Si ya la habías ejecutado, la API puede tenerla
+          cacheada: corre <code>NOTIFY pgrst, 'reload schema';</code>. Después recarga con <b>Ctrl+F5</b>.</small>
+          <br><small style="opacity:.75">Lo que respondió la base: ${escHtml(error.message)}</small></div>`
+        :`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+          <b>No se pudieron leer los marcajes.</b> <small>${escHtml(error.message)}</small></div>`;
     }
     marcajes=[];
     renderDiaria();
@@ -2690,7 +2750,10 @@ async function registrarMarcaje(code,tipo,origen,nota,horaPedida){
     registrado_por_nombre:miNombrePerfil()
   }).select().single();
   if(error){
-    alert('No se pudo guardar el marcaje: '+error.message);
+    const archivoMarcaje=migracionQueFalta(error);
+    alert(archivoMarcaje
+      ? errorDeGuardar('No se pudo guardar el marcaje',error)
+      : 'No se pudo guardar el marcaje: '+error.message);
     return null;
   }
   marcajes.push(data);
@@ -2916,6 +2979,413 @@ async function cambiarFechaDiaria(){
   fechaDiaria=(document.getElementById('diariaFecha')||{}).value||hoyLocal();
   loadMarcajesDia().then(loadAvisosDia).then(renderDiaria);
 }
+
+// ============================================================
+// IMPORTAR MARCAJES DESDE EXCEL
+// ============================================================
+// El reloj de la obra manda un reporte con una fila por marcaje. Se
+// leen las columnas del reporte y se guarda en la tabla "marcajes", que
+// es la misma que alimenta la asistencia diaria: el supervisor no ve
+// una lista aparte, ve exactamente los mismos marcajes.
+//
+// Nombres de columna que se aceptan, porque el reporte puede venir
+// con o sin tildes y en minúsculas o mayúsculas:
+//
+//   Tipo      Entrada | Salida | Entrada Horas Extra
+//   Evento    Inicio Jornada | Fin Jornada | Nuevo Ingreso
+//   Fecha     28-09-2026 | 45744 (número de Excel)
+//   Hora      07:45 | 0,3188 (fracción del día) | 21 (hora de Excel)
+//   Rut       13199887-2
+//   Colaborador  ADASME VERDUGO JAIME PATRICIO
+//
+// La pareja (Rut, Colaborador) se usa para saber de quién es cada
+// fila. El RUT manda porque no cambia; el nombre es el respaldo para
+// los trabajadores que todavía no lo tienen informado.
+let marcajesPendientesDeImportar=null;
+
+// Compara nombres sin tildes, sin mayúsculas y sin importar el orden
+// de las palabras: "ALVAREZ CORDERO MARIA TERESA" en el reporte es la
+// misma persona que "María Teresa Álvarez Cordero" en la app.
+function nombreComparable(t){
+  return normalizar(t).replace(/[^a-z0-9\s]/g,' ').replace(/\s+/g,' ').trim();
+}
+function nombresCoinciden(a,b){
+  const na=nombreComparable(a), nb=nombreComparable(b);
+  if(!na||!nb)return false;
+  if(na===nb)return true;
+  // Se comparan también las palabras ordenadas, por si el reporte
+  // invierte el orden (apellidos primero vs. nombre primero).
+  const pa=na.split(' ').sort().join(' ');
+  const pb=nb.split(' ').sort().join(' ');
+  return pa===pb;
+}
+function rutComparable(t){
+  return String(t==null?'':t).replace(/[^0-9kK]/g,'').toLowerCase();
+}
+
+// La hora del reporte puede venir como texto ("07:45"), como fracción
+// del día (0,3188) o como número de Excel (21 = 21:00). Se aceptan
+// las tres porque cada reloj exporta distinto.
+function horaDesdeValor(valor,fechaValor){
+  if(valor instanceof Date){
+    // SheetJS lo dejó como Date si venía con formato de fecha.
+    return hhmmDe(valor.getHours(),valor.getMinutes());
+  }
+  if(valor==null||valor==='')return '';
+  if(typeof valor==='number'&&isFinite(valor)){
+    // Entre 0 y 1: fracción del día. Mayor que 1: hora de Excel
+    // (el reloj guarda 21 = 21:00, no 21/24).
+    if(valor>=0&&valor<1)return hhmmDe(Math.floor(valor*24),Math.round((valor*24%1)*60));
+    if(valor>=1&&valor<24)return hhmmDe(Math.floor(valor),Math.round((valor%1)*60));
+    return '';
+  }
+  const s=String(valor).trim();
+  const m=s.match(/^(\d{1,2})[:.\-](\d{1,2})/);   // 07:45, 7.45, 07-45
+  if(m)return String(m[1]).padStart(2,'0')+':'+String(m[2]).padStart(2,'0');
+  if(/^\d{1,2}$/.test(s))return s.padStart(2,'0')+':00';
+  return '';
+}
+function hhmmDe(h,m){
+  h=((h%24)+24)%24; m=((m%60)+60)%60;
+  return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+}
+
+// La fecha puede venir como texto, como Date o como número de Excel.
+// El número de Excel cuenta días desde 1899-12-30 (con el bug del año
+// bisiesto de 1900, que ya viene corregido en ese número).
+function fechaDesdeValor(valor){
+  if(valor instanceof Date){
+    return isNaN(valor.getTime())?'':isoLocal(valor);
+  }
+  if(valor==null||valor==='')return '';
+  if(typeof valor==='number'&&isFinite(valor)){
+    if(valor>20000&&valor<60000){
+      const d=new Date(Math.round((valor-25569)*86400*1000));
+      return isNaN(d.getTime())?'':d.toISOString().slice(0,10);
+    }
+    if(valor>1&&valor<31)return isoLocal(new Date(2026,0,Math.floor(valor)));  // día del mes suelto
+  }
+  const s=String(valor).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s))return s.slice(0,10);
+  // 28/09/2026 o 28-09-2026
+  const d=s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if(d){
+    let anio=Number(d[3]);
+    if(anio<100)anio+=anio<50?2000:1900;
+    return anio+'-'+String(Number(d[2])).padStart(2,'0')+'-'+String(Number(d[1])).padStart(2,'0');
+  }
+  return '';
+}
+
+// El tipo del marcaje sale de "Tipo" o de "Evento". Se mira "Tipo"
+// primero porque en el reporte es el que distingue entrada de salida;
+// "Evento" es el respaldo.
+function tipoMarcajeDesde(r){
+  const bruto=(r.Tipo!=null&&r.Tipo!==''?r.Tipo:r.Evento);
+  const t=normalizar(bruto);
+  if(!t)return '';
+  if(/salida|fin|out|egreso|termina/.test(t))return 'salida';
+  if(/entrada|inicio|in|ingreso|entrar/.test(t))return 'entrada';
+  return '';
+}
+
+// Busca un encabezado sin importar tildes, mayúsculas ni espacios.
+function valorDeColumna(fila,nombres){
+  for(const clave of Object.keys(fila)){
+    const k=normalizar(clave);
+    if(nombres.some(n=>k===n||k===normalizar(n)))return fila[clave];
+  }
+  return undefined;
+}
+
+// ÚNICA fila de cada trabajador y día, para no insertar 300 veces lo
+// mismo. El índice único de la tabla lo rechazaría igual, pero es
+// mejor saberlo antes de tocar la base.
+function reducirMarcajes(filas){
+  const vistos=new Map();
+  const duplicados=[];
+  filas.forEach(f=>{
+    const clave=f.code+'|'+f.fecha+'|'+f.tipo;
+    if(vistos.has(clave)){duplicados.push(f);return;}
+    vistos.set(clave,f);
+  });
+  return {unicas:Array.from(vistos.values()),duplicados};
+}
+
+// ---------- paso 1: leer y mostrar el resumen, sin guardar nada
+async function analizarMarcajesExcel(){
+  const msg=document.getElementById('marcajesExcelMsg');
+  const prev=document.getElementById('marcajesExcelPreview');
+  const archivo=document.getElementById('marcajesFile').files[0];
+  msg.innerHTML='';prev.innerHTML='';
+  document.getElementById('btnImportarMarcajes').disabled=true;
+  marcajesPendientesDeImportar=null;
+  if(!archivo){msg.innerHTML='<small class="gpsWarn">Selecciona el archivo del reloj.</small>';return;}
+
+  msg.innerHTML='<small>Leyendo el archivo…</small>';
+  let filas;
+  try{
+    filas=await leerFilasDeMarcajes(archivo);
+  }catch(error){
+    msg.innerHTML='<small class="gpsWarn">No se pudo leer el archivo: '+escHtml(error.message)+'</small>';
+    return;
+  }
+  if(!filas.length){
+    msg.innerHTML='<small class="gpsWarn">El archivo no tiene filas.</small>';
+    return;
+  }
+
+  const analisis=analizarFilasDeMarcajes(filas);
+  marcajesPendientesDeImportar=analisis;
+  const btn=document.getElementById('btnImportarMarcajes');
+  btn.disabled=!analisis.paraGuardar.length;
+
+  const problemas=analisis.sinCoincidencia.length+analisis.sinFechaHora.length+analisis.tipoDesconocido.length;
+  const conDatos=filas.length-analisis.filasVacias;
+  msg.innerHTML=`<div style="border:1px solid ${problemas?'#e08b1a':'var(--accent)'};border-radius:8px;padding:10px 12px;background:${problemas?'rgba(224,139,26,.07)':'rgba(46,125,50,.07)'}">
+    <b>${conDatos}</b> fila(s) con datos${analisis.filasVacias?` de ${filas.length} (se ignoraron ${analisis.filasVacias} vacías)`:''}.
+    <ul style="margin:6px 0 0;padding-left:18px;font-size:.85rem">
+      <li><b>${analisis.paraGuardar.length}</b> marcaje(s) listos para guardar</li>
+      ${analisis.duplicados.length?`<li><b>${analisis.duplicados.length}</b> repetidas en el mismo archivo (se toma la primera)</li>`:''}
+      ${analisis.sinCoincidencia.length?`<li style="color:var(--danger)"><b>${analisis.sinCoincidencia.length}</b> sin trabajador que coincida</li>`:''}
+      ${analisis.sinFechaHora.length?`<li style="color:var(--danger)"><b>${analisis.sinFechaHora.length}</b> sin fecha u hora legible</li>`:''}
+      ${analisis.tipoDesconocido.length?`<li style="color:var(--danger)"><b>${analisis.tipoDesconocido.length}</b> con un tipo que no es entrada ni salida</li>`:''}
+    </ul>
+    ${analisis.paraGuardar.length?'<div style="margin-top:8px"><button class="btn" type="button" onclick="importarMarcajesExcel()">Guardar '+analisis.paraGuardar.length+' marcaje(s)</button></div>':''}
+  </div>`;
+  prev.innerHTML=renderResumenMarcajes(analisis);
+}
+
+function leerFilasDeMarcajes(archivo){
+  return new Promise((resolver,rechazar)=>{
+    const lector=new FileReader();
+    lector.onerror=()=>rechazar(new Error('No se pudo abrir el archivo.'));
+    lector.onload=e=>{
+      try{
+        const libro=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+        const hoja=libro.Sheets[libro.SheetNames[0]];
+        if(!hoja)throw new Error('El archivo no tiene hojas.');
+        // raw:false deja los números como texto, para que la fecha y la
+        // hora se lean con las funciones de más arriba y no dependan de
+        // en qué zona horaria está el navegador.
+        resolver(XLSX.utils.sheet_to_json(hoja,{defval:''}));
+      }catch(error){rechazar(error);}
+    };
+    lector.readAsArrayBuffer(archivo);
+  });
+}
+
+// Revisa cada fila y decide a qué trabajador pertenece. NO escribe nada.
+function analizarFilasDeMarcajes(filas){
+  const sinCoincidencia=[];const sinFechaHora=[];const tipoDesconocido=[];
+  const validas=[];
+  const porRut=new Map();
+  const porNombre=new Map();
+  workers.forEach(w=>{
+    const r=rutComparable(w.rut);
+    if(r)porRut.set(r,w);
+    const n=nombreComparable(w.name);
+    if(n)porNombre.set(n,w);
+  });
+
+  let filasVacias=0;
+  filas.forEach((fila,indice)=>{
+    const numeroFila=indice+2;   // +2 porque la 1 es el encabezado
+    const tipo=tipoMarcajeDesde(fila);
+    const fecha=fechaDesdeValor(valorDeColumna(fila,['Fecha','fecha']));
+    const hora=horaDesdeValor(valorDeColumna(fila,['Hora','hora']),fecha);
+    const rut=rutComparable(valorDeColumna(fila,['Rut','RUT','rut']));
+    const nombre=String(valorDeColumna(fila,['Colaborador','colaborador','Nombre','Trabajador'])||'').trim();
+
+    // El reporte del reloj viene con cientos de filas vacías al final
+    // (heredan el formato pero no tienen datos). Contarlas como
+    // "problema" taparía los problemas de verdad con 600 avisos de
+    // "tipo no reconocido" que no le dicen nada a nadie.
+    if(!tipo&&!fecha&&!hora&&!rut&&!nombre){filasVacias++;return;}
+
+    if(!tipo){tipoDesconocido.push({fila:numeroFila,detalle:'Tipo "'+(fila.Tipo||fila.Evento||'')+'" no se reconoce como entrada ni salida'});return;}
+    if(!fecha||!hora){sinFechaHora.push({fila:numeroFila,detalle:'Fecha "'+(fila.Fecha||'')+'" u hora "'+(fila.Hora||'')+'" no se pudo leer'});return;}
+
+    let w=rut?porRut.get(rut):null;
+    let como='RUT';
+    if(!w&&nombre){
+      w=porNombre.get(nombreComparable(nombre));
+      como='nombre';
+      if(!w){
+        // Segundo intento: el nombre del reporte y el de la app pueden
+        // diferir en el orden de las palabras.
+        w=workers.find(x=>nombresCoinciden(nombre,x.name));
+        if(w)como='nombre (orden distinto)';
+      }
+    }
+    if(!w){
+      sinCoincidencia.push({fila:numeroFila,detalle:'No hay ningún trabajador con RUT '+(rut||'(vacío)')+' ni con el nombre "'+nombre+'"'});
+      return;
+    }
+    validas.push({code:w.code,fecha,hora,tipo,rut,nombre,como,numeroFila});
+  });
+
+  const reducir=reducirMarcajes(validas);
+  return {
+    archivo:document.getElementById('marcajesFile').files[0],
+    filasTotales:filas.length,
+    filasVacias,
+    validas:reducir.unicas,
+    duplicados:reducir.duplicados,
+    sinCoincidencia,sinFechaHora,tipoDesconocido,
+    paraGuardar:reducir.unicas
+  };
+}
+
+function renderResumenMarcajes(a){
+  const porTipo=(tipo)=>a.validas.filter(v=>v.tipo===tipo);
+  const entradas=porTipo('entrada'),salidas=porTipo('salida');
+  const fechas=[...new Set(a.validas.map(v=>v.fecha))].sort();
+  const dias=fechas.length;
+  let html='<details><summary style="cursor:pointer"><b>Ver detalle</b> de lo que se va a guardar</summary>';
+  html+=`<div style="margin-top:8px;font-size:.85rem">
+    <div><b>${a.validas.length}</b> marcaje(s) · ${entradas.length} entrada(s) y ${salidas.length} salida(s) · ${dias} día(s)${dias?` (${fechas[0]} a ${fechas[fechas.length-1]})`:''}</div>`;
+  if(a.validas.length){
+    html+='<div class="overflow" style="margin-top:8px"><table><thead><tr>'+
+      '<th>Fecha</th><th>Tipo</th><th>Hora</th><th class="izq">Trabajador</th><th>Cómo se emparejó</th>'+
+      '</tr></thead><tbody>'+
+      a.validas.slice(0,300).map(v=>`<tr><td>${escHtml(v.fecha)}</td><td>${v.tipo}</td><td>${escHtml(v.hora)}</td>`+
+        `<td class="izq"><b>${escHtml(v.code)}</b> ${escHtml(workers.find(w=>w.code===v.code)?workers.find(w=>w.code===v.code).name:'')}</td>`+
+        `<td><small>${escHtml(v.como)}${v.rut?'':' · sin RUT'}</small></td></tr>`).join('')+
+      '</tbody></table></div>';
+    if(a.validas.length>300)html+=`<small>Se muestran los primeros 300 de ${a.validas.length}.</small>`;
+  }
+  const listar=(titulo,items)=>{
+    if(!items.length)return '';
+    return `<div style="margin-top:10px"><b>${titulo}</b><ul style="margin:4px 0 0;padding-left:18px">`+
+      items.slice(0,50).map(x=>`<li>Fila ${x.fila}: ${escHtml(x.detalle)}</li>`).join('')+
+      (items.length>50?`<li>… y ${items.length-50} más.</li>`:'')+'</ul></div>';
+  };
+  html+=listar('Sin trabajador que coincida',a.sinCoincidencia);
+  html+=listar('Sin fecha u hora legible',a.sinFechaHora);
+  html+=listar('Tipo no reconocido',a.tipoDesconocido);
+  if(a.duplicados.length){
+    html+=`<div style="margin-top:10px"><b>Repetidas en el mismo archivo</b>: ${a.duplicados.length}. Se guarda la primera de cada una.</div>`;
+  }
+  html+='</div></details>';
+  return html;
+}
+
+// ---------- paso 2: guardar, solo si se pulsó Importar
+async function importarMarcajesExcel(){
+  const msg=document.getElementById('marcajesExcelMsg');
+  const prev=document.getElementById('marcajesExcelPreview');
+  const btn=document.getElementById('btnImportarMarcajes');
+  const a=marcajesPendientesDeImportar;
+  if(!a||!a.validas.length){
+    msg.innerHTML='<small class="gpsWarn">Primero revisa el archivo con "Revisar archivo".</small>';
+    return;
+  }
+  if(!exigirPermiso('tarja.excel','No tienes permiso para cargar marcajes desde Excel.'))return;
+
+  // Se va por lotes: un reporte de un mes con reloj son miles de filas,
+  // y mandarlas de una sola vez se cae o se queda sin memoria.
+  const LOTE=200;
+  let guardadas=0,actualizadas=0;
+  const {data:previos}=await window.supabaseClient.from('marcajes')
+    .select('code,fecha,tipo,hora').gte('fecha',a.validas[0].fecha).lte('fecha',a.validas[a.validas.length-1].fecha);
+  // Se guarda la hora que YA tiene cada marcaje, no solo que existe.
+  // Si no, volver a subir el mismo archivo informaría "66 corregidos"
+  // aunque no haya cambiado nada, y el aviso deja de servir.
+  const yaHay=new Map();
+  (previos||[]).forEach(m=>yaHay.set(m.code+'|'+m.fecha+'|'+m.tipo,m.hora));
+
+  for(let i=0;i<a.validas.length;i+=LOTE){
+    const trozo=a.validas.slice(i,i+LOTE);
+    const {data:sesion}=await window.supabaseClient.auth.getSession();
+    const miId=sesion&&sesion.session&&sesion.session.user&&sesion.session.user.id;
+    const filas=trozo.map(v=>{
+      return{
+        code:v.code,fecha:v.fecha,hora:v.hora,tipo:v.tipo,
+        origen:'excel',
+        nota:'Excel '+(a.archivo?a.archivo.name:'')+' ('+v.como+')',
+        registrado_por:miId,
+        registrado_por_nombre:miNombrePerfil()
+      };
+    });
+    const {error}=await window.supabaseClient.from('marcajes').upsert(filas,{onConflict:'code,fecha,tipo'});
+    if(error){
+      btn.disabled=false;
+      const archivo=migracionQueFalta(error);
+      msg.innerHTML=archivo
+        ?'<div class="gpsWarn">Falta la migración '+archivo+'. Ejecútala en el SQL Editor de Supabase y vuelve a intentar. Se guardaron '+guardadas+' de '+a.validas.length+' antes de cortar.</div>'
+        :'<div class="gpsWarn">No se pudo guardar: '+escHtml(error.message)+'. Se guardaron '+guardadas+' de '+a.validas.length+'.</div>';
+      await loadMarcajesDia();
+      renderDiaria();
+      return;
+    }
+    // Se separa lo nuevo de lo que de verdad cambia: un marcaje que ya
+    // existe con la MISMA hora no es una corrección, y contarlo como tal
+    // haría que reimportar el mismo archivo siempre anunciara cambios.
+    const nuevos=filas.filter(f=>!yaHay.has(f.code+'|'+f.fecha+'|'+f.tipo)).length;
+    const corregidos=filas.filter(f=>{
+      const clave=f.code+'|'+f.fecha+'|'+f.tipo;
+      const previa=yaHay.get(clave);
+      return previa!==undefined&&previa!==f.hora;
+    }).length;
+    guardadas+=nuevos;
+    actualizadas+=corregidos;
+    // Se anotan las horas guardadas: si el mismo archivo trae la misma
+    // fila dos veces, el conteo no la suma dos veces.
+    filas.forEach(f=>yaHay.set(f.code+'|'+f.fecha+'|'+f.tipo,f.hora));
+    msg.innerHTML='<small>Guardando… '+Math.min(i+LOTE,a.validas.length)+' de '+a.validas.length+'</small>';
+  }
+
+  // La entrada también se refleja como X en la tarja del día, que es lo
+  // que verá el supervisor el mes que viene.
+  const entradasPorDia=new Map();
+  a.validas.filter(v=>v.tipo==='entrada').forEach(v=>{
+    if(!entradasPorDia.has(v.fecha))entradasPorDia.set(v.fecha,[]);
+    entradasPorDia.get(v.fecha).push(v);
+  });
+  let enTarja=0;
+  for(const [fecha,items] of entradasPorDia){
+    const filas=items.map(v=>({code:v.code,date:fecha,estado:'X',hora_llegada:v.hora,nota:'Marcaje importado del reloj',origen:'importado'}));
+    const {error}=await window.supabaseClient.from('asistencia').upsert(filas.map(attToDb),{onConflict:'code,fecha'});
+    if(!error)enTarja+=filas.length;
+  }
+
+  // Queda registro de qué se cargó, para poder auditarlo después.
+  await window.supabaseClient.from('marcajes_importaciones').insert({
+    archivo_nombre:a.archivo?a.archivo.name:'',
+    total_filas:totalDeFilas(a),
+    guardadas,actualizadas,
+    sin_coincidencia:a.sinCoincidencia.length,
+    descartadas:a.sinFechaHora.length+a.tipoDesconocido.length,
+    sin_fecha_o_hora:a.sinFechaHora.length,
+    observaciones:'Sin coincidencia: '+a.sinCoincidencia.length+
+      '; sin fecha/hora: '+a.sinFechaHora.length+
+      '; tipo no reconocido: '+a.tipoDesconocido.length,
+    importado_por_nombre:miNombrePerfil(),
+    detalle:JSON.stringify({
+      sin_coincidencia:a.sinCoincidencia.slice(0,200),
+      sin_fecha_o_hora:a.sinFechaHora.slice(0,200),
+      tipo_desconocido:a.tipoDesconocido.slice(0,200)
+    })
+  });
+
+  btn.disabled=true;
+  marcajesPendientesDeImportar=null;
+  prev.innerHTML='';
+  msg.innerHTML=`<div style="border:1px solid var(--accent);border-radius:8px;padding:10px 12px;background:rgba(46,125,50,.07)">
+    <b>Listo.</b> ${guardadas} marcaje(s) nuevos${actualizadas?` y ${actualizadas} corregido(s)`:''}.
+    ${!guardadas&&!actualizadas?'<br><small>No había nada nuevo: todo ya estaba igual.</small>':''}
+    <br><small>La entrada se reflejó como <b>X</b> en la tarja de ${enTarja} día(s).
+    ${a.sinCoincidencia.length?`Quedaron ${a.sinCoincidencia.length} fila(s) sin coincidencia (mira el detalle de arriba).`:''}</small></div>`;
+  await Promise.all([loadMarcajesDia(),loadAttendanceFromDB()]);
+  renderDiaria();
+  renderMatrix();
+}
+function totalDeFilas(a){
+  return a.validas.length+a.sinCoincidencia.length+a.sinFechaHora.length+a.tipoDesconocido.length;
+}
+
+
 async function initDiaria(){
   const sel=document.getElementById('supDiariaSup');
   if(sel){
