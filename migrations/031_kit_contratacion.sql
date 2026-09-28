@@ -1,6 +1,32 @@
 -- ============================================================
 -- Migración 031: kit de contratación (charlas, formularios, firmas y timbre)
 -- ============================================================
+--
+-- SI AL APLICAR ESTA MIGRACIÓN SALE UN ERROR DE ESTE TIPO
+--
+--     42601: unterminated dollar-quoted string at or near
+--
+-- el problema casi nunca es que falte un cierre. Es lo contrario: hay un
+-- delimitador de MÁS, y está dentro de un comentario.
+--
+-- Dos signos dólar seguidos, después de un "--", no le hacen nada a
+-- Postgres. El archivo es válido y la migración corre. Lo que hacen es que
+-- el archivo PAREZCA tener un bloque abierto para cualquier herramienta
+-- que los cuente sin saltarse los comentarios, y el error sale apuntando
+-- al último que esa herramienta vio, que es inocente. Se pierde tiempo
+-- buscando el problema en la línea equivocada.
+--
+-- La causa habitual es LaTeX a medias en un comentario: algo escrito para
+-- marcar texto en cursiva, del estilo "$\text{algo}", que se copió de un
+-- documento y quedó a medias. Se ve IGUAL en un vistazo rápido, porque
+-- el signo dólar de LaTeX y el delimitador de Postgres son el mismo
+-- carácter.
+--
+-- Para encontrarlo: contar los delimitadores saltándose los comentarios.
+-- Las líneas que empiezan con "--" no cuentan. Si los que quedan dan un
+-- número impar, esa es la línea.- ============================================================
+-- Migración 031: kit de contratación (charlas, formularios, firmas y timbre)
+-- ============================================================
 -- QUÉ ES ESTO
 --
 -- El papel que se le entrega a una persona el primer día: la inducción, la
@@ -177,7 +203,7 @@ create table if not exists public.plantillas_contratacion (
   -- El contenido, con los {{campos}} que se rellenan al generar.
   contenido text not null default '',
   -- Versión. Las plantillas se cambian; las entregas guardan a qué versión
-  -- se $$\text{firmaron, y eso es lo que hace válida la entrega.
+  -- se firmaron, y eso es lo que hace válida la entrega.
   version int not null default 1,
   vigente boolean not null default true,
   -- Orden en el checklist del kit.

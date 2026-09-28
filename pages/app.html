@@ -1538,10 +1538,19 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
        de un dedo, porque cualquier toque lo cambia), y con la hora adentro
        se escondía también: el código andaba bien, la prueba pasaba, y en
        el aparato no se veía nunca. -->
+  <!--
+  La hora va FUERA de la barra a propósito. El modo kiosco esconde la barra
+  entera (el selector de tipo de marca no puede quedar al alcance de un
+  dedo, porque cualquier toque lo cambia), y con la hora adentro se
+  escondía también: el código andaba bien, la prueba pasaba, y en el
+  aparato no se veía nunca.
+  -->
   <div id="totemHoraCaja">
+    <div id="totemConexion" class="totem-conexion"><span class="totem-conexion-punto"></span></div>
     <span class="totem-hora" id="totemHoraActual">--:--:--</span>
     <span class="totem-fecha" id="totemFechaActual"></span>
     <span class="totem-nombre" id="totemRelojActual"></span>
+    <span class="totem-marcaje" id="totemHoraMarcada"></span>
   </div>
   <div class="totem-barra">
     <span class="totem-barra-izq" id="totemCentroActual"></span>
@@ -1565,6 +1574,31 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
     <div id="totemCamara"></div>
   </div>
   <div id="totemMensaje" class="totem-idle"></div>
+  <!--
+  El token del reloj, en el propio tótem. Aparece SOLO cuando el token
+  que hay instalado no es el de este reloj, y se esconde después de
+  guardar bien.
+
+  Va en la pantalla del reloj y no en la de Relojes a propósito: el reloj
+  está en la portería y la pantalla de Relojes en el computador de la
+  oficina. Pedir el viaje es pedir que alguien se vaya y vuelva con un
+  token anotado en un papel.
+  -->
+  <div id="totemTokenCaja" class="totem-token-caja" style="display:none">
+    <label for="totemTokenCampo">Token de este reloj</label>
+    <div class="row" style="gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <input id="totemTokenCampo" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Pegá el token que sale al rotarlo">
+      </div>
+      <button type="button" class="btn primary" onclick="guardarTokenDesdeTotem()">Guardar</button>
+    </div>
+    <small>
+      Se guarda en este aparato. Sale una sola vez, al rotarlo desde
+      Relojes. No hace falta volver a presentarla: después de guardar,
+      marcá de nuevo.
+    </small>
+  </div>
   <div class="totem-pie">
     <span id="totemCodigoLeido" class="totem-pill"></span>
     <label for="totemCampo" class="totem-campo-label">Tarjeta</label>
@@ -3045,7 +3079,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-q';
+const APP_VERSION='2026-09-28-r';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -11916,9 +11950,11 @@ function abrirTotem(code){
   document.body.classList.add('modoTotem');
   document.getElementById('pantallaTotem').classList.add('abierta');
   arrancarHoraTotem();
+  arrancarComprobacionConexion();
   const sel=document.getElementById('totemTipo');
   sel.innerHTML=ESTADOS_TARJA_TOTEM.map(t=>`<option value="${t.v}">${escHtml(t.t)}</option>`).join('');
   sel.value=totemTipo;
+  ocultarCampoTokenTotem();
   pintarTotemInicial();
   if(r.tipo_lector==='camara')arrancarCamaraTotem();
   else detenerCamaraTotem();
@@ -11957,18 +11993,123 @@ const ESTADOS_TARJA_TOTEM=[
   {v:'colacion_salida',t:'Vuelta de colación'}
 ];
 // ------------------------------------------------------------------
-// LA HORA DEL TÓTEM
+// LA HORA, AL CENTRO Y GRANDE
 // ------------------------------------------------------------------
-// Un reloj sin hora en pantalla genera el mismo problema que un reloj con
-// la hora mala: la gente sospecha. Se actualiza cada segundo con el reloj
-// LOCAL del aparato, que es el mismo que usa la base para sellar el
-// marcaje: si el aparato tiene la hora mal, el problema se ve en pantalla
-// antes que en la planilla, que es mucho mejor.
+// Estaba en la esquina superior derecha, chica. En un cartel de portería,
+// colgado a la altura de la cabeza, a dos metros: la hora es lo primero
+// que la gente mira para decidir si su marcación fue correcta, y si hay
+// que acercarse a leerla, no sirve.
 //
-// Se usa la hora del aparato y no la del servidor a propósito. Si el
-// aparato no tiene señal, el reloj sigue marcando: eso es justamente lo
-// que permite marcar en una faena sin cobertura (art. 10 de la Resolución
-// Exenta 38/2024).
+// Va centrada y con el segundero parado cuando la lectura es correcta. Es
+// el mismo número que se acaba de guardar, y no el del reloj del aparato:
+// si los dos difieren, hay que ver los dos, y verlos juntos muestra de
+// una dónde está el desfase (casi siempre, en el reloj del aparato).
+function pintarHoraTotem(){
+  const d=new Date();
+  const h=document.getElementById('totemHoraActual');
+  if(h)h.textContent=String(d.getHours()).padStart(2,'0')
+    +':'+String(d.getMinutes()).padStart(2,'0')
+    +':'+String(d.getSeconds()).padStart(2,'0');
+  const f=document.getElementById('totemFechaActual');
+  if(f)f.textContent=d.toLocaleDateString('es-CL',{weekday:'long',day:'2-digit',month:'long'});
+}
+
+// ------------------------------------------------------------------
+// LA CONEXIÓN
+// ------------------------------------------------------------------
+// Tres estados, y se distinguen a propósito:
+//
+//   CON CONEXIÓN   se puede marcar. Es lo normal.
+//   SIN CONEXIÓN   el reloj sigue funcionando: guarda la marcación en el
+//                  aparato y la sube cuando vuelve (art. 10 de la
+//                  Resolución Exenta 38/2024). La gente tiene que saber
+//                  esto, o se va a repetir la marcación cinco veces
+//                  pensando que no entró.
+//   COMPROBANDO    al abrir, antes de saber. Se muestra un instante.
+//
+// El icono es un punto de color, no un dibujo: a dos metros y con luz de
+// obra, un punto de 14 px se ve y un glifo no. Y lleva texto al lado,
+// porque el color solo no sirve para quien no distingue rojo de verde.
+let relojConexionTimer=null;
+let relojConexionEstado='comprobando';
+
+async function comprobarConexionTotem(){
+  marcarConexionTotem('comprobando');
+  try{
+    // Una consulta mínima. No se usa la de los trabajadores: trae cientos
+    // de filas y en una faena sin señal se queda colgada esperando, que es
+    // lo que hay que evitar: el reloj tiene que responder igual.
+    const {error}=await Promise.race([
+      window.supabaseClient.from('marcajes').select('id',{count:'exact',head:true}).limit(1),
+      // Si en 4 segundos no responde, es que no hay camino a la base.
+      new Promise((r)=>setTimeout(()=>r({error:{message:'timeout'}}),4000))
+    ]);
+    marcarConexionTotem(error?'sin':'con');
+  }catch(e){
+    marcarConexionTotem('sin');
+  }
+}
+
+function marcarConexionTotem(estado){
+  relojConexionEstado=estado;
+  const caja=document.getElementById('totemConexion');
+  if(!caja)return;
+  const textos={
+    comprobando:['comprobando','var(--muted)'],
+    con:['con conexión','var(--accent)'],
+    sin:['sin conexión: se guarda y sube después','var(--warn)']
+  };
+  const par=textos[estado]||textos.comprobando;
+  caja.innerHTML='<span class="totem-conexion-punto" style="background:'+par[1]+'"></span>'
+    +'<span class="totem-conexion-texto" style="color:'+par[1]+'">'+par[0]+'</span>';
+  // Con la señal perdida, el punto late: es la diferencia entre "está ahí"
+  // y "está funcionando". Sin parpadeo parece un adorno.
+  caja.classList.toggle('latiendo',estado==='sin');
+  caja.title=estado==='sin'
+    ?'Este reloj no está llegando a la base. La marcación se guarda en el aparato y se sube sola cuando vuelva la señal. No hace falta repetirla.'
+    :(estado==='con'?'Conectado con la base.':'');
+}
+
+function arrancarComprobacionConexion(){
+  comprobarConexionTotem();
+  if(relojConexionTimer)clearInterval(relojConexionTimer);
+  // Cada 30 segundos. Más seguido es gasto de datos en un aparato que
+  // puede estar con plan limitado; más espaciado tarda demasiado en
+  // avisar que se fue la señal.
+  relojConexionTimer=setInterval(comprobarConexionTotem,30000);
+}
+function pararComprobacionConexion(){
+  if(relojConexionTimer){clearInterval(relojConexionTimer);relojConexionTimer=null;}
+}
+
+// ------------------------------------------------------------------
+// LA HORA QUE SE ACABA DE GUARDAR
+// ------------------------------------------------------------------
+// Cuando la marcación es correcta, la pantalla muestra la hora guardada y
+// no la del reloj del aparato. Es lo que la persona necesita ver: la hora
+// que le va a figurar en la planilla.
+//
+// Si las dos no coinciden, se dicen las dos. Un desfase de reloj es un
+// problema real y hay que verlo, no taparlo: si el reloj del aparato va
+// 5 minutos atrasado, TODAS las marcaciones de esa obra van 5 minutos
+// atrasadas, y eso se impugna después.
+function marcarHoraDeLaMarcaja(horaGuardada){
+  const caja=document.getElementById('totemHoraMarcada');
+  if(!caja)return;
+  const d=new Date();
+  const ahora=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  const guardado=String(horaGuardada||'').slice(0,5);
+  if(!guardado){caja.textContent='';return;}
+  if(guardado===ahora){
+    caja.textContent='Marcaje registrado a las '+guardado;
+    caja.className='totem-marcaje-ok';
+    return;
+  }
+  caja.textContent='Marcaje registrado a las '+guardado
+    +' (el reloj del aparato marca '+ahora+')';
+  caja.className='totem-marcaje-desfasado';
+}
+
 let relojTotemTimer=null;
 function pintarHoraTotem(){
   const d=new Date();
@@ -11991,6 +12132,10 @@ function pararHoraTotem(){
 }
 
 function pintarTotemInicial(){
+  // Se borra la hora del marcaje anterior. Si queda, alguien que pasa
+  // después ve la hora del compañero y cree que ya marcó.
+  const cajaMarcada=document.getElementById('totemHoraMarcada');
+  if(cajaMarcada){cajaMarcada.textContent='';cajaMarcada.className='totem-marcaje';}
   const t=document.getElementById('totemMensaje');
   t.innerHTML='<div class="totem-idle">'
     +'<div class="totem-idle-icono">▮</div>'
@@ -12067,12 +12212,20 @@ async function registrarDesdeTotem(codigo){
     // otro reloj: alguien instaló el equivocado, o se rotó el token y
     // este aparato quedó con el viejo. Se dice eso, y no "el reloj no
     // existe", que lleva a revisar un reloj sano.
-    if(codigoError==='TOKEN_INVALIDO'){
+      if(codigoError==='TOKEN_INVALIDO'){
+      // El token puesto no es el de este reloj. Pasa cuando se instaló el
+      // de otro, o cuando se rotó el de este y el aparato quedó con el
+      // anterior. Es el caso más común después de una alta de reloj.
+      //
+      // Se muestra el campo para pegarlo acá, y no se manda a la pantalla
+      // de Relojes: esa está en el computador de la oficina y el reloj
+      // está en la portería. Ir a buscar el token, volver, y pegarlo es un
+      // viaje que alguien tiene que hacer en la obra.
       mostrarTotem('error','El token no es de este reloj',
         'Este equipo tiene un token, pero no es el del reloj '
-        +String(totemActual&&totemActual.code||'')+'.'
-        +'\n\nO se instaló el token de otro reloj, o se rotó el token de este y este aparato quedó con el anterior.'
-        +'\n\nSe arregla desde Relojes: "Rotar token", y después instalar el nuevo en este equipo.');
+        +String(totemActual&&totemActual.code||'')
+        +'. Pegalo abajo y se arregla acá mismo.');
+      mostrarCampoTokenTotem();
       return;
     }
     const par=MENSAJES_TOTEM[codigoError]||['No se pudo marcar',msg||'Intenta de nuevo.'];
@@ -12081,6 +12234,13 @@ async function registrarDesdeTotem(codigo){
   }
   const d=Array.isArray(data)?data[0]:data;
   if(!d){mostrarTotem('error','No se pudo marcar','Intenta de nuevo.');return;}
+  // La hora que se acaba de guardar, aparte del cartel.
+  //
+  // El cartel dice "Entrada registrada". Eso no es lo que la gente necesita
+  // ver: necesita ver LA HORA, porque es lo que va a figurar en la planilla y
+  // lo que va a impugnar si le parece mal. Y necesita ver la hora del reloj
+  // del aparato al lado, para poder notar un desfase.
+  if(d.marca_hora)marcarHoraDeLaMarcaja(d.marca_hora);
   if(d.resultado==='ok'){
     mostrarTotem('ok',d.trabajador_nombre,
       (d.marca_tipo==='entrada'?'Entrada':d.marca_tipo==='salida'?'Salida'
@@ -12102,6 +12262,100 @@ function totemTokenActual(){
   try{return localStorage.getItem('totemToken_'+totemActual.code)||'';}
   catch(error){return '';}
 }
+// ------------------------------------------------------------------
+// EL CAMPO DE TOKEN DEL TÓTEM
+// ------------------------------------------------------------------
+// Aparece SOLO cuando hace falta, y se esconde después de guardar bien.
+//
+// Va en la pantalla del reloj y no en la de Relojes a propósito. El reloj
+// está colgado en la portería y la pantalla de Relojes en el computador de
+// la oficina: mandar a alguien a buscar el token, volver a la obra con un
+// papel, y pegarlo es un viaje. El token se pega donde el reloj está.
+//
+// Y solo aparece cuando hace falta. Un campo de texto en una pantalla que
+// la gente toca con cualquier dedo, en medio del marcaje, es un problema
+// esperando: un dedo lo tapa y no se marca.
+function mostrarCampoTokenTotem(){
+  const caja=document.getElementById('totemTokenCaja');
+  if(!caja)return;
+  document.getElementById('totemTokenCampo').value='';
+  caja.style.display='';
+  setTimeout(()=>document.getElementById('totemTokenCampo').focus(),80);
+}
+function ocultarCampoTokenTotem(){
+  const caja=document.getElementById('totemTokenCaja');
+  if(caja)caja.style.display='none';
+}
+
+// Se guarda y se reintenta la marcación.
+//
+// La marcación se reintenta sola: la persona ya presentó la tarjeta, y el
+// problema era del aparato, no de ella. Pedirle que vuelva a pasar la
+// credencial después de que le dijimos "el token no es de este reloj" es
+// una molestia que no tiene sentido.
+//
+// El token se COMPRUEBA contra la base antes de decir que quedó bien. Un
+// token pegado con un carácter de más, o con un espacio al final, se
+// guardaría igual y la persona creería que quedó instalado: el error
+// volvería en la siguiente marcación, y ya no sabría de dónde salió.
+async function guardarTokenDesdeTotem(){
+  const campo=document.getElementById('totemTokenCampo');
+  const valor=String(campo.value||'').trim();
+  if(!valor){
+    mostrarTotem('error','Falta el token',
+      'Copiá el token del reloj y pegalo en el campo de abajo.');
+    return;
+  }
+  if(!totemActual){
+    mostrarTotem('error','No hay reloj',
+      'Este error no debería aparecer. Recargá la pantalla.');
+    return;
+  }
+  try{
+    localStorage.setItem('totemToken_'+totemActual.code,valor);
+  }catch(error){
+    mostrarTotem('error','No se pudo guardar',
+      'Este navegador está en modo privado y no guarda nada. El token hay que '
+      +'pegarlo cada vez. Sacá la incógnito o usá otro navegador en el aparato.');
+    return;
+  }
+  // La comprobación manda un código vacío a propósito: es la forma de
+  // preguntar "¿este token sirve?" sin registrar ninguna marcación. La base
+  // responde CODIGO_VACIO cuando el token es correcto, y TOKEN_INVALIDO
+  // cuando no.
+  let error=null;
+  try{
+    const r=await window.supabaseClient.rpc('marcar_por_reloj',{
+      p_token:valor,
+      p_codigo:'',
+      p_tipo:document.getElementById('totemTipo').value
+    });
+    error=r.error;
+  }catch(e){
+    error=e;
+  }
+  const msg=String((error&&error.message)||'');
+  if(!/CODIGO_VACIO/.test(msg)){
+    // Cualquier otra cosa dice que el token tampoco sirve. Se saca: si no,
+    // queda guardado un valor que no sirve y el próximo intento falla igual.
+    try{localStorage.removeItem('totemToken_'+totemActual.code);}catch(e){}
+    mostrarTotem('error','Ese token tampoco sirve',
+      'No se guardó. Revisá que no tenga espacios al principio o al final, '
+      +'y que sea el del reloj '+String(totemActual.code)+' y no el de otro.');
+    return;
+  }
+  ocultarCampoTokenTotem();
+  mostrarTotem('ok','Listo, este reloj ya marca',
+    'Pasá la tarjeta otra vez.');
+  // Y se reintenta sola, con el código que ya se había leído, para que la
+  // persona no tenga que sacar y volver a meter la credencial.
+  const leido=document.getElementById('totemCodigoLeido').textContent.trim();
+  if(leido){
+    registrarDesdeTotem.ultima=0;   // se anula el freno de 1,5 s
+    await registrarDesdeTotem(leido);
+  }
+}
+
 function guardarTotemToken(code){
   code=code||document.getElementById('tokenRelojCodigo').value;
   const inp=document.getElementById('tokenInstalarCampo');
@@ -12141,6 +12395,7 @@ function cerrarTotem(){
   // del navegador o desde un atajo: la guarda va acá, no en el botón.
   if(kioscoActivo){abrirClaveKiosco();return;}
   pararHoraTotem();
+  pararComprobacionConexion();
   desactivarKiosco();
   if(totemTimer)clearTimeout(totemTimer);
   if(totemTimerFoco){clearInterval(totemTimerFoco);totemTimerFoco=null;}

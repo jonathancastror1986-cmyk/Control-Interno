@@ -122,6 +122,11 @@ tótem donde alguien apretó algo que no debía.
 #pantallaTotem{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;
   background:var(--bg);color:var(--ink);font-size:clamp(16px,1.6vw,22px)}
 #pantallaTotem.abierta{display:flex}
+/* La hora ocupa la franja de arriba, centrada. El contenido arranca
+   más abajo para que no quede debajo: con la hora encima de la cámara, la
+   gente no ve a quién está fotografiando. */
+#pantallaTotem{padding-top:118px}
+.modo-kiosco #pantallaTotem{padding-top:150px}
 /* El cuerpo entra en modo tótem para que la navegación de atrás no quede
    como fondo visible si algo se dibuja mal. */
 body.modoTotem{overflow:hidden}
@@ -245,24 +250,127 @@ puede desactivar por reloj. */
    Un reloj sin hora en pantalla genera el mismo problema que un reloj con
    la hora mala: la gente sospecha de la hora de la marcación. Y la hora
    de la marcación es lo primero que la DT revisa. */
+/* La hora del tótem: CENTRADA y grande.
+
+   Estaba arriba a la derecha, de 1,9 rem. En un cartel de portería
+   colgado a la altura de la cabeza, a dos metros, hay que acercarse a
+   leerla; y si hay que acercarse, no sirve.
+
+   La hora es lo primero que la persona mira para decidir si su marcación
+   fue correcta. Y lo segundo que mira, si hay algo raro, es la hora que
+   le quedó guardada. Las dos van apiladas y centradas, en ese orden.
+
+   La caja no intercepta toques (pointer-events: none): la pantalla del
+   reloj es toda pulsable, y un recuadro de texto en el medio tapa los
+   dedos. */
 #totemHoraCaja {
   position: absolute;
-  top: 10px;
-  right: 18px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 3;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  line-height: 1.1;
-  /* No estorba a los toques: la pantalla es toda pulsable. */
+  align-items: center;
+  line-height: 1.05;
+  padding: 10px 12px 6px;
   pointer-events: none;
 }
 #totemHoraCaja .totem-hora {
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-  font-size: 1.9rem;
+  /* A dos metros, con letra de 4,6 rem, se lee sin acercarse. */
+  font-size: 4.6rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--ink);
+  letter-spacing: -.02em;
+}
+#totemHoraCaja .totem-fecha {
+  font-size: 1.05rem;
+  color: var(--secondary-text);
+  text-transform: capitalize;
+  font-weight: 600;
+}
+#totemHoraCaja .totem-nombre {
+  font-size: .85rem;
+  color: var(--secondary-text);
+}
+
+/* La hora que se acaba de guardar, y si el reloj del aparato va
+   atrasado. Es el dato que la persona va a impugnar después, así que
+   tiene que verse, no quedar dentro del cartel que desaparece. */
+.totem-marcaje {
+  margin-top: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+}
+.totem-marcaje-ok { color: var(--accent); }
+.totem-marcaje-desfasado { color: var(--warn); }
+
+/* La conexión, arriba de la hora. Un punto de color, no un dibujo: a dos
+   metros y con luz de obra, un punto de 14 px se ve y un glifo no. Y con
+   texto al lado, porque el color solo no le sirve a quien no distingue
+   rojo de verde, que es una de cada doce personas. */
+.totem-conexion {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 2px;
+  font-size: .8rem;
+  font-weight: 600;
+}
+.totem-conexion-punto {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: 0 0 auto;
+}
+.totem-conexion-texto { color: var(--muted); }
+
+/* Sin señal, el punto late. Es la diferencia entre "está ahí" y "está
+   funcionando". Un punto fijo parece un adorno. */
+.totem-conexion.latiendo .totem-conexion-punto {
+  animation: latidoTotem 1.4s ease-in-out infinite;
+}
+@keyframes latidoTotem {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+  50% { opacity: .35; }
+}
+
+/* El campo de token del propio tótem. Aparece SOLO cuando el token
+   instalado no es el de este reloj, porque en una pantalla que la gente
+   toca con cualquier dedo, un campo de texto siempre tapa marcaciones. */
+.totem-token-caja {
+  width: min(560px, 92vw);
+  margin: 0 auto 12px;
+  padding: 14px 16px;
+  border: 2px solid var(--warn);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .16);
+}
+.totem-token-caja label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 6px;
+  font-size: 1rem;
+}
+.totem-token-caja input {
+  width: 100%;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+  font-size: 1rem;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.totem-token-caja small {
+  display: block;
+  margin-top: 6px;
+  font-size: .8rem;
+  color: var(--secondary-text);
+  line-height: 1.35;
 }
 #totemHoraCaja .totem-fecha {
   font-size: .8rem;
@@ -275,10 +383,11 @@ puede desactivar por reloj. */
   font-weight: 600;
 }
 
-/* En kiosco se agranda: sin la barra alrededor hay espacio de sobra, y a
-   dos metros de distancia una hora de 1,9 rem no se lee. */
-.modo-kiosco #totemHoraCaja .totem-hora { font-size: 2.6rem; }
-.modo-kiosco #totemHoraCaja { top: 14px; right: 24px; }
+/* En kiosco crece un poco más. La hora es de 4,6 rem, y en modo kiosco
+   no hay barra arriba: hay espacio de sobra. */
+.modo-kiosco #totemHoraCaja .totem-hora { font-size: 5.4rem; }
+.modo-kiosco #totemHoraCaja { padding: 16px 12px 8px; }
+.modo-kiosco #totemHoraCaja .totem-marcaje { font-size: 1.15rem; }
 
 /* La zona de las cinco pulsaciones. Transparente, sin ícono y con el área
    de la esquina superior izquierda. Es invisible a propósito: si se le
