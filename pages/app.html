@@ -647,12 +647,23 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
           <button type="button" class="pwdToggle" onclick="generarClaveProvisional()">Generar</button>
         </div>
       </div>
+      <div style="flex:1">
+        <label>Correo nuevo <small style="color:var(--muted)">(solo si el de arriba está mal)</small></label>
+        <input type="email" id="alta-correo-nuevo" placeholder="El correcto, con la dirección real">
+      </div>
     </div>
+    <small style="display:block;margin-top:6px;color:var(--muted);font-size:.78rem">Si el correo
+      estaba mal escrito, ningún correo de confirmación va a llegar nunca —esa dirección no existe—,
+      así que reenviar el enlace tampoco ayuda. Pon el correcto acá y pulsa
+      <b>Corregir correo</b>: la cuenta queda verificada con la nueva dirección y
+      <b>la clave sigue siendo la misma</b>. Avísale por otro medio, porque al cambiar el correo no se
+      le manda nada.</small>
 
     <div class="row" style="margin-top:14px">
       <button class="btn" type="button" id="btnAltaVerificar" onclick="verificarCuentaExistente()">✓ Verificar cuenta existente</button>
       <button class="btn" type="button" id="btnAltaCrear" onclick="crearCuentaConClave()">🔑 Crear cuenta con clave</button>
       <button class="btn secondary" type="button" id="btnAltaClave" onclick="reiniciarClaveCuenta()">♻ Cambiar clave</button>
+      <button class="btn secondary" type="button" id="btnAltaCorreo" onclick="corregirCorreoCuenta()">✉ Corregir correo</button>
     </div>
     <div class="row" style="margin-top:10px">
       <small id="altaMsg" role="status" aria-live="polite"></small>
@@ -2214,10 +2225,19 @@ async function importWorkersCsv(){
         fecha_desvinculacion:existing?.fecha_desvinculacion||null
       }));
     });
-    if(issues.length){message.textContent=`No se importó nada. ${issues.slice(0,5).join(' ')}${issues.length>5?` Hay ${issues.length-5} errores más.`:''}`;return;}
+    if(issues.length){message.innerHTML=`<span class="gpsWarn">No se importó nada. ${escHtml(issues.slice(0,5).join(' '))}${issues.length>5?` Hay ${issues.length-5} errores más.`:''}</span>`;return;}
     if(!imported.length){message.textContent='No se encontraron trabajadores válidos.';return;}
     const {error}=await window.supabaseClient.from('trabajadores').upsert(imported,{onConflict:'code'});
-    if(error){message.textContent=`No se pudo importar: ${error.message}`;return;}
+    if(error){
+      // Este error salía crudo: "Could not find the 'rut' column of
+      // 'trabajadores' in the schema cache". Dice qué falta en la
+      // pantalla, pero no qué hacer, y hay DOS causas con arreglos
+      // distintos (ver columnaDeLaImportacionFalta). Por eso se espera:
+      // la respuesta se arma después de preguntar a la base.
+      message.innerHTML=await columnaDeLaImportacionFalta(error)
+        ||(`<span class="gpsWarn">No se pudo importar: ${escHtml(error.message)}</span>`);
+      return;
+    }
     await loadWorkers();
     message.textContent=`Importación completada: ${imported.length} trabajador(es) procesado(s).`;
   }catch(error){
@@ -4690,18 +4710,55 @@ async function llamarVerificarCuentas(accion){
   const correo=document.getElementById('alta-correo').value.trim().toLowerCase();
   const nombre=document.getElementById('alta-nombre').value.trim();
   const clave=document.getElementById('alta-clave').value.trim();
+  const nuevo=(document.getElementById('alta-correo-nuevo')||{}).value;
+  const nuevoLimpio=String(nuevo||'').trim().toLowerCase();
   const msg=document.getElementById('altaMsg');
-  const botones=['btnAltaVerificar','btnAltaCrear','btnAltaClave'].map(id=>document.getElementById(id));
-  const textos=['Verificando…','Creando…','Cambiando…'];
+  const botones=['btnAltaVerificar','btnAltaCrear','btnAltaClave','btnAltaCorreo'].map(id=>document.getElementById(id));
+  const textos={verificar:'Verificando…',crear:'Creando…',clave:'Cambiando…',correo:'Cambiando el correo…'};
+  const etiquetaBoton={verificar:'btnAltaVerificar',crear:'btnAltaCrear',clave:'btnAltaClave',correo:'btnAltaCorreo'};
 
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)){
-    msg.innerHTML='<span class="gpsWarn">Escribe un correo válido.</span>';return;
+    msg.innerHTML='<span class="gpsWarn">Escribe un correo válido: el que está arriba, el que hay que reparar.</span>';return;
   }
-  // "verificar" no necesita clave: la cuenta ya existe y solo hay que
-  // destrabarla. Las otras dos sí, o el alta no serviría de nada.
-  if(accion!=='verificar'&&!clave){
+  // Solo "crear" y "clave" necesitan clave. "verificar" y "correo" no: la
+  // cuenta ya existe y lo que se toca es un dato, no el acceso.
+  if((accion==='crear'||accion==='clave')&&!clave){
     msg.innerHTML='<span class="gpsWarn">Sin clave la cuenta no serviría: la persona no podría entrar. Escribe una o pulsa "Generar".</span>';
     return;
+  }
+  if(accion==='correo'){
+    if(!nuevoLimpio){
+      msg.innerHTML='<span class="gpsWarn">Escribe el correo correcto en el campo de al lado. Si el que está arriba ya está bien, no necesitas esta opción: usa "Verificar cuenta existente".</span>';
+      return;
+    }
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nuevoLimpio)){
+      msg.innerHTML='<span class="gpsWarn">El correo nuevo no parece un correo válido. Revísalo: si le falta una letra, la cuenta queda con una dirección a la que no le llega nada.</span>';
+      return;
+    }
+    if(nuevoLimpio===correo){
+      msg.innerHTML='<span class="gpsWarn">El correo nuevo es igual al que ya tiene. Si lo que falta es verificar la cuenta, pulsa "Verificar cuenta existente".</span>';
+      return;
+    }
+    // Se pide confirmación porque esto no tiene vuelta atrás con la misma
+    // facilidad: cambiar el correo escribe en la cuenta, y la clave sigue
+    // siendo la misma.
+    //
+    // El diálogo muestra la dirección nueva completa a propósito: la app
+    // puede comprobar que un correo tiene forma de correo, pero no puede
+    // saber que "gmial.com" es "gmail.com" mal escrito. Eso lo detecta una
+    // persona mirando, y este es el único momento en que se le muestra.
+    if(!confirm(
+      'Se va a cambiar el correo de la cuenta:\n\n'+
+      '   de:  '+correo+'\n'+
+      '   a:    '+nuevoLimpio+'\n\n'+
+      'Revisa la dirección nueva con atención. Esta pantalla puede decir si\n'+
+      'un correo está mal formado, pero NO si el dominio existe: un\n'+
+      '"gmial.com" escrito así se acepta igual que un "gmail.com" correcto.\n\n'+
+      'No se manda ningún correo, ni a la dirección vieja ni a la nueva.\n'+
+      'La clave NO cambia: la persona sigue entrando con la misma.\n'+
+      'La cuenta queda verificada.\n\n'+
+      'Avísale por otro medio, porque no se va a enterar por correo.\n\n¿Seguir?'
+    ))return;
   }
   if(accion==='crear'&&!confirm(
     'Se va a crear la cuenta de '+correo+' con una clave que tú eliges.\n\n'+
@@ -4714,14 +4771,14 @@ async function llamarVerificarCuentas(accion){
   ))return;
 
   botones.forEach(b=>{if(b)b.disabled=true;});
-  const propio=botones.find(b=>b&&b.id==='btnAltaVerificar');
+  const propio=botones.find(b=>b&&b.id===etiquetaBoton[accion]);
   const etiqueta=propio?propio.textContent:'';
-  if(propio)propio.textContent=textos[accion==='verificar'?0:(accion==='crear'?1:2)];
+  if(propio)propio.textContent=textos[accion]||'…';
   msg.innerHTML='<small>Un momento…</small>';
 
   try{
     const {data,error}=await window.supabaseClient.functions.invoke('verificar-cuenta',{
-      body:{correo,accion,clave,nombre}
+      body:{correo,accion,clave,nombre,nuevo:nuevoLimpio||undefined}
     });
     if(error){
       msg.innerHTML='<span class="gpsWarn">'+errorDeInvocarFuncion(error,'verificar-cuenta',
@@ -4733,10 +4790,10 @@ async function llamarVerificarCuentas(accion){
       // "No existe" no es un fallo: es que hay que crearla, y se dice.
       if(data.no_existe&&accion!=='crear'){
         msg.innerHTML='<span class="gpsWarn">'+escHtml(data.error)+
-          ' Si quieres darla de alta ahora, escribe la clave y pulsa <b>Crear cuenta con clave</b>.</span>';
+          (accion==='correo'?'':' Si quieres darla de alta ahora, escribe la clave y pulsa <b>Crear cuenta con clave</b>.')+'</span>';
         return;
       }
-      if(data.ya_existe&&accion==='crear'){
+      if(data.ya_existe){
         msg.innerHTML='<span class="gpsWarn">'+escHtml(data.error)+'</span>';
         return;
       }
@@ -4745,11 +4802,22 @@ async function llamarVerificarCuentas(accion){
     }
     // La clave se borra de la pantalla apenas se usó: si el supervisor
     // deja la pestaña abierta, no queda escrita a la vista de cualquiera
-    // que pase por detrás.
+    // que pase por detrás. Con "correo" no se usa clave, pero se limpia
+    // igual para que el campo no quede con la anterior de otro intento.
     if(accion!=='verificar')document.getElementById('alta-clave').value='';
+    if(accion==='correo'&&data&&data.correo){
+      // Se escribe el correo nuevo en el campo de arriba, que es donde
+      // queda el estado real ahora. Si no, el formulario seguiría
+      // mostrando el viejo y el próximo clic intentaría cambiar algo que
+      // ya no existe.
+      document.getElementById('alta-correo').value=data.correo;
+      const campoNuevo=document.getElementById('alta-correo-nuevo');
+      if(campoNuevo)campoNuevo.value='';
+    }
     const aviso=data&&data.aviso?'<br><small style="color:#e08b1a">'+escHtml(data.aviso)+'</small>':'';
     msg.innerHTML='<span style="color:var(--accent)">'+escHtml((data&&data.mensaje)||'Listo.')+'</span>'+aviso;
     await loadAltasCuentas();
+    if(accion==='correo')await loadInvitaciones();
   }catch(error){
     msg.innerHTML='<span class="gpsWarn">No se pudo completar: '+escHtml((error&&error.message)||error)+'</span>';
   }finally{
@@ -4757,6 +4825,7 @@ async function llamarVerificarCuentas(accion){
     if(propio)propio.textContent=etiqueta;
   }
 }
+function corregirCorreoCuenta(){return llamarVerificarCuentas('correo');}
 // ------------------------------------------------------------------
 // ¿ESTÁN DESPLEGADAS LAS EDGE FUNCTIONS?
 // ------------------------------------------------------------------
@@ -5602,6 +5671,74 @@ let eppFilaAbiertaAntesDeFiltrar=null;
 
 function normalizar(t){
   return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+// ------------------------------------------------------------------
+// FALTA UNA COLUMNA AL IMPORTAR
+// ------------------------------------------------------------------
+// "Could not find the 'rut' column of 'trabajadores' in the schema
+// cache" no dice por qué, y hay dos causas con arreglos distintos:
+//
+//   1. La migración no está aplicada. El RUT no existe en la base.
+//   2. La migración SÍ está aplicada, pero PostgREST tiene el esquema
+//      viejo en memoria. La columna existe; lo que no la ve es la API.
+//
+// Es la misma diferencia entre "no lo hice" y "lo hice y no se enteró",
+// y el arreglo es otro: en el primer caso hay que ejecutar un archivo,
+// en el segundo hay que recargar la caché.
+//
+// Por eso se comprueba en vez de adivinar: se pregunta a la base por la
+// columna. Si responde que existe, el problema es la caché. Si no
+// responde, es la migración.
+//
+// Se nota que PostgREST solo conoce lo que tiene cacheado, así que
+// cuando dice "no encuentro la columna" no se puede concluir que la
+// columna no exista: por eso la pregunta va por otra vía (un RPC que
+// mira information_schema, que es la base real).
+function columnaDeLaImportacionFalta(error){
+  const msg=String((error&&error.message)||error||'');
+  const col=msg.match(/Could not find the '([^']+)' column of '([^']+)'/i);
+  if(!col)return '';
+  const columna=col[1];
+  const tabla=col[2];
+  const archivo=(MIGRACIONES_REQUERIDAS.find(m=>m.tabla===tabla&&m.columna===columna)||{}).archivo
+    ||MIGRACIONES_REQUERIDAS.find(m=>m.tabla===tabla).archivo
+    ||'';
+
+  // Pregunta a la base real, no a la caché de PostgREST.
+  const baseYaLaTiene=(async()=>{
+    try{
+      const {data,error:e}=await window.supabaseClient.rpc('columna_existe',{tabla,columna});
+      if(e)return null;   // la 022 no está aplicada: no se puede saber
+      return data===true;
+    }catch(e){return null;}
+  })();
+
+  // El mensaje se arma después de responder, para poder decir la causa
+  // correcta. Por eso devuelve una promesa: hay que esperarla antes de
+  // ponerla en la pantalla.
+  return baseYaLaTiene.then((existe)=>{
+    if(existe===true){
+      return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+        '<b>La columna '+escHtml(columna)+' sí existe, pero la API no la ve.</b><br>'+
+        '<small>La migración ya está aplicada y lo que quedó viejo es la caché de esquema de PostgREST. '+
+        'En el <b>SQL Editor</b> de Supabase ejecuta:<br>'+
+        '<b style="font-family:ui-monospace,Consolas,monospace">NOTIFY pgrst, \'reload schema\';</b><br>'+
+        'Espera unos segundos y vuelve a importar. No hace falta volver a correr la migración.</small></div>';
+    }
+    if(existe===false){
+      return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:8px 12px;border-radius:8px">'+
+        '<b>Falta la migración '+escHtml(archivo||'que agrega '+columna)+'.</b><br>'+
+        '<small>La columna <code>'+escHtml(columna)+'</code> no existe en la tabla <code>'+escHtml(tabla)+
+        '</code>. Ábrela en el <b>SQL Editor</b> de Supabase y ejecútala, y después vuelve a importar. '+
+        'Si ya la habías ejecutado, entonces el problema es la caché: <b>NOTIFY pgrst, \'reload schema\';</b></small></div>';
+    }
+    return '<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:8px 12px;border-radius:8px">'+
+      '<b>Falta una migración: '+escHtml(archivo||columna)+'</b><br>'+
+      '<small>Abre <b>'+escHtml(archivo||'la migración correspondiente')+'</b> en el SQL Editor de Supabase. '+
+      'Si ya la ejecutaste y el error sigue, la caché de esquema está vieja: '+
+      '<b>NOTIFY pgrst, \'reload schema\';</b></small></div>';
+  });
 }
 
 // ------------------------------------------------------------------
@@ -6943,7 +7080,8 @@ const MIGRACIONES_REQUERIDAS=[
   {n:'019',archivo:'019_invitaciones_perfiles.sql',tabla:'invitaciones',columna:null},
   {n:'020',archivo:'020_rut_importacion_marcajes.sql',tabla:'trabajadores',columna:'rut'},
   {n:'020',archivo:'020_rut_importacion_marcajes.sql',tabla:'marcajes_importaciones',columna:null},
-  {n:'021',archivo:'021_altas_cuentas.sql',tabla:'cuentas_altas',columna:null}
+  {n:'021',archivo:'021_altas_cuentas.sql',tabla:'cuentas_altas',columna:null},
+  {n:'022',archivo:'022_columna_existe.sql',tabla:null,columna:null,rpc:'columna_existe'}
 ];
 // Traduce el error que devuelve PostgREST al nombre de la migración que
 // falta. Devuelve '' si el error no es de migración (es un problema real
@@ -7032,17 +7170,28 @@ async function revisarMigraciones(){
   for(const m of MIGRACIONES_REQUERIDAS){
     let error=null;
     try{
-      // Pedir la columna explícita: si no existe, Postgres lo dice en vez
-      // de devolver una lista incompleta en silencio.
-      const q=m.columna
-        ?window.supabaseClient.from(m.tabla).select(m.columna).limit(1)
-        :window.supabaseClient.from(m.tabla).select('*').limit(1);
-      const res=await q;
-      error=res.error;
+      if(m.rpc){
+        // Una migración que crea una FUNCIÓN se comprueba llamándola. Un
+        // select a una tabla no serviría: la función no es una tabla.
+        // Se llama con datos que no pueden tener efecto: si existe y
+        // responde, está.
+        const res=await window.supabaseClient.rpc(m.rpc,{tabla:'__no_existe__',columna:'__no_existe__'});
+        // "no existe" es una respuesta VÁLIDA de columna_existe, no un
+        // error. Lo que falla es que la función no esté.
+        error=res.error;
+      }else{
+        // Pedir la columna explícita: si no existe, Postgres lo dice en vez
+        // de devolver una lista incompleta en silencio.
+        const q=m.columna
+          ?window.supabaseClient.from(m.tabla).select(m.columna).limit(1)
+          :window.supabaseClient.from(m.tabla).select('*').limit(1);
+        const res=await q;
+        error=res.error;
+      }
     }catch(e){error=e;}
     if(!error)continue;
     if(!porArchivo.has(m.archivo))porArchivo.set(m.archivo,[]);
-    porArchivo.get(m.archivo).push({tabla:m.tabla,columna:m.columna,error});
+    porArchivo.get(m.archivo).push({tabla:m.rpc?'la función '+m.rpc:m.tabla,columna:m.columna,error});
   }
   // Una migración puede estar aplicada y aun así quedar incompleta. La
   // 020 es el caso: su "alter table marcajes" va dentro de un DO que se
@@ -7078,7 +7227,13 @@ async function revisarMigraciones(){
     '<ul style="margin:8px 0 0;padding-left:18px">'+
     archivos.map(a=>{
       const detalles=porArchivo.get(a);
-      const falta=detalles.map(d=>d.columna?'<code>'+d.columna+'</code> de <code>'+d.tabla+'</code>':'la tabla <code>'+d.tabla+'</code>').join(', ');
+      const falta=detalles.map(d=>{
+        // Una migración puede crear una FUNCIÓN, no una tabla. Se dice
+        // explícitamente, porque "falta columna_existe" no dice si hay
+        // que ejecutar un archivo o crear algo a mano.
+        if(String(d.tabla).indexOf('la función ')===0)return '<code>'+d.tabla+'</code>';
+        return d.columna?'<code>'+d.columna+'</code> de <code>'+d.tabla+'</code>':'la tabla <code>'+d.tabla+'</code>';
+      }).join(', ');
       return '<li style="margin-bottom:6px"><b>migrations/'+escHtml(a)+'</b><br><small>Falta: '+falta+'</small></li>';
     }).join('')+
     avisos.join('')+

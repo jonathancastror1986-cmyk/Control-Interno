@@ -28,15 +28,17 @@ directo en la cuenta de Supabase y no manda nada:
 | **✓ Verificar cuenta existente** | La cuenta ya está en Supabase pero quedó sin verificar. La marca como confirmada. |
 | **🔑 Crear cuenta con clave** | No existe. La crea **ya verificada**, con una clave provisional. |
 | **♻ Cambiar clave** | Existe pero la persona no la recuerda. Le pones una nueva. |
+| **✉ Corregir correo** | El correo está mal escrito. Lo cambia y deja la cuenta verificada. |
 
 Los tres están también en la lista de invitaciones, en cada invitación
 pendiente, para no tener que escribir el correo otra vez.
 
 ## Qué hay que hacer
 
-```bash
-supabase functions deploy verificar-cuenta
-```
+Desplegar la función `verificar-cuenta`. **Se puede hacer desde el panel
+de Supabase, sin instalar nada** (Edge Functions → Create Function → pegar
+`supabase/functions/verificar-cuenta/index.ts`). Los pasos están en
+[desplegar-funciones.md](desplegar-funciones.md).
 
 Sin esto, la app lo avisa **al abrir la tarjeta**, antes de que pulses
 nada, con el comando copiable. Y si lo pulsas igual, el error dice lo
@@ -76,6 +78,34 @@ la vista de cualquiera que pase por detrás.
 Un jefe de turno puede dar de alta a treinta personas en una mañana, sin
 que el límite de correos aparezca ni una vez.
 
+## Cuando el correo está mal escrito
+
+Si la dirección tiene un error —`gmial.com`, un punto de más, el nombre
+mal escrito— el correo de confirmación **nunca va a llegar**, porque esa
+dirección no existe. Reenviar el enlace tampoco ayuda.
+
+**✉ Corregir correo** cambia la dirección y deja la cuenta verificada en
+la misma pasada. La clave no cambia. La invitación pendiente también se
+corrige, que es lo importante: el trigger lee la invitación por el
+correo, y si quedara con el viejo, al registrarse la persona entraría sin
+rol, sin empresa y sin ficha.
+
+**Lo que la app no puede hacer:** comprobar que el dominio exista. Un
+`gmial.com` tiene forma de correo y se acepta. Por eso el diálogo de
+confirmación muestra la dirección nueva completa: ese es el momento en
+que una persona puede ver el error. Léelo antes de pulsar.
+
+Al cambiar un correo a mano no se manda ningún aviso. Avisa por otro
+medio.
+
+## Y si prefieres SQL
+
+Para una reparación puntual, o si el panel no te deja, hay
+[sql/reparar-cuenta.sql](../sql/reparar-cuenta.sql): una función que
+activa la cuenta y corrige el correo, actualizando los dos lugares donde
+Supabase guarda la dirección. Está documentada y probada; los pasos están
+al final de ese archivo.
+
 ## El registro de quién lo hizo
 
 La tabla `cuentas_altas` guarda, por cada intento:
@@ -113,5 +143,6 @@ la función `invitar`.
 | "Tu sesión caducó" | No es un problema de despliegue. Vuelve a iniciar sesión. |
 | "Ese correo no tiene cuenta" | No es un fallo: usa **Crear cuenta con clave**. |
 | "Ese correo ya tiene una cuenta" | No es un fallo: usa **Verificar cuenta**. |
+| "Ya existe otra cuenta con el correo…" | El correo nuevo está tomado. No se puede usar. |
 | "No tienes permiso" | Te falta `sistema.usuarios`. Pídeselo a un administrador. |
 | Aviso de la migración 021 | El alta se hizo igual; solo no quedó registrada. |

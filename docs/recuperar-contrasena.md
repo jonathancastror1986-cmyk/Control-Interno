@@ -21,9 +21,12 @@ guarda y se le dice que ya puede entrar.
 
 ## Puesta en marcha
 
-```bash
-supabase functions deploy recuperar
-```
+Desplegar la función `recuperar`. **Se puede hacer desde el panel de
+Supabase, sin instalar nada** (Edge Functions → Create Function → pegar
+`supabase/functions/recuperar/index.ts`). Los pasos están en
+[desplegar-funciones.md](desplegar-funciones.md).
+
+Con la CLI sería `supabase functions deploy recuperar`.
 
 No necesita configuración: usa las variables que Supabase inyecta
 (`SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`).

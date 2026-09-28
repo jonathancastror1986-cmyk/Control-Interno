@@ -78,8 +78,8 @@ Deno.serve(async (req) => {
   }
 
   const accion = String(cuerpo.accion || 'verificar')
-  if (!['verificar', 'crear', 'clave'].includes(accion)) {
-    return responder({ error: 'Acción no reconocida: usar verificar, crear o clave.' }, 400)
+  if (!['verificar', 'crear', 'clave', 'correo'].includes(accion)) {
+    return responder({ error: 'Acción no reconocida: usar verificar, crear, clave o correo.' }, 400)
   }
 
   // ------------------------------------------------------------
@@ -142,6 +142,114 @@ Deno.serve(async (req) => {
   const usuario = (lista.users || []).find(
     (u) => String(u.email || '').toLowerCase() === correo
   ) || null
+
+  // ------------------------------------------------------------
+  // 2 bis) CORREGIR EL CORREO
+  // ------------------------------------------------------------
+  // Va antes que el resto porque es el caso que más se da: el correo
+  // está mal escrito ("@gamil.com") y la dirección de confirmación nunca
+  // va a llegar, porque esa dirección no existe. Ningún correo corrige
+  // eso: hay que cambiar el correo en la cuenta.
+  //
+  // Se hace con la API de administración y NO con un UPDATE sobre
+  // auth.users, por una razón concreta: el correo vive en dos lugares
+  // (auth.users.email y identity_data de auth.identities) y la API
+  // actualiza los dos. Un UPDATE directo deja los dos distintos.
+  if (accion === 'correo') {
+    const nuevo = String(cuerpo.nuevo || '').trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nuevo)) {
+      return responder({ error: 'El correo nuevo no parece un correo válido.' }, 400)
+    }
+    if (nuevo === correo) {
+      return responder({
+        ok: true,
+        accion: 'correo',
+        mensaje: 'El correo nuevo es igual al que ya tenía. No se cambió nada.'
+      })
+    }
+    if ((lista.users || []).some((u) => String(u.email || '').toLowerCase() === nuevo)) {
+      return responder(
+        { error: 'Ya existe otra cuenta con el correo ' + nuevo + '. Cambiar a ese correo dejaría dos cuentas con la misma dirección.', ya_existe: true },
+        409
+      )
+    }
+    if (!usuario) {
+      await registrar('verificada', 'error', 'Cambio de correo pedido, pero la cuenta no existe.', null)
+      return responder(
+        { error: 'Ese correo no tiene cuenta en el sistema. Usa "Crear cuenta con clave".', no_existe: true },
+        404
+      )
+    }
+
+    // email_confirm va en true a propósito: si el problema es que el
+    // correo estaba mal escrito, cambiarlo sin verificar deja a la
+    // persona esperando un correo que no va a llegar nunca, y el
+    // síntoma se repite tal cual.
+    const { error } = await admin.auth.admin.updateUserById(usuario.id, {
+      email: nuevo,
+      email_confirm: true
+    })
+    if (error) {
+      await registrar('verificada', 'error', 'No se pudo cambiar el correo: ' + error.message, usuario.id)
+      return responder({ error: 'Supabase no pudo cambiar el correo: ' + error.message }, 502)
+    }
+
+    // La invitación pendiente es la que lee el trigger handle_new_user
+    // cuando la persona se registre. Si queda con el correo viejo, al
+    // registrarse no se la encuentra y la persona entra sin rol, sin
+    // empresa y sin ficha.
+    const { error: errorInv } = await admin
+      .from('invitaciones')
+      .update({ correo: nuevo })
+      .eq('correo', correo)
+    if (errorInv) {
+      await registrar('verificada', 'ok', 'Correo cambiado, pero la invitación no se pudo corregir: ' + errorInv.message, usuario.id)
+      return responder({
+        ok: true,
+        accion: 'correo',
+        user_id: usuario.id,
+        aviso:
+          'El correo se cambió y la cuenta quedó verificada, pero la invitación quedó con el correo viejo (' +
+          correo + '). Corrí esto en el SQL Editor: select public.reparar_cuenta(' +
+          JSON.stringify(correo) + ', ' + JSON.stringify(nuevo) + ');',
+        mensaje: 'Correo cambiado a ' + nuevo + ' y cuenta verificada.'
+      })
+    }
+
+    // El perfil: activarlo y arreglar el nombre cuando lo que figuraba
+    // era el correo viejo.
+    const { data: perfil } = await admin
+      .from('perfiles')
+      .select('id,nombre,activo,perfil_completo')
+      .eq('id', usuario.id)
+      .maybeSingle()
+    let aviso = null
+    if (perfil) {
+      const cambios = { activo: true, perfil_completo: true }
+      if (String(perfil.nombre || '').toLowerCase() === correo) cambios.nombre = nuevo
+      const { error: errorPerfil } = await admin
+        .from('perfiles')
+        .update(cambios)
+        .eq('id', usuario.id)
+      if (errorPerfil) {
+        aviso = 'El correo se cambió, pero el perfil no se pudo activar: ' + errorPerfil.message
+      }
+    }
+
+    await registrar('verificada', 'ok', 'Correo cambiado de ' + correo + ' a ' + nuevo + ', sin mandar correo.', usuario.id)
+    return responder({
+      ok: true,
+      accion: 'correo',
+      user_id: usuario.id,
+      correo: nuevo,
+      aviso: registroFallido
+        ? 'Se cambió, pero no se pudo guardar el registro de auditoría (falta la migración 021).'
+        : aviso,
+      mensaje:
+        'Correo cambiado a ' + nuevo + ' y cuenta verificada. Avísale por otro medio: al cambiarlo ' +
+        'no le llega ningún correo, y la clave sigue siendo la misma.'
+    })
+  }
 
   // Si la migración 021 no está aplicada, el alta se hace igual pero queda
   // avisado. Preferible un alta sin registro a un alta que no ocurra: el
@@ -217,7 +325,8 @@ Deno.serve(async (req) => {
     })
   }
 
-  // "verificar" y "clave" necesitan que la cuenta exista.
+  // "verificar" y "clave" necesitan que la cuenta exista. ("correo" ya
+  // se resolvió más arriba, con su propio camino.)
   if (!usuario) {
     await registrar(
       accion === 'clave' ? 'clave_reiniciada' : 'verificada',
