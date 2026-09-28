@@ -188,6 +188,12 @@ small{color:var(--muted)}
 .gpsBox .gpsVal{font-family:ui-monospace,Consolas,monospace;font-size:.78rem;color:var(--text);word-break:break-all}
 .gpsOk{color:var(--accent)}
 .gpsWarn{color:var(--danger)}
+/* Campo con un botón pegado a la derecha, para la clave provisional que
+   se entrega en persona. */
+.pwdWrap{position:relative}
+.pwdWrap input{width:100%;padding-right:96px}
+.pwdToggle{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:1px solid var(--line);background:var(--panel);color:var(--muted);cursor:pointer;font-size:.7rem;padding:5px 8px;border-radius:6px;white-space:nowrap}
+.pwdToggle:hover{color:var(--accent);border-color:var(--accent)}
 .eppBadge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:.65rem;font-weight:600;border:1px solid currentColor}
 .eppBadge.firmado{color:var(--accent)}
 .eppBadge.sinFirma{color:var(--danger)}
@@ -612,6 +618,47 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
       </div>
       <div id="avisoSiteUrl" style="margin-top:12px"></div>
     </div>
+  </div>
+
+  <div class="card">
+    <h2>Dar de alta sin correo</h2>
+    <small>La invitación por correo choca con el límite del proveedor de correos de Supabase: después
+      de unos pocos por hora responde <b>email rate limit exceeded</b> y la cuenta queda creada pero
+      <b>sin verificar</b>, con lo cual esa persona no puede entrar ("Email not confirmed"). Para dar
+      de alta a treinta personas eso no es lento, es bloqueado.</small>
+    <small style="display:block;margin-top:8px;color:var(--muted)">Esto no manda ningún correo: escribe
+      directo en la cuenta de Supabase y la deja verificada. <b>La clave se la entregas tú, en
+      persona</b>, y la persona debería cambiarla al entrar. Ten presente qué significa eso: la app
+      está afirmando que el correo es correcto sin que nadie lo compruebe. En una obra, donde el
+      jefe de turno le entrega el usuario en mano, es lo que corresponde; en un sistema abierto al
+      mundo, no lo sería.</small>
+
+    <div class="row" style="margin-top:14px">
+      <div><label>Correo</label><input type="email" id="alta-correo" placeholder="persona@empresa.cl"></div>
+      <div><label>Nombre completo</label><input id="alta-nombre" placeholder="Como aparecerá en la app"></div>
+    </div>
+
+    <div class="row" style="margin-top:12px;align-items:flex-end">
+      <div style="flex:1">
+        <label>Clave provisional <small style="color:var(--muted)">(mínimo 8 caracteres)</small></label>
+        <div class="pwdWrap">
+          <input type="text" id="alta-clave" placeholder="La que le vas a entregar en persona"
+                 autocomplete="off" style="font-family:ui-monospace,Consolas,monospace">
+          <button type="button" class="pwdToggle" onclick="generarClaveProvisional()">Generar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <button class="btn" type="button" id="btnAltaVerificar" onclick="verificarCuentaExistente()">✓ Verificar cuenta existente</button>
+      <button class="btn" type="button" id="btnAltaCrear" onclick="crearCuentaConClave()">🔑 Crear cuenta con clave</button>
+      <button class="btn secondary" type="button" id="btnAltaClave" onclick="reiniciarClaveCuenta()">♻ Cambiar clave</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <small id="altaMsg" role="status" aria-live="polite"></small>
+    </div>
+
+    <div id="altaHistorial" style="margin-top:16px"></div>
   </div>
 
   <div class="card">
@@ -1953,18 +2000,89 @@ function detectCsvDelimiter(text){
   }
   return Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][1]>0?Object.entries(counts).sort((a,b)=>b[1]-a[1])[0][0]:',';
 }
+// ------------------------------------------------------------------
+// FECHAS QUE VIENEN DE EXCEL
+// ------------------------------------------------------------------
+// El problema que se estaba arreglando: un CSV con "2026-01-09" es un
+// archivo correcto, pero al leerlo SheetJS lo tomaba como fecha, lo
+// corría por la zona horaria del navegador y lo devolvía formateado
+// como "1/8/26" (mes/día/año, año de dos dígitos). Ese texto ya no era
+// el que había escrito nadie, así que la validación lo rechazaba y
+// decía "usar AAAA-MM-DD" justo cuando el usuario SÍ lo había puesto
+// bien. El archivo estaba bien; el que leía, mal.
+//
+// La corrección de raíz está en la lectura (raw:true al abrir el
+// archivo), que deja la fecha como texto tal cual. Acá queda lo que
+// falta: que la carga no dependa de que el archivo se haya generado de
+// cierta manera.
+//
+// Se aceptan:
+//   · AAAA-MM-DD            (el de la plantilla; sin ambigüedad)
+//   · DD/MM/AAAA            (como se escribe en Chile: 09/01/2026)
+//   · el número de serie de Excel (46031 = 2026-01-09; es lo que trae
+//     una celda de tipo fecha de un .xlsx, y no tiene ambigüedad)
+//   · un objeto Date
+//
+// Nota sobre "5/3/2026": se lee como 5 de marzo, por ser la convención
+// chilena y la que dice la plantilla. Si algún día llegara un archivo
+// exportado con formato inglés, esa fecha se leería al revés. Cuando
+// el día es mayor que 12 no hay problema: "25/03/2026" solo puede ser
+// 25 de marzo.
+function fechaDesdeNumeroExcel(numero){
+  if(!isFinite(numero))return null;
+  // Entre 1 y 60000 es un número de serie de Excel (1900-01-01 en adelante).
+  if(numero<1||numero>60000)return null;
+  // 25569 es 1970-01-01: el desfase estándar entre ambos calendarios.
+  // Se toma la parte entera y no el redondeo: 46030,99999 es el día 46030
+  // (el final de ese día), no el día siguiente, y redondeando saltaba.
+  const dias=Math.floor(numero);
+  const d=new Date((dias-25569)*86400*1000);
+  if(isNaN(d.getTime()))return null;
+  return d.toISOString().slice(0,10);
+}
 function parseCsvDate(value){
-  const raw=String(value||'').trim();
-  if(!raw)return {value:null,error:false};
+  if(value==null||value==='')return {value:null,error:false};
+
+  // 1) Si ya vino como Date (cuando el navegador lo parseó solo).
+  if(value instanceof Date){
+    if(isNaN(value.getTime()))return {value:null,error:true};
+    return {value:isoLocal(value),error:false};
+  }
+
+  // 2) Número de serie de Excel. Va antes del parseo de texto porque
+  //    46030 también matchearía un patrón de texto y saldría mal.
+  if(typeof value==='number'){
+    const desdeExcel=fechaDesdeNumeroExcel(value);
+    if(desdeExcel)return {value:desdeExcel,error:false};
+    return {value:null,error:true};
+  }
+
+  const raw=String(value).trim();
+  if(!raw)return {value:null,error:true};
+
   let year,month,day,match;
   if((match=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))){
+    // AAAA-MM-DD, el de la plantilla.
     [,year,month,day]=match;
-  }else if((match=raw.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/))){
+  }else if((match=raw.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$/))){
+    // DD/MM/AAAA: día primero, que es como se escribe en Chile.
     [,day,month,year]=match;
-  }else return {value:null,error:true};
+    if(year.length===2)year=Number(year)+(Number(year)<50?2000:1900);
+  }else if((match=raw.match(/^(\d{4})(\d{2})(\d{2})$/))){
+    // AAAA-MM-DD sin separadores, como lo da algunos sistemas.
+    [,year,month,day]=match;
+  }else{
+    return {value:null,error:true};
+  }
+
   year=Number(year);month=Number(month);day=Number(day);
+  if(month<1||month>12||day<1||day>31)return {value:null,error:true};
+  // Se comprueba que la fecha exista de verdad: 31/02 se reporta, no se
+  // convierte solo al 3 de marzo como haría new Date().
   const date=new Date(year,month-1,day);
-  if(date.getFullYear()!==year||date.getMonth()!==month-1||date.getDate()!==day)return {value:null,error:true};
+  if(date.getFullYear()!==year||date.getMonth()!==month-1||date.getDate()!==day){
+    return {value:null,error:true,imposible:year+'-'+month+'-'+day};
+  }
   return {value:`${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`,error:false};
 }
 function parseCsvBoolean(value,fallback){
@@ -1991,11 +2109,27 @@ async function importWorkersCsv(){
   message.textContent='Validando archivo…';
   try{
     const csvText=await file.text();
-    const workbook=XLSX.read(csvText,{type:'string',FS:detectCsvDelimiter(csvText)});
+    // raw:true en la LECTURA es lo importante, y no es un detalle: sin
+    // esto SheetJS decide que "2026-01-09" es una fecha, la corree por la
+    // zona horaria del navegador y la devuelve formateada como "1/8/26".
+    // O sea, el texto que escribió el usuario se perdía en la lectura y
+    // después la validación acusaba al usuario de tener mal el formato.
+    // Con raw:true llega tal cual y lo interpreta parseCsvDate().
+    //
+    // El caso del archivo .xlsx con celdas de tipo fecha sigue cubierto:
+    // ahí el valor sí es el número de serie de Excel, y parseCsvDate()
+    // lo reconoce.
+    const workbook=XLSX.read(csvText,{type:'string',FS:detectCsvDelimiter(csvText),raw:true});
     const sheet=workbook.Sheets[workbook.SheetNames[0]];
     const rows=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
     if(!rows.length){message.textContent='El CSV no contiene filas para importar.';return;}
-    const normalizedRows=rows.map(row=>Object.fromEntries(Object.entries(row).map(([key,value])=>[normalizeCsvHeader(key),String(value??'').trim()])));
+    // normalizeCsvHeader() ya se come el BOM: elimina todo lo que no sea
+    // letra o número, y el BOM (que Excel pone al guardar) no lo es.
+    // Por eso "﻿codigo" se lee igual que "codigo". No hace falta
+    // quitarlo aparte.
+    const normalizedRows=rows.map(row=>Object.fromEntries(
+      Object.entries(row).map(([key,value])=>[normalizeCsvHeader(key),String(value??'').trim()])
+    ));
     const currentByCode=new Map(workers.map(worker=>[worker.code,worker]));
     const seenCodes=new Set();
     const imported=[];
@@ -2016,7 +2150,21 @@ async function importWorkersCsv(){
       const existing=currentByCode.get(code);
       const incomingDate=read('fecha_ingreso','fecha ingreso','hire_date');
       const parsedDate=incomingDate?parseCsvDate(incomingDate):{value:existing?.fecha_ingreso||null,error:false};
-      if(parsedDate.error){issues.push(`Fila ${index+2}: fecha_ingreso debe usar AAAA-MM-DD o DD/MM/AAAA.`);return;}
+      if(parsedDate.error){
+        // Se dice QUÉ se recibió, no solo la regla. Antes el mensaje
+        // pedía "usar AAAA-MM-DD" cuando el archivo ya venía en
+        // AAAA-MM-DD y el problema era que el lector lo había
+        // reformateado: el usuario no tenía forma de saber qué hacer.
+        const recibido=incomingDate instanceof Date
+          ? 'una fecha'
+          : JSON.stringify(String(incomingDate));
+        issues.push(
+          `Fila ${index+2}: fecha_ingreso recibió ${recibido}`+
+          (parsedDate.imposible?`, que no es una fecha real (¿quiso decir ${parsedDate.imposible}?).`
+            :'. Se acepta AAAA-MM-DD, DD/MM/AAAA o la fecha que trae Excel.')
+        );
+        return;
+      }
       const supervisorValue=read('es_supervisor','is_supervisor');
       const isSupervisor=parseCsvBoolean(supervisorValue,existing?.is_supervisor||false);
       const socialValue=read('alerta_social','alerta social');
@@ -2025,9 +2173,17 @@ async function importWorkersCsv(){
       const alertPrevention=parseCsvBoolean(preventionValue,existing?.alerta_prevencion||false);
       if(isSupervisor===null||alertSocial===null||alertPrevention===null){issues.push(`Fila ${index+2}: usa sí/no, true/false o 1/0 en las columnas de casillas.`);return;}
       const readOrCurrent=(aliases,key,fallback='')=>read(...aliases)||existing?.[key]||fallback;
-      const statusValue=read('status','estado').toLowerCase();
-      const status=statusValue||existing?.status||'activo';
-      if(!['activo','desvinculado'].includes(status)){issues.push(`Fila ${index+2}: status debe ser activo o desvinculado.`);return;}
+      // El status se acepta con o sin tilde y con o sin mayúscula:
+      // "Activo", "ACTIVO" y "activo" son lo mismo. normalizar() ya
+      // pasa a minúsculas y quita los acentos. Antes un CSV hecho en
+      // Excel, que escribe "Activo", se rechazaba entero.
+      let status=normalizar(read('status','estado'))||existing?.status||'activo';
+      if(['desvinculado','desvincula','desvinculacion','baja','bajas'].includes(status))status='desvinculado';
+      if(['activo','activa','alta','altas'].includes(status))status='activo';
+      if(!['activo','desvinculado'].includes(status)){
+        issues.push(`Fila ${index+2}: status recibió "${read('status','estado')}". Escribe activo o desvinculado.`);
+        return;
+      }
       const tipoTrabajadorValue=read('tipo_trabajador','tipo de trabajador').toLowerCase();
       const tipoTrabajador=['interno','subcontrato'].includes(tipoTrabajadorValue)?tipoTrabajadorValue:(existing?.tipo_trabajador||'interno');
       imported.push(workerToDb({
@@ -4138,6 +4294,7 @@ async function initInvitarUsuario(){
 
   document.getElementById('invResultado').innerHTML='';
   loadInvitaciones();
+  loadAltasCuentas();
   avisarSiteUrl();
 }
 
@@ -4426,9 +4583,12 @@ async function loadInvitaciones(){
       if(inv.estado==='pendiente'&&!vencida){
         acciones=`<button class="btn secondary" type="button" onclick="reenlaceInvitacion('${inv.id}')">Ver enlace</button>
                   <button class="btn secondary" type="button" onclick="enviarInvitacionDe('${inv.correo}')">✉ Enviar</button>
+                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\\'"))}','verificar')">✓ Verificar</button>
+                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\\'"))}','crear')">🔑 Alta con clave</button>
                   <button class="btn secondary" type="button" onclick="cancelarInvitacion('${inv.id}')">Cancelar</button>`;
       }else if(vencida){
-        acciones=`<button class="btn secondary" type="button" onclick="reinvitar('${inv.id}')">Volver a invitar</button>`;
+        acciones=`<button class="btn secondary" type="button" onclick="reinvitar('${inv.id}')">Volver a invitar</button>
+                  <button class="btn secondary" type="button" onclick="altaDesdeInvitacion('${inv.correo}','${escHtml((inv.nombre||'').replace(/'/g,"\\'"))}','crear')">🔑 Alta con clave</button>`;
       }
       return `<tr>
         <td class="izq">${escHtml(inv.correo)}</td>
@@ -4447,6 +4607,26 @@ function reenlaceInvitacion(id){
   if(!inv){alert('No se encontró la invitación.');return;}
   mostrarInvitacionCreada(inv);
   document.getElementById('invResultado').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+// Salto desde la lista de invitaciones a la tarjeta de alta: se copian
+// el correo y el nombre para no tener que volver a escribirlos, y se
+// deja la acción elegida ya marcada en los botones.
+function altaDesdeInvitacion(correo,nombre,accion){
+  if(!exigirPermiso('sistema.usuarios'))return;
+  document.getElementById('alta-correo').value=correo||'';
+  document.getElementById('alta-nombre').value=nombre||'';
+  const caja=document.getElementById('alta-clave');
+  if(caja&&accion!=='verificar'&&!caja.value)generarClaveProvisional();
+  const tarjeta=document.getElementById('alta-correo').closest('.card');
+  if(tarjeta)tarjeta.scrollIntoView({behavior:'smooth',block:'start'});
+  const msg=document.getElementById('altaMsg');
+  if(accion==='verificar'){
+    msg.innerHTML='<small>Pulsa <b>Verificar cuenta existente</b>. Sirve cuando la cuenta ya está en '+
+      'Supabase pero quedó sin verificar por el límite de correos.</small>';
+  }else{
+    msg.innerHTML='<small>Se generó una clave. Revísala y pulsa <b>Crear cuenta con clave</b>: no se manda correo, '+
+      'se la entregas tú.</small>';
+  }
 }
 // Reenviar una invitación vencida es, en la práctica, volver a crearla:
 // la anterior ya no sirve y el índice único no deja tener dos pendientes.
@@ -4470,6 +4650,154 @@ async function cancelarInvitacion(id){
     .update({estado:'cancelada'}).eq('id',id);
   if(error){alert('No se pudo cancelar: '+error.message);return;}
   await loadInvitaciones();
+}
+
+// ============================================================
+// DAR DE ALTA SIN CORREO
+// ============================================================
+// La invitación por correo depende de que Supabase pueda mandar correos,
+// y el plan gratuito tiene un límite por hora. Al pasarse responde
+// "email rate limit exceeded": la cuenta queda creada pero NO verificada,
+// y quien la tenía no puede entrar. Estos tres botones escriben
+// directo en la cuenta y no mandan nada, así que el límite deja de
+// importar.
+//
+// El costo se dice en la pantalla, no acá: verificar un correo sin que
+// nadie lo compruebe significa que la clave se entrega en persona. Es
+// lo que corresponde en una obra y no lo que corresponde en un sistema
+// abierto; la pantalla lo dice para que la decisión sea de quien
+// pulse el botón.
+
+// Una clave que se pueda decir de oído, sin 0/O ni 1/I, y que no sea
+// adivinable. Se muestra en pantalla a propósito: hay que poder leerla
+// y anotarla para dársela a la persona.
+const ALFABETO_CLAVE='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function generarClaveProvisional(){
+  const largo=10;
+  let clave='';
+  for(let i=0;i<largo;i++)clave+=ALFABETO_CLAVE[Math.floor(Math.random()*ALFABETO_CLAVE.length)];
+  // Se fuerza una letra: si salieran puros números, dictarla por teléfono
+  // es un problema, y el 2 y el 3 se parecen al Z y al B.
+  if(!/[A-Z]/.test(clave))clave=ALFABETO_CLAVE[Math.floor(Math.random()*26)]+clave.slice(1);
+  const input=document.getElementById('alta-clave');
+  if(input){input.value=clave;input.select();}
+  const msg=document.getElementById('altaMsg');
+  if(msg)msg.innerHTML='<small>Anótala y entrégasela en persona. La persona debería cambiarla al entrar.</small>';
+}
+
+async function llamarVerificarCuentas(accion){
+  if(!exigirPermiso('sistema.usuarios'))return;
+  const correo=document.getElementById('alta-correo').value.trim().toLowerCase();
+  const nombre=document.getElementById('alta-nombre').value.trim();
+  const clave=document.getElementById('alta-clave').value.trim();
+  const msg=document.getElementById('altaMsg');
+  const botones=['btnAltaVerificar','btnAltaCrear','btnAltaClave'].map(id=>document.getElementById(id));
+  const textos=['Verificando…','Creando…','Cambiando…'];
+
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)){
+    msg.innerHTML='<span class="gpsWarn">Escribe un correo válido.</span>';return;
+  }
+  // "verificar" no necesita clave: la cuenta ya existe y solo hay que
+  // destrabarla. Las otras dos sí, o el alta no serviría de nada.
+  if(accion!=='verificar'&&!clave){
+    msg.innerHTML='<span class="gpsWarn">Sin clave la cuenta no serviría: la persona no podría entrar. Escribe una o pulsa "Generar".</span>';
+    return;
+  }
+  if(accion==='crear'&&!confirm(
+    'Se va a crear la cuenta de '+correo+' con una clave que tú eliges.\n\n'+
+    'No se manda ningún correo: entrégale la clave en persona y pídele que la cambie '+
+    'al entrar.\n\n¿Seguir?'
+  ))return;
+  if(accion==='clave'&&!confirm(
+    'Se va a cambiar la clave de '+correo+'. La persona tendrá que entrar con la nueva, '+
+    'así que avísale antes de seguir.\n\n¿Seguir?'
+  ))return;
+
+  botones.forEach(b=>{if(b)b.disabled=true;});
+  const propio=botones.find(b=>b&&b.id==='btnAltaVerificar');
+  const etiqueta=propio?propio.textContent:'';
+  if(propio)propio.textContent=textos[accion==='verificar'?0:(accion==='crear'?1:2)];
+  msg.innerHTML='<small>Un momento…</small>';
+
+  try{
+    const {data,error}=await window.supabaseClient.functions.invoke('verificar-cuenta',{
+      body:{correo,accion,clave,nombre}
+    });
+    if(error){
+      if(/not found|404|does not exist/i.test(error.message)){
+        msg.innerHTML='<span class="gpsWarn">La función no está desplegada. En un proyecto Supabase: '+
+          '<b>supabase functions deploy verificar-cuenta</b></span>';
+        return;
+      }
+      msg.innerHTML='<span class="gpsWarn">No se pudo completar: '+escHtml(error.message)+'</span>';
+      return;
+    }
+    if(data&&data.error){
+      // La función distingue los casos que necesitan una acción distinta.
+      // "No existe" no es un fallo: es que hay que crearla, y se dice.
+      if(data.no_existe&&accion!=='crear'){
+        msg.innerHTML='<span class="gpsWarn">'+escHtml(data.error)+
+          ' Si quieres darla de alta ahora, escribe la clave y pulsa <b>Crear cuenta con clave</b>.</span>';
+        return;
+      }
+      if(data.ya_existe&&accion==='crear'){
+        msg.innerHTML='<span class="gpsWarn">'+escHtml(data.error)+'</span>';
+        return;
+      }
+      msg.innerHTML='<span class="gpsWarn">'+escHtml(data.error)+'</span>';
+      return;
+    }
+    // La clave se borra de la pantalla apenas se usó: si el supervisor
+    // deja la pestaña abierta, no queda escrita a la vista de cualquiera
+    // que pase por detrás.
+    if(accion!=='verificar')document.getElementById('alta-clave').value='';
+    const aviso=data&&data.aviso?'<br><small style="color:#e08b1a">'+escHtml(data.aviso)+'</small>':'';
+    msg.innerHTML='<span style="color:var(--accent)">'+escHtml((data&&data.mensaje)||'Listo.')+'</span>'+aviso;
+    await loadAltasCuentas();
+  }catch(error){
+    msg.innerHTML='<span class="gpsWarn">No se pudo completar: '+escHtml((error&&error.message)||error)+'</span>';
+  }finally{
+    botones.forEach(b=>{if(b)b.disabled=false;});
+    if(propio)propio.textContent=etiqueta;
+  }
+}
+function verificarCuentaExistente(){return llamarVerificarCuentas('verificar');}
+function crearCuentaConClave(){return llamarVerificarCuentas('crear');}
+function reiniciarClaveCuenta(){return llamarVerificarCuentas('clave');}
+
+// El historial responde "¿quién dio de alta a esta persona?". Sin esto,
+// dar de alta a alguien sería un acto invisible: nadie podría después
+// decir por qué una cuenta quedó activa.
+async function loadAltasCuentas(){
+  const el=document.getElementById('altaHistorial');
+  if(!el)return;
+  if(!exigirPermiso('sistema.usuarios')){el.innerHTML='<small>Sin permiso.</small>';return;}
+  const {data,error}=await window.supabaseClient.from('cuentas_altas')
+    .select('*').order('created_at',{ascending:false}).limit(40);
+  if(error){
+    el.innerHTML=`<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">
+      <b>No se pudo leer el historial de altas.</b> <small>${escHtml(error.message)}</small><br>
+      <small>Falta la migración 021: ejecuta <b>021_altas_cuentas.sql</b>. El alta igual funciona; lo que no se guarda es quién la hizo.</small></div>`;
+    return;
+  }
+  const filas=data||[];
+  const verbos={verificada:'Verificada',creada:'Creada',clave_reiniciada:'Clave cambiada'};
+  el.innerHTML=`<h3 style="font-size:.95rem;margin:0 0 4px">Historial de altas</h3>
+    <small style="color:var(--muted)">Quién verificó o creó cada cuenta, y cuándo. Esto no se borra.</small>
+    ${filas.length?`<table style="margin-top:8px"><thead><tr>
+        <th class="izq">Correo</th><th>Qué se hizo</th><th>Resultado</th><th>Quién</th><th>Cuándo</th>
+      </tr></thead><tbody>${
+      filas.map(f=>{
+        const mal=f.resultado!=='ok';
+        return `<tr>
+          <td class="izq">${escHtml(f.correo)}</td>
+          <td><small>${escHtml(verbos[f.accion]||f.accion)}</small></td>
+          <td>${mal?'<span class="eppBadge sinFirma">Falló</span>':'<span class="eppBadge firmado">OK</span>'}</td>
+          <td><small>${escHtml(f.hecho_por_nombre||'—')}</small></td>
+          <td><small>${escHtml(fechaLegible(f.created_at))}</small></td>
+        </tr>`;
+      }).join('')}</tbody></table>`
+      :'<div style="margin-top:8px"><small>Todavía no hay altas registradas.</small></div>'}`;
 }
 
 // ============================================================
@@ -6545,7 +6873,10 @@ const MIGRACIONES_REQUERIDAS=[
   {n:'017',archivo:'017_marcajes_diarios.sql',tabla:'empresa',columna:'hora_entrada'},
   {n:'017',archivo:'017_marcajes_diarios.sql',tabla:'empresa',columna:'tolerancia_minutos'},
   {n:'018',archivo:'018_tarjetas_bloqueo.sql',tabla:'tarjetas',columna:'bloqueada_at'},
-  {n:'019',archivo:'019_invitaciones_perfiles.sql',tabla:'invitaciones',columna:null}
+  {n:'019',archivo:'019_invitaciones_perfiles.sql',tabla:'invitaciones',columna:null},
+  {n:'020',archivo:'020_rut_importacion_marcajes.sql',tabla:'trabajadores',columna:'rut'},
+  {n:'020',archivo:'020_rut_importacion_marcajes.sql',tabla:'marcajes_importaciones',columna:null},
+  {n:'021',archivo:'021_altas_cuentas.sql',tabla:'cuentas_altas',columna:null}
 ];
 // Traduce el error que devuelve PostgREST al nombre de la migración que
 // falta. Devuelve '' si el error no es de migración (es un problema real
