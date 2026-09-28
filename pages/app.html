@@ -1388,6 +1388,45 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
   </div>
 </section>
 
+<!--
+BITÁCORA DE AUDITORÍA
+====================
+Una bitácora que no se puede leer no sirve de nada: se cumpliría el papel de
+"guardar el rastro" sin que nadie pudiera revisarlo. Esta es la pantalla que
+lo lee.
+
+No es un registro que se pueda corregir desde acá, a propósito. Si alguien
+encuentra un cambio mal hecho, la respuesta es dejar OTRO cambio con su
+motivo, no reescribir el primero. Por eso no hay botones acá, y por eso la
+tabla no tiene permisos de UPDATE ni de DELETE ni en la base.
+
+Lo que se muestra es el antes y el después de cada cambio, porque un motivo
+sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
+-->
+<section class="view" id="v-auditoria">
+  <div class="card">
+    <h2>Bitácora de asistencia</h2>
+    <small>Quién cambió qué, cuándo y por qué. Es un registro que no se puede modificar ni borrar: ni desde la aplicación, ni desde la base de datos.
+      Si un cambio está mal, la forma de corregirlo es hacer otro cambio con su motivo, no reescribir este.</small>
+    <div class="row" style="margin-top:12px">
+      <div><label>Trabajador</label><select id="audWorker" onchange="renderAuditoria()"></select></div>
+      <div><label>Desde</label><input type="date" id="audDesde" onchange="renderAuditoria()"></div>
+      <div><label>Hasta</label><input type="date" id="audHasta" onchange="renderAuditoria()"></div>
+      <div><label>Quién lo hizo</label><select id="audUsuario" onchange="renderAuditoria()"></select></div>
+      <div><label>Tipo</label><select id="audAccion" onchange="renderAuditoria()">
+        <option value="">Todos</option>
+        <option value="inserta">Altas</option>
+        <option value="actualiza">Cambios</option>
+        <option value="borra">Borrados</option>
+      </select></div>
+    </div>
+    <div id="audResumen" style="margin-top:12px"></div>
+    <div id="audAviso" style="margin-top:10px"></div>
+    <div id="audLista" style="margin-top:12px"></div>
+    <div id="audMas" style="margin-top:12px;text-align:center"></div>
+  </div>
+</section>
+
 <div id="marcajeModal" role="dialog" aria-modal="true" aria-labelledby="marcajeModalTitle">
   <div class="mkBox">
     <h3 id="marcajeModalTitle">Marcaje registrado</h3>
@@ -1654,6 +1693,7 @@ const navGroups = {
     ]},
     {v:'asistencia',label:'Asistencia mensual'},{v:'exportar',label:'Exportar remuneraciones'},
     {v:'just-diaria',label:'Justificación diaria'},
+    {v:'auditoria',label:'Bitácora de asistencia'},
     {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
     {v:'aprobar-cambio',label:'Aprobar solicitudes'},
     {v:'porteria',label:'Consultar trabajador'}
@@ -1737,6 +1777,7 @@ function initView(v){
   if(v==='supervisores'){initSupervisores();}
   if(v==='sup-diaria'){initDiaria();}
   if(v==='just-diaria'){initJustificacionDiaria();}
+  if(v==='auditoria'){initAuditoria();}
   if(v==='asistencia'){
     showAttendancePanel('tarja');
     const yearInput=document.getElementById('matYear');
@@ -2114,7 +2155,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-k';
+const APP_VERSION='2026-09-28-l';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -3159,6 +3200,32 @@ function esCodigoNumerico(code){
   const s=String(code==null?'':code).trim();
   return s!==''&&/^\d+$/.test(s);
 }
+// Buscar un trabajador por un código escrito con otro relleno.
+//
+// "1", "01", "001" y "0001" son el mismo número, y en un Excel cada
+// persona los escribe como le sale. Comparar el texto tal cual ("1" contra
+// "0001") no encuentra a nadie, y el síntoma es desconcertante: el archivo
+// parece bien y la app dice que ningún código existe en la base.
+//
+// No se comparan los textos: se comparan como NÚMERO cuando los dos son
+// numéricos, y tal cual cuando no lo son. Un código alfanumérico ("TEMP-01")
+// nunca se relaja, porque ahí "TEMP-1" y "TEMP-01" podrían ser personas
+// distintas y adivinar mal sería peor que no encontrar.
+//
+// Se devuelve la ficha, no el código, para poder usar el código GUARDADO.
+// Es lo que evita escribir "1" contra un trabajador que en la base está
+// como "0001", que la llave foránea rechaza.
+function trabajadorPorCodigoTolerante(texto,lista){
+  const t=normalizarCodigo(texto);
+  if(!t)return null;
+  const base=(lista&&lista.length?lista:workers);
+  if(esCodigoNumerico(t)){
+    const n=Number(t);
+    const hit=base.find(w=>esCodigoNumerico(w.code)&&Number(w.code)===n);
+    if(hit)return hit;
+  }
+  return base.find(w=>normalizarCodigo(w.code)===t)||null;
+}
 function codigoMostrar(code){
   const s=String(code==null?'':code).trim();
   if(!esCodigoNumerico(s))return s;
@@ -3714,7 +3781,9 @@ async function registrarMarcaje(code,tipo,origen,nota,horaPedida){
   // La entrada deja la asistencia en X con la hora, para que la tarja lo
   // vea al tiro sin tener que sincronizar nada más.
   if(tipo==='entrada'){
-    await saveAttendanceState(code,fechaDiaria,'X');
+    await saveAttendanceState(code,fechaDiaria,'X',hora,{
+      motivo:motivoDeMarcaje('Marcaje de entrada',{'tipo':tipo,'origen':origen||'qr','hora':hora})
+    });
     const rec=attendance.find(a=>a.code===code&&a.date===fechaDiaria);
     if(rec)rec.hora_llegada=hora;
   }
@@ -4212,7 +4281,14 @@ async function marcarRelojConHoraAhora(code,fecha){
     return;
   }
   await loadMarcajesDia();
-  const guardado=await saveAttendanceState(code,dia,'X',hora);
+  const guardado=await saveAttendanceState(code,dia,'X',hora,{
+    // Hora provisional: la de ahora, no la real del reloj. Queda dicho en
+    // la bitácora para que dentro de un mes no se confunda con una hora
+    // confirmada por el reloj.
+    motivo:motivoDeMarcaje('Marcó reloj desde la app; hora provisional',{
+      'día':dia,'hora anotada':hora,'reloj':'sin confirmar, lo corrige el Excel de mañana'
+    })
+  });
   renderJustificacionDiaria();
   if(!guardado)alert('Se registró el marcaje, pero la planilla no se pudo actualizar. Revisá Soporte → Diagnóstico.');
   else alert('Marcaje registrado a las '+hora+'.\n\nLa hora es la de ahora. Cuando cargues el Excel del reloj, se corrige con la real.');
@@ -4691,7 +4767,11 @@ async function conciliarMarcar(code,tipo){
 
   // 2) La planilla, SIEMPRE. Es lo que faltaba.
   const hora=reloj?reloj.hora:hhmmActual();
-  const guardado=await saveAttendanceState(code,fechaDiaria,'X',hora);
+  const guardado=await saveAttendanceState(code,fechaDiaria,'X',hora,{
+    motivo:motivoDeMarcaje(reloj?'Conciliado con el marcaje del reloj':'Marcaje manual sin marcaje del reloj',{
+      'tipo':tipo,'hora':hora,'reloj':reloj?reloj.tipo+' '+reloj.hora:'no registró'
+    })
+  });
   if(guardado===false){
     alert('El marcaje quedó, pero la planilla no se pudo actualizar. '+
       'Revísala a mano antes de que termine el turno.');
@@ -4784,7 +4864,27 @@ function hhmmDe(h,m){
 // bisiesto de 1900, que ya viene corregido en ese número).
 function fechaDesdeValor(valor){
   if(valor instanceof Date){
-    return isNaN(valor.getTime())?'':isoLocal(valor);
+    if(isNaN(valor.getTime()))return '';
+    // OJO CON ESTO, que es un error de un día.
+    //
+    // SheetJS convierte una celda que SOLO tiene fecha a la medianoche UTC.
+    // En Chile (UTC-3) esa medianoche son las 21:00 del día ANTERIOR, así
+    // que leer la fecha con getDate() devuelve el 27 cuando la celda dice
+    // 28. Se cargaba la asistencia entera corrida un día, y no se notaba:
+    // 28 de septiembre parece un día tan bueno como cualquier otro.
+    //
+    // La diferencia se nota comparando la medianoche UTC con la local. Si
+    // coinciden, la celda no tiene hora: se lee en UTC, que es como la
+    // escribió el reloj. Si no coinciden, es una fecha con hora de verdad y
+    // se lee en hora local, que es lo que quiere decir.
+    const esMedianocheUtc=valor.getUTCHours()===0&&valor.getUTCMinutes()===0
+      &&valor.getUTCSeconds()===0&&valor.getUTCMilliseconds()===0;
+    if(esMedianocheUtc){
+      return String(valor.getUTCFullYear())+'-'
+        +String(valor.getUTCMonth()+1).padStart(2,'0')+'-'
+        +String(valor.getUTCDate()).padStart(2,'0');
+    }
+    return isoLocal(valor);
   }
   if(valor==null||valor==='')return '';
   if(typeof valor==='number'&&isFinite(valor)){
@@ -4863,6 +4963,15 @@ async function analizarMarcajesExcel(){
     msg.innerHTML='<small class="gpsWarn">El archivo no tiene filas.</small>';
     return;
   }
+  // ¿Se eligió la pestaña equivocada? Es el mismo error al revés: una
+  // planilla no tiene filas que se puedan leer como fichajes, y sin esto
+  // el mensaje sería "0 marcajes listos" sin explicar por qué.
+  const formato=detectarFormatoExcel(filas);
+  if(formato==='planilla'){
+    archivoExcelParaMarcajes=archivo;
+    avisoFormatoEquivocado(msg,formato,archivo.name);
+    return;
+  }
 
   const analisis=analizarFilasDeMarcajes(filas);
   marcajesPendientesDeImportar=analisis;
@@ -4886,22 +4995,7 @@ async function analizarMarcajesExcel(){
 }
 
 function leerFilasDeMarcajes(archivo){
-  return new Promise((resolver,rechazar)=>{
-    const lector=new FileReader();
-    lector.onerror=()=>rechazar(new Error('No se pudo abrir el archivo.'));
-    lector.onload=e=>{
-      try{
-        const libro=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
-        const hoja=libro.Sheets[libro.SheetNames[0]];
-        if(!hoja)throw new Error('El archivo no tiene hojas.');
-        // raw:false deja los números como texto, para que la fecha y la
-        // hora se lean con las funciones de más arriba y no dependan de
-        // en qué zona horaria está el navegador.
-        resolver(XLSX.utils.sheet_to_json(hoja,{defval:''}));
-      }catch(error){rechazar(error);}
-    };
-    lector.readAsArrayBuffer(archivo);
-  });
+  return leerPrimeraHoja(archivo);
 }
 
 // Revisa cada fila y decide a qué trabajador pertenece. NO escribe nada.
@@ -5592,28 +5686,203 @@ function refreshAttendanceMatrix(){
   if(document.getElementById('v-supervisores').classList.contains('active'))renderSupervisorMatrix();
   else renderMatrix();
 }
+// ------------------------------------------------------------------
+// EL MOTIVO DEL CAMBIO
+// ------------------------------------------------------------------
+// Por qué un cuadro propio y no un prompt(): el motivo queda guardado para
+// siempre en la bitácora, así que no es un dato de paso. Con prompt() no se
+// ve qué se está cambiando, ni se puede corregir, y el texto se pierde si
+// alguien aprieta Cancelar sin querer.
+//
+// La base de datos es la que exige el motivo (migración 028): si falta,
+// rechaza la escritura. Esta función no lo pide "para ser buena", lo pide
+// porque la base lo va a rechazar. Por eso `guardarAsistencia` primero
+// intenta y, si la base dice "falta el motivo", recién ahí abre el cuadro.
+// Un camino nuevo que se olvide del motivo no deja un cambio sin rastro:
+// deja un error, que es justo lo que hay que ver.
+function motivoEsValido(motivo){
+  return String(motivo||'').trim().length>=5;
+}
+function faltaMotivoEnElError(error){
+  const t=String((error&&error.message)||error||'').toLowerCase();
+  return t.includes('motivo')&&(t.includes('falta')||t.includes('escribe')||t.includes('minimo'));
+}
+// ¿El error es "la 028 todavía no está aplicada"?
+//
+// Se separa de `faltaMotivoEnElError` porque son dos Cosas distintas con
+// dos arreglos distintos: una se arregla escribiendo el motivo, la otra
+// aplicando la migración. Decir "no se pudo actualizar la asistencia:
+// function registrar_asistencia does not exist" no dice ninguna de las dos
+// cosas, y deja a la persona pensando que la asistencia está rota.
+function errorEsAuditoriaSinMigrar(error){
+  const t=String((error&&error.message)||error||'');
+  return /registrar_asistencia|asistencia_auditoria|auditar_asistencia/.test(t)
+    &&/does not exist|no existe|not exist|undefined function|42883|42P01/i.test(t);
+}
+// Devuelve el motivo escrito, o null si la persona se arrepiente.
+// No es async: resuelve con callbacks, porque el cuadro es un <dialog>
+// nativo y se cierra con close().
+function pedirMotivoCambio(opciones){
+  const dlg=document.getElementById('dlgMotivo');
+  const ta=document.getElementById('motivoTexto');
+  const info=document.getElementById('motivoInfo');
+  const err=document.getElementById('motivoError');
+  document.getElementById('motivoTitulo').textContent=opciones.titulo||'Por qué hacés este cambio';
+  info.innerHTML=opciones.detalle||'';
+  // El texto de ayuda va como PLACEHOLDER, no escrito en el cuadro.
+  //
+  // Si estuviera escrito, apretar "Guardar" sin tocar nada guardaría esa
+  // frase como motivo, y la bitácora se llenaría de "Jonathan Castro —
+  // sin marca → V — Vacaciones:", que repite lo que ya está escrito
+  // arriba y no dice POR QUÉ. Un motivo que no explica nada es peor que
+  // ningún motivo: en una auditoría parece que alguien lo escribió.
+  ta.value='';
+  ta.placeholder=opciones.sugerido||'';
+  err.textContent='';
+  ta.oninput=()=>{err.textContent='';};
+  return new Promise(resolve=>{
+    // El resultado se guarda en una variable y se resuelve UNA sola vez.
+    //
+    // Antes se resolvía desde onclose leyendo el cuadro, y eso hacía que
+    // apretar ESC guardara lo que hubiera escrito: ESC es cancelar, y con
+    // ese comportamiento cerraba el cuadro guardando un motivo que nadie
+    // había confirmado. Ahora ESC, el botón Cancelar y el clic afuera dan
+    // todos cancelar.
+    let resultado=null;
+    let yaRespondido=false;
+    const responder=valor=>{
+      if(yaRespondido)return;
+      yaRespondido=true;
+      resolve(valor);
+    };
+    dlg.onclose=()=>responder(resultado);
+    document.getElementById('motivoAceptar').onclick=()=>{
+      if(!motivoEsValido(ta.value)){
+        // No se cierra: se avisa adentro. Cerrar y abrir de nuevo para
+        // corregir el texto es la forma más rápida de que alguien escriba
+        // cualquier cosa y apriete Aceptar.
+        err.textContent='Escribí el motivo: al menos 5 caracteres. Queda guardado en la bitácora.';
+        ta.focus();
+        return;
+      }
+      resultado=ta.value.trim();
+      dlg.close();
+    };
+    document.getElementById('motivoCancelar').onclick=()=>{
+      resultado=null;
+      dlg.close();
+    };
+    dlg.showModal();
+    ta.focus();
+  });
+}
+// El motivo de los cambios que NO son correcciones.
+//
+// Un marcaje real no es una corrección del registro: es el hecho de que la
+// persona estuvo ahí. Pedirle a alguien que explique por qué fichó sería
+// absurdo. Pero igual queda trazado, porque ES un cambio de la planilla y
+// en un mes de 46 personas no se distingue de los demás.
+//
+// El texto dice exactamente lo que pasó, con quién y a qué hora. No inventa
+// una justificación: si alguien lo revisa dentro de un año, tiene que ser
+// verdad. Que el reloj lo confirme después queda anotado, que es lo que
+// hace que esta fila sea provisional y no una afirmación.
+function motivoDeMarcaje(que,datos){
+  const quien=miNombrePerfil();
+  const extras=Object.entries(datos||{})
+    .filter(([,v])=>v!==null&&v!==undefined&&v!=='')
+    .map(([k,v])=>k+': '+v)
+    .join(' · ');
+  return que+(quien?' por '+quien:'')+(extras?' ('+extras+')':'');
+}
+// Un texto listo para el motivo, con lo que ya se sabe del cambio. Sirve de
+// punto de partida: la persona casi siempre tiene que agregar el detalle que
+// importa, y no tiene que volver a tipear el nombre del trabajador.
+function motivoSugerido(code,iso,estadoNuevo){
+  const w=workers.find(x=>x.code===code);
+  const nombre=w?w.name:code;
+  const actual=attendance.find(r=>r.code===code&&r.date===iso);
+  const antes=actual?ESTADOS_TARJA.find(e=>e.v===actual.estado)?.t||actual.estado:'sin marca';
+  const despues=estadoNuevo
+    ?(ESTADOS_TARJA.find(e=>e.v===estadoNuevo)?.t||estadoNuevo)
+    :'quitar la marca';
+  return nombre+' — '+antes+' → '+despues+': ';
+}
+// Escribe por la función de la base, no con un upsert suelto, para que el
+// motivo quede atado a la escritura en la misma transacción. Si se hicieran
+// por separado, el motivo se perdería en el camino.
+async function guardarAsistencia(code,iso,estado,hora,motivo,nota,origen){
+  const {error}=await window.supabaseClient.rpc('registrar_asistencia',{
+    p_code:code, p_fecha:iso, p_estado:estado,
+    p_hora_llegada:hora||null, p_nota:nota||null,
+    p_origen:origen||'manual', p_motivo:motivo
+  });
+  return error;
+}
+function avisarFallaAuditoria(error){
+  const mensaje=String((error&&error.message)||error);
+  alert('No se pudo guardar el cambio en la asistencia.\n\n'+
+    mensaje+'\n\nLo que falta es aplicar la migración 028_auditoria_asistencia.sql '+
+    '(en el SQL Editor de Supabase). Hasta que exista, los cambios manuales a la '+
+    'asistencia NO quedan registrados: por eso no se guardan en vez de guardarlos sin rastro.\n\n'+
+    'No se guardó nada: la asistencia sigue como estaba.');
+}
 // Devuelve true si se guardó. Importante: quien aprueba una solicitud
 // necesita saber si el cambio entró de verdad antes de marcarla aprobada.
 // "hora" es opcional: si se pasa, se guarda esa; si no, se conserva la que
 // hubiera. La conciliación lo necesita, porque lleva la hora del reloj a
 // la planilla y sin esto quedaba en blanco, que es justo el dato que
 // después se usa para comparar.
-async function saveAttendanceState(code,iso,state,hora){
+//
+// "opciones.motivo" es para los caminos que YA saben por qué: la
+// justificación que aprobó administración, la conciliación con el reloj.
+// Esos no abren el cuadro. Los que no lo traen, lo piden.
+async function saveAttendanceState(code,iso,state,hora,opciones){
+  opciones=opciones||{};
   const existing=attendance.find(record=>record.code===code&&record.date===iso);
-  if(!state||state==='__auto__'){
-    if(existing){
-      const {error}=await window.supabaseClient.from('asistencia').delete().eq('code',code).eq('fecha',iso);
-      if(error){alert('No se pudo quitar la marca: '+error.message);await loadAttendanceFromDB();refreshAttendanceMatrix();return false;}
-    }
-  }else{
-    const nuevaHora=state==='X'
-      ? String(hora||existing?.hora_llegada||'').slice(0,5)
-      : '';
+  const origen=opciones.origen||'manual';
+  // La carga del Excel va directo y sin motivo: son cientos de miles de
+  // filas de una fuente externa, y meterlas en la bitácora taparía las
+  // correcciones a mano, que son las que hay que revisar.
+  if(opciones.sinAuditoria){
+    const nuevaHora=state==='X'?String(hora||existing?.hora_llegada||'').slice(0,5):'';
     const {error}=await window.supabaseClient.from('asistencia').upsert(
-      attToDb({code,date:iso,estado:state,hora_llegada:nuevaHora,nota:existing?.nota||'',origen:'manual'}),
+      attToDb({code,date:iso,estado:state,hora_llegada:nuevaHora,nota:existing?.nota||'',origen}),
       {onConflict:'code,fecha'}
     );
     if(error){alert('No se pudo actualizar la asistencia: '+error.message);await loadAttendanceFromDB();refreshAttendanceMatrix();return false;}
+    await loadAttendanceFromDB();
+    refreshAttendanceMatrix();
+    return true;
+  }
+  let motivo=opciones.motivo||'';
+  if(!motivoEsValido(motivo)){
+    const pedido=await pedirMotivoCambio({
+      titulo:opciones.titulo||'Por qué cambiás la asistencia',
+      detalle:'<b>'+escHtml((workers.find(x=>x.code===code)||{}).name||code)+'</b> — '+escHtml(iso)+
+        (state?'<br>Se va a dejar como <b>'+escHtml((ESTADOS_TARJA.find(e=>e.v===state)||{}).t||state)+'</b>':'<br>Se va a <b>quitar la marca</b>')+
+        (hora?' a las <b>'+escHtml(String(hora).slice(0,5))+'</b>':'')+
+        '<br><small>Queda registrado con tu nombre y la hora. No se puede borrar después.</small>',
+      sugerido:opciones.sugerido||motivoSugerido(code,iso,state)
+    });
+    if(!pedido)return false;
+    motivo=pedido;
+  }
+  const nuevaHora=state==='X'?String(hora||existing?.hora_llegada||'').slice(0,5):'';
+  let error=await guardarAsistencia(code,iso,state,nuevaHora,motivo,
+    opciones.nota!==undefined?opciones.nota:(existing?.nota||''),origen);
+  if(error){
+    // La base no tiene la función, o la 028 no está aplicada. Decirlo
+    // claro: si no, el mensaje "function does not exist" no dice que lo
+    // que falta es aplicar una migración.
+    if(errorEsAuditoriaSinMigrar(error)||faltaMotivoEnElError(error)){
+      avisarFallaAuditoria(error);
+      await loadAttendanceFromDB();refreshAttendanceMatrix();
+      return false;
+    }
+    alert('No se pudo actualizar la asistencia: '+error.message);
+    await loadAttendanceFromDB();refreshAttendanceMatrix();
+    return false;
   }
   await loadAttendanceFromDB();
   refreshAttendanceMatrix();
@@ -5672,48 +5941,229 @@ function toggleDay(iso){
   renderMatrix();
 }
 
-function loadAttendance(){
+// ------------------------------------------------------------------
+// LOS DOS EXCEL, Y CÓMO SABER CUÁL ES
+// ------------------------------------------------------------------
+// Hay dos importadores y piden archivos con formas distintas:
+//
+//  - el del RELOJ (pestaña "Registrar marcaje"): el reporte de RelojControl,
+//    con Tipo/Evento, Rut, Colaborador, Fecha y Hora. Cada fila es un
+//    fichaje.
+//  - el de la PLANILLA (esta pestaña): columnas codigo, fecha, estado,
+//    hora_llegada. Cada fila es el resumen del día de un trabajador.
+//
+// Antes no se distinguían. Si elegías el archivo equivocado, el único
+// mensaje era "no se encontraron filas válidas (revisa columnas codigo y
+// fecha)", que no dice nada de qué hay que hacer. Ahora se mira el
+// encabezado y se dice qué es el archivo y a dónde va.
+const FORMATO_EXCEL={
+  reloj:['tipo','evento','rut','colaborador','dispositivo'],
+  planilla:['codigo','estado','hora_llegada','tipo_permiso']
+};
+function detectarFormatoExcel(filas){
+  if(!filas||!filas.length)return 'desconocido';
+  // Se miran los encabezados de las primeras filas con datos, no solo la
+  // primera: algunos exportadores dejan una fila de título antes.
+  const claves=new Set();
+  filas.slice(0,5).forEach(f=>Object.keys(f||{}).forEach(k=>claves.add(normalizar(k))));
+  const tiene=n=>[...claves].some(k=>k===n||k.indexOf(n)===0);
+  const puntua=formato=>FORMATO_EXCEL[formato].filter(tiene).length;
+  const reloj=puntua('reloj');
+  const planilla=puntua('planilla');
+  if(reloj>=2&&reloj>=planilla)return 'reloj';
+  if(planilla>=1)return 'planilla';
+  if(reloj>=1)return 'reloj';
+  return 'desconocido';
+}
+function leerPrimeraHoja(archivo){
+  return new Promise((resolver,rechazar)=>{
+    const lector=new FileReader();
+    lector.onerror=()=>rechazar(new Error('No se pudo abrir el archivo.'));
+    lector.onload=e=>{
+      try{
+        // cellDates:true para que las columnas de fecha lleguen como Date.
+        // Sin esto llegan como número de serie (46293) y no hay forma
+        // saber que es una fecha.
+        const libro=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+        const hoja=libro.Sheets[libro.SheetNames[0]];
+        if(!hoja)throw new Error('El archivo no tiene hojas.');
+        // Y raw NO se pone en false, a propósito: la hora del reloj viene
+        // como fracción del día (0,3188 = 07:39) y como número de Excel
+        // (21 = 21:00). Con raw:false los dos llegan como texto y
+        // `horaDesdeValor` los reconocería solo por el patrón "07:45", que
+        // no existe en "0.31883": la hora se leería vacía.
+        //
+        // Es un error silencioso: el marcaje se guardaría sin hora y nadie
+        // vería el problema hasta la conciliación, que es dos días después.
+        resolver(XLSX.utils.sheet_to_json(hoja,{defval:''}));
+      }catch(error){rechazar(error);}
+    };
+    lector.readAsArrayBuffer(archivo);
+  });
+}
+function avisoFormatoEquivocado(contenedor,formatoDetectado,nombre){
+  if(!contenedor)return;
+  if(formatoDetectado==='reloj'){
+    contenedor.innerHTML=
+      '<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">'+
+      '<b>Este archivo es el reporte del reloj, no una planilla.</b><br>'+
+      'Trae columnas <b>Tipo</b>, <b>Evento</b>, <b>Rut</b>, <b>Colaborador</b> y <b>Dispositivo</b>: '+
+      'cada fila es un fichaje, no el resumen de un día. Por eso acá no se encontró nada que cargar.<br><br>'+
+      '<button class="btn primary" type="button" onclick="llevarArchivoAlMarcajes()">Cargarlo en la pestaña de marcajes</button> '+
+      '<small style="display:block;margin-top:6px">O ve a <b>Registrar marcaje → Importar marcajes desde Excel</b> y selecciónalo ahí.</small>'+
+      '</div>';
+  }else if(formatoDetectado==='planilla'){
+    contenedor.innerHTML=
+      '<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">'+
+      '<b>Este archivo es una planilla, no el reporte del reloj.</b><br>'+
+      'Trae columnas de <b>codigo</b>, <b>fecha</b> y <b>estado</b>: cada fila es el resumen del día de un trabajador.<br><br>'+
+      '<button class="btn primary" type="button" onclick="llevarArchivoAlMarcajes()">Ir a la pestaña correcta</button>'+
+      '</div>';
+  }
+}
+// Pasa el archivo que ya estaba elegido a la pestaña de marcajes, para que
+// no haya que buscarlo otra vez en el disco.
+//
+// Un input de archivos no se puede rellenar por código: no hay forma de
+// asignarle un File. Así que se abre la pestaña correcta, se le pone el
+// nombre del archivo arriba y se pide seleccionarlo de nuevo. Decirlo es
+// mejor que fingir que se cargó, y mejor que hacerlo buscar en "Recent
+// Files" algo que ya tenía abierto.
+let archivoExcelParaMarcajes=null;
+function llevarArchivoAlMarcajes(){
+  if(!archivoExcelParaMarcajes)return;
+  showView('asistencia');
+  const tab=document.querySelector('[data-attendance-tab="marcaje"]');
+  if(tab)tab.click();
+  setTimeout(()=>{
+    const box=document.getElementById('marcajesExcelMsg');
+    if(box)box.innerHTML='<div class="gpsWarn">Estás en la pestaña correcta. Selecciona de nuevo '+
+      '<b>'+escHtml(archivoExcelParaMarcajes.name)+'</b> y aprieta <b>Revisar archivo</b>.</div>';
+  },150);
+}
+async function loadAttendance(){
   if(!exigirPermiso('tarja.excel','No tienes permiso para cargar asistencia desde Excel.'))return;
   const f=document.getElementById('attFile').files[0];
+  const salida=document.getElementById('loadMsg');
   if(!f){alert('Selecciona un archivo');return;}
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try{
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      const sheet=wb.Sheets[wb.SheetNames[0]];
-      const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
-      const built=[];
-      rows.forEach(r=>{
-        const code=String(r.codigo||r.Codigo||r.CODIGO||'').trim();
-        let fecha=r.fecha||r.Fecha||r.FECHA;
-        if(fecha instanceof Date) fecha=isoLocal(fecha);
-        fecha=String(fecha).trim();
-        if(!code||!fecha)return;
-        let estado=String(r.estado||r.Estado||'').trim().toUpperCase();
-        const horaLlegada=String(r.hora_llegada||r.Hora||'').trim();
-        if(!estado){
-          // compatibilidad con formato anterior (tipo_permiso / permiso)
-          const tipo=String(r.tipo_permiso||'').trim().toLowerCase();
-          if(horaLlegada) estado='X';
-          else if(tipo.includes('lluvia')) estado='LL';
-          else if(tipo.includes('licencia')) estado='L';
-          else if(tipo.includes('accidente')) estado='A';
-          else if(tipo.includes('pagado')) estado='PP';
-          else if(tipo.includes('vacacion')) estado='V';
-          else if(tipo.includes('permiso')||String(r.permiso||'').trim()) estado='P';
-          else estado='F';
-        }
-        built.push({code,date:fecha,estado,hora_llegada:horaLlegada,nota:String(r.nota||'').trim(),origen:'importado'});
-      });
-      if(!built.length){document.getElementById('loadMsg').innerHTML='<small style="color:var(--danger)">No se encontraron filas válidas (revisa columnas "codigo" y "fecha").</small>';return;}
-      const {error}=await window.supabaseClient.from('asistencia').upsert(built.map(attToDb),{onConflict:'code,fecha'});
-      if(error){document.getElementById('loadMsg').innerHTML=`<small style="color:var(--danger)">Error guardando en la base de datos: ${error.message}</small>`;return;}
-      await loadAttendanceFromDB();
-      document.getElementById('loadMsg').innerHTML=`<small>${built.length} registros cargados.</small>`;
-      renderMatrix();
-    }catch(err){document.getElementById('loadMsg').innerHTML=`<small style="color:var(--danger)">Error leyendo archivo: ${err.message}</small>`;}
-  };
-  reader.readAsArrayBuffer(f);
+  archivoExcelParaMarcajes=f;
+  salida.innerHTML='<small>Leyendo el archivo…</small>';
+  let filas;
+  try{
+    filas=await leerPrimeraHoja(f);
+  }catch(error){
+    salida.innerHTML='<small style="color:var(--danger)">No se pudo leer el archivo: '+escHtml(error.message)+'</small>';
+    return;
+  }
+  if(!filas.length){salida.innerHTML='<small style="color:var(--danger)">El archivo no tiene filas.</small>';return;}
+
+  // ¿Es el archivo equivocado? Se dice antes deyar de revisar, porque el
+  // error de más abajo ("no se encontraron filas válidas") no lo aclara.
+  const formato=detectarFormatoExcel(filas);
+  if(formato!=='planilla'&&formato!=='desconocido'){avisoFormatoEquivocado(salida,formato,f.name);return;}
+
+  const built=[];
+  const sinFecha=[];
+  const codigoDesconocido=[];
+  filas.forEach(r=>{
+    const leido=String(valorDeColumna(r,['codigo','cod','code','nro','numero'])??'').trim();
+    const fecha=fechaDesdeValor(valorDeColumna(r,['fecha','dia','fec']));
+    if(!leido||!fecha){
+      if(leido&&!fecha)sinFecha.push(leido);
+      return;
+    }
+    // Se busca al trabajador y se guarda SU código, no el texto del Excel.
+    //
+    // Es lo que evita dos problemas que serían muy molestos:
+    //  - en el Excel alguien escribe 1, 01, 001 o 0001 y los cuatro son el
+    //    mismo trabajador;
+    //  - asistencia tiene llave foránea a trabajadores.code. Si se
+    //    guardara el texto tal cual, "1" no entraría contra un trabajador
+    //    guardado como "0001", y el error de la base ("violates foreign
+    //    key constraint") no dice qué fila era ni por qué.
+    const ficha=trabajadorPorCodigoTolerante(leido,workers)
+      ||trabajadorPorCodigoTolerante(leido,todosWorkers);
+    if(!ficha){codigoDesconocido.push(leido);return;}
+    const code=ficha.code;
+    let estado=normalizar(valorDeColumna(r,['estado','estado asistencia','situacion'])).toUpperCase();
+    if(!ESTADOS_TARJA.some(e=>e.v===estado)){
+      // compatibilidad con formato anterior (tipo_permiso / permiso)
+      const tipo=normalizar(valorDeColumna(r,['tipo_permiso','tipo permiso','permiso']));
+      const horaLlegada=horaDesdeValor(valorDeColumna(r,['hora_llegada','hora llegada','hora','ingreso']));
+      if(estado&&!ESTADOS_TARJA.some(e=>e.v===estado)){
+        if(/lluvia/.test(tipo))estado='LL';
+        else if(/licencia/.test(tipo))estado='L';
+        else if(/accidente/.test(tipo))estado='A';
+        else if(/pagado/.test(tipo))estado='PP';
+        else if(/vacacion/.test(tipo))estado='V';
+        else if(/permiso/.test(tipo))estado='P';
+        else if(/falta/.test(tipo))estado='F';
+      }
+      if(!ESTADOS_TARJA.some(e=>e.v===estado))estado=horaLlegada?'X':'F';
+    }
+    const hora=horaDesdeValor(valorDeColumna(r,['hora_llegada','hora llegada','hora','ingreso']));
+    built.push({code,date:fecha,estado,hora_llegada:hora,
+      nota:String(valorDeColumna(r,['nota','observacion','comentario'])||'').trim(),origen:'importado'});
+  });
+
+  if(!built.length){
+    // Ahora sí se puede decir algo útil: qué se buscó y qué se encontró.
+    const encabezado=Object.keys(filas[0]||{}).join(', ');
+    salida.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+      '<b>No se encontró ninguna fila que se pueda cargar.</b><br>'+
+      'Se busca un <b>codigo</b> y una <b>fecha</b> en cada fila.<br>'+
+      'Columnas del archivo: <small>'+escHtml(encabezado||'(ninguna)')+'</small><br>'+
+      (codigoDesconocido.length?'<br>Códigos que no están en la base: '+escHtml([...new Set(codigoDesconocido)].slice(0,12).join(', '))+
+        (codigoDesconocido.length>12?' … y '+(codigoDesconocido.length-12)+' más':'')+'<br>':'')+
+      (sinFecha.length?'<br>Filas con código pero sin fecha legible: '+escHtml([...new Set(sinFecha)].slice(0,12).join(', '))+'<br>':'')+
+      '<br><small>Si el archivo tiene las columnas del reloj (Tipo, Evento, Rut, Colaborador), es el reporte de marcajes y va en la otra pestaña.</small>'+
+      '</div>';
+    return;
+  }
+  const problemas=[];
+  if(codigoDesconocido.length)problemas.push(codigoDesconocido.length+' fila(s) con un código que no está en la base (se saltaron)');
+  if(sinFecha.length)problemas.push(sinFecha.length+' fila(s) sin fecha legible (se saltaron)');
+  if(problemas.length){
+    salida.innerHTML='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:10px">'+
+      '<b>Faltan datos en algunas filas:</b><ul style="margin:4px 0 0;padding-left:18px">'+
+      problemas.map(p=>'<li>'+escHtml(p)+'</li>').join('')+'</ul>'+
+      // Los códigos se nombran uno por uno. Decir "hay 1 que no existe"
+      // obliga a abrir el Excel a buscarlo; nombrarlo lo hace evidente que
+      // es un código mal escrito y no un trabajador que falta.
+      (codigoDesconocido.length?'<p style="margin:6px 0 0">Códigos que no están en la base: <b>'+
+        escHtml([...new Set(codigoDesconocido)].slice(0,20).join(', '))+'</b>'+
+        (codigoDesconocido.length>20?' … y '+(codigoDesconocido.length-20)+' más':'')+
+        '<br><small>Si el trabajador existe, es que el código está mal escrito en el Excel. Si no existe, cárgalo en la ficha de trabajadores primero.</small></p>':'')+
+      (sinFecha.length?'<p style="margin:6px 0 0">Filas con código pero sin fecha legible: <b>'+
+        escHtml([...new Set(sinFecha)].slice(0,20).join(', '))+'</b></p>':'')+
+      '</div>'+
+      '<div><b>'+built.length+'</b> registro(s) listos para cargar. '+
+      '<button class="btn primary" type="button" onclick="confirmarCargaPlanilla()">Cargar '+built.length+'</button></div>';
+    filasPendientesDeCarga=built;
+    return;
+  }
+  filasPendientesDeCarga=built;
+  salida.innerHTML='<div><b>'+built.length+'</b> registro(s) listos para cargar. '+
+    '<button class="btn primary" type="button" onclick="confirmarCargaPlanilla()">Cargar '+built.length+'</button></div>';
+}
+// Botón aparte del "Cargar", para que escribir 200 filas en la planilla sea
+// una decisión y no el efecto secundario de elegir un archivo.
+let filasPendientesDeCarga=null;
+async function confirmarCargaPlanilla(){
+  const built=filasPendientesDeCarga;
+  if(!built||!built.length)return;
+  const salida=document.getElementById('loadMsg');
+  if(!confirm(`Se van a escribir ${built.length} registros en la tarja.\n\nSi algún día ya tiene estado, se sobrescribe.\n\n¿Continuar?`))return;
+  salida.innerHTML='<small>Guardando…</small>';
+  // origen 'importado': la carga del Excel no deja traza en la bitácora.
+  // Son cientos de miles de filas de una fuente externa y taparían las
+  // correcciones a mano, que son las que hay que revisar.
+  const {error}=await window.supabaseClient.from('asistencia').upsert(built.map(attToDb),{onConflict:'code,fecha'});
+  if(error){salida.innerHTML='<small style="color:var(--danger)">Error guardando en la base de datos: '+escHtml(error.message)+'</small>';return;}
+  filasPendientesDeCarga=null;
+  await loadAttendanceFromDB();
+  salida.innerHTML='<small>'+built.length+' registros cargados.</small>';
+  renderMatrix();
 }
 
 // ---------- tarjeta temporal (billetera) ----------
@@ -9229,6 +9679,7 @@ const VISTAS_POR_PERMISO={
   'v-supervisores':'tarja.ver',
   'v-sup-diaria':'tarja.marcaje',
   'v-just-diaria':'tarja.justificar',
+  'v-auditoria':'asistencia.auditar',
   'v-aprobar-cambio':'tarja.aprobar_cambio',
   'v-usuarios':'sistema.usuarios',
   'v-invitar-usuario':'sistema.usuarios',
@@ -9305,6 +9756,9 @@ async function loadPermisosUsuario(){
   // Si las dos cosas se desalinean, el síntoma es "envié la solicitud y no
   // aparece en la cola", así que se comprueba y se avisa en pantalla.
   if(typeof comprobarPermisos==='function')comprobarPermisos();
+  // Va junto a la otra: si la bitácora no está puesta, es tan importante
+  // verlo al entrar como la coherencia de permisos.
+  if(typeof comprobarAuditoria==='function')comprobarAuditoria();
   if(typeof revisarPerfilIncompleto==='function')revisarPerfilIncompleto();
 }
 
@@ -9458,6 +9912,179 @@ async function comprobarPermisos(){
     }
   }catch(error){
     console.info('No se pudo comprobar la coherencia de permisos:',error.message);
+  }
+}
+
+// ============================================================
+// LA BITÁCORA, PARA PODER LEERLA
+// ============================================================
+// Sin esta pantalla, la bitácora se llenaría y nadie podría revisarla: el
+// papel de "guardar el rastro" estaría cumplido y el de "poder comprobarlo" no.
+//
+// No hay botones para corregir ni borrar nada, a propósito. Si un cambio está
+// mal, la forma de arreglarlo es hacer OTRO cambio con su motivo. Es lo que hace
+// que la bitácora sirva: si se pudiera editar, "quién cambió qué" dejaría de
+// ser una pregunta con respuesta.
+//
+// Se lee por páginas de 200. Alguien que corrige mucho genera miles de trazas, y
+// traerlas todas de una vez hace la app lenta sin agregar nada.
+const AUD_PAGINA=200;
+let auditoriaTrazas=[];
+let auditoriaCargada=false;
+let auditoriaTotal=0;
+let auditoriaError='';
+async function initAuditoria(){
+  const hoy=hoyLocal();
+  const desde=document.getElementById('audDesde');
+  const hasta=document.getElementById('audHasta');
+  // Un mes para atrás por omisión: es donde está el trabajo del mes en curso, y un
+  // rango enorme solo muestra ruido de hace un año.
+  if(!desde.value)desde.value=isoLocal(new Date(new Date(hoy+'T12:00:00').getTime()-30*86400000));
+  if(!hasta.value)hasta.value=hoy;
+  fillAuditoriaFiltros();
+  await loadAuditoria();
+}
+function fillAuditoriaFiltros(){
+  const sel=document.getElementById('audWorker');
+  const anterior=sel.value;
+  const vis=codigosVisibles(workers);
+  sel.innerHTML='<option value="">Todos los trabajadores</option>'+
+    workers.slice().sort((a,b)=>compararPorCodigo(a.code,b.code)||a.name.localeCompare(b.name))
+      .map(w=>'<option value="'+escHtml(w.code)+'">'+escHtml((vis.get(w.code)||codigoMostrar(w.code))+' — '+w.name)+'</option>').join('');
+  if([...sel.options].some(o=>o.value===anterior))sel.value=anterior;
+  // El filtro de "quién lo hizo" se arma con lo que hay en las trazas ya leídas, no
+  // con los usuarios del sistema: casi todos los administradores no han tocado la
+  // asistencia, y ofrecerlos sería ruido.
+  const us=document.getElementById('audUsuario');
+  const prev=us.value;
+  const nombres=[...new Set(auditoriaTrazas.map(t=>t.usuario_nombre||'(sin nombre)'))].sort();
+  us.innerHTML='<option value="">Todos</option>'+nombres.map(n=>'<option value="'+escHtml(n)+'">'+escHtml(n)+'</option>').join('');
+  if([...us.options].some(o=>o.value===prev))us.value=prev;
+}
+async function loadAuditoria(){
+  const lista=document.getElementById('audLista');
+  const aviso=document.getElementById('audAviso');
+  lista.innerHTML='<small>Cargando…</small>';
+  aviso.innerHTML='';
+  auditoriaError='';
+  let q=window.supabaseClient.from('asistencia_auditoria').select('*')
+    .order('created_at',{ascending:false}).limit(AUD_PAGINA);
+  const desde=document.getElementById('audDesde').value;
+  const hasta=document.getElementById('audHasta').value;
+  if(desde)q=q.gte('fecha',desde);
+  if(hasta)q=q.lte('fecha',hasta);
+  const {data,error}=await q;
+  if(error){
+    // Sin la 028 no hay tabla. Decirlo claro, con el nombre de la migración: el
+    // error de la base es "relation does not exist", que no le dice a nadie qué
+    // hacer.
+    const falta=/asistencia_auditoria/.test(error.message||'');
+    auditoriaError=falta
+      ?'La bitácora todavía no existe en la base de datos. Aplicá la migración 028_auditoria_asistencia.sql y volvé a abrir esta pantalla.'
+      :error.message;
+    lista.innerHTML='';
+    aviso.innerHTML='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">'+
+      '<b>No se pudo leer la bitácora.</b> <small>'+escHtml(auditoriaError)+'</small></div>';
+    auditoriaTrazas=[];
+    auditoriaCargada=true;
+    document.getElementById('audResumen').innerHTML='';
+    document.getElementById('audMas').innerHTML='';
+    return;
+  }
+  auditoriaTrazas=data||[];
+  auditoriaCargada=true;
+  fillAuditoriaFiltros();
+  renderAuditoria();
+}
+function renderAuditoria(){
+  if(!auditoriaCargada)return;
+  const worker=document.getElementById('audWorker').value;
+  const usuario=document.getElementById('audUsuario').value;
+  const accion=document.getElementById('audAccion').value;
+  const vis=codigosVisibles(workers);
+  const nombreDe=c=>{
+    const w=workers.find(x=>x.code===c);
+    return w?((vis.get(c)||codigoMostrar(c))+' — '+w.name):codigoMostrar(c);
+  };
+  const filas=auditoriaTrazas.filter(t=>
+    (!worker||t.code===worker)&&(!usuario||(t.usuario_nombre||'(sin nombre)')===usuario)&&(!accion||t.accion===accion));
+  auditoriaTotal=filas.length;
+
+  // El resumen cuenta lo que se ve, y el total de lo que se cargó. Sin el
+  // total, si filtrás por un trabajador ves "3 cambios" y no sabes si son 3 de 3
+  // o 3 de 900.
+  document.getElementById('audResumen').innerHTML=
+    '<b>'+filas.length+'</b> de '+auditoriaTrazas.length+' traza(s) cargadas'+
+    (auditoriaTrazas.length>=AUD_PAGINA?' <small>(se muestran las '+AUD_PAGINA+' más recientes; hay más)</small>':'');
+
+  if(!filas.length){
+    document.getElementById('audLista').innerHTML='<small>'+
+      (auditoriaError||'No hay cambios con esos filtros')+(auditoriaTrazas.length&&!auditoriaError?'. Probá con "Todos".':'')+'</small>';
+    document.getElementById('audMas').innerHTML='';
+    return;
+  }
+  const etiqueta=e=>({inserta:'Alta',actualiza:'Cambio',borra:'Borrado'}[e]||e);
+  document.getElementById('audLista').innerHTML=filas.map(t=>{
+    const fecha=t.fecha?String(t.fecha).slice(0,10):'—';
+    const cambios=[];
+    if(String(t.estado_anterior)!==String(t.estado_nuevo)){
+      cambios.push('estado <b>'+escHtml(estadoTexto(t.estado_anterior))+'</b> → <b>'+escHtml(estadoTexto(t.estado_nuevo))+'</b>');
+    }
+    if(String(t.hora_llegada_anterior||'')!==String(t.hora_llegada_nuevo||'')){
+      cambios.push('hora '+(t.hora_llegada_anterior?escHtml(String(t.hora_llegada_anterior).slice(0,5)):'—')
+        +' → '+(t.hora_llegada_nuevo?escHtml(String(t.hora_llegada_nuevo).slice(0,5)):'—'));
+    }
+    if(String(t.origen_anterior)!==String(t.origen_nuevo)){
+      cambios.push('origen '+escHtml(t.origen_anterior||'—')+' → '+escHtml(t.origen_nuevo||'—'));
+    }
+    if(!cambios.length)cambios.push('<small>(se guardó el mismo valor)</small>');
+    return '<div class="list-item" style="cursor:default;display:block">'+
+      '<div><b>'+escHtml(nombreDe(t.code))+'</b> — '+escHtml(fecha)+' — <b>'+escHtml(etiqueta(t.accion))+'</b>'+
+      '<small style="display:block;margin-top:2px">'+cambios.join(' · ')+'</small>'+
+      '<small style="display:block;margin-top:4px"><b>Motivo:</b> '+escHtml(t.motivo)+'</small>'+
+      '<small style="display:block;color:var(--secondary-text)">Por '+escHtml(t.usuario_nombre||'(sin nombre)')+
+      (t.usuario_rol?' ('+escHtml(t.usuario_rol)+')':'')+' el '+escHtml(new Date(t.created_at).toLocaleString('es-CL'))+
+      '</small></div></div>';
+  }).join('');
+  document.getElementById('audMas').innerHTML=auditoriaTrazas.length>=AUD_PAGINA
+    ?'<small>Para ver más, acotá el rango de fechas.</small>':'';
+}
+function estadoTexto(v){
+  if(v===null||v===undefined||v==='')return 'sin marca';
+  const e=ESTADOS_TARJA.find(x=>x.v===v);
+  return e?e.t:v;
+}
+
+// ============================================================
+// ¿ESTÁ PUESTA LA BITÁCORA DE AUDITORÍA?
+// ============================================================
+// La 028 pone el motivo obligatorio. Si no está aplicada, la app sigue
+// funcionando: `saveAttendanceState` detecta el error y avisa. Pero es
+// importante que se diga de entrada, y no la primera vez que alguien
+// corrige una asistencia.
+//
+// El detalle: sin la 028 los cambios NO quedan registrados, y la app
+// parece funcionar igual. Ese es el peor caso, porque nadie se entera.
+async function comprobarAuditoria(){
+  try{
+    const {data,error}=await window.supabaseClient.rpc('diagnostico_auditoria');
+    if(error){
+      mostrarAvisoPermisos('⚠️ La bitácora de auditoría de la asistencia NO está puesta: falta aplicar la migración 028_auditoria_asistencia.sql. '+
+        'Mientras tanto, los cambios manuales a la tarja se guardan sin dejar rastro de quién los hizo ni por qué.');
+      return;
+    }
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d)return;
+    const problemas=[];
+    if(!d.existe_bitacora)problemas.push('no existe la tabla');
+    if(!d.disparador_puesto)problemas.push('falta el disparador');
+    if(!d.motivo_obligatorio)problemas.push('el motivo no es obligatorio');
+    if(!d.inalterable)problemas.push('las trazas se podrían modificar o borrar');
+    if(problemas.length){
+      mostrarAvisoPermisos('⚠️ La bitácora de auditoría está incompleta ('+problemas.join(', ')+'). Vuelve a aplicar la migración 028_auditoria_asistencia.sql.');
+    }
+  }catch(error){
+    console.info('No se pudo comprobar la bitácora:',error.message);
   }
 }
 
@@ -9628,7 +10255,15 @@ async function enviarDesdeModal(modo){
 
   if(directa){
     if(!confirm(`Se guardará ${estadoActual||'sin registro'} → ${nuevo} para ${w.name} el ${fecha}.`))return;
-    const ok=await saveAttendanceState(code,fecha,nuevo);
+    // Si escribió un motivo en el modal, se usa ese y no se pregunta otra
+    // vez. Si no lo escribió, el motivo es obligatorio igual (la base lo
+    // exige) y se abre el cuadro: preguntar dos veces lo mismo sería la
+    // señal de que el primero no servía.
+    const ok=await saveAttendanceState(code,fecha,nuevo,null,{
+      motivo,
+      nota:nota||(modalCtx.notaActual||''),
+      titulo:'Por qué cambiás la asistencia'
+    });
     if(!ok)return;
     // Si había una solicitud abierta para ese día, esta modificación la
     // deja resuelta: si no, seguiría pidiendo un cambio ya hecho.
@@ -9901,9 +10536,21 @@ async function resolverSolicitud(id,decision){
   const {data:sesion}=await window.supabaseClient.auth.getSession();
   const miId=sesion&&sesion.session&&sesion.session.user&&sesion.session.user.id;
   if(decision==='aprobada'){
-    // aplicar el cambio real en asistencia. Si falla, la solicitud NO se
+    // Aplicar el cambio real en asistencia. Si falla, la solicitud NO se
     // marca aprobada: quedaría aprobada sin que el cambio estuviera hecho.
-    const aplicado=await saveAttendanceState(s.code,s.fecha,s.estado_solicitado);
+    //
+    // El motivo ya está escrito: es lo que pidió el supervisor y viene con
+    // la solicitud. No se vuelve a preguntar. Si se perdiera, la bitácora
+    // tendría un cambio sin explicación al lado de una solicitud que sí la
+    // tenía, que es la peor forma de perder el rastro.
+    const motivo=(s.motivo||'').trim()
+      ||'Solicitud de cambio aprobada por '+miNombrePerfil();
+    const aplicado=await saveAttendanceState(s.code,s.fecha,s.estado_solicitado,null,{
+      motivo,
+      origen:'justificacion',
+      nota:s.nota||s.motivo||'',
+      titulo:'Por qué aprobás esta solicitud'
+    });
     if(!aplicado){
       alert('No se pudo aplicar el cambio en la tarja. La solicitud sigue pendiente.');
       return;
@@ -10089,5 +10736,35 @@ async function boot(){
 }
 boot();
 </script>
+
+<!--
+EL MOTIVO DEL CAMBIO
+====================
+Un <dialog> nativo, no un prompt(). El motivo queda guardado para siempre en
+la bitácora de auditoría, así que no es un dato de paso: la persona tiene que
+poder ver a quién y a qué día se está modificando, y corregir lo que
+escriba antes de aceptarlo.
+
+Va fuera del <script> porque es contenido, no lógica: así se lee en el HTML
+y no hay que buscarlo en el JavaScript.
+-->
+<dialog id="dlgMotivo" style="max-width:520px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 id="motivoTitulo" style="margin-top:0">Por qué hacés este cambio</h2>
+    <div id="motivoInfo" class="small" style="margin-bottom:10px"></div>
+    <label for="motivoTexto">Motivo</label>
+    <textarea id="motivoTexto" rows="4" style="width:100%"
+      placeholder="Por ejemplo: el trabajador me avisó por teléfono que llegó más tarde por el corte de la ruta."></textarea>
+    <div id="motivoError" style="color:var(--danger);margin-top:6px;min-height:1.2em" role="alert"></div>
+    <small style="display:block;margin-top:8px">
+      Queda registrado con tu nombre, tu rol y la fecha y hora exacta. No se puede modificar ni borrar después.
+      Mínimo 5 caracteres.
+    </small>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn" id="motivoCancelar" type="button">Cancelar</button>
+      <button class="btn primary" id="motivoAceptar" type="button">Guardar el cambio</button>
+    </div>
+  </div>
+</dialog>
 </body>
 </html>
