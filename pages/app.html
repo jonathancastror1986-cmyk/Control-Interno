@@ -523,7 +523,11 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     </div>
     <img id="emp-logo-preview" style="max-height:60px;margin-top:8px">
     <input type="hidden" id="emp-id">
-    <button class="btn" type="button" onclick="saveEmpresa()">Guardar empresa</button>
+    <div class="row">
+      <button class="btn" type="button" onclick="saveEmpresa()">Guardar empresa</button>
+      <button class="btn secondary" type="button" onclick="revisarMigraciones()">Revisar migraciones</button>
+    </div>
+    <div id="empDiag" style="margin-top:10px"></div>
   </div>
   <div class="card">
     <h2>Empresas por usuario del sistema</h2>
@@ -1499,7 +1503,7 @@ function initView(v){
   if(v==='permisos'){renderPermisos();}
   if(v==='buscar-tarjeta'){fillCardSelect();renderCard();}
   if(v==='imprimir-tarjetas'){fillPdfChecks();}
-  if(v==='empresa'){loadEmpresaForm();}
+  if(v==='empresa'){loadEmpresaForm();revisarMigraciones();}
   if(v==='nuevo-trabajador'){fillWorkerEmpresaSelect();}
   if(v==='usuarios'){loadPerfiles();}
   if(v==='invitar-usuario'){initInvitarUsuario();}
@@ -5777,7 +5781,12 @@ async function loadEmpresas(){
     empresas=empresas.filter(e=>misEmpresas.includes(e.id));
   }catch(error){
     console.warn('No se pudieron cargar las empresas:',error.message);
-    mostrarAvisoPermisos('⚠️ No se pudieron cargar las empresas ('+error.message+'). Se ven todos los trabajadores sin filtro. Ejecuta la migración 014 y revisa que tu usuario tenga empresas asignadas.');
+    // Si es una columna que no existe, casi siempre es la 014 sin
+    // aplicar. Se dice el archivo exacto en vez del texto de Postgres.
+    const archivo=migracionQueFalta(error);
+    mostrarAvisoPermisos(archivo
+      ?'⚠️ No se pudieron cargar las empresas: falta migrations/'+archivo+'. Se ven todos los trabajadores sin filtro por empresa. Ejecútala en el SQL Editor, o si ya la ejecutaste: NOTIFY pgrst, \'reload schema\';'
+      :'⚠️ No se pudieron cargar las empresas ('+error.message+'). Se ven todos los trabajadores sin filtro. Revisa que tengas empresas asignadas.');
   }
   aplicarFiltroEmpresas();
   renderSelectorEmpresas();
@@ -5908,6 +5917,171 @@ function nuevaEmpresa(){
   document.getElementById('empFormTitle').textContent='Nueva empresa';
   document.getElementById('empForm').scrollIntoView({behavior:'smooth',block:'start'});
 }
+// ============================================================
+// QUÉ MIGRACIÓN FALTA
+// ============================================================
+// Cuando una migración no está aplicada, Postgres responde
+//   Could not find the 'activa' column of 'empresa' in the schema cache
+// Ese mensaje no dice qué hacer: parece un error de la app cuando en
+// realidad falta ejecutar un archivo. Acá se traduce "no existe esta
+// columna" → "ejecuta la migración 014", que es lo que la persona
+// necesita saber.
+//
+// La lista se arma sola: cada migración declara qué tabla y qué columna
+// la delatan. Agregar una migración nueva es agregar una línea.
+const MIGRACIONES_REQUERIDAS=[
+  {n:'001',archivo:'001_schema.sql',tabla:'trabajadores',columna:null},
+  {n:'003',archivo:'003_fecha_ingreso.sql',tabla:'trabajadores',columna:'fecha_ingreso'},
+  {n:'005',archivo:'005_indicaciones_trabajadores.sql',tabla:'trabajadores',columna:'indicaciones_sociales'},
+  {n:'006',archivo:'006_tipo_trabajador.sql',tabla:'trabajadores',columna:'tipo_trabajador'},
+  {n:'007',archivo:'007_tarjetas.sql',tabla:'tarjetas',columna:null},
+  {n:'008',archivo:'008_epp_firma.sql',tabla:'epp_entrega_items',columna:null},
+  {n:'009',archivo:'009_qr_inventario.sql',tabla:'inventario_qr',columna:null},
+  {n:'010',archivo:'010_tipo_talla.sql',tabla:'epp_catalogo',columna:'tipo_talla'},
+  {n:'011',archivo:'011_especialidades.sql',tabla:'epp_especialidades',columna:null},
+  {n:'012',archivo:'012_kits_multiples.sql',tabla:'epp_kits',columna:null},
+  {n:'013',archivo:'013_roles_permisos.sql',tabla:'perfil_roles',columna:null},
+  // 014 es la que crea las columnas de empresa. Se listan todas: si
+  // "empresa" se agranda después (017), el nombre exacto de la columna
+  // sigue diciendo cuál de las dos falta.
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'empresa',columna:'activa'},
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'empresa',columna:'rut'},
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'empresa',columna:'giro'},
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'empresa',columna:'direccion'},
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'empresa',columna:'telefono'},
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'empresa',columna:'email'},
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'empresa',columna:'sitio_web'},
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'empresa',columna:'created_at'},
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'trabajadores',columna:'empresa_id'},
+  // misma migración, pero su tabla es lo que delata si falta
+  {n:'014',archivo:'014_multi_empresa.sql',tabla:'perfil_empresas',columna:null},
+  {n:'015',archivo:'015_perfil_trabajador.sql',tabla:'perfiles',columna:'trabajador_code'},
+  {n:'017',archivo:'017_marcajes_diarios.sql',tabla:'marcajes',columna:null},
+  // hora_entrada la agrega la 017, no la 014: el orden importa
+  {n:'017',archivo:'017_marcajes_diarios.sql',tabla:'empresa',columna:'hora_entrada'},
+  {n:'017',archivo:'017_marcajes_diarios.sql',tabla:'empresa',columna:'tolerancia_minutos'},
+  {n:'018',archivo:'018_tarjetas_bloqueo.sql',tabla:'tarjetas',columna:'bloqueada_at'},
+  {n:'019',archivo:'019_invitaciones_perfiles.sql',tabla:'invitaciones',columna:null}
+];
+// Traduce el error que devuelve PostgREST al nombre de la migración que
+// falta. Devuelve '' si el error no es de migración (es un problema real
+// de datos o permisos, y conviene mostrarlo tal cual).
+function migracionQueFalta(error){
+  if(!error)return '';
+  const msg=String(error.message||error);
+  // "Could not find the 'X' column of 'Y' in the schema cache"
+  const col=msg.match(/Could not find the '([^']+)' column of '([^']+)'/i);
+  if(col){
+    const hit=MIGRACIONES_REQUERIDAS.find(m=>m.tabla===col[2]&&m.columna===col[1]);
+    if(hit)return hit.archivo;
+    // Columna desconocida de una tabla que sí conocemos: se supone que
+    // la agrega la PRIMERA migración que tocó esa tabla, no la última.
+    // Con .pop() se le decía al usuario la 017 cuando lo que faltaba era
+    // la 014, y el arreglo no resolvía nada.
+    const porTabla=MIGRACIONES_REQUERIDAS.filter(m=>m.tabla===col[2])[0];
+    if(porTabla)return porTabla.archivo;
+    return '';
+  }
+  // "relation \"X\" does not exist" / "Could not find the table 'X'"
+  // Postgres escribe el nombre con o sin esquema: "public.marcajes" o
+  // solo "marcajes". Se quita el esquema antes de comparar.
+  const rel=msg.match(/relation "([^"]+)" does not exist|Could not find the table '([^']+)'/i);
+  if(rel){
+    const tabla=String(rel[1]||rel[2]).replace(/^public\./,'');
+    const hit=MIGRACIONES_REQUERIDAS.find(m=>m.tabla===tabla);
+    if(hit)return hit.archivo;
+    return '';
+  }
+  // "column ... does not exist" (a veces lo dice sin el "schema cache")
+  if(/column .* does not exist/i.test(msg)){
+    const c2=msg.match(/column "?([a-z_0-9]+)"? does not exist/i);
+    if(c2){
+      const hit=MIGRACIONES_REQUERIDAS.find(m=>m.columna===c2[1]);
+      if(hit)return hit.archivo;
+    }
+  }
+  return '';
+}
+
+// Si el error es de migración faltante, lo deja escrito en la pantalla
+// (y no solo en el alert), con el nombre del archivo exacto. El alert se
+// cierra y se pierde; esto se queda.
+function mostrarFaltaDeMigracion(error){
+  const archivo=migracionQueFalta(error);
+  if(!archivo)return;
+  const caja=document.getElementById('empDiag');
+  if(!caja)return;
+  caja.innerHTML='<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">'+
+    '<b>Falta migrations/'+escHtml(archivo)+'</b>.<br>'+
+    '<small>Puede ser por dos cosas. Si no la has ejecutado: ábrela y pégala en el SQL Editor de '+
+    'Supabase (es re-ejecutable, no hay riesgo). Si ya la habías ejecutado, la API puede tenerla '+
+    'cacheada: en el SQL Editor ejecuta <code>NOTIFY pgrst, \'reload schema\';</code>. '+
+    'Después recarga con <b>Ctrl+F5</b>.</small>'+
+    '<br><small style="opacity:.75">Lo que respondió la base: '+escHtml(error.message||'')+'</small></div>';
+  caja.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+// Muestra un error de guardado diciendo qué migración falta, en vez de
+// dejar que se vea el texto crudo de Postgres.
+function errorDeGuardar(que,error){
+  const archivo=migracionQueFalta(error);
+  if(archivo){
+    return que+'.\n\nFalta la migración '+archivo+'.\n\n'+
+      'O no la has ejecutado (ábrela en el SQL Editor de Supabase), o ya la ejecutaste y hay que '+
+      'recargar la caché de la API con:  NOTIFY pgrst, \'reload schema\';\n\n'+
+      'Después recarga la app con Ctrl+F5.';
+  }
+  return que+': '+(error&&error.message?error.message:error);
+}
+
+// Revisa qué migraciones están aplicadas, mirando en la base si existe
+// cada tabla y cada columna. Muestra solo las que faltan.
+//
+// Se agrupa por ARCHIVO y no por comprobación: la 014 se revisa mirando
+// varias columnas de "empresa", y sin agrupar aparecería como cuatro
+// migraciones distintas. El usuario solo tiene dos cosas que hacer:
+// ejecutar dos archivos.
+async function revisarMigraciones(){
+  const caja=document.getElementById('empDiag');
+  if(!caja)return;
+  caja.innerHTML='<small>Revisando la base de datos…</small>';
+  // archivo -> qué le falta
+  const porArchivo=new Map();
+  for(const m of MIGRACIONES_REQUERIDAS){
+    let error=null;
+    try{
+      // Pedir la columna explícita: si no existe, Postgres lo dice en vez
+      // de devolver una lista incompleta en silencio.
+      const q=m.columna
+        ?window.supabaseClient.from(m.tabla).select(m.columna).limit(1)
+        :window.supabaseClient.from(m.tabla).select('*').limit(1);
+      const res=await q;
+      error=res.error;
+    }catch(e){error=e;}
+    if(!error)continue;
+    if(!porArchivo.has(m.archivo))porArchivo.set(m.archivo,[]);
+    porArchivo.get(m.archivo).push({tabla:m.tabla,columna:m.columna,error});
+  }
+  if(!porArchivo.size){
+    caja.innerHTML='<div style="background:rgba(46,125,50,.1);border:1px solid var(--accent);color:var(--accent);padding:10px 12px;border-radius:8px">'+
+      '<b>La base está al día.</b> <small>Las '+new Set(MIGRACIONES_REQUERIDAS.map(m=>m.archivo)).size+
+      ' migraciones revisadas están aplicadas.</small></div>';
+    return;
+  }
+  const archivos=Array.from(porArchivo.keys());
+  caja.innerHTML='<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">'+
+    '<b>Falta aplicar '+(archivos.length===1?'1 migración':archivos.length+' migraciones')+'.</b> '+
+    '<small>Ejecútalas en el <b>SQL Editor</b> de Supabase, en orden, y recarga con <b>Ctrl+F5</b>. '+
+    'Son re-ejecutables: repetirlas no rompe nada.</small>'+
+    '<ul style="margin:8px 0 0;padding-left:18px">'+
+    archivos.map(a=>{
+      const detalles=porArchivo.get(a);
+      const falta=detalles.map(d=>d.columna?'<code>'+d.columna+'</code> de <code>'+d.tabla+'</code>':'la tabla <code>'+d.tabla+'</code>').join(', ');
+      return '<li style="margin-bottom:6px"><b>migrations/'+escHtml(a)+'</b><br><small>Falta: '+falta+'</small></li>';
+    }).join('')+
+    '</ul></div>';
+}
+
 async function saveEmpresa(){
   if(!exigirPermiso('sistema.empresa','No tienes permiso para guardar empresas.'))return;
   const nombre=document.getElementById('emp-name').value.trim();
@@ -5935,16 +6109,33 @@ async function saveEmpresa(){
     }else{
       ({error}=await window.supabaseClient.from('empresa').insert(payload).select().single());
     }
-    if(error){alert('No se pudo guardar la empresa: '+error.message);return;}
+    if(error){
+      alert(errorDeGuardar('No se pudo guardar la empresa',error));
+      mostrarFaltaDeMigracion(error);
+      return;
+    }
     await loadEmpresas();
     renderEmpresas();
+    // Se refresca el diagnóstico: si el aviso anterior era "falta la
+    // migración 014", dejarlo pegado después de aplicar la 014 sería
+    // mandarlo a hacer de nuevo algo que ya está hecho.
+    await revisarMigraciones();
     alert('Empresa guardada.');
   };
   if(file){
-    const r=new FileReader();
-    r.onload=async e=>finish(e.target.result);
-    r.readAsDataURL(file);
-  }else finish(null);
+    // Se devuelve una promesa que termina cuando el archivo se leyó y la
+    // empresa quedó guardada. Antes se llamaba finish() sin esperar, así
+    // que saveEmpresa() retornaba antes de terminar: quien la llamaba no
+    // podía saber si se guardó o no.
+    const archivoComoTexto=new Promise((resolver,rechazar)=>{
+      const r=new FileReader();
+      r.onload=e=>resolver(e.target.result);
+      r.onerror=()=>rechazar(new Error('No se pudo leer el archivo del logo.'));
+      r.readAsDataURL(file);
+    });
+    return finish(await archivoComoTexto);
+  }
+  return finish(null);
 }
 
 // ============================================================
