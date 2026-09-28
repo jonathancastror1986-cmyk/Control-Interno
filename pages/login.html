@@ -102,10 +102,17 @@ async function enviarRecuperacion(){
   try{
     const {data,error}=await window.supabaseClient.functions.invoke('recuperar',{body:{correo}});
     if(error){
-      if(/not found|404|does not exist/i.test(error.message)){
-        err.textContent='La función de recuperación no está desplegada. En un proyecto Supabase: supabase functions deploy recuperar. Mientras tanto, pídele a un administrador que te reinicie la contraseña.';
+      // supabase-js reporta "Failed to send a request to the Edge
+      // Function" cuando la función no existe: la URL devuelve la
+      // página de error del panel en vez de JSON y no lo puede parsear.
+      // Mostrar ese texto tal cual no le dice nada a quien lo lee.
+      const texto=String(error.message||error);
+      if(/Invalid JWT|JWT|session|401|unauthor/i.test(texto)){
+        err.textContent='Tu sesión caducó. Vuelve a iniciar sesión e inténtalo de nuevo.';
+      }else if(/Failed to fetch|Network|Failed to send a request|not found|404|does not exist|non-2xx/i.test(texto)){
+        err.textContent='La función "recuperar" no está desplegada todavía. En la terminal, dentro del proyecto: supabase functions deploy recuperar. Mientras tanto, pídele a un administrador que te reinicie la contraseña.';
       }else{
-        err.textContent='No se pudo enviar: '+error.message;
+        err.textContent='No se pudo enviar: '+texto;
       }
       return;
     }

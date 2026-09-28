@@ -38,6 +38,11 @@ pendiente, para no tener que escribir el correo otra vez.
 supabase functions deploy verificar-cuenta
 ```
 
+Sin esto, la app lo avisa **al abrir la tarjeta**, antes de que pulses
+nada, con el comando copiable. Y si lo pulsas igual, el error dice lo
+mismo en vez del `Failed to send a request to the Edge Function` que
+devuelve Supabase y que no explica nada.
+
 La migración 021 es **opcional pero recomendada**: sin ella el alta
 funciona igual, lo que no se guarda es el registro de quién la hizo. La
 app avisa en pantalla cuando falta.
@@ -104,7 +109,8 @@ la función `invitar`.
 
 | Síntoma | Qué revisar |
 |---|---|
-| "La función no está desplegada" | `supabase functions deploy verificar-cuenta` |
+| Aviso de funciones no desplegadas | `supabase functions deploy verificar-cuenta` |
+| "Tu sesión caducó" | No es un problema de despliegue. Vuelve a iniciar sesión. |
 | "Ese correo no tiene cuenta" | No es un fallo: usa **Crear cuenta con clave**. |
 | "Ese correo ya tiene una cuenta" | No es un fallo: usa **Verificar cuenta**. |
 | "No tienes permiso" | Te falta `sistema.usuarios`. Pídeselo a un administrador. |

@@ -64,10 +64,33 @@ create index if not exists marcajes_importaciones_fecha_idx
 -- "origen = 'excel'" ya está permitido en el check de la 017; esta
 -- migración solo se asegura, por si alguien corrió la 017 de otra
 -- versión.
-alter table marcajes drop constraint if exists marcajes_origen_check;
-alter table marcajes
-  add constraint marcajes_origen_check
-  check (origen in ('qr','manual','excel','porteria','app','reloj'));
+--
+-- VA EN UN DO PORQUE "marcajes" ES DE LA 017. Con un "alter table"
+-- normal, aplicar la 020 en una base donde la 017 no se ha corrido
+-- reventaba con:
+--
+--   ERROR: 42P01: relation "marcajes" does not exist
+--
+-- y como el error aparece al final del archivo, el usuario veía que la
+-- 020 estaba mala, cuando lo que faltaba era la 017. Peor: si la
+-- plataforma corta la ejecución en el primer error, la 020 se quedaba
+-- a medias y el RUT tampoco quedaba.
+--
+-- Acá no se corta nada. Si la 017 falta, se dice con un NOTICE —que el
+-- SQL Editor muestra en la esquina inferior— y el resto de la 020 se
+-- aplica igual: el RUT y la tabla de importaciones son independientes de
+-- los marcajes.
+do $$
+begin
+  if to_regclass('public.marcajes') is null then
+    raise notice 'ATENCION: falta la migracion 017_marcajes_diarios.sql (la tabla "marcajes" no existe). La 020 se aplico igual, pero sin los marcajes no va a funcionar la asistencia diaria. Ejecuta la 017 y despues vuelve a correr esta.';
+  else
+    alter table marcajes drop constraint if exists marcajes_origen_check;
+    alter table marcajes
+      add constraint marcajes_origen_check
+      check (origen in ('qr','manual','excel','porteria','app','reloj'));
+  end if;
+end $$;
 
 -- ------------------------------------------------------------
 -- 4) ROW LEVEL SECURITY
@@ -138,11 +161,24 @@ create policy "marcajes importaciones write" on marcajes_importaciones for inser
 -- ------------------------------------------------------------
 -- Si la 020 no está aplicada, la app lo dice con este mensaje en vez
 -- de fallar en silencio con "column shopper.rut does not exist".
+--
+-- "origen_ok" pregunta por la RESTRICCIÓN, no por la tabla. Esa es la
+-- parte que puede quedar vieja sin que nada avise: si se aplicó la 020
+-- sin que la 017 estuviera, el bloque de arriba se saltó y la
+-- restricción quedó como la dejó la 017, que no acepta 'reloj' (el
+-- origen que usa el importador).
+--
+-- Con la tabla presente, todas las tablas existen y el botón de
+-- revisión diría "la base está al día". La importación de marcajes
+-- fallaría recién en el INSERT, con un error de check constraint que no
+-- señala la causa. Por eso se pregunta por la restricción.
 create or replace function public.diagnostico_importacion_marcajes()
 returns table (
   tabla_ok boolean,
   rut_ok boolean,
-  politicas_ok boolean
+  politicas_ok boolean,
+  marcajes_ok boolean,
+  origen_ok boolean
 )
 language sql
 stable
@@ -155,5 +191,17 @@ as $$
     exists (select 1 from information_schema.columns
              where table_schema = 'public' and table_name = 'trabajadores' and column_name = 'rut'),
     exists (select 1 from pg_policies
-             where tablename = 'marcajes_importaciones' and policyname = 'marcajes importaciones write')
+             where tablename = 'marcajes_importaciones' and policyname = 'marcajes importaciones write'),
+    exists (select 1 from information_schema.tables
+             where table_schema = 'public' and table_name = 'marcajes'),
+    exists (
+      select 1
+        from pg_constraint c
+        join pg_class t on t.oid = c.conrelid
+        join pg_namespace ns on ns.oid = t.relnamespace
+       where ns.nspname = 'public'
+         and t.relname = 'marcajes'
+         and c.conname = 'marcajes_origen_check'
+         and pg_get_constraintdef(c.oid) like '%reloj%'
+    )
 $$;

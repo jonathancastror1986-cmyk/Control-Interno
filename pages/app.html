@@ -658,6 +658,8 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
       <small id="altaMsg" role="status" aria-live="polite"></small>
     </div>
 
+    <div id="funcionesAviso" style="margin-top:12px"></div>
+
     <div id="altaHistorial" style="margin-top:16px"></div>
   </div>
 
@@ -4296,6 +4298,10 @@ async function initInvitarUsuario(){
   loadInvitaciones();
   loadAltasCuentas();
   avisarSiteUrl();
+  // Se comprueba al abrir, no al pulsar: descubrir que la función no
+  // está desplegada cuando ya estás creando la cuenta de alguien es
+  // enterarse del problema a destiempo.
+  comprobarFuncionesDesplegadas();
 }
 
 // El enlace de invitación que manda Supabase vuelve a su "Site URL". Si
@@ -4466,14 +4472,8 @@ async function enviarInvitacionPorCorreo(){
     if(error){
       // Estos son los casos que el administrador puede resolver, y cada
       // uno con su propio mensaje: "algo falló" no le sirve de nada.
-      const texto=error.message||'';
-      if(/not found|404|does not exist/i.test(texto)){
-        msg.innerHTML='<span class="gpsWarn">La función de envío no está desplegada. En un proyecto Supabase: '+
-          '<b>supabase functions deploy invitar</b>. Mientras tanto, copia el enlace y mándalo por el medio que quieras.</span>';
-      }else{
-        msg.innerHTML='<span class="gpsWarn">No se pudo enviar: '+escHtml(texto)+
-          '. El enlace de arriba sirve igual.</span>';
-      }
+      msg.innerHTML='<span class="gpsWarn">'+errorDeInvocarFuncion(error,'invitar',
+        'Mientras tanto, copia el enlace de arriba y mándalo por el medio que quieras.')+'</span>';
       return;
     }
     if(data&&data.error){
@@ -4724,12 +4724,8 @@ async function llamarVerificarCuentas(accion){
       body:{correo,accion,clave,nombre}
     });
     if(error){
-      if(/not found|404|does not exist/i.test(error.message)){
-        msg.innerHTML='<span class="gpsWarn">La función no está desplegada. En un proyecto Supabase: '+
-          '<b>supabase functions deploy verificar-cuenta</b></span>';
-        return;
-      }
-      msg.innerHTML='<span class="gpsWarn">No se pudo completar: '+escHtml(error.message)+'</span>';
+      msg.innerHTML='<span class="gpsWarn">'+errorDeInvocarFuncion(error,'verificar-cuenta',
+        'Si la clave no está puesta, la cuenta se crea igual, pero sin poder verificarla.')+'</span>';
       return;
     }
     if(data&&data.error){
@@ -4760,6 +4756,46 @@ async function llamarVerificarCuentas(accion){
     botones.forEach(b=>{if(b)b.disabled=false;});
     if(propio)propio.textContent=etiqueta;
   }
+}
+// ------------------------------------------------------------------
+// ¿ESTÁN DESPLEGADAS LAS EDGE FUNCTIONS?
+// ------------------------------------------------------------------
+// Es la pregunta que más se repite y cuya respuesta cuesta un error en
+// pantalla. Se responde al abrir la tarjeta, antes de que nadie pulse
+// nada.
+//
+// La prueba es la propia función, con una petición que ella misma
+// rechaza: un correo vacío. Si está desplegada contesta 400 con un JSON
+// que dice "escribe un correo válido". Si no lo está, la URL devuelve la
+// página de error del panel, el cliente no puede parsearla y reporta
+// "Failed to send a request to the Edge Function".
+//
+// No se inventó una función "ping" para comprobarlo: eso sería obligar
+// a desplegar una cuarta función solo para poder preguntar. Esta
+// comprobación no necesita desplegar nada, y en la función el correo se
+// valida antes que el permiso, así que no pide nada ni deja rastro.
+//
+// No bloquea nada: si la prueba falla por red o por lo que sea, la
+// tarjeta se deja como está y el error se sigue viendo al pulsar.
+async function comprobarFuncionesDesplegadas(){
+  const aviso=document.getElementById('funcionesAviso');
+  if(!aviso)return;
+  try{
+    const {data,error}=await window.supabaseClient.functions.invoke('verificar-cuenta',{
+      body:{correo:'',accion:'verificar'}
+    });
+    // Desplegada y respondiendo: no hay nada que avisar.
+    if(!error&&data)return;
+    // Es un problema de sesión, no de despliegue: otro mensaje distinto.
+    if(error&&/Invalid JWT|401/i.test(String(error.message||'')))return;
+  }catch(error){}
+  aviso.innerHTML='<div class="gpsWarn" style="line-height:1.6">'+
+    '<b>Las funciones del servidor todavía no están desplegadas.</b><br>'+
+    'Por eso el alta de cuentas y el envío de correos no funcionan todavía. '+
+    'En la terminal, dentro del proyecto, ejecuta:<br>'+
+    '<b style="font-family:ui-monospace,Consolas,monospace">supabase functions deploy verificar-cuenta<br>'+
+    'supabase functions deploy invitar</b><br>'+
+    '<small>Esto es del despliegue, no de los datos: todo lo demás de la app sigue funcionando.</small></div>';
 }
 function verificarCuentaExistente(){return llamarVerificarCuentas('verificar');}
 function crearCuentaConClave(){return llamarVerificarCuentas('crear');}
@@ -5566,6 +5602,37 @@ let eppFilaAbiertaAntesDeFiltrar=null;
 
 function normalizar(t){
   return String(t==null?'':t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+// ------------------------------------------------------------------
+// ERRORES AL INVOCAR UNA EDGE FUNCTION
+// ------------------------------------------------------------------
+// supabase-js devuelve dos cosas muy distintas y hay que separarlas:
+//
+//   · "FunctionsHttpError" con 404 -> la función no está desplegada.
+//   · "Failed to send a request to the Edge Function" -> lo MISMO, en
+//     la práctica. Cuando la función no existe, la URL devuelve la
+//     página de error del panel en vez de JSON, el cliente no puede
+//     parsearla y reporta ese texto genérico.
+//
+// Antes solo se miraba el primero, así que el segundo salía tal cual en
+// pantalla: "Failed to send a request to the Edge Function". Eso no le
+// dice nada a quien lo lee, y lo que necesita es el comando.
+//
+// "Invalid JWT" y "401" son otra cosa: la sesión caducó. Se distingue
+// porque la solución es reentrar, no desplegar nada.
+function errorDeInvocarFuncion(error,nombre,alternativa){
+  const texto=String((error&&error.message)||error||'');
+  if(/Invalid JWT|JWT|session|401|unauthor/i.test(texto)){
+    return 'Tu sesión caducó. Vuelve a iniciar sesión e inténtalo de nuevo.';
+  }
+  if(/Failed to fetch|Network|Failed to send a request|not found|404|does not exist|non-2xx/i.test(texto)){
+    return 'La función <b>'+escHtml(nombre)+'</b> no está desplegada todavía.<br>'+
+      'En la terminal, dentro del proyecto:<br>'+
+      '<b style="font-family:ui-monospace,Consolas,monospace">supabase functions deploy '+escHtml(nombre)+'</b>'+
+      (alternativa?('<br><br>'+alternativa):'');
+  }
+  return 'No se pudo completar: '+escHtml(texto);
 }
 function valorFiltroEpp(id){
   const el=document.getElementById(id);
@@ -6977,15 +7044,35 @@ async function revisarMigraciones(){
     if(!porArchivo.has(m.archivo))porArchivo.set(m.archivo,[]);
     porArchivo.get(m.archivo).push({tabla:m.tabla,columna:m.columna,error});
   }
-  if(!porArchivo.size){
+  // Una migración puede estar aplicada y aun así quedar incompleta. La
+  // 020 es el caso: su "alter table marcajes" va dentro de un DO que se
+  // salta si la 017 no estaba, así que se puede aplicar "bien" dejando
+  // la restricción de "origen" como la de la 017, que no acepta 'reloj'.
+  // Todas las tablas existen, el botón diría "todo bien", y la
+  // importación de marcajes fallaría recién en el INSERT con un error de
+  // check constraint que no dice qué hacer.
+  const avisos=[];
+  try{
+    const {data:dia}=await window.supabaseClient.rpc('diagnostico_importacion_marcajes');
+    const d=dia&&dia[0];
+    if(d&&d.tabla_ok){
+      if(!d.marcajes_ok&&!porArchivo.has('017_marcajes_diarios.sql')){
+        avisos.push('<b>migrations/017_marcajes_diarios.sql</b><br><small>La 020 quedó aplicada pero falta la tabla <code>marcajes</code>, que crea la 017. Sin ella no funcionan los marcajes ni la asistencia diaria.</small>');
+      }else if(d.marcajes_ok&&!d.origen_ok){
+        avisos.push('<b>Vuelve a ejecutar migrations/020_rut_importacion_marcajes.sql</b><br><small>La restricción de <code>marcajes.origen</code> quedó sin el valor <code>reloj</code>, que es el que usa el importador del reloj. Sin esto, importar marcajes falla con un error de check constraint que no dice la causa.</small>');
+      }
+    }
+  }catch(e){}
+  if(!porArchivo.size&&!avisos.length){
     caja.innerHTML='<div style="background:rgba(46,125,50,.1);border:1px solid var(--accent);color:var(--accent);padding:10px 12px;border-radius:8px">'+
       '<b>La base está al día.</b> <small>Las '+new Set(MIGRACIONES_REQUERIDAS.map(m=>m.archivo)).size+
       ' migraciones revisadas están aplicadas.</small></div>';
     return;
   }
   const archivos=Array.from(porArchivo.keys());
+  const total=archivos.length+avisos.length;
   caja.innerHTML='<div style="background:#fdeaea;border:1px solid var(--danger);color:var(--danger);padding:12px;border-radius:8px">'+
-    '<b>Falta aplicar '+(archivos.length===1?'1 migración':archivos.length+' migraciones')+'.</b> '+
+    '<b>Falta aplicar '+(total===1?'1 migración':total+' migraciones')+'.</b> '+
     '<small>Ejecútalas en el <b>SQL Editor</b> de Supabase, en orden, y recarga con <b>Ctrl+F5</b>. '+
     'Son re-ejecutables: repetirlas no rompe nada.</small>'+
     '<ul style="margin:8px 0 0;padding-left:18px">'+
@@ -6994,6 +7081,7 @@ async function revisarMigraciones(){
       const falta=detalles.map(d=>d.columna?'<code>'+d.columna+'</code> de <code>'+d.tabla+'</code>':'la tabla <code>'+d.tabla+'</code>').join(', ');
       return '<li style="margin-bottom:6px"><b>migrations/'+escHtml(a)+'</b><br><small>Falta: '+falta+'</small></li>';
     }).join('')+
+    avisos.join('')+
     '</ul></div>';
 }
 

@@ -116,9 +116,26 @@ Hace falta `tarja.excel` (el mismo que para cargar la asistencia).
 
 | Síntoma | Qué revisar |
 |---|---|
+| "No se pudieron leer los marcajes" | Falta la 017: `migrations/017_marcajes_diarios.sql`. |
 | "Falta la migración 020" | Ejecuta `migrations/020_rut_importacion_marcajes.sql`. |
-| "No se pudieron leer los marcajes" | Falta la 017. |
+| Aviso de que la restricción de `marcajes.origen` quedó vieja | La 020 se aplicó sin la 017. Vuelve a correr la 020 (es re-ejecutable). |
 | Casi todas las filas quedan sin coincidencia | Faltan los RUT en los trabajadores. |
 | La fecha sale un día corrida | Se recargó la app con el archivo viejo: `Ctrl+F5`. |
 | No aparece nada en la asistencia diaria | La fecha del reporte es anterior a la ventana cargada: usa el selector de fecha. |
 | "66 corregidos" sin haber cambiado nada | Ya está corregido en esta versión: ahora solo cuenta los que de verdad cambiaron. |
+
+## El orden importa, una vez
+
+La 020 hace un `alter table marcajes` que depende de la 017. Si aplicás
+la 020 antes, la migración se salta ese paso y avisa con un **NOTICE**
+en el SQL Editor:
+
+```
+ATENCION: falta la migracion 017_marcajes_diarios.sql ...
+```
+
+No es cosmético. La restricción de `marcajes.origen` se queda sin el
+valor `reloj`, que es justo el que usa el importador. Después, importar
+marcajes falla con un error de `check constraint` que no dice qué hacer.
+La 020 está hecha para arreglarlo sola: volvé a ejecutarla después de
+la 017 y queda bien.

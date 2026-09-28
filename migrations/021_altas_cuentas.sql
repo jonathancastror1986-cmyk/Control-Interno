@@ -100,31 +100,55 @@ as $$
   )
 $$;
 
+-- Si faltan las migraciones 013 o 016, las funciones de arriba no se
+-- pueden crear (Postgres corta el archivo entero con "function
+-- public.tiene_permiso(...) does not exist") y la tabla se queda sin RLS.
+-- Eso es peor que avisar: la base queda a medias y nadie lo nota hasta
+-- que algo sale mal.
+--
+-- Por eso las políticas van dentro de un DO que comprueba primero. Si
+-- faltan las 013/016, se dice cuáles con un WARNING —que el SQL Editor
+-- muestra en la esquina inferior— y se sigue. El alta de cuentas
+-- funciona igual en ese caso, porque la hace la Edge Function con la
+-- service_role, que no pasa por estas políticas.
 alter table cuentas_altas enable row level security;
 
--- Ver el historial de altas lo puede cualquiera con la sesión activa:
--- sirve para que RRHH responda "¿quién dio de alta a esta persona?".
-drop policy if exists "cuentas altas read" on cuentas_altas;
-create policy "cuentas altas read" on cuentas_altas for select
-  using (public.es_usuario_activo());
+do $$
+begin
+  if to_regclass('public.perfil_roles') is null or to_regclass('public.roles_permisos') is null then
+    raise warning 'ATENCION: faltan las migraciones 013 y/o 016. "cuentas_altas" quedo SIN RLS porque no se pudieron crear las funciones de permiso. El alta de cuentas sigue funcionando, pero el historial quedaria abierto a cualquier usuario. Ejecuta 013 y 016, y despues vuelve a correr esta.';
 
--- Registrar un alta requiere el mismo permiso que invitar usuarios, que
--- es el que ya controla la pantalla. La Edge Function escribe con la
--- service_role y no pasa por acá, pero la política queda para que un
--- alta hecha por otra vía tampoco quede libre.
-drop policy if exists "cuentas altas write" on cuentas_altas;
-create policy "cuentas altas write" on cuentas_altas for insert
-  with check (public.tiene_permiso('sistema.usuarios') or public.es_admin());
+  -- Ver el historial de altas lo puede cualquiera con la sesión activa:
+  -- sirve para que RRHH responda "¿quién dio de alta a esta persona?".
+  else
+    drop policy if exists "cuentas altas read" on cuentas_altas;
+    create policy "cuentas altas read" on cuentas_altas for select
+      using (public.es_usuario_activo());
 
--- Ni borrar ni modificar: el historial es un registro de lo que pasó, no
--- un borrador. Si algo quedó mal, se escribe otro renglón.
-drop policy if exists "cuentas altas update" on cuentas_altas;
-create policy "cuentas altas update" on cuentas_altas for update
-  using (false);
+    -- Registrar un alta requiere el mismo permiso que invitar usuarios,
+    -- que es el que ya controla la pantalla. La Edge Function escribe con
+    -- la service_role y no pasa por acá, pero la política queda para que
+    -- un alta hecha por otra vía tampoco quede libre.
+    drop policy if exists "cuentas altas write" on cuentas_altas;
+    create policy "cuentas altas write" on cuentas_altas for insert
+      with check (public.tiene_permiso('sistema.usuarios') or public.es_admin());
 
-drop policy if exists "cuentas altas delete" on cuentas_altas;
-create policy "cuentas altas delete" on cuentas_altas for delete
-  using (false);
+    -- Ni borrar ni modificar: el historial es un registro de lo que pasó,
+    -- no un borrador. Si algo quedó mal, se escribe otro renglón.
+    --
+    -- "using (false)" y no "drop policy": una política restrictiva no es
+    -- lo mismo que ninguna. Sin ella, una tabla sin política deja pasar
+    -- todo lo que la sesión pueda hacer, que es justo lo contrario de lo
+    -- que se quiere para un registro que no se puede reescribir.
+    drop policy if exists "cuentas altas update" on cuentas_altas;
+    create policy "cuentas altas update" on cuentas_altas for update
+      using (false);
+
+    drop policy if exists "cuentas altas delete" on cuentas_altas;
+    create policy "cuentas altas delete" on cuentas_altas for delete
+      using (false);
+  end if;
+end $$;
 
 -- ------------------------------------------------------------
 -- 3) COMPROBACIÓN DE SALUD
