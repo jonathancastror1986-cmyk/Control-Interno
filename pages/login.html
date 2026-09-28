@@ -20,6 +20,9 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;bac
 .loginCard p.sub{color:var(--muted);margin:0 0 18px;font-size:.9rem}
 .loginErr{color:var(--danger);font-size:.85rem;margin-top:8px;display:none}
 .loginFoot{margin-top:16px;font-size:.8rem;color:var(--muted);text-align:center}
+.loginBox{display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)}
+.loginBox .loginHint{font-size:.8rem;color:var(--muted);margin:0 0 10px}
+.loginOk{color:var(--accent);font-size:.85rem;margin-top:8px;display:none}
 </style>
 <link rel="stylesheet" href="../css/styles.css">
 </head>
@@ -38,7 +41,18 @@ body{display:flex;align-items:center;justify-content:center;min-height:100vh;bac
   <input type="password" id="password" autocomplete="current-password">
   <div class="loginErr" id="loginErr">No se pudo iniciar sesión: revisa tu correo y contraseña.</div>
   <button class="btn" style="width:100%;margin-top:16px" onclick="doLogin()">Iniciar sesión</button>
-  <div class="loginFoot">¿Aún no tienes acceso? Pide una invitación a quien administra el sistema.</div>
+  <button class="btn secondary" style="width:100%;margin-top:8px" onclick="olvidePassword()">Olvidé mi contraseña</button>
+
+  <div class="loginBox" id="resetBox">
+    <p class="loginHint">Te mandamos un enlace al correo para que pongas una contraseña nueva.</p>
+    <label for="resetCorreo">Correo</label>
+    <input type="email" id="resetCorreo" autocomplete="username">
+    <button class="btn" style="width:100%;margin-top:10px" id="btnReset" onclick="enviarRecuperacion()">Enviar enlace</button>
+    <div class="loginOk" id="resetOk"></div>
+    <div class="loginErr" id="resetErr"></div>
+  </div>
+
+  <div class="loginFoot" id="loginFoot">¿Aún no tienes acceso? Pide una invitación a quien administra el sistema.</div>
 </div>
 <script>
 async function doLogin(){
@@ -56,6 +70,59 @@ async function doLogin(){
   window.location.href='app.html';
 }
 document.getElementById('password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+
+// ---------- recuperar contraseña ----------
+// El correo lo manda la Edge Function "recuperar", que es la única que
+// puede indicar a qué dirección vuelve el enlace. Desde el navegador
+// con la anon key, Supabase lo devolvería a su "Site URL" (localhost en
+// la mayoría de los proyectos) y el enlace no abriría.
+let resetAbierto=false;
+function olvidePassword(){
+  const box=document.getElementById('resetBox');
+  // El estado va en una variable y no leyendo style.display: al abrir la
+  // página el recuadlo está oculto por el CSS, sin estilo en línea, y
+  // comparar contra '' hacía que el botón no lo abriera nunca.
+  resetAbierto=!resetAbierto;
+  // 'block' explícito y no cadena vacía: al vaciarlo vuelve el CSS, que
+  // lo tiene en display:none, y el botón no abriría nada.
+  box.style.display=resetAbierto?'block':'none';
+  document.getElementById('loginErr').style.display='none';
+  if(resetAbierto&&!document.getElementById('resetCorreo').value)document.getElementById('resetCorreo').focus();
+}
+async function enviarRecuperacion(){
+  const correo=document.getElementById('resetCorreo').value.trim().toLowerCase();
+  const ok=document.getElementById('resetOk');
+  const err=document.getElementById('resetErr');
+  const btn=document.getElementById('btnReset');
+  ok.style.display='none';err.style.display='none';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)){
+    err.textContent='Escribe un correo válido.';err.style.display='block';return;
+  }
+  btn.disabled=true;btn.textContent='Enviando…';
+  try{
+    const {data,error}=await window.supabaseClient.functions.invoke('recuperar',{body:{correo}});
+    if(error){
+      if(/not found|404|does not exist/i.test(error.message)){
+        err.textContent='La función de recuperación no está desplegada. En un proyecto Supabase: supabase functions deploy recuperar. Mientras tanto, pídele a un administrador que te reinicie la contraseña.';
+      }else{
+        err.textContent='No se pudo enviar: '+error.message;
+      }
+      return;
+    }
+    if(data&&data.error){err.textContent=data.error;err.style.display='block';return;}
+    // El mismo texto exista o no la cuenta: decir "ese correo no existe"
+    // serviría para averiguar quién trabaja en la obra.
+    ok.textContent=(data&&data.mensaje)||'Si ese correo tiene una cuenta, te mandamos el enlace.';
+    ok.style.display='block';
+    document.getElementById('resetCorreo').value='';
+  }catch(e){
+    err.textContent='No se pudo enviar: '+((e&&e.message)||e);
+    err.style.display='block';
+  }finally{
+    btn.disabled=false;btn.textContent='Enviar enlace';
+  }
+}
+document.getElementById('resetCorreo').addEventListener('keydown',e=>{if(e.key==='Enter')enviarRecuperacion();});
 
 // si ya hay sesión activa, saltar directo a la app
 window.supabaseClient.auth.getSession().then(({data:{session}})=>{

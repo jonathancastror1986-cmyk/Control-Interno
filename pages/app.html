@@ -2384,6 +2384,7 @@ function camModal(){
       <div class="camReticle"></div>
     </div>
     <div class="camStatus" id="camStatus" role="status" aria-live="polite"></div>
+    <div id="camConfirmar" style="display:none"></div>
     <div class="camActions">
       <button class="btn secondary" type="button" id="camStopBtn">Cerrar</button>
       <label class="camUpload">📁 Subir foto
@@ -2424,18 +2425,127 @@ function chooseRearCamera(cameras){
   const rear=/back|rear|trasera|trase|environment/i;
   return cameras.find(c=>rear.test(c.label||''))||cameras[0];
 }
+// ------------------------------------------------------------------
+// LECTURA ESTABLE Y CONFIRMACIÓN
+// ------------------------------------------------------------------
+// Antes, el lector tomaba el PRIMER código que lograba decodificar en
+// el fotograma y ya marcaba. Con dos tarjetas a la vista (una en la
+// mano y otra en la mesa, o dos personas en la fila) podía registrar a
+// la persona equivocada: eso es un problema de seguridad, no un
+// problema de la pantalla.
+//
+// Estabilidad: el mismo código tiene que aparecer en varios fotogramas
+// seguidos. Un destello, un reflejo o una decodificación suelta no se
+// mantienen, así que no llegan a la acción.
+const LECTURAS_PARA_CONFIRMAR=5;
+let lecturaEstable={texto:'',veces:0};
+function reiniciarLecturaEstable(){
+  lecturaEstable={texto:'',veces:0};
+  const barra=document.getElementById('camConfirmar');
+  if(barra)barra.style.display='none';
+}
 function onLiveScanSuccess(decodedText){
   if(liveScanLock)return;
   const text=String(decodedText||'').trim();
   if(!text)return;
-  liveScanLock=true;
+
+  // El mismo código, un fotograma más.
+  if(text===lecturaEstable.texto){
+    lecturaEstable.veces++;
+  }else{
+    lecturaEstable={texto:text,veces:1};
+    camStatus('Código detectado, comprobando…');
+    return;
+  }
+  if(lecturaEstable.veces<LECTURAS_PARA_CONFIRMAR){
+    camStatus('Código detectado, comprobando… ('+lecturaEstable.veces+'/'+LECTURAS_PARA_CONFIRMAR+')');
+    return;
+  }
+  if(lecturaEstable.veces===LECTURAS_PARA_CONFIRMAR&&navigator.vibrate){
+    try{navigator.vibrate(120);}catch(error){}
+  }
+
   const purpose=qrScanPurpose;
-  if(navigator.vibrate){try{navigator.vibrate(120);}catch(error){}}
+  // Marcar asistencia es lo único que no tiene vuelta atrás: se pide
+  // confirmar a quién se le está marcando. Consultar una ficha no lo
+  // necesita, porque ver el dato de otra persona no cambia nada.
+  if(purpose==='sup-diaria'){
+    pedirConfirmacionMarcaje(text,purpose);
+    return;
+  }
+  liveScanLock=true;
   camStatus('✓ Código detectado: '+text+' — buscando…');
   setTimeout(()=>{
     stopLiveScan();
     handleScannedCode(text,purpose);
   },350);
+}
+
+// Muestra a quién se encontró y pide un OK antes de registrar. Un marcaje
+// equivocado obliga a corregir la asistencia después; un clic de más no.
+function pedirConfirmacionMarcaje(text,purpose){
+  const panel=document.getElementById('camConfirmar');
+  if(!panel)return;
+  const w=buscarTrabajadorPorCodigo(text);
+  if(!w){
+    // No se reconoce: se avisa y se deja seguir leyendo, sin marcar nada.
+    liveScanLock=true;
+    setTimeout(()=>{
+      stopLiveScan();
+      handleScannedCode(text,purpose);   // muestra el aviso del caso
+    },200);
+    return;
+  }
+  liveScanLock=true;
+  stopLiveScan();
+  const entrada=marcajeDe(w.code,'entrada');
+  const salida=marcajeDe(w.code,'salida');
+  const yaCompleto=entrada&&salida;
+  const accion=yaCompleto?'Ya tiene entrada y salida':(entrada?'Registrar SALIDA':'Registrar ENTRADA');
+  const foto=w.casual?`<img src="${escHtml(w.casual)}" style="width:56px;height:56px;object-fit:cover;border-radius:8px;border:1px solid var(--line)">`:'';
+  panel.style.display='';
+  panel.innerHTML=`<div style="border:2px solid var(--accent);border-radius:10px;padding:12px;background:var(--panel);margin-top:10px">
+    <div style="display:flex;gap:12px;align-items:center">
+      ${foto}
+      <div style="flex:1">
+        <div style="font-size:1rem;font-weight:700">${escHtml(w.name)}</div>
+        <div><small>${escHtml(w.code)} · ${escHtml(w.spec||'Sin cargo')}</small></div>
+        ${yaCompleto?`<div><small class="eppBadge firmado">Marcaje completo</small></div>`
+          :`<div><small>${entrada?'Entrada: '+escHtml(entrada.hora):'Todavía no marca entrada'}</small></div>`}
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" type="button" id="camOk">${accion}</button>
+      <button class="btn secondary" type="button" id="camNo">No es esta persona</button>
+    </div>
+    <small style="display:block;color:var(--muted);margin-top:6px">Se escaneó la tarjeta <b>${escHtml(text)}</b>. Revisa el nombre antes de confirmar.</small>
+  </div>`;
+  document.getElementById('camOk').addEventListener('click',()=>{
+    panel.style.display='none';
+    handleScannedCode(text,purpose);
+  });
+  document.getElementById('camNo').addEventListener('click',()=>{
+    panel.style.display='none';
+    reiniciarLecturaEstable();
+    liveScanLock=false;
+    camStatus('Escaneado de nuevo. Acércate un poco más o mueve la tarjeta.');
+    openQrCamera(purpose);
+  });
+  if(navigator.vibrate){try{navigator.vibrate([40,60,40]);}catch(error){}}
+}
+
+// Busca a qué trabajador corresponde un código leído, sin marcar nada.
+// Se separa de resolverCodigoTrabajador porque ese muestra alertas y
+// decide qué hacer: acá solo se necesita saber QUIÉN es.
+function buscarTrabajadorPorCodigo(text){
+  const leido=String(text||'').trim();
+  if(!leido)return null;
+  const card=tarjetas.find(t=>mismoId(t.id,leido));
+  if(card){
+    if(card.estado!=='activa')return null;
+    return workers.find(x=>x.code===card.code)||null;
+  }
+  return workers.find(x=>x.code===leido)||null;
 }
 async function openQrCamera(purpose='porteria'){
   qrScanPurpose=purpose;
@@ -2446,6 +2556,7 @@ async function openQrCamera(purpose='porteria'){
   const modal=camModal();
   modal.dataset.purpose=purpose;
   modal.classList.add('open');
+  reiniciarLecturaEstable();
   camScanArea();
   document.getElementById('camShotInput').value='';
   camStatus('Encendiendo cámara…');
@@ -2485,6 +2596,9 @@ function stopLiveScan(){
   const scanner=liveScanner;
   liveScanner=null;
   liveScanLock=false;
+  reiniciarLecturaEstable();
+  const panel=document.getElementById('camConfirmar');
+  if(panel){panel.style.display='none';panel.innerHTML='';}
   const modal=document.getElementById('camModal');
   if(modal){
     modal.classList.remove('open');
