@@ -483,6 +483,11 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
       <div><label>Buscar</label><input id="workerSearch" placeholder="Código o nombre" oninput="renderList()"></div>
       <div><label>Estado</label><select id="workerStatusFilter" onchange="renderList()"><option value="">Todos</option><option value="activo">Activos</option><option value="desvinculado">Desvinculados</option></select></div>
       <div><label>Supervisor</label><select id="workerSupervisorFilter" onchange="renderList()"><option value="">Todos</option></select></div>
+      <div><label>Ordenar por</label><select id="workerSort" onchange="renderList()">
+        <option value="nombre">Nombre</option>
+        <option value="codigo">Código</option>
+      </select>
+      <small>Por código se ordena numéricamente: 0007 antes que 0021, no al revés.</small></div>
     </div>
     <div id="workerList"></div>
   </div>
@@ -890,6 +895,14 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     <div class="row">
       <div><label>Filtrar supervisor</label><select id="matSupervisorFilter" onchange="updateAttendanceWorkerFilter()"><option value="">Todos los supervisores</option></select></div>
       <div><label>Filtrar trabajador</label><select id="matWorkerFilter" onchange="renderMatrix()"><option value="">Todos los trabajadores</option></select></div>
+      <div><label>Mostrar solo quienes tienen</label><select id="matEstadoFiltro" onchange="renderMatrix()">
+        <option value="">Todo el equipo</option>
+        <option value="F">Faltas (F)</option>
+        <option value="P">Permisos o licencias (P, L, A, PP, V)</option>
+        <option value="vacio">Días vacíos sin marcar</option>
+        <option value="todoX">Todo en X, sin huecos</option>
+      </select>
+      <small id="matEstadoFiltroMsg" style="font-size:.75rem;color:var(--muted)"></small></div>
     </div>
     <div class="row">
       <button class="btn secondary" type="button" onclick="openQrCamera('attendance-supervisor')">Escanear QR supervisor</button>
@@ -1193,7 +1206,6 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     <div id="assignUnitInfo"></div>
   </div>
   <div class="card">
-    <h2>Herramientas en poder de trabajadores</h2>
     <div id="toolAssignments"></div>
   </div>
 </section>
@@ -1534,9 +1546,20 @@ async function loadTools(quiet){
   if(error){bodegaError('No se pudo cargar el catálogo de herramientas: '+error.message,quiet);return;}
   tools=data||[];
 }
+// Por qué la lista puede salir vacía. Antes no se decía nada y la vista
+// afirmaba "No hay herramientas asignadas", que es una afirmación que la
+// app no puede sostener: si la consulta falló, no es que no haya, es que no
+// se pudo leer. Y con la lista vacía no hay ningún botón "Marcar devuelta",
+// así que la persona se queda sin salida y sin explicación.
+let toolAssignmentsError='';
 async function loadToolAssignments(quiet){
   const {data,error}=await window.supabaseClient.from('herramientas_asignaciones').select('*').order('fecha',{ascending:false}).limit(300);
-  if(error){bodegaError('No se pudieron cargar las asignaciones de herramientas: '+error.message,quiet);return;}
+  if(error){
+    toolAssignmentsError=error.message||String(error);
+    bodegaError('No se pudieron cargar las asignaciones de herramientas: '+error.message,quiet);
+    return;
+  }
+  toolAssignmentsError='';
   toolAssignments=data||[];
 }
 async function loadEppTallas(quiet){
@@ -1706,7 +1729,7 @@ function initView(v){
       document.getElementById('matMonth').value=String(today.getMonth()+1);
     }
     fillAttendanceFilters();
-    const opts=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+    const opts=opcionesTrabajadores();
     document.getElementById('just-worker').innerHTML=opts;
     document.getElementById('man-worker').innerHTML=opts;
     showJustSupervisor();
@@ -1726,7 +1749,10 @@ function updateAttendanceWorkerOptions(preferredWorkerCode=''){
   const workerSelect=document.getElementById('matWorkerFilter');
   const selectedWorker=preferredWorkerCode||workerSelect.value;
   const filteredWorkers=workers.filter(worker=>!supervisorCode||worker.supervisor_code===supervisorCode);
-  workerSelect.innerHTML='<option value="">Todos los trabajadores</option>'+filteredWorkers.map(worker=>`<option value="${worker.code}">${worker.code} - ${worker.name}</option>`).join('');
+  // El value es el código real (es lo que se usa para consultar) y lo que se
+  // ve lleva los 4 dígitos, que es lo que se va a usar para comparar con la
+  // tarjeta o con el papel.
+  workerSelect.innerHTML='<option value="">Todos los trabajadores</option>'+filteredWorkers.map(opcionTrabajador).join('');
   workerSelect.value=filteredWorkers.some(worker=>worker.code===selectedWorker)?selectedWorker:'';
 }
 function updateAttendanceWorkerFilter(){
@@ -1986,7 +2012,7 @@ function updateSupervisorAssignment(){
 function initAsignarSupervisor(){
   const select=document.getElementById('trans-worker');
   const selected=select.value;
-  select.innerHTML=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+  select.innerHTML=opcionesTrabajadores();
   if(workers.some(w=>w.code===selected))select.value=selected;
   updateSupervisorAssignment();
 }
@@ -2013,7 +2039,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-g';
+const APP_VERSION='2026-09-28-i';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -2550,19 +2576,30 @@ function renderList(filter){
   const f=(searchValue||'').trim().toLowerCase();
   const statusFilter=document.getElementById('workerStatusFilter').value;
   const supervisorFilter=document.getElementById('workerSupervisorFilter').value;
+  const orden=((document.getElementById('workerSort')||{}).value)||'nombre';
   const filteredWorkers=workers.filter(w=>{
-    const matchesSearch=!f||w.code.toLowerCase().includes(f)||w.name.toLowerCase().includes(f);
+    // La búsqueda acepta el código con y sin ceros: si la pantalla muestra
+    // 0021, buscar "21" tiene que encontrarlo, y al revés.
+    const cod=String(w.code||'');
+    const codLlenado=codigoMostrar(cod);
+    const matchesSearch=!f||cod.toLowerCase().includes(f)||codLlenado.toLowerCase().includes(f)||w.name.toLowerCase().includes(f);
     const matchesStatus=!statusFilter||w.status===statusFilter;
     const matchesSupervisor=!supervisorFilter||(supervisorFilter==='__none__'?!w.supervisor_code:w.supervisor_code===supervisorFilter);
     return matchesSearch&&matchesStatus&&matchesSupervisor;
   });
+  // Por nombre se ordena con acentos y todo, como estaba. Por código se
+  // ordena NUMÉRICAMENTE, que es el motivo de este cambio: "7" tiene que
+  // ir antes que "12".
+  filteredWorkers.sort(orden==='codigo'
+    ?(a,b)=>compararPorCodigo(a.code,b.code)||a.name.localeCompare(b.name)
+    :(a,b)=>a.name.localeCompare(b.name));
   el.innerHTML='';
   if(!filteredWorkers.length){el.innerHTML='<small>No hay trabajadores que coincidan con estos filtros.</small>';return;}
   filteredWorkers.forEach(w=>{
     const d=document.createElement('div');
     d.className='list-item';
     const estado = w.status==='desvinculado' ? ' <span class="pill" style="color:var(--danger);border-color:var(--danger)">Desvinculado</span>' : '';
-    d.innerHTML=`<span><b>${w.code}</b> — ${w.name} <small>(${w.spec||'—'})</small>${estado}</span><span>🚪&nbsp;🗑️</span>`;
+    d.innerHTML=`<span><b>${escHtml(codigoMostrar(w.code))}</b> — ${escHtml(w.name)} <small>(${escHtml(w.spec||'—')})</small>${estado}</span><span>🚪&nbsp;🗑️</span>`;
     d.onclick=()=>editWorker(w.code);
     const icons=d.querySelector('span:last-child');
     icons.childNodes[0]&&(icons.innerHTML=`<span title="Desvincular" style="cursor:pointer">🚪</span> <span title="Eliminar" style="cursor:pointer">🗑️</span>`);
@@ -2624,7 +2661,7 @@ function cardFrontHtml(w,idSuffix,temporal){
           ${temporal?'<span class="temp-card-badge">Temporal</span>':`<span class="final-card-badge">Definitiva</span><span class="worker-type-badge ${w.tipo_trabajador==='subcontrato'?'subcontrato':'interno'}">${w.tipo_trabajador==='subcontrato'?'Subcontrato':'Interno Empresa'}</span>`}
         </div>
         <div>
-          <div class="idcard-code">Código: <b>${w.code}</b></div>
+          <div class="idcard-code">Código: <b>${escHtml(codigoMostrar(w.code))}</b></div>
           <div class="idcard-codes">
             <svg id="barcode${idSuffix}"></svg>
           </div>
@@ -2695,7 +2732,7 @@ function drawCardCodes(value,idSuffix,options={}){
 }
 function fillCardSelect(){
   const sel=document.getElementById('cardSelect');
-  sel.innerHTML=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+  sel.innerHTML=opcionesTrabajadores();
 }
 async function renderCard(){
   const code=document.getElementById('cardSelect').value;
@@ -2987,7 +3024,7 @@ function pedirConfirmacionMarcaje(text,purpose){
       ${foto}
       <div style="flex:1">
         <div style="font-size:1rem;font-weight:700">${escHtml(w.name)}</div>
-        <div><small>${escHtml(w.code)} · ${escHtml(w.spec||'Sin cargo')}</small></div>
+        <div><small>${escHtml(codigoMostrar(w.code))} · ${escHtml(w.spec||'Sin cargo')}</small></div>
         ${yaCompleto?`<div><small class="eppBadge firmado">Marcaje completo</small></div>`
           :`<div><small>${entrada?'Entrada: '+escHtml(entrada.hora):'Todavía no marca entrada'}</small></div>`}
       </div>
@@ -3023,6 +3060,58 @@ function normalizarCodigo(txt){
   return String(txt==null?'':txt)
     .replace(/[\s\u0000-\u001f]+/g,'')
     .toUpperCase();
+}
+
+// CÓDIGOS: SE MUESTRAN CON 4 DÍGITOS, PERO NO SE CAMBIAN
+//
+// "7" y "0021" ordenan distinto: como texto, 12 va antes que 7, y en una
+// lista de 46 personas eso revuelve el orden entero. Con 4 dígitos, "0007"
+// y "0021" quedan en su lugar y la columna se lee de un vistazo.
+//
+// OJO CON LO QUE NO SE HACE: no se cambia el código guardado en la base.
+// El código es la llave de varias tablas (asistencia, marcajes, tarjetas,
+// solicitudes) y de las tarjetas impresas: cambiarlo obligaría a migrar
+// todo junto, y un error ahí deja la asistencia perdida. Solo se cambia
+// cómo se muestra y cómo se ordena.
+//
+// Solo se completan con ceros los códigos QUE SON NUMÉRICOS. Un código
+// como "TEMP-01" o "K12" se deja tal cual: inventarle ceros sería mentira.
+//
+// Un código de más de 4 dígitos no se corta: 12345 es más largo que el
+// formato, y recortarlo haría que dos personas distintas mostraran el mismo.
+const CODIGO_DIGITOS=4;
+function esCodigoNumerico(code){
+  const s=String(code==null?'':code).trim();
+  return s!==''&&/^\d+$/.test(s);
+}
+function codigoMostrar(code){
+  const s=String(code==null?'':code).trim();
+  if(!esCodigoNumerico(s))return s;
+  return s.padStart(CODIGO_DIGITOS,'0');
+}
+// Ordena por código como número cuando los dos son numéricos, y como texto
+// en cualquier otro caso. Comparar "7" con "0021" como texto los pone en el
+// orden equivocado, que es justo lo que se vino a arreglar.
+function compararPorCodigo(a,b){
+  const ca=a==null?'':String(a).trim();
+  const cb=b==null?'':String(b).trim();
+  if(esCodigoNumerico(ca)&&esCodigoNumerico(cb)){
+    const na=Number(ca), nb=Number(cb);
+    if(na!==nb)return na-nb;
+    // Mismo número con distinta cantidad de ceros: van juntos, y después
+    // por el texto para que el orden sea estable.
+    return ca.length-cb.length||ca.localeCompare(cb);
+  }
+  return ca.localeCompare(cb);
+}
+// Para las opciones <select> del código y el nombre: el código se muestra
+// con 4 dígitos pero el value sigue siendo el código real, porque es lo que
+// se usa para buscar en la base.
+function opcionTrabajador(w){
+  return '<option value="'+escHtml(w.code)+'">'+escHtml(codigoMostrar(w.code))+' — '+escHtml(w.name)+'</option>';
+}
+function opcionesTrabajadores(lista){
+  return (lista||workers).map(opcionTrabajador).join('');
 }
 
 // La lista de tarjetas en memoria es una CACHÉ, no la fuente.
@@ -3637,7 +3726,7 @@ function abrirAvisoMarcaje(w,info){
         donde:null}
       ].concat(avisos||[]);
   document.getElementById('marcajeQuien').innerHTML=
-    `<b>${escHtml(w.name)}</b> · código ${escHtml(w.code)} · ${escHtml(fechaDiaria)}`;
+    `<b>${escHtml(w.name)}</b> · código ${escHtml(codigoMostrar(w.code))} · ${escHtml(fechaDiaria)}`;
   document.getElementById('marcajeLista').innerHTML=lista.map(a=>
     `<div class="mkAviso">
       <div class="mkAvisoIcono">${a.icono}</div>
@@ -3710,7 +3799,7 @@ function renderDiaria(){
     const prev=w.alerta_prevencion?'prevencion ':'';
     return `<div class="mkFila${ent?'':' mkAusente'}" data-code="${escHtml(w.code)}">
       <div class="mkNombre">
-        <b>${escHtml(w.code)}</b> ${escHtml(w.name)}
+        <b>${escHtml(codigoMostrar(w.code))}</b> ${escHtml(w.name)}
         <small>${escHtml(w.spec||'')}</small>
         ${(social||prev)?`<span class="mkTags">${social?'<em class="tagSocial">Asist. social</em>':''}${prev?'<em class="tagPrev">Prevención</em>':''}</span>`:''}
       </div>
@@ -3777,7 +3866,7 @@ function initJustificacionDiaria(){
     const anterior=sup.value;
     sup.innerHTML='<option value="">Todos los supervisores</option>'+
       workers.filter(w=>w.is_supervisor)
-        .map(w=>`<option value="${escHtml(w.code)}">${escHtml(w.name)}</option>`).join('');
+        .map(opcionTrabajador).join('');
     if(anterior)sup.value=anterior;
   }
   renderJustificacionDiaria();
@@ -3859,6 +3948,7 @@ function renderJustificacionDiaria(){
     // justo cuando más importaba.
     if(!ent&&estado==='F'){motivo='falta';detalle='La planilla lo tiene como F y no hay marcaje del reloj.';}
     else if(ent&&estado==='F'){motivo='falta_con_marca';detalle='La planilla lo tiene como F pero hay marcaje de entrada a las '+ent.hora+'. Los dos datos no pueden ser ciertos a la vez.'+atrasoTxt;}
+    else if(!ent&&estado==='X'){motivo='sin_marcaje';detalle='Está en la planilla como presente, pero no hay marcaje del reloj de este día. La hora se completa cuando llegue el reporte.';}
     else if(!ent&&!justificante){motivo='sin_marcar';detalle='No hay ningún marcaje de entrada de este día.';}
     else if(ent&&!sal){motivo='sin_salida';detalle='Marcó entrada a las '+ent.hora+' y no hay salida registrada.'+atrasoTxt;}
     else if(ent&&tarde){motivo='tarde';detalle='Entró a las '+ent.hora+' y la hora de entrada es '+entradaEsp+' (tolerancia '+tolerancia+' min).';}
@@ -3912,6 +4002,7 @@ function renderJustificacionDiaria(){
 
   const etiqueta={
     sin_marcar:{t:'Sin marcar',c:'var(--danger)'},
+    sin_marcaje:{t:'Presente sin reloj',c:'var(--warn)'},
     falta:{t:'F sin marcaje',c:'var(--danger)'},
     falta_con_marca:{t:'F con marcaje',c:'var(--warn)'},
     sin_salida:{t:'Sin salida',c:'var(--warn)'},
@@ -3922,16 +4013,16 @@ function renderJustificacionDiaria(){
   // Ordenados por lo que urge: primero los que no aparecen, después los
   // que tienen una inconsistencia, y al final lo que está bien. Es el
   // orden en que se puede trabajar la lista.
-  const orden=['sin_marcar','falta','falta_con_marca','sin_salida','tarde','justificado','ok'];
+  const orden=['sin_marcar','falta','falta_con_marca','sin_marcaje','sin_salida','tarde','justificado','ok'];
   const cuerpo=aMostrar
     .slice()
-    .sort((a,b)=>orden.indexOf(a.motivo)-orden.indexOf(b.motivo)||a.w.code.localeCompare(b.w.code))
+    .sort((a,b)=>orden.indexOf(a.motivo)-orden.indexOf(b.motivo)||compararPorCodigo(a.w.code,b.w.code))
     .map(x=>{
       const et=etiqueta[x.motivo];
       const sup=x.w.supervisor_code?workers.find(s=>s.code===x.w.supervisor_code):null;
       return `<div class="mkFila" data-code="${escHtml(x.w.code)}">
         <div class="mkNombre">
-          <b>${escHtml(x.w.code)}</b> ${escHtml(x.w.name)}
+          <b>${escHtml(codigoMostrar(x.w.code))}</b> ${escHtml(x.w.name)}
           <small>${escHtml(x.w.spec||'')}${sup?(' · Supervisor: '+escHtml(sup.name)):''}</small>
         </div>
         <div class="mkEstado">
@@ -3943,6 +4034,9 @@ function renderJustificacionDiaria(){
             `<button class="btn" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
               onclick="abrirJustificarCon('${escHtml(x.w.code)}','${escHtml(fecha)}')"
               title="Abre el formulario de justificación con el trabajador y el día ya puestos">Justificar</button>`}
+          <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
+            onclick="marcarRelojConHoraAhora('${escHtml(x.w.code)}','${escHtml(fecha)}')"
+            title="Registra que marcó el reloj AHORA, con la hora actual. Al día siguiente, cuando se cargue el Excel del reloj, esa hora se corrige con la que diga el reporte.">🕐 Marcó reloj</button>
           <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
             onclick="abrirTarjaDe('${escHtml(x.w.code)}')">Ver en la tarja</button>
         </div>
@@ -3975,6 +4069,57 @@ function abrirJustificarCon(code,fecha){
   if(nota){nota.focus();window.scrollTo({top:0,behavior:'smooth'});}
   const ms=document.getElementById('justMsg');
   if(ms)ms.innerHTML='<small>Trabajador y fecha ya puestos. Revisá el estado y escribí el detalle.</small>';
+}
+// Registra que la persona marcó el reloj AHORA, con la hora de este
+// momento, y deja la planilla en presente con esa hora.
+//
+// POR QUÉ HAY QUE TENER CUIDADO CON ESTO
+//
+// El reporte del reloj llega AL DÍA SIGUIENTE. Entonces hoy esta hora es
+// provisional, y mañana el Excel va a decir la real. Por eso:
+//   · se guarda con origen 'reloj' y no 'manual', para que después se vea
+//     de dónde salió;
+//   · NO se pisa un marcaje que ya venga del reloj. Si la fila ya tiene
+//     origen 'excel' o 'reloj', la hora real ya está y sobrescribirla con
+//     la de ahora sería perder el dato bueno por uno worse;
+//   · la planilla también se actualiza, que es lo que la persona espera
+//     ver en la tarja al instante.
+async function marcarRelojConHoraAhora(code,fecha){
+  if(!exigirPermiso('tarja.marcaje','No tienes permiso para registrar marcajes.'))return;
+  const w=workers.find(x=>x.code===code);
+  if(!w){alert('No se encontró al trabajador '+code+'.');return;}
+  const dia=fecha||hoyLocal();
+  const hora=hhmmActual();
+  const previo=(typeof marcajes!=='undefined'?marcajes:[]).find(m=>m.code===code&&m.fecha===dia&&m.tipo==='entrada');
+  if(previo&&(previo.origen==='excel'||previo.origen==='reloj')){
+    const cambiar=confirm(w.name+' ya tiene un marcaje del RELOJ el '+dia+' a las '+
+      hhmmDe(0,0).slice(0,0)+previo.hora+'.\n\n'+
+      'Si apretás de nuevo, se reemplaza por la hora de ahora ('+hora+') y esa se pierde.\n\n'+
+      '¿Seguir igual?');
+    if(!cambiar)return;
+  }else if(!confirm('¿Registrar que '+w.name+' marcó el reloj el '+dia+' a las '+hora+'?'))return;
+
+  const {data:sesion}=await window.supabaseClient.auth.getSession();
+  const miId=sesion&&sesion.session&&sesion.session.user&&sesion.session.user.id;
+  const {error}=await window.supabaseClient.from('marcajes').upsert([{
+    code,fecha:dia,hora,tipo:'entrada',
+    origen:'reloj',
+    nota:'Marcado a mano con la hora actual; el reporte del reloj lo confirmará',
+    registrado_por:miId,
+    registrado_por_nombre:miNombrePerfil()
+  }],{onConflict:'code,fecha,tipo'});
+  if(error){
+    const falta=migracionQueFalta(error);
+    alert(falta
+      ?('No se pudo guardar. Falta la migración '+falta+'. Córrela en el SQL Editor de Supabase y vuelve a intentar.')
+      :('No se pudo guardar el marcaje: '+error.message));
+    return;
+  }
+  await loadMarcajesDia();
+  const guardado=await saveAttendanceState(code,dia,'X',hora);
+  renderJustificacionDiaria();
+  if(!guardado)alert('Se registró el marcaje, pero la planilla no se pudo actualizar. Revisá Soporte → Diagnóstico.');
+  else alert('Marcaje registrado a las '+hora+'.\n\nLa hora es la de ahora. Cuando cargues el Excel del reloj, se corrige con la real.');
 }
 // Lleva a la tarja mensual con ese trabajador filtrado, para ver el
 // contexto del mes antes de decidir.
@@ -4738,7 +4883,7 @@ function renderResumenMarcajes(a){
       '<th>Fecha</th><th>Tipo</th><th>Hora</th><th class="izq">Trabajador</th><th>Cómo se emparejó</th>'+
       '</tr></thead><tbody>'+
       a.validas.slice(0,300).map(v=>`<tr><td>${escHtml(v.fecha)}</td><td>${v.tipo}</td><td>${escHtml(v.hora)}</td>`+
-        `<td class="izq"><b>${escHtml(v.code)}</b> ${escHtml(workers.find(w=>w.code===v.code)?workers.find(w=>w.code===v.code).name:'')}</td>`+
+        `<td class="izq"><b>${escHtml(codigoMostrar(v.code))}</b> ${escHtml(workers.find(w=>w.code===v.code)?workers.find(w=>w.code===v.code).name:'')}</td>`+
         `<td><small>${escHtml(v.como)}${v.rut?'':' · sin RUT'}</small></td></tr>`).join('')+
       '</tbody></table></div>';
     if(a.validas.length>300)html+=`<small>Se muestran los primeros 300 de ${a.validas.length}.</small>`;
@@ -4990,7 +5135,8 @@ function initSupervisores(){
     document.getElementById('supSoloEqWrap').style.display='';
     document.getElementById('supSoloEqWrap').innerHTML=
       `<b>${equipo.length}</b> trabajador${equipo.length===1?'':'es'} a cargo: `+
-      equipo.map(w=>`<b>${escHtml(w.code)}</b> ${escHtml(w.name)}`).join(' · ')+
+      equipo.slice().sort((a,b)=>compararPorCodigo(a.code,b.code))
+        .map(w=>`<b>${escHtml(codigoMostrar(w.code))}</b> ${escHtml(w.name)}`).join(' · ')+
       (equipo.length?'':'<br><small>Todavía no tienes gente asignada. Pídele a administración que te asigne un equipo.</small>');
     sel.innerHTML=`<option value="${propio}">${escHtml(workers.find(w=>w.code===propio).name)}</option>`;
   }else{
@@ -5068,7 +5214,7 @@ function elegirParaMarcajeManual(w,aviso){
   // El aviso va PRIMERO, porque prepararMarcajeManual() limpia el mensaje y
   // si se escribiera después, quedaría tapado. Antes se perdía solo.
   if(aviso)msg.innerHTML+=`<p style="background:var(--accent);color:#1c1206;padding:8px 10px;border-radius:6px;margin-bottom:6px"><b>${escHtml(aviso)}.</b> Se eligió igual, pero conviene pasar la tarjeta.</p>`;
-  msg.innerHTML+=`<p style="background:var(--accent2);color:#fff;padding:8px 10px;border-radius:6px">Elegido: <b>${escHtml(w.name)}</b> (código ${escHtml(w.code)}). Fecha ${escHtml(hoyLocal())}, hora ${escHtml(hhmmActual())}. Si es otra, cámbiala y dale <b>Registrar marcaje</b>.</p>`;
+  msg.innerHTML+=`<p style="background:var(--accent2);color:#fff;padding:8px 10px;border-radius:6px">Elegido: <b>${escHtml(w.name)}</b> (código ${escHtml(codigoMostrar(w.code))}). Fecha ${escHtml(hoyLocal())}, hora ${escHtml(hhmmActual())}. Si es otra, cámbiala y dale <b>Registrar marcaje</b>.</p>`;
 }
 // Busca por tarjeta, por código o por nombre, y deja al trabajador elegido.
 //
@@ -5185,7 +5331,7 @@ function buildMatrixHtml(y,m,lista,modo){
   }
   html+='<td colspan="6"></td></tr>';
   lista.forEach(w=>{
-    html+=`<tr><td class="attendance-code-column">${w.code}</td><td>${w.name}</td>`;
+    html+=`<tr><td class="attendance-code-column">${escHtml(codigoMostrar(w.code))}</td><td>${escHtml(w.name)}</td>`;
     let cX=0,cHolidayX=0,cF=0,cP=0,cL=0,cA=0,cPP=0,cV=0,cLL=0;
     for(let d=1;d<=nd;d++){
       const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -5231,12 +5377,72 @@ function buildMatrixHtml(y,m,lista,modo){
   html+='<p style="margin-top:8px"><small><b>Códigos:</b> X Presente · F Falla · P Permiso · L Licencia · A Accidente Mutual · PP Permiso Pagado · V Vacaciones · LL Día lluvia. La fila "Día" muestra L M M J V S D (lunes a domingo); el fondo resaltado indica feriado — haz clic en un día para alternar laborable/feriado. <b>Días efectivos</b> = X+V+PP+LL y X en feriados (para liquidación). <b>Días reales trabajados</b> = X fuera de feriado.</small></p>';
   return html;
 }
+// Qué tiene cada persona en el mes, para poder filtrar la grilla.
+//
+// Se calcula sobre la PLANILLA, que es lo que la grilla muestra, y no sobre
+// los marcajes del reloj: si se mezclaran, "tiene una falta" significaría
+// dos cosas distintas según de dónde se mirara. Los días no laborables se
+// excluyen del conteo de vacíos, porque un domingo en blanco no es un
+// problema y contarlo hacía que todos los trabajadores aparecieran con huecos.
+function resumenDeEstadosDelMes(w,y,m){
+  const prefijo=y+'-'+String(m).padStart(2,'0');
+  const nd=new Date(y,m,0).getDate();
+  // OJO: en memoria el campo se llama "date", no "fecha". La base guarda
+  // "fecha" y dbToAtt() la renombra. Con a.fecha.startsWith() salía un
+  // TypeError y renderMatrix() se caía entero, con lo cual el filtro no
+  // filtraba nada y la tarja quedaba con el render anterior.
+  const filas=attendance.filter(a=>a.code===w.code&&String(a.date||'').startsWith(prefijo));
+  const estados=new Set(filas.map(a=>a.estado));
+  const conF=filas.some(a=>a.estado==='F');
+  const conPermiso=filas.some(a=>['P','L','A','PP','V'].includes(a.estado));
+  let vacios=0,laborables=0;
+  for(let d=1;d<=nd;d++){
+    if(isFeriado(y,m,d))continue;
+    laborables++;
+    const iso=prefijo+'-'+String(d).padStart(2,'0');
+    if(!filas.some(a=>a.date===iso))vacios++;
+  }
+  return {conF,conPermiso,vacios,laborables,estados};
+}
 function renderMatrix(){
   const y=parseInt(document.getElementById('matYear').value);
   const m=parseInt(document.getElementById('matMonth').value);
   const supervisorCode=document.getElementById('matSupervisorFilter').value;
   const workerCode=document.getElementById('matWorkerFilter').value;
-  const filteredWorkers=workers.filter(worker=>(!supervisorCode||worker.supervisor_code===supervisorCode)&&(!workerCode||worker.code===workerCode));
+  const estadoFiltro=(document.getElementById('matEstadoFiltro')||{}).value||'';
+  const base=workers.filter(worker=>(!supervisorCode||worker.supervisor_code===supervisorCode)&&(!workerCode||worker.code===workerCode));
+
+  let filteredWorkers=base;
+  if(estadoFiltro){
+    // Se calcula una vez por persona y se reutiliza para el filtro y para
+    // el mensaje: si se calculara dos veces, el mensaje podría contar
+    // distinto de lo que se ve.
+    const resumen=new Map(base.map(w=>[w.code,resumenDeEstadosDelMes(w,y,m)]));
+    filteredWorkers=base.filter(w=>{
+      const r=resumen.get(w.code);
+      if(estadoFiltro==='F')return r.conF;
+      if(estadoFiltro==='P')return r.conPermiso;
+      if(estadoFiltro==='vacio')return r.vacios>0;
+      if(estadoFiltro==='todoX')return r.laborables>0&&r.vacios===0&&!r.conF&&!r.conPermiso;
+      return true;
+    });
+    const msg=document.getElementById('matEstadoFiltroMsg');
+    if(msg){
+      msg.textContent=filteredWorkers.length
+        ?filteredWorkers.length+' de '+base.length+' persona(s)'
+        :'Ninguna persona cumple ese filtro';
+    }
+  }else{
+    const msg=document.getElementById('matEstadoFiltroMsg');
+    if(msg)msg.textContent='';
+  }
+
+  // La tarja ordena por código, de menor a mayor. Antes salía en el orden
+  // en que los trajo la base (por nombre), así que con los códigos ya
+  // completados a 4 dígitos la columna se veía prolija pero en un orden
+  // que no era ni de código ni de nombre, que es lo más difícil de leer.
+  // El nombre queda como segundo criterio para desempatar.
+  filteredWorkers.sort((a,b)=>compararPorCodigo(a.code,b.code)||a.name.localeCompare(b.name));
   document.getElementById('matrixArea').innerHTML=buildMatrixHtml(y,m,filteredWorkers);
   if(typeof marcarTarjaSoloLectura==='function')marcarTarjaSoloLectura();
 }
@@ -5695,7 +5901,7 @@ async function initInvitarUsuario(){
   const selFicha=document.getElementById('inv-ficha');
   const previo=selFicha.value;
   selFicha.innerHTML='<option value="">Sin ficha — ve todos los trabajadores</option>'+
-    workers.map(w=>`<option value="${w.code}">${escHtml(w.code+' - '+w.name+(w.is_supervisor?' (supervisor)':''))}</option>`).join('');
+    workers.map(w=>`<option value="${escHtml(w.code)}">${escHtml(codigoMostrar(w.code)+' - '+w.name+(w.is_supervisor?' (supervisor)':''))}</option>`).join('');
   if(workers.some(w=>w.code===previo))selFicha.value=previo;
 
   // Empresas: solo las que este administrador puede ver.
@@ -6477,7 +6683,7 @@ function tallaOptions(tipo,seleccionada){
 }
 
 function initBodega(){
-  const opts=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+  const opts=opcionesTrabajadores();
   const selWorker=document.getElementById('epp-worker');
   const previo=selWorker.value;
   selWorker.innerHTML=opts;
@@ -7553,21 +7759,64 @@ async function assignTool(){
 function renderToolAssignments(){
   const el=document.getElementById('toolAssignments');
   if(!el)return;
-  el.innerHTML=toolAssignments.length?toolAssignments.map(a=>{
-    const w=workers.find(x=>x.code===a.code);
-    return `<div class="list-item" style="cursor:default"><span>${a.fecha} — <b>${a.code}</b> ${w?w.name:''}: <b>${a.herramienta_codigo||'—'}</b> ${a.herramienta_nombre||''} ($${Number(a.precio).toLocaleString('es-CL')}) ${a.inventario_qr_id?`<small style="font-family:ui-monospace,monospace"> · QR ${a.inventario_qr_id}</small>`:''} ${a.devuelta?'<span class="pill" style="color:var(--accent2);border-color:var(--accent2)">Devuelta</span>':'<span class="pill" style="color:var(--accent);border-color:var(--accent)">Pendiente</span>'}</span>${a.devuelta?'':`<button class="btn secondary" style="margin:0;padding:4px 8px" onclick="marcarDevuelta('${a.id}')">Marcar devuelta</button>`}</div>`;
-  }).join('') : '<small>No hay herramientas asignadas.</small>';
+  const encabezado='<h2>Herramientas en poder de trabajadores</h2>';
+  // Primero el error, si lo hay. Un "no hay" cuando en realidad no se pudo
+  // leer es peor que un vacío: hace perder tiempo buscando una devolución
+  // que sí existe.
+  if(toolAssignmentsError){
+    el.innerHTML=encabezado+
+      '<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
+      '<b>No se pudieron leer las asignaciones de herramientas.</b> Por eso la lista sale vacía, y eso NO significa que no haya ninguna.<br>'+
+      '<small>'+escHtml(toolAssignmentsError)+'<br>Revisá en Soporte → Diagnóstico, y si es una tabla que falta, corré su migración.</small></div>';
+    return;
+  }
+  const pendientes=toolAssignments.filter(a=>!a.devuelta);
+  if(!toolAssignments.length){
+    // La causa más común: existe la herramienta en el catálogo pero no se
+    // emitió ninguna etiqueta física, y sin unidad con QR no hay nada que
+    // entregar ni que devolver.
+    const sinUnidades=tools.length&&!inventarioQr.some(q=>q.tipo==='herramienta');
+    el.innerHTML=encabezado+'<div class="eppVacio">'+
+      (tools.length
+        ?(sinUnidades
+          ?'Todavía no emitiste ninguna <b>etiqueta física</b> de herramienta. Sin una unidad con QR no se puede entregar ni devolver nada. Emitelas en <b>QR / Etiquetas</b>.'
+          :'Hay herramientas en el catálogo y etiquetas emitidas, pero ninguna está entregada todavía. Asigná una desde arriba y después va a aparecer acá para devolverla.')
+        :'Primero cargá el catálogo de herramientas en <b>Herramientas</b>.')+
+      '</div>';
+    return;
+  }
+  el.innerHTML=encabezado+
+    (pendientes.length?'':'<small>No hay ninguna herramienta pendiente de devolución.</small>')+
+    toolAssignments.map(a=>{
+      const w=workers.find(x=>x.code===a.code);
+      return `<div class="list-item" style="cursor:default"><span>${a.fecha} — <b>${escHtml(codigoMostrar(a.code))}</b> ${w?escHtml(w.name):''}: <b>${escHtml(a.herramienta_codigo||'—')}</b> ${escHtml(a.herramienta_nombre||'')} ($${Number(a.precio).toLocaleString('es-CL')}) ${a.inventario_qr_id?`<small style="font-family:ui-monospace,monospace"> · QR ${escHtml(a.inventario_qr_id)}</small>`:''} ${a.devuelta?`<span class="pill" style="color:var(--secondary-text);border-color:var(--secondary-text)">Devuelta${a.fecha_devolucion?' el '+escHtml(a.fecha_devolucion):''}</span>`:'<span class="pill" style="color:var(--warn-ink);border-color:var(--warn)">Pendiente</span>'}</span>${a.devuelta?'':`<button class="btn secondary" style="margin:0;padding:4px 8px" onclick="marcarDevuelta('${escHtml(a.id)}')">Marcar devuelta</button>`}</div>`;
+    }).join('');
 }
 async function marcarDevuelta(id){
   const a=toolAssignments.find(x=>mismoId(x.id,id));
-  if(!a)return;
-  const unidad=inventarioQr.find(q=>q.id===a.inventario_qr_id);
-  if(unidad&&!confirm(`La unidad ${unidad.id} volverá a quedar disponible para entregar. ¿Continuar?`))return;
+  if(!a){alert('Esa asignación ya no está en la lista. Recargá la vista.');return;}
+  const unidad=inventarioQr.find(q=>mismoId(q.id,a.inventario_qr_id));
+  const quien=workers.find(x=>x.code===a.code);
+  const texto=`${quien?quien.name+' · ':''}${a.herramienta_nombre||a.herramienta_codigo||'herramienta'}`;
+  if(!confirm(`¿Marcar como devuelta ${texto}${unidad?(' (unidad '+unidad.id+')'):''} del ${a.fecha}?`+
+    (unidad?'\n\nEsa etiqueta vuelve a quedar disponible para entregar.':'\n\nOjo: esta asignación no tiene unidad (QR) vinculada, así que la etiqueta no cambia de estado.'))){
+    return;
+  }
   const {error}=await window.supabaseClient.from('herramientas_asignaciones')
     .update({devuelta:true,fecha_devolucion:hoyLocal()}).eq('id',id);
   if(error){alert('No se pudo marcar como devuelta: '+error.message);return;}
+  // Con RLS, un UPDATE que no coincide con ninguna fila NO da error: sale
+  // con cero filas afectadas y parece que se guardó. Por eso se comprueba
+  // que el registro haya cambiado de verdad.
   await loadToolAssignments();
+  const sigue=toolAssignments.find(x=>mismoId(x.id,id));
+  if(sigue&&!sigue.devuelta){
+    alert('La devolución NO se guardó. La carga por lo menos dice:\n'+(toolAssignmentsError||'las políticas de seguridad probablemente impiden modificarla. Revisá Soporte → Diagnóstico.'));
+    return;
+  }
   initBodega();
+  renderToolAssignments();
+  alert('Devolución registrada el '+hoyLocal()+'.');
 }
 
 // ---------- bodega: QR / Etiquetas de inventario ----------
@@ -8285,7 +8534,7 @@ function initKitsView(){
   const selW=document.getElementById('kit-worker');
   if(selW){
     const previo=selW.value;
-    selW.innerHTML=workers.map(w=>`<option value="${w.code}">${w.code} - ${w.name}</option>`).join('');
+    selW.innerHTML=opcionesTrabajadores();
     if(workers.some(w=>w.code===previo))selW.value=previo;
   }
   const fecha=document.getElementById('kit-fecha');
@@ -8447,7 +8696,7 @@ function refreshAllWorkerPickers(){
     const base=(id==='epp-filter')?'<option value="">Todos los trabajadores</option>':'';
     const soloSupervisores=id==='sup-view';
     const lista=soloSupervisores?workers.filter(w=>w.is_supervisor):workers;
-    sel.innerHTML=base+lista.map(w=>`<option value="${w.code}">${w.code} - ${escHtml(w.name)}</option>`).join('');
+    sel.innerHTML=base+lista.map(opcionTrabajador).join('');
     if(lista.some(w=>w.code===previo))sel.value=previo;
     if(typeof fn==='function')fn();
   });
@@ -9133,7 +9382,7 @@ function abrirModal(code,fecha,modo){
   modalCtx={code,fecha,estadoActual:est,modo:modo||'supervisores'};
 
   document.getElementById('solModalQuien').innerHTML=
-    `<b>${escHtml(w.name)}</b> · código ${escHtml(w.code)} · <b>${escHtml(fecha)}</b>`;
+    `<b>${escHtml(w.name)}</b> · código ${escHtml(codigoMostrar(w.code))} · <b>${escHtml(fecha)}</b>`;
   document.getElementById('solModalActual').innerHTML=
     `Estado actual: <b>${escHtml(est||'sin registro')}</b>`+
     (est?` <small>${escHtml((ESTADOS_TARJA.find(e=>e.v===est)||{t:''}).t)}</small>`:'');
