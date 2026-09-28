@@ -45,6 +45,18 @@ label{display:block;font-size:.8rem;color:var(--muted);margin:8px 0 3px}
 input,select,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:.9rem;font-family:inherit}
 textarea{resize:vertical;min-height:50px}
 button.btn{background:var(--accent2);color:#fff;border:none;padding:9px 16px;border-radius:6px;cursor:pointer;font-size:.85rem;margin-top:10px}
+/* Ítem del menú que existe pero que esta persona no puede abrir. Se muestra
+   en vez de desaparecer: esconderlo deja a quien lo busca sin ninguna
+   respuesta, y no hay forma de pedir que te lo habiliten si no sabes qué
+   falta. El candado y el texto atenuado dicen "falta permiso", no "roto". */
+#subNav button.bloqueado{
+  color:var(--muted);cursor:not-allowed;opacity:.62;
+  background-image:linear-gradient(var(--line),var(--line));
+  background-size:100% 1px;background-position:0 100%;background-repeat:no-repeat;
+}
+#subNav button.bloqueado:before{content:'\\1F512  ';}
+#subNav button.bloqueado:hover{background-color:var(--surface-hover);color:var(--muted);opacity:.9}
+#subNav details.parcial>.nav-dropdown-trigger:after{content:'\\1F512'}
 /* button.btn.secondary NO se define acá: lo define css/styles.css con
    --secondary-text. Estaba duplicado acá con --accent2, y --accent2 es un
    gris de superficie (#404040 en oscuro), no un color de texto. */
@@ -1327,6 +1339,26 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
   </div>
 </section>
 
+<section class="view" id="v-just-diaria">
+  <div class="card">
+    <h2>Justificación diaria</h2>
+    <small>Quién tiene que explicar su asistencia de un día, y por qué. Para Administración y RRHH: no es la vista del supervisor con su equipo, sino toda la obra, y ordenada por lo que hay que resolver.
+      Los días que no son laborables (fin de semana, feriado) no se cuentan, y tampoco los días en que el trabajador todavía no trabajaba o ya se fue.</small>
+    <div class="row">
+      <div><label>Fecha</label><input type="date" id="justDiaFecha" onchange="renderJustificacionDiaria()"></div>
+      <div><label>Supervisor</label><select id="justDiaSup" onchange="renderJustificacionDiaria()"></select></div>
+      <div><label>Mostrar</label><select id="justDiaFiltro" onchange="renderJustificacionDiaria()">
+        <option value="pendientes">Solo lo que hay que explicar</option>
+        <option value="justificados">Incluir también lo justificado</option>
+        <option value="todos">Todos los del día</option>
+      </select></div>
+    </div>
+    <div id="justDiaResumen" style="margin-top:12px"></div>
+    <div id="justDiaAviso" style="margin-top:10px"></div>
+    <div id="justDiaLista" style="margin-top:12px"></div>
+  </div>
+</section>
+
 <div id="marcajeModal" role="dialog" aria-modal="true" aria-labelledby="marcajeModalTitle">
   <div class="mkBox">
     <h3 id="marcajeModalTitle">Marcaje registrado</h3>
@@ -1581,6 +1613,7 @@ const navGroups = {
       ]}
     ]},
     {v:'asistencia',label:'Asistencia mensual'},{v:'exportar',label:'Exportar remuneraciones'},
+    {v:'just-diaria',label:'Justificación diaria'},
     {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
     {v:'aprobar-cambio',label:'Aprobar solicitudes'},
     {v:'porteria',label:'Consultar trabajador'}
@@ -1663,6 +1696,7 @@ function initView(v){
   if(v==='bodega-qr'){initQrView();}
   if(v==='supervisores'){initSupervisores();}
   if(v==='sup-diaria'){initDiaria();}
+  if(v==='just-diaria'){initJustificacionDiaria();}
   if(v==='asistencia'){
     showAttendancePanel('tarja');
     const yearInput=document.getElementById('matYear');
@@ -1775,6 +1809,12 @@ function showView(v){
   // no abrir una vista para la que no hay permiso
   const seccion=document.getElementById('v-'+v);
   if(seccion&&seccion.dataset.sinPermiso==='1'&&typeof puede==='function'&&!puede(VISTAS_POR_PERMISO['v-'+v])){
+    // Se avisa por qué y a quién pedirlo. Antes solo se saltaba a otra
+    // vista, sin decir nada: la persona hacía clic, la pantalla cambiaba a
+    // otra cosa, y no entendía nada.
+    const falta=VISTAS_POR_PERMISO['v-'+v]||'(sin permiso asociado)';
+    alert('No podés ver "'+v+'".\n\nTe falta el permiso "'+falta+'".\n'+
+      'Un administrador te lo puede habilitar en Soporte → Permisos por rol.');
     abrirPrimeraVistaPermitida();
     return;
   }
@@ -1823,7 +1863,18 @@ function showGroup(group){
     ).join('')}</div></details>`
     : `<button data-v="${it.v}">${it.label}</button>`
   ).join('');
-  sub.querySelectorAll('button[data-v]').forEach(b=>b.addEventListener('click',()=>showView(b.dataset.v)));
+  sub.querySelectorAll('button[data-v]').forEach(b=>b.addEventListener('click',()=>{
+    // Un ítem bloqueado se puede hacer clic a propósito: contesta por qué
+    // no abre. Si no hiciera nada, la persona pensaría que el botón se
+    // rompió, que es una conclusión equivocada y difícil de corregir.
+    if(b.hasAttribute('data-sin-permiso')){
+      alert('No podés ver "'+b.textContent.trim()+'".\n\n'+
+        'Te falta el permiso "'+b.getAttribute('data-sin-permiso')+'".\n'+
+        'Un administrador te lo puede habilitar en Soporte → Permisos por rol.');
+      return;
+    }
+    showView(b.dataset.v);
+  }));
   // Solo un desplegable abierto a la vez. Sin esto, en Bodega se podían
   // dejar EPP, KITS y HERRAMIENTAS abiertos al mismo tiempo, uno encima
   // del otro, tapando lo que había detrás.
@@ -1849,19 +1900,43 @@ function showGroup(group){
 }
 // El submenú se reconstruye en cada showGroup, así que el filtrado por
 // permiso hay que reaplicarlo aquí (y no solo en aplicarPermisos).
+//
+// LO QUE ESTE CÓDIGO HACÍA Y POR QUÉ ESTABA MAL
+//
+// Ocultaba el botón entero con display:none. Cuando a un supervisor le
+// faltaba un permiso, "Asistencia diaria" desaparecía del menú y no había
+// forma de saber por qué: podía ser que la vista no existiera, que estuviera
+// rota, o que le faltara el permiso. La persona se quedaba con la
+// impresión de que la aplicación no tenía esa sección.
+//
+// Ahora el botón se muestra bloqueado, con candado, y el título dice qué
+// permiso falta y quién lo puede dar. Se puede informar. Un menú que se
+// calla es peor que uno que muestra un candado.
 function ocultarSubNavSinPermiso(){
   if(typeof puede!=='function'||!misPermisosCargados)return;
   document.querySelectorAll('#subNav button[data-v]').forEach(b=>{
-    b.style.display=puede(VISTAS_POR_PERMISO['v-'+b.dataset.v])?'':'none';
+    const permiso=VISTAS_POR_PERMISO['v-'+b.dataset.v];
+    if(puede(permiso)){
+      b.removeAttribute('data-sin-permiso');
+      b.removeAttribute('aria-disabled');
+      b.classList.remove('bloqueado');
+      b.title='';
+      b.style.display='';
+      return;
+    }
+    b.setAttribute('data-sin-permiso',permiso||'(sin permiso asociado)');
+    b.setAttribute('aria-disabled','true');
+    b.classList.add('bloqueado');
+    b.title='Te falta el permiso "'+(permiso||'?')+'". Se lo tiene que habilitar un administrador en Soporte → Permisos por rol.';
+    b.style.display='';
   });
-  // si un desplegable se quedó sin hijos visibles, se oculta entero
-  document.querySelectorAll('#subNav details.nav-dropdown').forEach(d=>{
-    const visibles=[...d.querySelectorAll('button[data-v]')].filter(b=>b.style.display!=='none').length;
+  // Un desplegable se oculta solo si TODOS sus hijos están bloqueados, y
+  // además avisa de que hay algo que falta adentro.
+  document.querySelectorAll('#subNav details.nav-dropdown, #subNav details.nav-dropdown-nested').forEach(d=>{
+    const hijos=[...d.querySelectorAll('button[data-v]')];
+    const visibles=hijos.filter(b=>!b.hasAttribute('data-sin-permiso')).length;
     d.style.display=visibles?'':'none';
-  });
-  document.querySelectorAll('#subNav details.nav-dropdown-nested').forEach(d=>{
-    const visibles=[...d.querySelectorAll('button[data-v]')].filter(b=>b.style.display!=='none').length;
-    d.style.display=visibles?'':'none';
+    d.classList.toggle('parcial',visibles>0&&visibles<hijos.length);
   });
 }
 // Cuando no hay permiso para una vista, se abre la primera que sí tenga
@@ -1938,7 +2013,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-f';
+const APP_VERSION='2026-09-28-g';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -3254,10 +3329,23 @@ let asistenciaDiaError=null;
 let avisosIngresoDia=[];
 let avisosIngresoError=null;
 let fechaDiaria=hoyLocal();
+// Se declara AQUÍ y no más abajo, junto a recalcularMiSupervisor. La leen
+// empresaDeEquipo() y horaEntradaDe(), que se pueden llamar antes de que
+// la línea de abajo se haya ejecutado: con "let" eso es una ReferenceError
+// ("Cannot access before initialization"), no un undefined silencioso.
+// Pasó al llamar a horaEntradaDe('') desde la vista de justificación
+// diaria, y el error apuntaba a una línea 500 más abajo, muy lejos de la
+// causa.
+let miCodigoSupervisor='';      // código del trabajador supervisor que eres
 
 function empresaDeEquipo(supCode){
-  const jefe=workers.find(w=>w.code===(supCode||miCodigoSupervidor));
-  return jefe?empresas.find(e=>mismoId(e.id,jefe.empresa_id))||empresas[0]:empresas[0];
+  // Un codigo vacio NO es un supervisor: significaria 'sin jefe', y buscar
+  // un trabajador con code === '' podria dar cualquier cosa. Se trata
+  // explicitamente en vez de dejarlo pasar al find().
+  const buscar=supCode||miCodigoSupervisor;
+  if(!buscar)return empresas[0];
+  const jefe=workers.find(w=>w.code===buscar);
+  return jefe?(empresas.find(e=>mismoId(e.id,jefe.empresa_id))||empresas[0]):empresas[0];
 }
 function horaEntradaDe(supCode){
   const emp=empresaDeEquipo(supCode);
@@ -3266,6 +3354,16 @@ function horaEntradaDe(supCode){
 function toleranciaDe(supCode){
   const emp=empresaDeEquipo(supCode);
   return (emp&&emp.tolerancia_minutos!=null)?Number(emp.tolerancia_minutos):10;
+}
+// "1 h 20 min", "20 min", o "" si no hay nada. Se usaba escrito al revés
+// en dos lugares distintos y en cada uno distinto; el de la conciliación
+// mostraba "llegó 480", que son minutos desde medianoche y no dicen nada
+// para quien lo lee.
+function textoDuracion(minutos){
+  const n=Number(minutos);
+  if(!isFinite(n)||n<=0)return '';
+  const h=Math.floor(n/60), m=n%60;
+  return [h?(h+' h'):'', m?(m+' min'):''].filter(Boolean).join(' ');
 }
 function hhmmActual(){
   const d=new Date();
@@ -3360,8 +3458,7 @@ function revisarAlertas(w,horaMarcaje){
   const minEntrada=minutosDe(entradaEsp);
   if(minMarcaje!=null&&minEntrada!=null&&minMarcaje>minEntrada+tolerancia){
     const atraso=minMarcaje-(minEntrada+tolerancia);
-    const h=Math.floor(atraso/60), m=atraso%60;
-    const texto=[h?`${h} h`:'',m?`${m} min`:''].filter(Boolean).join(' ') || 'unos minutos';
+    const texto=textoDuracion(atraso)||'unos minutos';
     avisos.push({
       tipo:'atraso',
       titulo:'Marcaje fuera de hora',
@@ -3650,6 +3747,250 @@ function renderDiaria(){
   }
 }
 
+// ============================================================
+// JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA
+// ============================================================
+// Para Administración y RRHH. No es lo mismo que "Asistencia diaria" del
+// supervisor: ahí se mira el equipo propio mientras se está en la obra,
+// acá se revisa el día entero, después, para dejar resuelto lo que quedó.
+//
+// QUÉ ES "PENDIENTE" Y POR QUÉ NO ES SOLO "NO MARCÓ"
+//
+// Un listado de "los que no marcaron" mezcla dos cosas muy distintas: la
+// persona que no apareció y la persona que tenía permiso. Para RRHH lo
+// segundo no es un problema: ya está justificado. Por eso la lista separa
+// cada situación y las cuenta por separado, y "lo que hay que explicar"
+// excluye lo que ya tiene justificación.
+//
+// SE CALCULA CON LO QUE YA ESTÁ CARGADO, SIN IR A LA BASE
+//
+// Todo lo que hace falta ya está en memoria: asistencia, marcajes, avisos y
+// solicitudes. Se usa lo que hay en pantalla y no una consulta nueva, para
+// que cambiar la fecha no haga un viaje por cada tecla y para que abrir la
+// vista sea instantáneo. Si faltan las solicitudes pendientes se avisa, en
+// vez de mostrar una lista que parece completa y no lo está.
+function initJustificacionDiaria(){
+  const f=document.getElementById('justDiaFecha');
+  if(f&&!f.value)f.value=hoyLocal();
+  const sup=document.getElementById('justDiaSup');
+  if(sup){
+    const anterior=sup.value;
+    sup.innerHTML='<option value="">Todos los supervisores</option>'+
+      workers.filter(w=>w.is_supervisor)
+        .map(w=>`<option value="${escHtml(w.code)}">${escHtml(w.name)}</option>`).join('');
+    if(anterior)sup.value=anterior;
+  }
+  renderJustificacionDiaria();
+}
+function renderJustificacionDiaria(){
+  const lista=document.getElementById('justDiaLista');
+  if(!lista)return;
+  const f=document.getElementById('justDiaFecha');
+  const fecha=f&&f.value?f.value:hoyLocal();
+  const supCode=(document.getElementById('justDiaSup')||{}).value||'';
+  const filtro=((document.getElementById('justDiaFiltro')||{}).value)||'pendientes';
+
+  const partes=fecha.split('-');
+  if(partes.length!==3){
+    lista.innerHTML='<small class="gpsWarn">Elige una fecha.</small>';
+    return;
+  }
+  const y=+partes[0],m=+partes[1],d=+partes[2];
+  const festivo=isFeriado(y,m,d);
+
+  // Un día no laborable no se "explica": se avisa y se termina. Antes esto
+  // salía como una lista de 40 personas sin marcar, todas un domingo.
+  if(festivo){
+    document.getElementById('justDiaResumen').innerHTML='';
+    document.getElementById('justDiaAviso').innerHTML=
+      '<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">'+
+      '<b>El '+escHtml(fechaLegible(fecha))+' no es día laborable.</b> No hay nada que justificar: el fin de semana y los feriados no se cuentan como inasistencia.</div>';
+    lista.innerHTML='';
+    return;
+  }
+  document.getElementById('justDiaAviso').innerHTML='';
+
+  const marcajesDelDia=marcajes.filter(m=>m.fecha===fecha);
+  const entradaDe={},salidaDe={};
+  marcajesDelDia.forEach(m=>{ if(m.tipo==='entrada'&&!entradaDe[m.code])entradaDe[m.code]=m; if(m.tipo==='salida'&&!salidaDe[m.code])salidaDe[m.code]=m; });
+  const attDe={};
+  attendance.filter(a=>a.date===fecha).forEach(a=>{attDe[a.code]=a;});
+
+  const esJustificado=(e)=>['P','L','V','A','PP'].includes(e);
+  const nombresEstado={X:'Presente',F:'Falta',P:'Permiso',L:'Licencia',A:'Accidente Mutual',PP:'Permiso Pagado',V:'Vacaciones',LL:'Día lluvia'};
+
+  // El equipo depende de la fecha: alguien que ingresó ayer no tiene nada
+  // que explicar hoy, y alguien desvinculado la semana pasada tampoco. Sin
+  // este filtro salían como "sin marcar" y seemed una falla del sistema.
+  const candidatos=workers.filter(w=>{
+    if(w.status==='desvinculado'&&w.fecha_desvinculacion&&fecha>w.fecha_desvinculacion)return false;
+    if(w.fecha_ingreso&&fecha<w.fecha_ingreso)return false;
+    if(supCode&&w.supervisor_code!==supCode&&w.code!==supCode)return false;
+    return true;
+  });
+
+  const filas=candidatos.map(w=>{
+    const ent=entradaDe[w.code],sal=salidaDe[w.code],att=attDe[w.code];
+    const estado=att?att.estado:'';
+    const justificante=esJustificado(estado);
+    const entradaEsp=horaEntradaDe(w.supervisor_code||supCode||'');
+    const tolerancia=toleranciaDe(w.supervisor_code||supCode||'');
+    const minEnt=ent?minutosDe(ent.hora):null;
+    const minEsp=minutosDe(entradaEsp);
+    const tarde=minEnt!=null&&minEsp!=null&&minEnt>minEsp+tolerancia;
+
+    // Un solo "motivo" por persona, en orden de urgencia. Si alguien no
+    // marcó Y tiene una F puesta, lo importante es la F: la planilla ya
+    // lo dijo. Y así la lista no tiene la misma persona en dos grupos.
+    let motivo='',detalle='';
+    // El atraso se anota aparte y se suma al texto, en vez de competir con
+    // "sin salida" por ser la situación principal. A media mañana casi
+    // todo el mundo entró y todavía no salió, así que "sin salida" es lo
+    // normal y taparía el atraso; al revés, un atraso se puede resolver
+    // en RRHH sin esperar al final del día.
+    const atrasoMin=minEnt!=null&&minEsp!=null?minEnt-minEsp-tolerancia:0;
+    const atrasoTxt=tarde?(' · entró '+textoDuracion(atrasoMin)+' tarde (la hora de entrada es '+entradaEsp+', tolerancia '+tolerancia+' min)'):'';
+    // ORDEN POR URGENCIA, no por el orden en que se detectan.
+    //
+    // La planilla dice F y el reloj dice que entró: eso es una contradicción
+    // entre dos fuentes, y es lo primero que hay que mirar. Si el atraso
+    // ganara, la fila salía como "Atraso" y el F con marcaje quedaba en 0
+    // en el resumen, con lo cual la contradicción desaparecía de la vista
+    // justo cuando más importaba.
+    if(!ent&&estado==='F'){motivo='falta';detalle='La planilla lo tiene como F y no hay marcaje del reloj.';}
+    else if(ent&&estado==='F'){motivo='falta_con_marca';detalle='La planilla lo tiene como F pero hay marcaje de entrada a las '+ent.hora+'. Los dos datos no pueden ser ciertos a la vez.'+atrasoTxt;}
+    else if(!ent&&!justificante){motivo='sin_marcar';detalle='No hay ningún marcaje de entrada de este día.';}
+    else if(ent&&!sal){motivo='sin_salida';detalle='Marcó entrada a las '+ent.hora+' y no hay salida registrada.'+atrasoTxt;}
+    else if(ent&&tarde){motivo='tarde';detalle='Entró a las '+ent.hora+' y la hora de entrada es '+entradaEsp+' (tolerancia '+tolerancia+' min).';}
+    else if(justificante){motivo='justificado';detalle=(nombresEstado[estado]||estado)+(att&&att.nota?(' · '+att.nota):'');}
+    else{ motivo='ok';detalle=sal?('Marcó entrada '+ent.hora+' y salió '+sal.hora+'.'):('Marcó entrada a las '+ent.hora+'.');}
+
+    return {w,ent,sal,att,estado,motivo,detalle,tarde,horas:ent&&sal?(minutosDe(sal.hora)-minutosDe(ent.hora)):null};
+  });
+
+  const cuenta=(m)=>filas.filter(x=>x.motivo===m).length;
+  const pendientes=filas.filter(x=>x.motivo!=='ok'&&x.motivo!=='justificado');
+  const aMostrar=filtro==='pendientes'?pendientes:filas;
+
+  // Aviso honesto sobre lo que esta vista NO sabe. Las solicitudes
+  // pendientes viven en otra tabla; si esa consulta falló, la lista se ve
+  // completa y no lo está, que es el peor caso. Se usa el mismo aviso que
+  // ya lleva loadSolicitudes(), en vez de inventar otra forma de saber si
+  // los datos están.
+  const cargadas=!errorSolicitudes;
+  const conSolicitud=cargadas
+    ?new Set(solicitudes.filter(s=>s.estado==='pendiente'&&s.fecha===fecha).map(s=>s.code))
+    :new Set();
+  let aviso='';
+  if(!cargadas){
+    aviso='<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px;margin-bottom:10px">'+
+      '<b>No se pudieron leer las solicitudes de cambio pendientes.</b> Por eso esta lista no las está contando, y puede no reflejar lo que alguien ya pidió.<br><small>'+escHtml(errorSolicitudes)+'</small></div>';
+  }else if(conSolicitud.size){
+    aviso='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:10px">'+
+      '<b>'+conSolicitud.size+' persona(s) tienen una solicitud de cambio de estado pendiente</b> para este día. Aprobala o rechazala en Administración → Aprobar solicitudes; hasta entonces la planilla puede no reflejar lo que pidieron.</div>';
+  }
+
+  // El atraso se cuenta por separado, no por "motivo principal": alguien
+  // que llegó tarde y todavía no salió cuenta como atraso, aunque su
+  // motivo sea "sin salida". Si no, el resumen decía "0 con atraso" con
+  // gente claramente tarde, que es un número que miente.
+  const conAtraso=filas.filter(x=>x.tarde).length;
+  document.getElementById('justDiaResumen').innerHTML=
+    '<b>'+filas.length+'</b> persona(s) con jornada el '+escHtml(fechaLegible(fecha))+': '+
+    '<span class="mkPill no">'+cuenta('sin_marcar')+' sin marcar</span> '+
+    '<span class="mkPill no">'+cuenta('falta')+' F sin marcaje</span> '+
+    '<span class="mkPill warn">'+cuenta('falta_con_marca')+' F con marcaje</span> '+
+    '<span class="mkPill warn">'+cuenta('sin_salida')+' sin salida</span> '+
+    '<span class="mkPill warn">'+conAtraso+' con atraso</span> '+
+    '<span class="mkPill ok">'+cuenta('justificado')+' justificadas</span>';
+  document.getElementById('justDiaAviso').innerHTML=aviso;
+
+  if(!aMostrar.length){
+    lista.innerHTML='<div class="eppVacio">Nada que explicar el '+escHtml(fechaLegible(fecha))+'. Todo el mundo tiene marcaje o justificación.</div>';
+    return;
+  }
+
+  const etiqueta={
+    sin_marcar:{t:'Sin marcar',c:'var(--danger)'},
+    falta:{t:'F sin marcaje',c:'var(--danger)'},
+    falta_con_marca:{t:'F con marcaje',c:'var(--warn)'},
+    sin_salida:{t:'Sin salida',c:'var(--warn)'},
+    tarde:{t:'Atraso',c:'var(--warn)'},
+    justificado:{t:'Justificado',c:'var(--secondary-text)'},
+    ok:{t:'Completo',c:'var(--accent)'}
+  };
+  // Ordenados por lo que urge: primero los que no aparecen, después los
+  // que tienen una inconsistencia, y al final lo que está bien. Es el
+  // orden en que se puede trabajar la lista.
+  const orden=['sin_marcar','falta','falta_con_marca','sin_salida','tarde','justificado','ok'];
+  const cuerpo=aMostrar
+    .slice()
+    .sort((a,b)=>orden.indexOf(a.motivo)-orden.indexOf(b.motivo)||a.w.code.localeCompare(b.w.code))
+    .map(x=>{
+      const et=etiqueta[x.motivo];
+      const sup=x.w.supervisor_code?workers.find(s=>s.code===x.w.supervisor_code):null;
+      return `<div class="mkFila" data-code="${escHtml(x.w.code)}">
+        <div class="mkNombre">
+          <b>${escHtml(x.w.code)}</b> ${escHtml(x.w.name)}
+          <small>${escHtml(x.w.spec||'')}${sup?(' · Supervisor: '+escHtml(sup.name)):''}</small>
+        </div>
+        <div class="mkEstado">
+          <span class="mkPill" style="border-color:${et.c};color:${et.c}">${escHtml(et.t)}</span>
+          <small>${escHtml(x.detalle)}</small>
+        </div>
+        <div class="mkAcciones">
+          ${x.motivo==='ok'||x.motivo==='justificado'?'':
+            `<button class="btn" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
+              onclick="abrirJustificarCon('${escHtml(x.w.code)}','${escHtml(fecha)}')"
+              title="Abre el formulario de justificación con el trabajador y el día ya puestos">Justificar</button>`}
+          <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
+            onclick="abrirTarjaDe('${escHtml(x.w.code)}')">Ver en la tarja</button>
+        </div>
+      </div>`;
+    }).join('');
+
+  lista.innerHTML='<div class="mkFila mkFilaHead"><div class="mkNombre">Trabajador</div><div class="mkEstado">Situación</div><div class="mkAcciones">Acciones</div></div>'+cuerpo;
+}
+// Abre el formulario de justificación con el trabajador y el día ya puestos.
+// Se reusa el que ya existe en la pestaña "Justificar" de Asistencia
+// mensual, en vez de hacer un formulario paralelo: dos formularios para lo
+// mismo divergen en la primera corrección.
+function abrirJustificarCon(code,fecha){
+  showView('asistencia');
+  showAttendancePanel('justificar');
+  const sel=document.getElementById('just-worker');
+  if(sel){
+    if(![...sel.options].some(o=>o.value===code)){
+      // Puede que no esté en la lista filtrada: se agrega para que quede
+      // elegido y no se pierda el trabajo hecho.
+      const w=workers.find(x=>x.code===code);
+      if(w)sel.insertAdjacentHTML('beforeend','<option value="'+escHtml(code)+'">'+escHtml(code)+' - '+escHtml(w.name)+'</option>');
+    }
+    sel.value=code;
+    if(typeof updateEstadoActual==='function')updateEstadoActual();
+  }
+  ['just-desde','just-hasta'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=fecha;});
+  if(typeof showJustSupervisor==='function')showJustSupervisor();
+  const nota=document.getElementById('just-nota');
+  if(nota){nota.focus();window.scrollTo({top:0,behavior:'smooth'});}
+  const ms=document.getElementById('justMsg');
+  if(ms)ms.innerHTML='<small>Trabajador y fecha ya puestos. Revisá el estado y escribí el detalle.</small>';
+}
+// Lleva a la tarja mensual con ese trabajador filtrado, para ver el
+// contexto del mes antes de decidir.
+function abrirTarjaDe(code){
+  showView('asistencia');
+  showAttendancePanel('tarja');
+  const f=document.getElementById('matWorkerFilter');
+  if(f){
+    if(![...f.options].some(o=>o.value===code)){
+      const w=workers.find(x=>x.code===code);
+      if(w)f.insertAdjacentHTML('beforeend','<option value="'+escHtml(code)+'">'+escHtml(w.name)+'</option>');
+    }
+    f.value=code;
+  }
+  renderMatrix();
+}
 // ============================================================
 // CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ
 // ============================================================
@@ -4614,8 +4955,9 @@ function cerrarAvisoMarcaje(){
 // Quien no esté vinculado (RRHH, administración) sigue viendo todos los
 // equipos, porque para eso tiene el permiso de edición.
 // ============================================================
-let miCodigoSupervisor='';      // código del trabajador supervisor que eres
-
+// miCodigoSupervisor se declara arriba, con el resto del estado, porque
+// empresaDeEquipo() lo lee y esa función se puede llamar antes de llegar
+// hasta acá.
 function recalcularMiSupervisor(){
   const code=(miPerfil&&miPerfil.trabajador_code)||'';
   const ficha=workers.find(w=>w.code===code);
@@ -8495,6 +8837,7 @@ const VISTAS_POR_PERMISO={
   'v-solicitar-cambio':'tarja.solicitar_cambio',
   'v-supervisores':'tarja.ver',
   'v-sup-diaria':'tarja.marcaje',
+  'v-just-diaria':'tarja.justificar',
   'v-aprobar-cambio':'tarja.aprobar_cambio',
   'v-usuarios':'sistema.usuarios',
   'v-invitar-usuario':'sistema.usuarios',
@@ -8649,8 +8992,13 @@ function aplicarPermisos(){
       b.style.display='none';
       return;
     }
-    b.style.display=puede(VISTAS_POR_PERMISO['v-'+b.dataset.v])?'':'none';
   });
+  // El submenú se filtra en UNA sola función. Estaba escrito acá y también
+  // en ocultarSubNavSinPermiso(), y por eso este arreglo se aplicaba solo a
+  // veces: showGroup() reconstruye el menú y llama a la otra, mientras que
+  // aplicarPermisos() llamaba a esta de su cuenta. Dos copias de la misma
+  // regla divergen apenas una de las dos se toca.
+  ocultarSubNavSinPermiso();
   ocultarSubNavSinPermiso();
   // 3) si la vista activa quedó sin permiso, moverse a una visible
   const activa=document.querySelector('section.view.active');
@@ -9050,7 +9398,13 @@ async function crearSolicitud(){
     estado:'pendiente',
     solicitado_por:miId,
     solicitado_por_nombre:miNombrePerfil()||nombre,
-    solicitado_rol:misRoles.join(', ')
+    // La columna se llama "solicitado_por_rol". Estaba escrita como
+    // "solicitado_rol" y PostgreSQL rechazaba el INSERT entero con
+    // "Could not find the 'solicitado_rol' column", así que un supervisor
+    // no podía solicitar una justificación: el formulario fallaba al
+    // enviar. El mensaje de error hablaba de la columna, no de que la
+    // solicitud se había perdido, y por eso era difícil de entender.
+    solicitado_por_rol:misRoles.join(', ')
   });
   if(error){alert('No se pudo crear la solicitud: '+error.message);return;}
   await loadSolicitudes(true);
@@ -9190,29 +9544,62 @@ async function cargarCatalogosPermisos(){
   ]);
   catalogoRoles=(r1.data||[]);
   catalogoPermisos=(r2.data||[]);
-  const asignados=new Set((r3.data||[]).map(x=>x.rol+'|'+x.permiso));
-  return asignados;
+  const filas=(r3.data||[]);
+  const asignados=new Set(filas.map(x=>x.rol+'|'+x.permiso));
+  // permiso -> lista de roles que lo tienen. Se usa para avisar cuando un
+  // permiso no lo tiene nadie fuera de Administración.
+  const porPermiso=new Map();
+  filas.forEach(x=>{
+    if(!porPermiso.has(x.permiso))porPermiso.set(x.permiso,[]);
+    porPermiso.get(x.permiso).push(x.rol);
+  });
+  return {asignados,porPermiso};
 }
 async function renderPermisos(){
   const host=document.getElementById('permisosGrid');
   if(!host)return;
   if(!exigirPermiso('sistema.permisos','Solo un administrador puede configurar los permisos.'))return;
-  const asignados=await cargarCatalogosPermisos();
+  const {asignados,porPermiso}=await cargarCatalogosPermisos();
   if(!catalogoPermisos.length){
     host.innerHTML='<small>No hay catálogo de permisos. Ejecuta la migración 013.</small>';
     return;
   }
   const categorias=[...new Set(catalogoPermisos.map(p=>p.categoria))];
-  host.innerHTML=categorias.map(cat=>{
+  // Aviso arriba de todo cuando hay vistas que nadie puede abrir. Estas
+  // vistas se ven en el menú bloqueadas con candado, pero desde la lista de
+  // permisos no se nota que a nadie le falten, que es el otro lado del
+  // mismo problema: acá se ven las casillas vacías sin que nadie sepa que
+  // la consecuencia es que la sección no abre para nadie.
+  const sinNadie=[...porPermiso.entries()]
+    .filter(([,roles])=>!roles.some(r=>r!=='admin'))
+    .map(([permiso])=>permiso);
+  // A qué sección abre cada permiso. La casilla parece abstracta si no se
+  // dice qué se deshabilita al desmarcarla, y alguien la desmarca sin
+  // querer; después el usuario dice "no veo la sección" y no hay forma de
+  // llegar a esta pantalla.
+  const vistasDe=(permiso)=>Object.entries(VISTAS_POR_PERMISO)
+    .filter(([,p])=>p===permiso)
+    .map(([v])=>v.replace(/^v-/,''));
+  const aviso=sinNadie.length
+    ? `<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px;margin-bottom:12px">
+        <b>Hay ${sinNadie.length} permiso(s) que solo tiene Administración:</b> ${sinNadie.map(x=>escHtml(x)).join(', ')}.<br>
+        <small>Las secciones que dependen de esos permisos se ven en el menú con un candado, y no abren para nadie más que Administración. Marcá la casilla en el rol que las debería usar.</small>
+       </div>`
+    : '';
+  host.innerHTML=aviso+categorias.map(cat=>{
     const perms=catalogoPermisos.filter(p=>p.categoria===cat);
     return `<div style="margin-bottom:16px">
       <h3 style="margin:0 0 6px;font-size:.95rem">${cat}</h3>
       <div class="overflow"><table>
         <thead><tr><th>Permiso</th>${catalogoRoles.map(r=>`<th title="${r.descripcion||''}">${r.nombre}</th>`).join('')}</tr></thead>
-        <tbody>${perms.map(p=>`<tr>
-          <td style="text-align:left"><b>${p.clave}</b><br><small>${p.descripcion}</small></td>
-          ${catalogoRoles.map(r=>`<td style="text-align:center"><input type="checkbox" data-rol="${r.rol}" data-permiso="${p.clave}" ${asignados.has(r.rol+'|'+p.clave)?'checked':''} onchange="guardarPermiso(this)"></td>`).join('')}
-        </tr>`).join('')}</tbody>
+        <tbody>${perms.map(p=>{
+          const vs=vistasDe(p.clave);
+          return `<tr>
+          <td style="text-align:left"><b>${escHtml(p.clave)}</b><br><small>${escHtml(p.descripcion)}</small>${
+            vs.length?`<br><small style="opacity:.8">Abre: ${vs.map(escHtml).join(', ')}</small>`:''}</td>
+          ${catalogoRoles.map(r=>`<td style="text-align:center"><input type="checkbox" data-rol="${r.rol}" data-permiso="${escHtml(p.clave)}" ${asignados.has(r.rol+'|'+p.clave)?'checked':''} onchange="guardarPermiso(this)"></td>`).join('')}
+        </tr>`;
+        }).join('')}</tbody>
       </table></div>
     </div>`;
   }).join('');
