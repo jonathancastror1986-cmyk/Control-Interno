@@ -4031,9 +4031,9 @@ button[role="tab"][aria-selected="true"] .ico {
 }
 
 [data-group="bodega"] {
-  --fondo-seccion: #2C5E24;
-  --cat: #EDF9EC;
-  --cat-claro: #2C5E24;
+  --fondo-seccion: #733C1B;
+  --cat: #FCF0E9;
+  --cat-claro: #733C1B;
 }
 
 [data-group="supervisores"] {
