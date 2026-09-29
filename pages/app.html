@@ -2284,6 +2284,117 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
 
 
 </main>
+<!-- ==================================================================
+     SOLICITAR INGRESO (supervisores)
+     ------------------------------------------------------------------
+     Lo que el supervisor escribe con la persona delante. Deliberadamente NO
+     está el código del trabajador: lo asigna RRHH.
+
+     Y el motivo está en el propio formulario, y no escondido: un supervisor
+     tiene que entender que lo que está haciendo es dejar un pedido, no dar de
+     alta a alguien. Si no lo sabe, va a suponer que la persona ya quedó
+     trabajando y va a pasar por portería a sacarle un marcaje que no existe.
+     ================================================================== -->
+<section class="view" id="v-solicitar-ingreso">
+  <h2>Solicitar ingreso de un trabajador</h2>
+  <div class="small" style="max-width:900px;margin-bottom:14px">
+    Anota a la persona nueva y envíala a RRHH. <b>RRHH le asigna el código y
+    completa los datos que faltan</b>: el código del trabajador es la llave de
+    las tarjetas, la asistencia, el EPP y las herramientas, y se lo pone quien
+    lo controla.
+  </div>
+
+  <div class="card" style="max-width:900px">
+    <div class="row">
+      <div style="flex:2"><label for="ingRut">RUT *</label>
+        <input id="ingRut" placeholder="12.345.678-9" autocomplete="off"></div>
+      <div style="flex:3"><label for="ingNombre">Nombre completo *</label>
+        <input id="ingNombre" placeholder="Como figura en el documento"></div>
+      <div><label for="ingTelefono">Teléfono</label>
+        <input id="ingTelefono" placeholder="Opcional"></div>
+    </div>
+    <div class="row">
+      <div><label for="ingEspecialidad">Especialidad u oficio</label>
+        <input id="ingEspecialidad" placeholder="Ej. Gasfitería, soldadura"></div>
+      <div><label for="ingFecha">Fecha de ingreso</label>
+        <input type="date" id="ingFecha"></div>
+    </div>
+    <div><label for="ingNota">Nota para RRHH (opcional)</label>
+      <textarea id="ingNota" rows="2" placeholder="Ej. viene de la contratista XYZ, hay que revisar su certificado de identificación"></textarea></div>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <button class="btn" type="button" id="ingEnviar" onclick="enviarSolicitudIngreso()">Enviar a RRHH</button>
+      <button class="btn secondary" type="button" onclick="limpiarFormularioIngreso()">Limpiar</button>
+      <small id="ingAviso" style="flex:1"></small>
+    </div>
+  </div>
+
+  <h3 style="margin-top:22px">Lo que ya enviaste</h3>
+  <div id="ingMisPendientes"></div>
+</section>
+
+<!-- ==================================================================
+     COLA DE INGRESOS PENDIENTES (administración)
+     ------------------------------------------------------------------
+     Aquí es donde se asigna el código. El botón de aprobar pide el código y
+     el cargo, y solo con el código basta: lo demás se completa después en la
+     ficha.
+
+     Se ven los pedidos de todos, no solo los de quien mira, porque el que
+     aprueba es RRHH y los pedidos vienen de varias empresas.
+     ================================================================== -->
+<section class="view" id="v-ingresos-cola">
+  <h2>Ingresos pendientes</h2>
+  <div class="small" style="max-width:900px;margin-bottom:14px">
+    Pedidos que dejaron los supervisores. Al aprobar, <b>se crea el trabajador
+    y se cierra el pedido en la misma operación</b>: nunca queda una ficha sin
+    pedido, ni un pedido sin ficha.
+  </div>
+  <div class="row" style="max-width:900px">
+    <div><label for="ingFiltroEstado">Mostrar</label>
+      <select id="ingFiltroEstado" onchange="cargarIngresosPendientes()">
+        <option value="pendiente">Solo pendientes</option>
+        <option value="">Todos</option>
+        <option value="aprobado">Ya aprobados</option>
+        <option value="rechazado">Rechazados</option>
+      </select></div>
+    <div style="align-self:end"><button class="btn secondary" type="button" onclick="cargarIngresosPendientes()">Actualizar</button></div>
+  </div>
+  <div id="ingCola" style="margin-top:14px"></div>
+</section>
+
+<div class="dialog" id="dlgAprobarIngreso">
+  <div class="card" style="max-width:560px;margin:0">
+    <h2 style="margin-top:0">Aprobar el ingreso</h2>
+    <div id="ingDlgInfo" class="small" style="margin-bottom:10px"></div>
+    <div><label for="ingDlgCodigo">Código del trabajador *</label>
+      <input id="ingDlgCodigo" placeholder="Ej. 0042" autocomplete="off">
+      <small>Es la llave de tarjetas, asistencia, EPP y herramientas. Si ya existe, la base lo rechaza.</small></div>
+    <div><label for="ingDlgCargo">Cargo / especialidad</label>
+      <input id="ingDlgCargo" placeholder="Ej. Maestro Gasfiteria"></div>
+    <div><label for="ingDlgFecha">Fecha de ingreso</label>
+      <input type="date" id="ingDlgFecha"></div>
+    <div id="ingDlgError" style="color:var(--danger);margin-top:8px;min-height:1.2em"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn secondary" type="button" onclick="cerrarDialogoIngreso()">Cancelar</button>
+      <button class="btn" type="button" id="ingDlgAprobar" onclick="aprobarIngresoPendiente()">Aprobar y crear el trabajador</button>
+    </div>
+  </div>
+</div>
+
+<div class="dialog" id="dlgRechazarIngreso">
+  <div class="card" style="max-width:520px;margin:0">
+    <h2 style="margin-top:0">Rechazar el ingreso</h2>
+    <div id="ingDlgRechInfo" class="small" style="margin-bottom:10px"></div>
+    <div><label for="ingDlgMotivo">Motivo *</label>
+      <textarea id="ingDlgMotivo" rows="3" placeholder="El supervisor necesita saber qué corregir, así que el motivo no es opcional"></textarea></div>
+    <div id="ingDlgRechError" style="color:var(--danger);margin-top:8px;min-height:1.2em"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn secondary" type="button" onclick="cerrarDialogoIngreso()">Cancelar</button>
+      <button class="btn" type="button" onclick="rechazarIngresoPendiente()">Rechazar</button>
+    </div>
+  </div>
+</div>
+
 <script>
 let workers = [];       // ahora viene de Supabase (tabla trabajadores)
 let attendance = [];    // ahora viene de Supabase (tabla asistencia)
@@ -2742,14 +2853,305 @@ const navGroups = {
       {v:'bodega-qr',label:'QR / Etiquetas'}
     ]}
   ],
-  supervisores: [{v:'supervisores',label:'Supervisores',options:[
-    {v:'supervisores',label:'Equipos y tarja'},
-    {v:'sup-diaria',label:'Asistencia diaria'}
-  ]}]
+  supervisores: [{v:'supervisores',label:'Supervisores',options:[
+    {v:'supervisores',label:'Equipos y tarja'},
+    {v:'sup-diaria',label:'Asistencia diaria'}
+  ]},
+  {v:'solicitar-ingreso',label:'Solicitar ingreso'}]
 };
+// ===================================================================
+// EL INGRESO PENDIENTE
+// ===================================================================
+// Un supervisor encuentra a alguien nuevo y anota lo que tiene delante. RRHH le
+// pone el código. Nadie más puede hacerlo, y esa separación es el punto: el
+// código es la llave de tarjetas, asistencia, EPP y herramientas.
+//
+// NADA SE ESCRIBE DIRECTO EN UNA TABLA
+// -----------------------------------
+// Todo pasa por las funciones de la 046, que son security definer. Desde el
+// navegador no se inserta ni se lee nada de ingresos_pendientes.
+//
+// No es un capricho: la 046 enciende el RLS y NO define ninguna política, así
+// que la tabla no se puede leer ni escribir sin pasar por la puerta. Si desde
+// acá se hiciera un insert directo, fallaría con "new row violates row-level
+// security", y con razón.
+//
+// LAS FUNCIONES QUE YA EXISTÍAN, Y QUE NO SE DECLARAN DE NUEVO
+// --------------------------------------------------------------
+//   normalizarRut   ya existe: quita todo lo que no sea dígito y la K
+//   empresaDelIngreso   ya existe: lee el selector de empresa
+//
+// No se vuelven a declarar. La regla es una sola: si el archivo ya tiene un
+// "function NOMBRE", no se declara otro. Es lo que rompió el intento anterior,
+// y la comprobación que lo agarró ya existía y no se había corrido antes de
+// escribir.
+
+let ingresosCache=[];              // la cola, para que el diálogo sepa de quién es
+let ingresoAprobando=null;         // el pedido abierto en el diálogo
+
+// -- los mensajes de error, en un solo sitio -------------------------------
+// Eran tres alert() iguales en tres funciones, y con eso había que cambiar el
+// texto tres veces. Uno solo, que se lee en todas partes.
+function erroIngreso(destino,mensaje){
+  const caja=document.getElementById(destino);
+  if(caja){caja.textContent=mensaje;caja.style.color='var(--danger)';}
+}
+function limpiarErroIngreso(destino){
+  const caja=document.getElementById(destino);
+  if(caja){caja.textContent='';caja.style.color='';}
+}
+function avisoIngreso(mensaje){
+  const caja=document.getElementById('ingAviso');
+  if(!caja)return;
+  caja.textContent=mensaje;
+  caja.style.color=/enviad/i.test(mensaje)?'var(--accent)':'var(--danger)';
+}
+
+// -- el formulario del supervisor ---------------------------------------
+function limpiarFormularioIngreso(){
+  ['ingRut','ingNombre','ingTelefono','ingEspecialidad','ingFecha','ingNota']
+    .forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
+  avisoIngreso('');
+  const b=document.getElementById('ingEnviar');
+  if(b){b.disabled=false;b.textContent='Enviar a RRHH';}
+  const r=document.getElementById('ingRut');
+  if(r)r.focus();
+}
+
+async function enviarSolicitudIngreso(){
+  if(!exigirPermiso('ingresos.pedir','No tienes permiso para solicitar ingresos.'))return;
+  // El RUT se pasa normalizado, sin puntos ni guiones, porque la base compara
+  // con esa forma. Si cada quien lo escribiera como quiso, la base no vería el
+  // duplicado y alguien entraría dos veces.
+  const rut=normalizarRut(document.getElementById('ingRut').value);
+  const nombre=document.getElementById('ingNombre').value.trim();
+  if(!rut){
+    avisoIngreso('Falta el RUT. Sin RUT no se puede saber si la persona ya está en la lista.');
+    document.getElementById('ingRut').focus();
+    return;
+  }
+  if(!nombre){avisoIngreso('Falta el nombre.');document.getElementById('ingNombre').focus();return;}
+
+  const b=document.getElementById('ingEnviar');
+  b.disabled=true;b.textContent='Enviando…';
+  try{
+    const {error}=await window.supabaseClient.rpc('pedir_ingreso',{
+      p_nombre:nombre,
+      p_rut:rut,
+      p_telefono:document.getElementById('ingTelefono').value.trim()||null,
+      p_especialidad:document.getElementById('ingEspecialidad').value.trim()||null,
+      p_empresa_id:empresaDelIngreso(),
+      p_fecha_ingreso:document.getElementById('ingFecha').value||null,
+      p_nota:document.getElementById('ingNota').value.trim()||null
+    });
+    if(error){
+      // Los mensajes de la función están escritos para quien los lee, no para
+      // el técnico. Se muestran tal cual: "ya hay un ingreso pendiente con
+      // ese RUT" es más útil que un "código 22023".
+      avisoIngreso(error.message);
+      b.disabled=false;b.textContent='Enviar a RRHH';
+      return;
+    }
+    limpiarFormularioIngreso();
+    avisoIngreso('Enviado a RRHH. Ellos le asignan el código y completan los datos.');
+    renderMisIngresos();
+  }catch(e){
+    avisoIngreso('No se pudo enviar: '+e.message);
+    b.disabled=false;b.textContent='Enviar a RRHH';
+  }
+}
+
+// -- la empresa donde se está mirando ---------------------------------------
+// Lee el MISMO selector que usa el resto del programa, no uno nuevo. Si se
+// inventa otro, el de arriba deja de ser la fuente y quedan dos verdades sobre
+// en qué empresa se está trabajando.
+//
+// Y el caso "Todas las empresas" (valor 0) devuelve null a propósito: un
+// ingreso no es de todas las empresas a la vez. Si se mandara el 0, la base lo
+// aceptaría y la ficha quedaría colgada de un id que no existe.
+function empresaDelIngreso(){
+  const sel=document.getElementById('empresaSel');
+  const v=sel&&sel.value?parseInt(sel.value,10):0;
+  return v>0?v:null;
+}
+
+// -- lo que el supervisor ve de lo suyo ----------------------------------
+async function renderMisIngresos(){
+  const caja=document.getElementById('ingMisPendientes');
+  if(!caja)return;
+  if(!exigirPermiso('ingresos.pedir','')){caja.innerHTML='';return;}
+  const {data,error}=await window.supabaseClient.rpc('ver_ingresos_pendientes');
+  if(error){
+    caja.innerHTML='<small>No se pudieron leer tus pedidos: '+escHtml(error.message)+'</small>';
+    return;
+  }
+  const mios=(data||[]).filter(f=>f.estado==='pendiente');
+  if(!mios.length){
+    caja.innerHTML='<small class="muted">No has enviado ningún ingreso pendiente.</small>';
+    return;
+  }
+  caja.innerHTML='<div class="list-item" style="flex-direction:column;align-items:stretch">'
+    +mios.map(f=>'<div style="padding:8px 0;border-bottom:1px solid var(--line)">'
+      +'<b>'+escHtml(f.nombre)+'</b> <small>'+escHtml(f.rut)+'</small><br>'
+      +'<small>Enviado el '+escHtml((f.pedido_at||'').slice(0,10))
+      +' · esperando que RRHH le asigne el código</small></div>').join('')+'</div>';
+}
+
+// -- la cola, para quien aprueba ------------------------------------------
+async function cargarIngresosPendientes(){
+  const caja=document.getElementById('ingCola');
+  if(!caja)return;
+  if(!exigirPermiso('ingresos.aprobar','')){
+    caja.innerHTML='<div class="kitResumen"><b>No tienes permiso para ver esta cola.</b><br>'
+      +'<small>Lo necesitan quienes pueden asignar el código del trabajador.</small></div>';
+    return;
+  }
+  caja.innerHTML='<small>Cargando…</small>';
+  const filtro=document.getElementById('ingFiltroEstado');
+  const estado=filtro?filtro.value:'pendiente';
+  const {data,error}=await window.supabaseClient.rpc('ver_ingresos_pendientes');
+  if(error){
+    caja.innerHTML='<div class="kitResumen" style="border-color:var(--danger)">'
+      +'<b>No se pudo leer la cola.</b><br><small>'+escHtml(error.message)+'</small>'
+      +'<br><small>Si dice que falta una tabla, es que no está aplicada la migración 046.</small></div>';
+    return;
+  }
+  ingresosCache=data||[];
+  let filas=ingresosCache;
+  if(estado)filas=filas.filter(f=>f.estado===estado);
+
+  if(!filas.length){
+    caja.innerHTML='<div class="kitResumen"><b>No hay ingresos '+escHtml(filtroTexto(estado))
+      +'.</b><br><small>Cuando un supervisor envíe uno, aparece acá.</small></div>';
+    return;
+  }
+  caja.innerHTML=filas.map(f=>filaIngreso(f)).join('');
+}
+function filtroTexto(estado){
+  if(estado==='pendiente')return 'pendientes';
+  if(estado==='aprobado')return 'aprobados';
+  if(estado==='rechazado')return 'rechazados';
+  return 'que mostrar';
+}
+function filaIngreso(f){
+  const activo=f.estado==='pendiente';
+  const id=String(f.id).replace(/'/g,'');
+  return '<div class="card" style="margin:0 0 10px;padding:12px">'
+    +'<div style="display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap">'
+    +  '<div style="flex:2;min-width:220px"><b>'+escHtml(f.nombre)+'</b><br>'
+    +    '<small>'+escHtml(f.rut)+(f.telefono?' · '+escHtml(f.telefono):'')+'</small><br>'
+    +    '<small>'+escHtml(f.especialidad||'sin especialidad')+' · '
+    +    escHtml(empresaDelNombre(f.empresa_id))+' · ingreso '
+    +    escHtml(f.fecha_ingreso||'sin fecha')+'</small></div>'
+    +  '<div style="flex:1;min-width:190px"><small>Pedido por <b>'
+    +    escHtml(f.pedido_por_nombre||'sin nombre')+'</b> · '
+    +    escHtml((f.pedido_at||'').slice(0,10))+'</small>'
+    +    (f.nota?'<div style="margin-top:4px"><small>'+escHtml(f.nota)+'</small></div>':'')
+    +    (f.estado==='rechazado'?'<div style="margin-top:4px"><small style="color:var(--danger)">'
+    +      'Rechazado: '+escHtml(f.motivo_rechazo||'sin motivo')+'</small></div>':'')
+    +    (f.estado==='aprobado'?'<div style="margin-top:4px"><small style="color:var(--accent)">'
+    +      'Aprobado'+(f.trabajador_code?' como '+escHtml(f.trabajador_code):'')+'</small></div>':'')
+    +  '</div>'
+    +  (activo?'<div style="display:flex;gap:6px">'
+    +      '<button class="btn" type="button" onclick="abrirAprobarIngreso(\''+id+'\')">Aprobar y poner el código</button>'
+    +      '<button class="btn secondary" type="button" onclick="abrirRechazarIngreso(\''+id+'\')">Rechazar</button>'
+    +    '</div>':'')
+    +'</div></div>';
+}
+function empresaDelNombre(id){
+  if(!id)return 'sin empresa';
+  if(typeof empresas==='undefined'||!empresas)return 'empresa '+id;
+  const e=empresas.find(x=>String(x.id)===String(id));
+  return e?e.nombre:'empresa '+id;
+}
+
+// -- el diálogo de aprobar -------------------------------------------------
+function abrirAprobarIngreso(id){
+  if(!exigirPermiso('ingresos.aprobar','Solo quien puede asignar el código.'))return;
+  const f=ingresosCache.find(x=>String(x.id)===String(id));
+  ingresoAprobando=id;
+  limpiarErroIngreso('ingDlgError');
+  document.getElementById('ingDlgInfo').innerHTML=f
+    ? '<b>'+escHtml(f.nombre)+'</b> · '+escHtml(f.rut)+'<br>'
+      +escHtml(f.especialidad||'sin especialidad')+' · ingreso '
+      +escHtml(f.fecha_ingreso||'sin fecha')+(f.nota?'<br>'+escHtml(f.nota):'')
+    : '';
+  document.getElementById('ingDlgCodigo').value='';
+  document.getElementById('ingDlgCargo').value=f&&f.especialidad?f.especialidad:'';
+  document.getElementById('ingDlgFecha').value=f&&f.fecha_ingreso?f.fecha_ingreso:'';
+  document.getElementById('dlgAprobarIngreso').classList.add('open');
+  setTimeout(()=>document.getElementById('ingDlgCodigo').focus(),60);
+}
+function abrirRechazarIngreso(id){
+  if(!exigirPermiso('ingresos.aprobar','Solo quien puede resolver ingresos.'))return;
+  const f=ingresosCache.find(x=>String(x.id)===String(id));
+  ingresoAprobando=id;
+  limpiarErroIngreso('ingDlgRechError');
+  document.getElementById('ingDlgRechInfo').innerHTML=f
+    ? '<b>'+escHtml(f.nombre)+'</b> · '+escHtml(f.rut)
+    : '';
+  document.getElementById('ingDlgMotivo').value='';
+  document.getElementById('dlgRechazarIngreso').classList.add('open');
+  setTimeout(()=>document.getElementById('ingDlgMotivo').focus(),60);
+}
+function cerrarDialogoIngreso(){
+  document.getElementById('dlgAprobarIngreso').classList.remove('open');
+  document.getElementById('dlgRechazarIngreso').classList.remove('open');
+  ingresoAprobando=null;
+}
+
+async function aprobarIngresoPendiente(){
+  if(!ingresoAprobando)return;
+  const codigo=document.getElementById('ingDlgCodigo').value.trim();
+  if(!codigo){
+    erroIngreso('ingDlgError','Falta el código del trabajador. Sin código no se puede crear la ficha.');
+    document.getElementById('ingDlgCodigo').focus();
+    return;
+  }
+  const b=document.getElementById('ingDlgAprobar');
+  b.disabled=true;b.textContent='Creando…';
+  const {error}=await window.supabaseClient.rpc('aprobar_ingreso_pendiente',{
+    p_ingreso_id:ingresoAprobando,
+    p_codigo:codigo,
+    p_cargo:document.getElementById('ingDlgCargo').value.trim()||null,
+    p_fecha_ingreso:document.getElementById('ingDlgFecha').value||null
+  });
+  b.disabled=false;b.textContent='Aprobar y crear el trabajador';
+  if(error){
+    // La base rechaza el código repetido y el RUT que ya es trabajador, con
+    // mensajes escritos para leerse. Se muestran tal cual.
+    erroIngreso('ingDlgError',error.message);
+    return;
+  }
+  cerrarDialogoIngreso();
+  // El trabajador nuevo tiene que aparecer en la lista sin recargar la página
+  await loadWorkers();
+  renderList('');
+  await cargarIngresosPendientes();
+  renderMisIngresos();
+}
+
+async function rechazarIngresoPendiente(){
+  if(!ingresoAprobando)return;
+  const motivo=document.getElementById('ingDlgMotivo').value.trim();
+  if(!motivo){
+    erroIngreso('ingDlgRechError','El motivo es obligatorio: el supervisor necesita saber qué corregir.');
+    return;
+  }
+  const {error}=await window.supabaseClient.rpc('rechazar_ingreso_pendiente',{
+    p_ingreso_id:ingresoAprobando,
+    p_motivo:motivo
+  });
+  if(error){erroIngreso('ingDlgRechError',error.message);return;}
+  cerrarDialogoIngreso();
+  await cargarIngresosPendientes();
+  renderMisIngresos();
+}
 function initView(v){
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
-  if(v==='solicitar-cambio'){initSolicitarCambio();initVistaSolicitar();}
+  if(v==='solicitar-cambio'){initSolicitarCambio();initVistaSolicitar();}
+  if(v==='solicitar-ingreso'){limpiarFormularioIngreso();renderMisIngresos();}
+  if(v==='ingresos-cola'){cargarIngresosPendientes();}
   if(v==='aprobar-cambio'){
     renderSolicitudes();renderMisSolicitudes();renderAvisoSolicitudes();
     // La bandeja de avisos de ingreso y la bitácora se cargan al abrir la
@@ -12433,7 +12835,9 @@ const VISTAS_POR_PERMISO={
   'v-bodega-catalogo':'bodega.herramientas',
   'v-bodega-asignar':'bodega.herramientas',
   'v-bodega-qr':'bodega.qr',
-  'v-solicitar-cambio':'tarja.solicitar_cambio',
+  'v-solicitar-cambio':'tarja.solicitar_cambio',
+  'v-solicitar-ingreso':'ingresos.pedir',
+  'v-ingresos-cola':'ingresos.aprobar',
   'v-supervisores':'tarja.ver',
   'v-sup-diaria':'tarja.marcaje',
   'v-just-diaria':'tarja.justificar',
@@ -12451,9 +12855,9 @@ const VISTAS_POR_PERMISO={
 // Permiso de cada grupo del menú principal (para hiding de la nav)
 const GRUPOS_POR_PERMISOS={
   porteria:['porteria.ver'],
-  administracion:['trabajadores.ver','tarja.ver','tarja.exportar','tarja.aprobar_cambio','sistema.usuarios','sistema.permisos','sistema.empresa'],
+  administracion:['trabajadores.ver','tarja.ver','tarja.exportar','tarja.aprobar_cambio','sistema.usuarios','sistema.permisos','sistema.empresa','ingresos.aprobar'],
   bodega:['bodega.epp.entregar','bodega.epp.historial','bodega.epp.catalogo','bodega.kits','bodega.herramientas','bodega.qr'],
-  supervisores:['tarja.ver','trabajadores.ver','prevencion.ver'],
+  supervisores:['tarja.ver','trabajadores.ver','prevencion.ver','ingresos.pedir'],
   soporte:['sistema.usuarios','sistema.permisos','sistema.empresa','tarja.aprobar_cambio','tarja.ver','trabajadores.ver'],
   'asistente-social':['social.ver'],
   prevencion:['prevencion.ver','prevencion.subcontrato']
