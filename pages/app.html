@@ -210,8 +210,22 @@ small{color:var(--muted)}
 .eppItemMeta{font-size:.68rem;color:var(--muted);margin-top:2px;display:block;min-height:14px}
 .eppFirma{display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,.7fr);gap:14px;align-items:start;margin-top:10px}
 .sigPadWrap{position:relative;border:1px dashed var(--accent2);border-radius:8px;background:var(--panel);overflow:hidden}
-.sigPadWrap canvas{display:block;width:100%;height:190px;touch-action:none;cursor:crosshair;background:#fff}
-.sigPadHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:var(--muted);pointer-events:none;text-align:center;padding:10px}
+/* El lienzo NO sigue al tema oscuro, y es a proposito.
+   La tinta es #101a14, la misma del encabezado, y esa imagen es la que va
+   dentro del PDF con addImage: lo que se ve en pantalla es lo que queda
+   impreso. Poner el lienzo oscuro en tema oscuro obligaria a dibujar con
+   tinta clara, y el PDF saldria con la firma invertida.
+   Una firma es tinta oscura sobre papel. Eso no es un tema.
+   Lo que SI cambia con el tema es lo que lo rodea: el marco sigue el panel. */
+.sigPadWrap canvas{display:block;width:100%;height:190px;touch-action:none;cursor:crosshair;background:#FCFDFD}
+/* El texto de ayuda iba en var(--muted), que en tema oscuro es #a3a3a3: gris
+   claro sobre papel blanco, casi ilegible. Aqui va con su propio gris, que
+   lee sobre papel en los dos temas. */
+.sigPadHint{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:.85rem;color:#6B7280;pointer-events:none;text-align:center;padding:10px}
+/* El borde del papel: en tema oscuro el marco se perdia contra el panel, y
+   el lienzo parecia un recorte pegado en vez de una hoja. */
+.sigPadWrap{border-color:var(--line)}
+.sigPadWrap canvas{box-shadow:inset 0 0 0 1px rgba(16,26,20,.06)}
 .sigPadWrap.firmado .sigPadHint{display:none}
 .sigPadBar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 .sigPadBar .btn{margin-top:0;padding:7px 12px;font-size:.7rem}
@@ -3491,7 +3505,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION = '2026-09-29-n';
+const APP_VERSION = '2026-09-29-o';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;

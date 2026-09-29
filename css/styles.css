@@ -4404,3 +4404,321 @@ header {
     transition: none;
   }
 }
+
+/* ===================================================================
+   
+/* ===================================================================
+   DOS TONOS POR SECCIÓN: UNO PARA TEMA CLARO, OTRO PARA OSCURO
+   (2026-09-29)
+   ===================================================================
+
+   QUE SE VIO
+   ----------
+   En tema oscuro se apilaban DOS oscuros distintos: el color de la sección en
+   el encabezado y el #1e1e1e del submenú abajo. Dos oscuros que no son de la
+   misma familia se leen como dos pantallas pegadas.
+
+   Y el selector de empresa era un rectángulo opaco --blanco en claro, casi
+   negro en oscuro-- sobre un encabezado que ahora es de color. Una caja opaca
+   sobre un fondo de color se ve pegada encima: el ojo va a la caja, no al
+   encabezado.
+
+   -------------------------------------------------------------------
+   POR QUÉ EL COLOR ELEGIDO NO SERVÍA EN OSCURO
+   ---------------------------------------------
+   El fondo de la página es casi blanco en tema claro (#F4F7F5) y casi negro en
+   oscuro (#121212). El encabezado lleva el color de la sección.
+
+   En tema claro, un color oscuro encima de un fondo claro se separa bien.
+
+   En tema oscuro, un color oscuro encima de un fondo casi negro NO se separa:
+
+     administración   #1A2330 sobre #121212   1.18
+     soporte          #0C0D6B sobre #121212   1.15
+
+   Los dos. El color está ahí, pero no se distingue del fondo: la barra se ve
+   como si no estuviera pintada. Por eso hay dos tonos y no un solo color con
+   dos temas encima.
+
+   -------------------------------------------------------------------
+   CÓMO SE CALCULÓ EL TONO DE OSCURO
+   ----------------------------------
+   Se buscan dos cosas a la vez, porque por separado no hay solución:
+
+     - separarse del fondo de la página (2.2 o más), y
+     - dejar leer el texto claro ENCIMA (4.8 o más).
+
+   Pedir solo lo primero es lo que dejó el verde de supervisores en 4.45:
+   aclararlo hasta separarse de la página lo vuelve claro, y un fondo claro no
+   sostiene texto claro. Pedir solo lo segundo lo deja pegado al fondo.
+
+   Y se busca en DOS dimensiones, no solo en la luminosidad. Con la saturación
+   muy alta, el verde de supervisores no tenía NINGUNA luminosidad que cumpliera
+   las dos: el primer intento terminó en #D8F9D0, un verde casi blanco. La
+   razón es que un verde muy saturado tiene una franja de luminosidad estrecha:
+   por un lado demasiado oscuro para separarse, por el otro demasiado claro
+   para sostener texto.
+
+   Así que también se baja la saturación, que es lo que corresponde en un fondo
+   oscuro: menos saturación y más luminosidad.
+
+   De los siete, la separación de la página quedó entre 2.85 y 2.88 y el texto
+   encima entre 6.15 y 6.33. Ese empate casi exacto es la prueba de que el
+   cálculo dio el mismo esfuerzo para los siete y no un favorito.
+
+   -------------------------------------------------------------------
+   POR QUÉ EL TONO CLARO CAMBIA TAMBIÉN EN OSCURO
+   ---------------------------------------------
+   --cat-claro es el color de la sección para texto sobre superficies claras, y
+   se usa en los títulos de las tarjetas y en el submenú claro. En tema oscuro
+   esas superficies son #1e1e1e, así que un tono oscuro encima no se leería. En
+   oscuro --cat-claro pasa a ser el tono claro, que es el que sí lee.
+
+   -------------------------------------------------------------------
+   LA FORMA DEL TEMA OSCURO SE DECLARA DOS VECES
+   ---------------------------------------------
+   En el archivo hay dos puertas al tema oscuro: una para cuando la persona
+   elige oscuro, y otra para cuando el sistema lo pide y no hay elección. Las
+   dos tienen que decir lo mismo, o la pantalla cambia de paleta según de dónde
+   se llegó. Por eso los valores están en los dos sitios.
+
+   -------------------------------------------------------------------
+   ESTE BLOQUE NO TIENE UN SOLO COLOR ESCRITO A MANO
+   -------------------------------------------------
+   Los catorce fondos y los catorce tonos claros entran desde
+   paleta-dos-temas.json, que sale del cálculo con las contrastes medidas. Si
+   algún día se cambia la fórmula, este bloque lleva los colores nuevos sin
+   tocar nada, porque no los tiene escritos.
+   =================================================================== */
+
+/* ------------------------------------------------------------------
+   TEMA OSCURO, CUANDO EL SISTEMA LO PIDE
+   ------------------------------------------------------------------
+   Los valores de tema claro NO se tocan: ya están en el archivo, con el color
+   elegido, y en tema claro separan bien de la página. */
+@media (prefers-color-scheme: dark) {
+
+:root:not([data-theme="light"]) [data-group="porteria"] {
+  --fondo-seccion: #2A666B;
+  --cat: #F7FDFD;
+  --cat-claro: #F7FDFD;
+  --fondo-nav: #24565A;
+  --fondo-subnav: #1F4749;
+}
+
+:root:not([data-theme="light"]) [data-group="administracion"] {
+  --fondo-seccion: #4B5F7A;
+  --cat: #F7F9FD;
+  --cat-claro: #F7F9FD;
+  --fondo-nav: #3F5166;
+  --fondo-subnav: #344252;
+}
+
+:root:not([data-theme="light"]) [data-group="bodega"] {
+  --fondo-seccion: #8D4D22;
+  --cat: #FDF9F7;
+  --cat-claro: #FDF9F7;
+  --fondo-nav: #76421E;
+  --fondo-subnav: #5F371A;
+}
+
+:root:not([data-theme="light"]) [data-group="supervisores"] {
+  --fondo-seccion: #39692E;
+  --cat: #F8FDF7;
+  --cat-claro: #F8FDF7;
+  --fondo-nav: #315928;
+  --fondo-subnav: #284922;
+}
+
+:root:not([data-theme="light"]) [data-group="soporte"] {
+  --fondo-seccion: #4F50BA;
+  --cat: #F7F7FD;
+  --cat-claro: #F7F7FD;
+  --fondo-nav: #43449B;
+  --fondo-subnav: #37397B;
+}
+
+:root:not([data-theme="light"]) [data-group="prevencion"] {
+  --fondo-seccion: #9E3F2E;
+  --cat: #FDF8F7;
+  --cat-claro: #FDF8F7;
+  --fondo-nav: #843728;
+  --fondo-subnav: #6B2E22;
+}
+
+:root:not([data-theme="light"]) [data-group="asistente-social"] {
+  --fondo-seccion: #79489A;
+  --cat: #FAF7FD;
+  --cat-claro: #FAF7FD;
+  --fondo-nav: #653E80;
+  --fondo-subnav: #513367;
+}
+
+}
+
+/* ------------------------------------------------------------------
+   TEMA OSCURO, CUANDO LA PERSONA LO ELIGE
+   ------------------------------------------------------------------
+   Los mismos valores que arriba. No es duplicación por descuido: es la otra
+   puerta, y si a una se le olvidara un valor, la misma pantalla se vería
+   distinto según si se eligió oscuro o el sistema ya lo estaba. */
+:root[data-theme="dark"] [data-group="porteria"] {
+  --fondo-seccion: #2A666B;
+  --cat: #F7FDFD;
+  --cat-claro: #F7FDFD;
+  --fondo-nav: #24565A;
+  --fondo-subnav: #1F4749;
+}
+
+:root[data-theme="dark"] [data-group="administracion"] {
+  --fondo-seccion: #4B5F7A;
+  --cat: #F7F9FD;
+  --cat-claro: #F7F9FD;
+  --fondo-nav: #3F5166;
+  --fondo-subnav: #344252;
+}
+
+:root[data-theme="dark"] [data-group="bodega"] {
+  --fondo-seccion: #8D4D22;
+  --cat: #FDF9F7;
+  --cat-claro: #FDF9F7;
+  --fondo-nav: #76421E;
+  --fondo-subnav: #5F371A;
+}
+
+:root[data-theme="dark"] [data-group="supervisores"] {
+  --fondo-seccion: #39692E;
+  --cat: #F8FDF7;
+  --cat-claro: #F8FDF7;
+  --fondo-nav: #315928;
+  --fondo-subnav: #284922;
+}
+
+:root[data-theme="dark"] [data-group="soporte"] {
+  --fondo-seccion: #4F50BA;
+  --cat: #F7F7FD;
+  --cat-claro: #F7F7FD;
+  --fondo-nav: #43449B;
+  --fondo-subnav: #37397B;
+}
+
+:root[data-theme="dark"] [data-group="prevencion"] {
+  --fondo-seccion: #9E3F2E;
+  --cat: #FDF8F7;
+  --cat-claro: #FDF8F7;
+  --fondo-nav: #843728;
+  --fondo-subnav: #6B2E22;
+}
+
+:root[data-theme="dark"] [data-group="asistente-social"] {
+  --fondo-seccion: #79489A;
+  --cat: #FAF7FD;
+  --cat-claro: #FAF7FD;
+  --fondo-nav: #653E80;
+  --fondo-subnav: #513367;
+}
+
+/* ------------------------------------------------------------------
+   LA PARTE DERECHA DEL ENCABEZADO
+   ------------------------------------------------------------------
+   El fondo del campo sale de OSCURECER el color de la sección, no de
+   aclararlo. Con blanco translúcido se veía una caja pegada encima; oscureciendo
+   el mismo color se ve como parte de la barra.
+
+   Y el texto va en el tono claro de la sección, no en blanco: es el mismo
+   color que el nombre de la sección y que el icono, así que la esquina derecha
+   pertenece a la sección y no es un trozo pegado.
+
+   En oscuro también se oscurece: --fondo-seccion ya es el tono de oscuro, y
+   oscurecerlo otra vez lo baja lo justo para que se lea como un campo y no
+   como un rectángulo. */
+#empresaSel {
+  background: color-mix(in srgb, var(--fondo-seccion, #101a14) 82%, #000);
+  border-color: color-mix(in srgb, var(--fondo-seccion, #101a14) 62%, #000);
+  color: var(--cat, #fff);
+  font-weight: 500;
+}
+
+#empresaSel:hover {
+  background: color-mix(in srgb, var(--fondo-seccion, #101a14) 70%, #000);
+  border-color: color-mix(in srgb, var(--fondo-seccion, #101a14) 52%, #000);
+}
+
+#empresaSel:focus {
+  border-color: var(--cat, rgba(255, 255, 255, .7));
+  outline: none;
+}
+
+/* La lista de opciones, opaca y siempre igual. Si fuera translúcida se vería el
+   color de la sección a través de cada opción, y con siete secciones cada
+   lista sería de un color distinto. Una lista de opciones tiene que ser igual
+   siempre: es el mismo formulario. */
+#empresaSel option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+/* La etiqueta "EMPRESA". Estaba en el color apagado, que en tema claro es
+   oscuro: sobre el fondo del encabezado no se leía. */
+#empresaSel + label,
+label[for="empresaSel"] {
+  color: rgba(255, 255, 255, .82);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  font-size: .68rem;
+}
+
+/* El borde del botón de cerrar sesión, un poco más suave: el de antes era
+   blanco al 38 por ciento, y sobre los colores de la paleta se veía fuerte. */
+.header-actions .btn.secondary {
+  border-color: rgba(255, 255, 255, .3);
+  color: rgba(255, 255, 255, .94);
+}
+
+.header-actions .btn.secondary:hover {
+  background: rgba(255, 255, 255, .16);
+  border-color: rgba(255, 255, 255, .55);
+  color: #fff;
+}
+
+/* ------------------------------------------------------------------
+   LAS BARRAS
+   ------------------------------------------------------------------
+   Se rellenan desde el cálculo, con los tres escalones medidos. Va al final
+   del bloque para que sea lo último que se lee. */
+/* ------------------------------------------------------------------
+   LA ESCALERA DE LAS TRES BARRAS
+   ------------------------------------------------------------------
+   En la pantalla se ve que el encabezado y el menú eran EL MISMO color: dos
+   barras idénticas se leen como una banda ancha sin forma. Abajo, el submenú
+   sí bajaba un paso, y era el único escalón.
+
+   Así que son tres escalones del mismo color, cada uno un poco más oscuro:
+
+     encabezado    --fondo-seccion   el color de la sección
+     menú          --fondo-nav       un paso más abajo
+     submenú       --fondo-subnav    dos pasos más abajo
+
+   Los escalones se MIDEN, no se eligen a ojo. Un paso tiene que notarse sin que
+   las tres barras parezcan colores distintos: se busca el más claro que todavía
+   separa 1.25 del de arriba y sostiene el texto de la sección en 4.5.
+
+   Con los dos arriba en el mismo color, la diferencia era 1.00. Ahora es 1.25
+   en los siete, y los tres textos leen.
+
+   Los valores van con el nombre de la sección, no con un color-mix: el
+   navegador no deja comprobar un porcentaje, y un color que no se puede
+   comprobar es un color que no se puede mantener. */
+#mainNav {
+  background: var(--fondo-nav, var(--fondo-seccion, #101a14));
+  transition: background-color .2s ease;
+}
+
+/* En tema oscuro el submenú también baja su escalón, para que las tres barras
+   sean de la misma familia. En tema claro no hay --fondo-subnav, así que cae al
+   panel de siempre: ahí el fondo de la página es casi blanco y una barra clara
+   separa bien el contenido. Es el respaldo, no una excepción. */
+#subNav {
+  background: var(--fondo-subnav, var(--panel));
+  border-bottom: 1px solid var(--fondo-subnav, var(--line));
+}
