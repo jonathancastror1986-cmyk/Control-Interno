@@ -182,24 +182,67 @@ select * from (
 
   union all
   -- 6) El resumen, que es lo que se lee de un vistazo
+  -- Cada comprobacion lleva su nombre, para que el resumen diga cual
+  -- falta y no haya que buscarlo en toda la lista.
+  --
+  -- La lista esta aca, UNA sola vez, y la sentencia de arriba no tiene la
+  -- suya. Antes la llevaba, y por eso el resumen podia decir "no hay rojo"
+  -- con un FALTA justo arriba: su lista no incluia el rol reloj, que es la
+  -- comprobacion MAS IMPORTANTE (sin la fila del rol en el catalogo no se
+  -- puede crear la cuenta del aparato, y el reloj no tiene con quien
+  -- marcar).
+  --
+  -- Con una sola lista no puede volver a pasar: el resumen arma su
+  -- veredicto con el mismo conteo que las filas de arriba. Y si manana se
+  -- agrega una comprobacion, se agrega en un solo lugar.
   select
     'RESUMEN',
-    'todo lo de arriba',
+    case when fallos = 0 then 'todo lo de arriba' else 'fallan: ' || faltan end,
     '',
-    case
-      when exists (
-        select 1 from (
-          select case when to_regclass('public.' || nombre) is null then 1 end as f from tablas
-          union all
-          select case when to_regprocedure('public.' || signature) is null then 1 end from funciones
-          union all
-          select case when not exists (select 1 from public.permisos where clave = clave_x) then 1 end
-            from (select unnest(array['relojes.ver','relojes.editar','relojes.marcaje']) as clave_x) q
-        ) x where f = 1
-      ) then 'FALTA  — hay rojo arriba: mirá qué dice la columna donde'
-      else 'BIEN  — no hay rojo: el reloj debería poder marcar'
+    case when fallos = 0
+         then 'BIEN  — no hay rojo: el reloj debería poder marcar'
+         else 'FALTA  — ' || fallos || ' comprobacion(es) en rojo: ' || faltan
     end,
     99
+  from (
+    select count(*)::int as fallos,
+           coalesce(string_agg(nombre, ', '), '') as faltan
+      from (
+        select 'las tablas' as nombre,
+               case when to_regclass('public.' || nombre) is null then 1 end as f
+          from tablas
+        union all
+        select 'las funciones',
+               case when to_regprocedure('public.' || signature) is null then 1 end
+          from funciones
+        union all
+        select 'las columnas',
+               case when not exists (
+                 select 1 from information_schema.columns
+                  where table_schema = 'public'
+                    and table_name = la_tabla
+                    and column_name = la_columna
+               ) then 1 end
+          from columnas
+        union all
+        select 'los permisos',
+               case when not exists (
+                 select 1 from public.permisos
+                  where clave = permisos_necesarios.clave
+               ) then 1 end
+          from permisos_necesarios
+        union all
+        select 'el rol reloj',
+               case when (
+                 not exists (select 1 from public.roles_sistema where rol = 'reloj')
+                 or not ('reloj' = any (public.roles_validos_array()))
+                 or not exists (
+                   select 1 from public.roles_permisos
+                    where rol = 'reloj' and permiso = 'relojes.marcaje')
+               ) then 1 end
+      ) c
+     where c.f = 1
+  ) f
 
 ) z
 order by z.orden, z.que;

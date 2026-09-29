@@ -954,16 +954,37 @@ que uno dude de cómo va a salir impreso.
   display: none;
 }
 
+/* -------------------------------------------------------------------
+   IMPRESION DE LA BOLETA DEL AVISO
+   -------------------------------------------------------------------
+   OJO CON ESTA REGLA, porque la version anterior rompio todas las
+   impresiones de la aplicacion.
+
+   Antes decia "body * { visibility: hidden }". Eso no era imprimir la
+   boleta: era no imprimir NADA, porque el selector es todo el cuerpo.
+   Lo unico que se volvia a ver era la boleta. La tarjeta definitiva, la
+   temporal, la plantilla de Word y los reportes salian en blanco, y sin
+   ningun error: la impresora no se queja de una hoja vacia.
+
+   Por que se escribio asi: el elemento que se quiere esconder se pone
+   con "visibility", y uno se olvida de que el @media print es GLOBAL y
+   no del elemento. Ademas, en un @media print no se puede cambiar el
+   estilo desde el JavaScript justo antes de imprimir: el motor de
+   impresion ya tomo la decision. Por eso va con una clase, y la clase
+   se pone ANTES de imprimir y se saca despues.
+
+   Con la clase NO puesta, ninguna de estas reglas hace nada, y cada
+   impresion de la aplicacion sigue usando su propio estilo. */
 @media print {
-  body * {
+  body.imprimiendo-boleta * {
     visibility: hidden;
   }
 
-  /* Lo que se imprime se saca del flujo, porque con visibility la página
+  /* Lo que se imprime se saca del flujo, porque con visibility la pagina
      sigue teniendo el alto de la pantalla y sale un papel en blanco con
      un renglón arriba. */
-  #boletaAviso,
-  #boletaAviso * {
+  body.imprimiendo-boleta #boletaAviso,
+  body.imprimiendo-boleta #boletaAviso * {
     visibility: visible;
     display: block;
     position: absolute;
@@ -972,7 +993,7 @@ que uno dude de cómo va a salir impreso.
     width: 100%;
   }
 
-  #boletaAviso {
+  body.imprimiendo-boleta #boletaAviso {
     font-size: 12pt;
     line-height: 1.5;
     color: #000;

@@ -13760,6 +13760,16 @@ function imprimirAvisoTotem(){
     +'Reloj: '+escHtml(reloj)+'<br>'
     +'Estado: '+escHtml(a.estado==='confirmado'?'confirmado por la persona':'pendiente, sin confirmar')+'</p>'
     +'<p style="font-size:9pt">Impreso el '+escHtml(new Date().toLocaleString('es-CL'))+'.</p>';
+  // La clase va ANTES de imprimir. En un @media print no se puede cambiar
+  // el estilo desde aqui: el motor de impresion ya tomo la decision, y
+  // ponerla despues no hace nada.
+  document.body.classList.add('imprimiendo-boleta');
+  const quitar=()=>document.body.classList.remove('imprimiendo-boleta');
+  // "afterprint" es el aviso de que termino. El setTimeout es el plan B:
+  // si el navegador no lo dispara, la clase se saca igual y, con esto, la
+  // siguiente impresion de la app no sale en blanco.
+  window.addEventListener('afterprint',quitar,{once:true});
+  setTimeout(quitar,1500);
   window.print();
   caja.innerHTML='';
 }
