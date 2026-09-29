@@ -140,9 +140,9 @@ alter table ingresos_pendientes enable row level security;
 -- Con un solo permiso, o todos los supervisores podrían dar de alta (y el
 -- código lo asignaría quien puede), o nadie podría. Con dos, el supervisor
 -- pide y RRHH aprueba.
-insert into permisos (clave, modulo, descripcion) values
-  ('ingresos.pedir',    'ingresos', 'Pedir el ingreso de un trabajador nuevo'),
-  ('ingresos.aprobar',  'ingresos', 'Aprobar o rechazar un ingreso pendiente y asignarle el código')
+insert into permisos (clave, descripcion, categoria, orden) values
+  ('ingresos.pedir', 'Pedir el ingreso de un trabajador nuevo', 'ingresos', 100),
+  ('ingresos.aprobar', 'Aprobar o rechazar un ingreso pendiente y asignarle el código', 'ingresos', 101)
 on conflict (clave) do nothing;
 
 -- -------------------------------------------------------------------

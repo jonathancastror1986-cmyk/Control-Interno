@@ -59,16 +59,16 @@ alter table cotizaciones_lineas      enable row level security;
 -- correr dos veces. Un "insert" a secas falla la segunda vez, y una migración
 -- que hay que correr una sola vez se vuelve un problema el día que alguien
 -- la corre de más.
-insert into permisos (clave, modulo, descripcion) values
-  ('proveedores.ver',     'proveedores', 'Ver proveedores'),
-  ('proveedores.editar',  'proveedores', 'Crear y modificar proveedores'),
-  ('productos.ver',       'productos',   'Ver productos y sus códigos'),
-  ('productos.editar',    'productos',   'Crear y modificar productos'),
-  ('guias.recepcion.ver',    'guias', 'Ver la recepción de guías'),
-  ('guias.recepcion.registrar','guias', 'Cargar los items de una guía recibida'),
-  ('guias.recepcion.cerrar',  'guias', 'Cerrar una recepción'),
-  ('cotizaciones.ver',    'cotizaciones', 'Ver cotizaciones'),
-  ('cotizaciones.editar', 'cotizaciones', 'Pedir y aceptar cotizaciones')
+insert into permisos (clave, descripcion, categoria, orden) values
+  ('proveedores.ver', 'Ver proveedores', 'guias', 91),
+  ('proveedores.editar', 'Crear y modificar proveedores', 'guias', 92),
+  ('productos.ver', 'Ver productos y sus códigos', 'guias', 93),
+  ('productos.editar', 'Crear y modificar productos', 'guias', 94),
+  ('guias.recepcion.ver', 'Ver la recepción de guías', 'guias', 95),
+  ('guias.recepcion.registrar', 'Cargar los items de una guía recibida', 'guias', 96),
+  ('guias.recepcion.cerrar', 'Cerrar una recepción', 'guias', 97),
+  ('cotizaciones.ver', 'Ver cotizaciones', 'guias', 98),
+  ('cotizaciones.editar', 'Pedir y aceptar cotizaciones', 'guias', 99)
 on conflict (clave) do nothing;
 
 -- -------------------------------------------------------------------

@@ -103,10 +103,10 @@ alter table config_limite_amonestacion enable row level security;
 -- -------------------------------------------------------------------
 -- Tres, y no uno. Registrar y archivar son cosas distintas, y quien puede
 -- archivar (desmarcar la casilla) debería poder hacerlo aunque no registre.
-insert into permisos (clave, modulo, descripcion) values
-  ('amonestaciones.ver',       'amonestaciones', 'Ver las cartas de amonestación de un trabajador'),
-  ('amonestaciones.registrar', 'amonestaciones', 'Registrar una carta de amonestación'),
-  ('amonestaciones.archivar',  'amonestaciones', 'Archivar una carta de amonestación con su motivo')
+insert into permisos (clave, descripcion, categoria, orden) values
+  ('amonestaciones.ver', 'Ver las cartas de amonestación de un trabajador', 'amonestaciones', 110),
+  ('amonestaciones.registrar', 'Registrar una carta de amonestación', 'amonestaciones', 111),
+  ('amonestaciones.archivar', 'Archivar una carta de amonestación con su motivo', 'amonestaciones', 112)
 on conflict (clave) do nothing;
 
 -- -------------------------------------------------------------------
