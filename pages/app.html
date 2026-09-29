@@ -1787,9 +1787,25 @@ calidad, y se come elementos que el código sigue usando por su nombre.
     <input id="tokenValor" readonly style="font-family:ui-monospace,monospace">
     <label for="tokenInstalarCampo" style="margin-top:10px">Pegar el token para que ESTE equipo marque con este reloj</label>
     <div class="row" style="margin-top:6px;gap:8px">
-      <div style="flex:1"><input id="tokenInstalarCampo" placeholder="3f2504e0-4f89-11d3-9a0c-0305e82c3301"></div>
-               title="El token son 36 caracteres con guiones, como el de ejemplo. Si se corta al copiar, no sirve."
+      <div style="flex:1"><input id="tokenInstalarCampo" placeholder="3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+               title="El token son 36 caracteres con guiones, como el de ejemplo. Si se corta al copiar, no sirve."></div>
       <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="guardarTotemToken()">Instalar</button></div>
+    </div>
+    <!--
+    EL BOTÓN DE OLVIDAR
+
+    Sin esto, un token equivocado guardado en el navegador es un callejón
+    sin salida desde la pantalla: el campo se rellena solo con lo que hay
+    guardado, la persona aprieta Instalar, y la base le dice que no es de
+    este reloj. No hay forma de limpiarlo.
+
+    Pasó de verdad: había un id de usuario guardado como si fuera un
+    token, de una instalación de antes de que existiera la comprobación.
+    Con este botón se aprieta, se limpia, y se pega el token bueno.
+    -->
+    <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn secondary" type="button" onclick="olvidarTokenReloj()">Olvidar el token guardado</button>
+      <small style="flex:1;min-width:180px">Borra lo que hay guardado en ESTE navegador para este reloj. Sirve cuando lo guardado no es el token bueno.</small>
     </div>
     <small style="display:block;margin-top:4px">Se guarda en este navegador, no en el archivo de la app. En un equipo compartido cualquiera con acceso al navegador podría marcar: por eso el tótem tiene que ser un aparato dedicado.</small>
     <input type="hidden" id="tokenRelojCodigo">
@@ -3143,7 +3159,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-29-b';
+const APP_VERSION='2026-09-29-c';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -12324,6 +12340,31 @@ function editarReloj(code){
 // y ver un campo vacío. Un campo vacío no dice si hay que pegar algo, si ya
 // está instalado, o si hay que rotarlo. Con las tres respuestas posibles
 // escritas, la persona sabe qué hacer sin preguntar.
+// El campo de pegar el token, y el boton de olvidarlo.
+//
+// ------------------------------------------------------------------
+// POR QUE EL CAMPO NO SE RELLENA CON LO QUE HAY GUARDADO
+// ------------------------------------------------------------------
+// Antes, al abrir esta pantalla el campo de pegar venia con el token que
+// ya estaba en el navegador, y el cartel decia "este reloj ya está instalado en
+// este navegador".
+//
+// El problema es que las dos cosas son verdad y las dos enganan. Lo que
+// habia ahi podia ser cualquier cosa: en una instalacion de antes de que
+// existiera la comprobacion, se guardaba lo que se pegara sin mirar. Quedo
+// un id de usuario guardado como si fuera un token de un reloj.
+//
+// Entonces la persona veia "ya está instalado", apretaba Instalar, y la base
+// contestaba "el token es válido pero no es el de este reloj". Sin forma de
+// limpiar lo guardado, tampoco habia salida desde la pantalla.
+//
+// Ahora el campo arranca VACíO, con el ejemplo en el texto de ayuda. Si hay
+// algo guardado, el cartel lo dice pero aclarando que no se sabe si es el
+// bueno, y hay un boton para borrarlo.
+//
+// Vacío y no con el ejemplo puesto como valor: un valor de ejemplo es un token
+// que no existe, y alguien lo va a instalar sin querer. Como texto de ayuda
+// no se puede instalar por accidente.
 function pintarEstadoToken(code,instalado){
   const caja=document.getElementById('tokenEstado');
   if(!caja)return;
@@ -12331,22 +12372,61 @@ function pintarEstadoToken(code,instalado){
   if(deQuien)deQuien.textContent=code||'(sin elegir)';
   if(instalado){
     caja.innerHTML='<div class="aviso-fila" style="margin:0">'
-      +'<b>Este reloj ya está instalado en ESTE navegador.</b><br>'
-      +'El reloj <b>'+escHtml(code)+'</b> puede marcar desde acá. '
-      +'Si estás en el computador de la oficina y querés probarlo, abrí la '
-      +'pantalla de marcaje de este reloj con "Abrir pantalla".</div>';
+      +'<b>Hay un token guardado en ESTE navegador para este reloj.</b><br>'
+      +'No se sabe si es el correcto: eso solo se comprueba contra la base, y no se '
+      +'comprueba solo. Si el reloj marca, no toques nada. Si no marca, o si acabás de '
+      +'rotar el token, apretá <b>Olvidar el token guardado</b> y pegá el nuevo.</div>';
     return;
   }
   caja.innerHTML='<div class="aviso-fila" style="margin:0">'
     +'<b>Este reloj NO está instalado en este navegador.</b><br>'
-    +'El token no se puede recuperar: en el sistema solo queda su huella, '
-    +'por diseño. Para marcar desde acá hay dos caminos:<br>'
-    +'· Si tenés el token anotado, pegalo abajo y presioná <b>Instalar</b>.<br>'
-    +'· Si no lo tenés, cerrá esto y presioná <b>Rotar token</b> en la lista '
-    +'de relojes. Se muestra una sola vez: copialo antes de cerrar.</div>';
+    +'El token no se puede recuperar: en la base queda solo su huella, por '
+    +'diseño. Para marcar desde acá hay dos caminos:<br>'
+    +'· Si tenés el token anotado, pegalo arriba y presioná <b>Instalar</b>.<br>'
+    +'· Si no lo tenés, cerrá esto y presioná <b>Rotar token</b> en la lista de '
+    +'relojes. Se muestra una sola vez: copialo antes de cerrar.</div>';
 }
 
 // ------------------------------------------------------------------
+// OLVIDAR LO GUARDADO
+// ------------------------------------------------------------------
+// Lo que hay guardado en el navegador no se puede recuperar desde la base,
+// y no hay forma de cambiarlo salvo rotando el token. Así que borrarlo desde acá tiene
+// que ser fácil: es la salida cuando lo que hay guardado no sirve.
+//
+// Con la ruta de la portería, que es donde se usa, un token equivocado guardado es un
+// reloj que no marca y sin forma de arreglarlo sin ir a la oficina. Por eso
+// el boton está al lado del campo y no escondido en un menú. Si estuviera escondido, la
+// persona no lo encuentra justo cuando lo necesita.
+function olvidarTokenReloj(){
+  const code=document.getElementById('tokenRelojCodigo').value;
+  if(!code){
+    alert('No hay ningún reloj elegido.');
+    return;
+  }
+  if(!totemTokenDe(code)){
+    alert('No hay ningún token guardado para el reloj '+code+' en este navegador.');
+    return;
+  }
+  if(!confirm('Borrar el token guardado del reloj '+code+' en ESTE navegador?É\n\n'
+    +'Si ese token era el bueno, el reloj deja de marcar desde acá y hay que volver a '
+    +'pegarlo. El tótem del aparato no se toca: esto solo es lo que tiene guardado '
+    +'este navegador.'))return;
+  try{
+    localStorage.removeItem('totemToken_'+code);
+  }catch(error){
+    alert('No se pudo borrar: '+error.message
+      +'\n\nSi el navegador está en modo privado, no guarda nada y por lo tanto tampoco hay '
+      +'nada que borrar.');
+    return;
+  }
+  const campo=document.getElementById('tokenInstalarCampo');
+  if(campo)campo.value='';
+  pintarEstadoToken(code,false);
+  alert('Listo: se borró lo que tenía guardado el reloj '+code+' en este navegador.\n\n'
+    +'Ahora pegá el token bueno y apretá Instalar.');
+}
+
 // COPIAR EL TOKEN
 // ------------------------------------------------------------------
 // El token hay que llevarlo al Android TV Box, que está en otra obra. A mano
@@ -12406,7 +12486,18 @@ function abrirFormularioToken(codePedido){
   // Y se muestra el token que YA está instalado en este equipo, para que
   // quien rota vea el estado real en vez de un campo vacío.
   const instalado=totemTokenDe(code);
-  document.getElementById('tokenInstalarCampo').value=instalado;
+  // El campo arranca VACIO a proposito.
+  //
+  // Antes se rellenaba con lo que habia guardado, que es justo el problema:
+  // lo guardado puede ser cualquier cosa. Quedo un id de usuario guardado
+  // como si fuera el token de un reloj, de una instalacion de antes de que
+  // existiera la comprobacion. Entonces la persona veia el campo lleno,
+  // apretaba Instalar, y la base decia que no era de este reloj.
+  //
+  // Vacio, y no con el ejemplo puesto como valor: un valor de ejemplo es un
+  // token que no existe, y alguien lo va a instalar sin querer. Como texto
+  // de ayuda del campo no se puede instalar por accidente.
+  document.getElementById('tokenInstalarCampo').value='';
   pintarEstadoToken(code,!!instalado);
   document.getElementById('dlgToken').showModal();
 }
@@ -12934,7 +13025,22 @@ function guardarTotemToken(code){
   const textoBtn=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Comprobando...';}
 
+  // Un reloj, para que el boton no se quede en "Comprobando..." para
+  // siempre si la llamada se cuelga. Una red que no corta sino que se
+  // queda colgada es distinta de una que no hay, y sin esto no hay manera
+  // de volver a apretar.
+  //
+  // Se llama "espera" y no "reloj" porque en esta misma función ya hay una
+  // variable "reloj", que es el reloj de la lista. Declararla dos veces es
+  // un error de sintaxis, y tumba el script entero.
+  const espera=setTimeout(()=>{
+    if(btn){btn.disabled=false;btn.textContent=textoBtn||'Instalar';}
+    alert('La base no contesto en 20 segundos.\n\n'
+      +'Puede ser que no haya senal en la obra. No se guardo nada, para no dejar '
+      +'el reloj con un token que no se comprobo. Proba de nuevo en un rato.');
+  },20000);
   comprobarTokenEnLaBase(code,t).then(r=>{
+    clearTimeout(espera);
     if(btn){btn.disabled=false;btn.textContent=textoBtn||'Instalar';}
 
     // ----------------------------------------------------------------
