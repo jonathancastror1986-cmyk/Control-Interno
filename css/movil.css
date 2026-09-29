@@ -512,3 +512,199 @@ svg {
   min-width: 0;
   width: 100%;
 }
+/* ===================================================================
+   LA PANTALLA DEL RELOJ EN EL MOVIL
+   ===================================================================
+
+   QUE SE VIO
+   ----------
+   En un celular, la pantalla del reloj se rompe: la camara se sale por la
+   izquierda y queda cortada, la caja de la empresa se encima con el
+   nombre del reloj, y el reloj se lee chico, arriba a la derecha, medio
+   tapado.
+
+   POR QUE PASA
+   -----------
+   No es que falte estilo para el movil: es que el ESTILO DE ESCRITORIO
+   NO CABE. La caja de la empresa mide 320 px y va fija pegada a la
+   izquierda. En una pantalla de 390 px, esa caja sola se come el 82% del
+   ancho, y la camara, que pide hasta 380 px, queda sin sitio.
+
+   En escritorio esta disposicion esta bien: la hora va al centro y deja
+   800 px limpios a cada lado. En un movil no queda nada limpio.
+
+   QUE SE HACE
+   -----------
+   En el movil la pantalla deja de ser "la hora arriba, la empresa en la
+   esquina y la camara en el medio", y pasa a ser UNA COLUMNA CENTRADA:
+
+       reloj (centrado)
+       camara (centrada)
+       empresa (centrada, debajo de la camara)
+       mensaje (centrado)
+       campo de la tarjeta (centrado)
+
+   La caja de la empresa deja de ser fija y pasa a estar en el flujo, y se
+   le cambia el orden con "order" para que quede DEBAJO de la camara, que
+   es lo pedido. Es lo unico que necesita "order": en el escritorio la
+   empresa va en la esquina de arriba a la izquierda, y en el movil va
+   debajo de la camara. Son dos lugares distintos, y forzar el mismo lugar
+   para los dos seria hacer una pantalla que no sirve en ninguno.
+
+   -------------------------------------------------------------------
+   POR QUE NO SE TOCA EL ESCRITORIO
+   -------------------------------------------------------------------
+   Este bloque vive dentro del @media de movil.css, que styles.css carga
+   con media="(max-width: 860px)". En una pantalla de mas de 860 px no se
+   carga, y el escritorio no ve nada de esto. */
+
+@media (max-width: 860px) {
+
+  /* ----------------------------------------------------------------
+     LA COLUMNA CENTRADA
+     ---------------------------------------------------------------- */
+  #pantallaTotem {
+    align-items: center;
+    padding-top: 108px;
+    padding-bottom: 8px;
+    /* El celular se usa parado en la portería y a veces en la mano. Si
+       todo es mas apretado, la persona tiene que acercar la cara para
+       leer, y en un marco de tiempo corto eso significa que no lee. */
+    font-size: 16px;
+  }
+
+  /* ----------------------------------------------------------------
+     LA EMPRESA, DEBAJO DE LA CAMARA Y CENTRADA
+     ---------------------------------------------------------------- */
+  /*Deja de ser fija: en el escritorio va en la esquina de arriba a la
+     izquierda, y acá va en el flujo. */
+  #totemEmpresa {
+    position: static;
+    order: 4;
+    width: 100%;
+    max-width: 420px;
+    margin: 6px 12px 0;
+    padding: 10px 14px;
+    align-items: center;
+    text-align: center;
+  }
+
+  #totemEmpresaCentro {
+    font-size: .85rem;
+  }
+
+  #totemLogo {
+    max-height: 44px;
+  }
+
+  /* ----------------------------------------------------------------
+     LA CAMARA, CENTRADA Y CON ESPACIO
+     ---------------------------------------------------------------- */
+  .totem-zona {
+    order: 3;
+    width: 100%;
+    justify-content: center;
+    padding: 4px 12px 0;
+  }
+
+  /* Ni 70vw ni 42vh: en un celular de 390 px, 70vw son 273 px, y 42vh en
+     un pantalla alta son mas de 380, que no entran. El ancho manda. */
+  #totemCamara {
+    align-self: center;
+    width: min(70vw, 300px);
+  }
+
+  /* ----------------------------------------------------------------
+     LA HORA, ARRIBA Y CENTRADA
+     ---------------------------------------------------------------- */
+  #totemHoraCaja {
+    order: 1;
+  }
+
+  #totemHoraCaja .totem-hora {
+    /* La de escritorio es 5.4 rem en kiosco. En un celular de 390 px eso
+       se sale de lado. */
+    font-size: 2.9rem;
+  }
+
+  #totemHoraCaja .totem-fecha {
+    font-size: .85rem;
+  }
+
+  #totemHoraCaja .totem-nombre {
+    font-size: .72rem;
+  }
+
+  #totemConexion {
+    font-size: .7rem;
+  }
+
+  /* ----------------------------------------------------------------
+     EL MENSAJE, CENTRADO Y QUE NO SE CORRA
+     ---------------------------------------------------------------- */
+  #totemMensaje {
+    order: 5;
+    align-self: center;
+    width: calc(100% - 24px);
+    max-width: 100%;
+    margin: 10px 12px 0;
+    gap: 14px;
+  }
+
+  #totemMensaje .totem-texto b {
+    font-size: 1.6rem;
+  }
+
+  #totemMensaje .totem-texto span {
+    font-size: 1rem;
+  }
+
+  #totemMensaje .totem-idle-texto b {
+    font-size: 1.5rem;
+  }
+
+  #totemMensaje .totem-idle-texto span {
+    font-size: 1rem;
+  }
+
+  #totemMensaje .totem-icono {
+    font-size: 46px;
+  }
+
+  #totemMensaje .totem-idle-icono {
+    font-size: 38px;
+  }
+
+  /* ----------------------------------------------------------------
+     EL CAMPO DE LA TARJETA, CENTRADO
+     ---------------------------------------------------------------- */
+  .totem-pie {
+    order: 6;
+    width: 100%;
+    justify-content: center;
+    padding: 10px 12px 14px;
+  }
+
+  #totemCampo {
+    /* Con 720 px de ancho maximo, en un celular el campo se sale de lado.
+       El 100% menos el margen es lo que entra de verdad. */
+    max-width: calc(100% - 20px);
+    min-height: 52px;
+    font-size: 1rem;
+  }
+
+  /* ----------------------------------------------------------------
+     LOS OTROS ELEMENTOS DE LA PANTALLA
+     ---------------------------------------------------------------- */
+  #totemVerAviso {
+    order: 7;
+    margin: 6px 12px 0;
+    width: calc(100% - 24px);
+  }
+
+  #totemTokenCaja {
+    order: 8;
+    width: calc(100% - 24px);
+    margin: 8px 12px 0;
+  }
+}
