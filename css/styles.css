@@ -5487,3 +5487,98 @@ input:focus,select:focus,textarea:focus{
 @media (prefers-reduced-motion: reduce){
   #dlgCargos .dialog-caja{animation:none}
 }
+
+
+/* ===================================================================
+   LA PANTALLA DE EMPRESAS, Y LOS BOTONES DE LAS PESTAÑAS
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   LA LISTA DE CARGOS, POR GRUPOS
+   ------------------------------------------------------------------- */
+.ecFila{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:9px 12px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  margin-bottom:6px;
+}
+.ecGrupo{margin-top:14px}
+.ecGrupo:first-child{margin-top:0}
+.ecGrupoNombre{
+  font-size:.74rem;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+  padding:0 2px 7px;
+  border-bottom:1px solid var(--line);
+  margin-bottom:8px;
+}
+
+/* -------------------------------------------------------------------
+   UN CARGO
+   -------------------------------------------------------------------
+   El nombre va en <span> y la clave en el title del label. Antes la clave iba
+   en un <small> al lado, y como la clave de "Albanil" es "albanil" se leía
+   como el nombre repetido: ALBAÑILALBAÑIL.
+   ------------------------------------------------------------------- */
+.ecCargo{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:7px 10px;
+  border:1px solid var(--line);
+  border-radius:7px;
+  margin-bottom:5px;
+  cursor:pointer;
+  transition:background-color .15s ease,border-color .15s ease;
+}
+.ecCargo:hover{background:var(--surface-hover)}
+.ecCargo input{margin:0;flex:0 0 auto}
+.ecCargo span{font-weight:600}
+/* Sin empresa elegida no se puede activar nada, y se ve que no se puede. */
+.ecCargo.apagado{opacity:.5;cursor:not-allowed}
+.ecCargo.apagado:hover{background:none}
+
+/* -------------------------------------------------------------------
+   LOS BOTONES DE LAS PESTAÑAS: CUADRADOS, BORDE DELGADO
+   -------------------------------------------------------------------
+   Cuadrados: 6 de redondeo. Con 12 o más parecen píldoras, y una píldora con
+   texto largo dentro se ve como un botón, no como una pestaña.
+
+   Borde delgado: 1px, y en un gris que no compite con el texto. Un borde de 2px
+   en cada celda hace que el conjunto se vea como cajas sueltas.
+   ------------------------------------------------------------------- */
+.attendance-tabs button,
+.tabs button,
+[class*="-tabs"] button{
+  border-radius:6px;
+  border:1px solid var(--line);
+  background:var(--panel);
+  /* La sombra solo en la separación entre celdas: por arriba y por los lados
+     apenas, y hacia abajo un poco más. Así se nota que hay una celda detrás y
+     que la celda está encima, sin que cada una parezca un botón suelto. */
+  box-shadow:0 1px 0 rgba(0,0,0,.05),0 2px 4px -2px rgba(0,0,0,.10);
+  transition:background-color .15s ease,color .15s ease,border-color .15s ease;
+}
+[class*="-tabs"] button:hover{
+  border-color:var(--accent);
+  box-shadow:0 1px 0 rgba(0,0,0,.05),0 3px 6px -2px rgba(0,0,0,.14);
+}
+/* La que está activa se despega con el color, no con una sombra más grande. */
+[class*="-tabs"] button.active{
+  border-color:var(--accent);
+  box-shadow:inset 0 -2px 0 var(--accent),0 1px 0 rgba(0,0,0,.05);
+}
+
+/* -------------------------------------------------------------------
+   LOS DEMÁS BOTONES: MÁS CUADRADOS
+   -------------------------------------------------------------------
+   De 10 a 7. Con 10, un botón con "Cerrar sesión" parece una etiqueta
+   redondeada y no un botón.
+   ------------------------------------------------------------------- */
+button,.btn{border-radius:7px}

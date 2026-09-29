@@ -18362,16 +18362,24 @@ function renderCargosDeEmpresa(){
     const b=porGrupo[g];
     return '<div class="ecGrupo"><div class="ecGrupoNombre">'+escHtml(b.nombre)+'</div>'
       +b.cargos.map(f=>
-        '<label class="ecCargo'+(emp!=null?'':' apagado')+'">'
-        +'<input type="checkbox"'+(emp!=null?' checked':'')
-        +' onchange="activarCargoDeEmpresa(\''+escHtml(f.cargo)+'\',this.checked,this)">'
-        +'<span>'+escHtml(f.cargoNombre||f.cargo)+'</span>'
-        +'<small style="color:var(--muted)">'+escHtml(f.cargo)+'</small>'
-        +'</label>'
+        // La clave va en un data-cargo, NO dentro del onclick. Con el onclick
+        // había que meter la clave entre comillas simples, dentro de un
+        // atributo que ya estaba entre comillas dobles, dentro de una cadena de
+        // JavaScript: tres niveles y un escapado. Se escribía mal y el parser
+        // señalaba el error dos líneas más arriba de donde estaba el problema.
+        //
+        // Con el atributo no hay nada que escapar, y el escuchador de más abajo
+        // lee la clave de ahí. La clave va también en el title, porque quien
+        // configura necesita el nombre y la clave importa para el sistema.
+        '<label class="ecCargo'+(emp!=null?'':' apagado')+'" data-cargo="'+escHtml(f.cargo)+'"'+escHtml('')
+          +' title="clave: '+escHtml(f.cargo)+'">'+escHtml('')
+          +'<input type="checkbox"'+(emp!=null?' checked':'')+'>'+escHtml('')
+          +'<span>'+escHtml(f.cargoNombre||f.cargo)+'</span>'
+          +'</label>'
       ).join('')
       +'</div>';
   }).join('')
-  +'<small style="color:var(--muted);display:block;margin-top:10px">'
+  conectarCajasDeCargos(caja);
   +'Desactivar un cargo lo saca del desplegable del ingreso, pero no borra a nadie: los trabajadores que lo '
   +'tienen lo conservan, y el EPP y las charlas ya entregadas siguen en el historial.</small>';
 }
@@ -18395,6 +18403,27 @@ async function activarCargoDeEmpresa(cargo,activo,casilla){
   if(aviso)aviso.textContent=(activo?'Activado: ':'Desactivado: ')+cargo;
   await cargarJerarquiaCargos(true);
   renderEmpresasCargos();
+}
+
+// -------------------------------------------------------------------
+// UN SOLO ESCUCHADOR PARA TODAS LAS CASILLAS
+// -------------------------------------------------------------------
+// Las casillas se pintan y se borran cada vez que se elige otra empresa, así que
+// el escuchador va en la CAJA y no en cada casilla. Uno solo, para todas, y no
+// se acumula ninguno.
+//
+// Y la clave sale del data-cargo del label, no del onclick. Por eso aquí no hay
+// ninguna comilla que escapar.
+function conectarCajasDeCargos(caja){
+  if(!caja||caja.conCargos)return;
+  caja.conCargos=true;
+  caja.addEventListener('change',(ev)=>{
+    const input=ev.target;
+    if(!input||input.type!=='checkbox')return;
+    const label=input.closest('label[data-cargo]');
+    if(!label)return;
+    activarCargoDeEmpresa(label.getAttribute('data-cargo'),input.checked,input);
+  });
 }
 
 function especialidadIdDeClave(clave){
