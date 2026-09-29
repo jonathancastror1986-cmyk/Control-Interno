@@ -75,6 +75,33 @@
 -- -------------------------------------------------------------------
 -- LA TABLA
 -- -------------------------------------------------------------------
+-- -------------------------------------------------------------------
+-- COLUMNA VIEJA: "empresa"
+-- -------------------------------------------------------------------
+-- La primera versión de esta migración usó la columna "empresa", y el editor
+-- de SQL alcanzó a crear la FUNCIÓN antes de que la tabla quedara lista.
+-- Después la tabla se creó bien con "empresa_id", y quedó la función pidiendo
+-- una columna que ya no existe: "column empresa of relation
+-- ingresos_pendientes does not exist".
+--
+-- "create table if not exists" no arregla nada: la tabla existe y para
+-- PostgreSQL está bien. Por eso el bloque de arriba, que es idempotente y
+-- resuelve los dos casos.
+do $
+begin
+  if exists (
+       select 1 from information_schema.columns
+        where table_schema='public' and table_name='ingresos_pendientes'
+          and column_name='empresa'
+     ) and not exists (
+       select 1 from information_schema.columns
+        where table_schema='public' and table_name='ingresos_pendientes'
+          and column_name='empresa_id'
+     ) then
+    alter table ingresos_pendientes rename column empresa to empresa_id;
+  end if;
+end $;
+
 create table if not exists ingresos_pendientes (
   id            uuid primary key default gen_random_uuid(),
   nombre        text not null,
