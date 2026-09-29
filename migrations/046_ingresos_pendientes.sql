@@ -81,7 +81,7 @@ create table if not exists ingresos_pendientes (
   rut           text not null,
   telefono      text,
   especialidad  text,
-  empresa       integer references empresas(id),
+  empresa_id    integer references empresa(id),
   fecha_ingreso date,
   nota          text,
 
@@ -209,7 +209,7 @@ create or replace function pedir_ingreso(
   p_rut          text,
   p_telefono     text default null,
   p_especialidad text default null,
-  p_empresa      integer default null,
+  p_empresa_id   integer default null,
   p_fecha_ingreso date default null,
   p_nota         text default null
 )
@@ -265,7 +265,7 @@ begin
     v_nombre, v_rut,
     nullif(btrim(coalesce(p_telefono, '')), ''),
     nullif(btrim(coalesce(p_especialidad, '')), ''),
-    p_empresa,
+    p_empresa_id,
     p_fecha_ingreso,
     nullif(btrim(coalesce(p_nota, '')), ''),
     auth.uid(),
@@ -291,8 +291,8 @@ returns table (
   nombre        text,
   rut           text,
   telefono      text,
-  especialidad  text,
-  empresa       integer,
+  especialidad  text,     -- lo que escribe el supervisor, texto libre
+  empresa_id    integer,
   fecha_ingreso date,
   nota          text,
   estado        text,
@@ -305,7 +305,7 @@ stable
 security definer
 set search_path = public
 as $$
-  select i.id, i.nombre, i.rut, i.telefono, i.especialidad, i.empresa,
+  select i.id, i.nombre, i.rut, i.telefono, i.especialidad, i.empresa_id,
          i.fecha_ingreso, i.nota, i.estado, i.pedido_por_nombre, i.pedido_at,
          i.trabajador_code
     from public.ingresos_pendientes i
@@ -383,7 +383,7 @@ begin
   -- Las dos escrituras, en la misma transacción
   insert into trabajadores (
     code, name, cargo, phone, is_supervisor, supervisor_code,
-    especialidad, fecha_ingreso, rut
+    especialidad_clave, fecha_ingreso, rut
   )
   values (
     v_codigo, v_nombre,
