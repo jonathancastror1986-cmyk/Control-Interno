@@ -3665,3 +3665,292 @@ button[role="tab"][aria-selected="true"] .ico {
     animation: none;
   }
 }
+/* ======================= LAS PESTANAS DEL SUPERVISOR, LA TABLA DE CONCILIACION Y LOS ======================= *//* ===================================================================
+   LAS PESTANAS DEL SUPERVISOR, LA TABLA DE CONCILIACION Y LOS
+   BOTONES CON TEXTO AL PASAR EL PUNTERO (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDE
+   -----------
+   1) Las cinco tarjetas de la pantalla del supervisor en pestanas.
+   2) La conciliacion tambien en tabla, con una celda por dato.
+   3) Los botones de accion con icono, y el texto al pasar el puntero.
+   4) El color de la categoria en el titulo de cada tarjeta.
+
+   -------------------------------------------------------------------
+   POR QUE PESTANAS Y NO TARJETAS APILADAS
+   ----------------------------------------
+   Cinco tarjetas apiladas son una pagina larga: hay que bajar para llegar a
+   la tercera, y al volver arriba no se sabe en cual se estaba. Con pestanas
+   las cinco se ven a la vez, se sabe cuales existen, y solo se dibuja la que
+   se esta usando.
+
+   Y el titulo de cada tarjeta desaparece: la pestana ya dice como se llama.
+   Un titulo repetido arriba de la barra y abajo de la tarjeta es la misma
+   palabra dos veces, y la segunda no aporta nada.
+
+   -------------------------------------------------------------------
+   LOS BOTONES CON ICONO Y CON TEXTO AL PASAR
+   ------------------------------------------
+   El boton es solo el icono, y el texto aparece encima al pasar el puntero.
+
+   El texto va en un "data-dato" y no dentro del boton. Si estuviera dentro,
+   el lector de pantalla lo diria dos veces, porque el icono ya tiene su
+   "aria-label" para eso. Y con los dos, la fila se alarga y queda un hueco
+   entre boton y boton.
+
+   El cuadro del texto lo hace CSS y no el navegador con "title": el "title"
+   del navegador tarda casi un segundo en aparecer, y hay gente que lo tiene
+   desactivado. Con CSS aparece al instante y se puede darle forma.
+
+   -------------------------------------------------------------------
+   EL COLOR DE LA CATEGORIA EN EL TITULO DE LA TARJETA
+   ---------------------------------------------------
+   El titulo de la tarjeta esta sobre fondo claro. Ahi el tono oscuro de cada
+   seccion da entre 5.4 y 6.1 de contraste, que se lee bien. El tono claro
+   sobre fondo claro daba entre 1.6 y 2.3 y no se veia, que es el problema que
+   se midio antes.
+
+   El titulo del encabezado, en cambio, esta sobre la barra oscura, y ahi
+   hace falta el tono claro: 8.5 de contraste. El oscuro ahi daba 3.5, que se
+   lee pero queda apagado.
+
+   O sea: mismo color, dos tonos, y cada lugar usa el suyo. Es lo mismo que
+   se hizo con los iconos del menu, y por la misma razon.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   LAS PESTANAS DEL SUPERVISOR
+   -------------------------------------------------------------------
+   Se reusa la misma clase de las pestañas de asistencia mensual: ya tiene
+   el comportamiento de la raya de abajo y la alineación, y una clase nueva
+   para lo mismo son dos reglas que un dia no coinciden. */
+.supTabs {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.supTabs button {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 11px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.supTabs button.active {
+  border-color: var(--accent);
+  color: var(--secondary-text);
+}
+
+.supTabs button .ico {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* -------------------------------------------------------------------
+   LA TABLA DE CONCILIACION
+   -------------------------------------------------------------------
+   Una celda por dato: quién, qué dijo el reloj, qué dijo la planilla, en qué
+   se contradicen, y qué se puede hacer.
+
+   Lo que cambia contra la lista de recuadros es que la fila ocupa lo mismo
+   siempre. Antes, una fila con "diferencia de 47 minutos" crecía y empuja la
+   de abajo, y con cuarenta personas la lista entera no entraba en tres
+   pantallas. */
+.conTabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+
+.conTabla th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-bottom: 2px solid var(--line);
+  text-align: left;
+  padding: 9px 10px;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--secondary-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.conTabla td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.conCeldaNombre {
+  min-width: 210px;
+}
+
+.conCeldaNombre b {
+  margin-right: 4px;
+}
+
+.conCeldaNombre small {
+  display: block;
+  font-size: .74rem;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+/* La hora del reloj y la de la planilla: cortas y comparables de un vistazo. */
+.conCeldaMarca {
+  min-width: 118px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.conCeldaMarca small {
+  display: block;
+  font-size: .72rem;
+  color: var(--muted);
+}
+
+.conCeldaEstado {
+  min-width: 150px;
+}
+
+.conCeldaEstado small {
+  display: block;
+  font-size: .72rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.conCeldaAcciones {
+  min-width: 92px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* La raya de color a la izquierda de la fila, con el color de la situacion.
+   Antes era un borde en el recuadro; en la tabla no se puede, asi que va en
+   la primera celda, con un borde izquierdo que empuja el texto un poco. */
+.conCeldaSituacion {
+  border-left: 3px solid transparent;
+}
+
+.conVacia {
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+/* -------------------------------------------------------------------
+   LOS BOTONES CON ICONO Y EL TEXTO AL PASAR EL PUNTERO
+   -------------------------------------------------------------------
+   El cuadro del texto se dibuja con "::after" sobre el contenido de
+   "data-dato". Es un cuadro flotante, centrado arriba del boton, con fondo
+   oscuro en los dos temas: si tomara el fondo de la pagina, en tema oscuro
+   seria oscuro sobre oscuro y el texto no se veria. */
+.btnIcono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0 0 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  position: relative;
+  vertical-align: middle;
+}
+
+.btnIcono:hover {
+  background: var(--surface-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btnIcono .ico {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.btnIcono[data-dato]::after {
+  content: attr(data-dato);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent2);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.3;
+  padding: 4px 8px;
+  border-radius: 5px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: 40;
+  transition: opacity .12s ease;
+}
+
+.btnIcono[data-dato]:hover::after,
+.btnIcono[data-dato]:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Al llegar con el teclado el cuadro tambien aparece. Un boton que solo se
+   activara con el puntero deja fuera a quien navega con el teclado, y en esa
+   situacion no habria forma de saber que hace. */
+.btnIcono:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btnIcono[data-dato]::after {
+    transition: none;
+  }
+}
+
+/* -------------------------------------------------------------------
+   EL COLOR DE LA CATEGORIA EN EL TITULO DE LA TARJETA
+   -------------------------------------------------------------------
+   El tono oscuro, porque la tarjeta esta sobre fondo claro. Y el encabezado
+   arriba se queda con el tono claro, que es lo que ya hace. */
+.attendance-panel > h2 {
+  color: var(--cat-claro, var(--text));
+}

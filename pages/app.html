@@ -1411,59 +1411,63 @@ porque salen del mismo lugar.
 </div>
 
 <section class="view" id="v-sup-diaria">
-  <div id="diariaAviso" style="display:none;margin-bottom:12px"></div>
-  <div class="card">
-    <h2>Asistencia diaria</h2>
-    <small>Cada trabajador de tu equipo pasa su tarjeta y queda <b>presente</b> con la hora real. Si al fichar hay algo que resolver, sale una ventana indicando a qué tiene que ir.</small>
-    <div class="row">
-      <div id="diariaSupWrap"><label>Supervisor</label><select id="supDiariaSup" onchange="renderDiaria()"></select></div>
-      <div><label>Fecha</label><input type="date" id="diariaFecha" onchange="cambiarFechaDiaria()"></div>
-      <div style="display:flex;align-items:flex-end;gap:8px">
-        <button class="btn" type="button" onclick="openQrCamera('sup-diaria')">📷 Escanear tarjeta</button>
-        <button class="btn secondary" type="button" onclick="initDiaria()">Actualizar</button>
+  <div class="supTabs" role="tablist" aria-label="Opciones del supervisor">
+    <button type="button" class="active" aria-selected="true" role="tab" data-sup-tab="diaria">Asistencia diaria</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="conciliacion">Conciliar el reloj con la planilla</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="avisos-mios">Mis avisos de ingreso</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="avisos-dia">Avisos del día</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="importar">Importar marcajes desde Excel</button>
+  </div>
+
+  <div class="card attendance-panel active" role="tabpanel" data-sup-panel="diaria">
+
+      <small>Cada trabajador de tu equipo pasa su tarjeta y queda <b>presente</b> con la hora real. Si al fichar hay algo que resolver, sale una ventana indicando a qué tiene que ir.</small>
+      <div class="row">
+        <div id="diariaSupWrap"><label>Supervisor</label><select id="supDiariaSup" onchange="renderDiaria()"></select></div>
+        <div><label>Fecha</label><input type="date" id="diariaFecha" onchange="cambiarFechaDiaria()"></div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn" type="button" onclick="openQrCamera('sup-diaria')">📷 Escanear tarjeta</button>
+          <button class="btn secondary" type="button" onclick="initDiaria()">Actualizar</button>
+        </div>
       </div>
-    </div>
-    <div class="mkResumen" id="diariaResumen"></div>
-    <div class="overflow"><div id="diariaLista"></div></div>
-    <p><small>El marcaje queda guardado en la tabla <b>marcajes</b> y la entrada también se refleja como <b>X</b> en la tarja del día.</small></p>
+      <div class="mkResumen" id="diariaResumen"></div>
+      <div class="overflow"><div id="diariaLista"></div></div>
+      <p><small>El marcaje queda guardado en la tabla <b>marcajes</b> y la entrada también se refleja como <b>X</b> en la tarja del día.</small></p>
   </div>
+  <div class="card attendance-panel" role="tabpanel" data-sup-panel="conciliacion">
 
-  <div class="card">
-    <h2>Conciliar el reloj con la planilla</h2>
-    <small>El reloj de la obra y la planilla son dos registros distintos de lo mismo, y se contradicen.
-      Lo que más pasa: <b>el reloj tiene la marcación y la planilla no</b>. Ese trabajador fichó y en el
-      sistema nadie lo marcó. Acá se ven los dos casos, en las dos direcciones, más los que están
-      marcados en los dos pero a horas distintas.</small>
-    <div id="conciliacionBox" style="margin-top:10px"></div>
+      <small>El reloj de la obra y la planilla son dos registros distintos de lo mismo, y se contradicen.
+        Lo que más pasa: <b>el reloj tiene la marcación y la planilla no</b>. Ese trabajador fichó y en el
+        sistema nadie lo marcó. Acá se ven los dos casos, en las dos direcciones, más los que están
+        marcados en los dos pero a horas distintas.</small>
+      <div id="conciliacionBox" style="margin-top:10px"></div>
   </div>
+  <div class="card attendance-panel" role="tabpanel" data-sup-panel="avisos-mios">
 
-  <div class="card">
-    <h2>Mis avisos de ingreso</h2>
-    <small>Cuando marcas a alguien que no había fichado, la app te pide la indicación y la manda a
-      Administración, que tiene que <b>confirmarla</b>. Ahí ves si ya la confirmaron o si sigue en la bandeja.</small>
-    <div id="avisosIngresoMios" style="margin-top:10px"></div>
+      <small>Cuando marcas a alguien que no había fichado, la app te pide la indicación y la manda a
+        Administración, que tiene que <b>confirmarla</b>. Ahí ves si ya la confirmaron o si sigue en la bandeja.</small>
+      <div id="avisosIngresoMios" style="margin-top:10px"></div>
   </div>
+  <div class="card attendance-panel" role="tabpanel" data-sup-panel="avisos-dia">
 
-  <div class="card">
-    <h2>Avisos del día</h2>
-    <small>Atrasos, mensajes de la asistente social y de prevención, se anotan solos al marcar la tarjeta.</small>
-    <div id="diariaAvisosLista"></div>
+      <small>Atrasos, mensajes de la asistente social y de prevención, se anotan solos al marcar la tarjeta.</small>
+      <div id="diariaAvisosLista"></div>
   </div>
-  <div class="card">
-    <h2>Importar marcajes desde Excel</h2>
-    <small>Para cuando el reloj de la obra manda el reporte y no se puede pasar tarjeta por tarjeta.
-      Se leen las columnas <b>Tipo</b> o <b>Evento</b> (entrada / salida), <b>Fecha</b>, <b>Hora</b>,
-      <b>Rut</b> y <b>Colaborador</b>. Primero se muestra un resumen de lo que se va a guardar y
-      solo después se importa: si el archivo está mal, no se toca nada.</small>
-    <div class="row" style="margin-top:10px">
-      <div><label>Archivo del reloj (.xlsx o .csv)</label><input type="file" id="marcajesFile" accept=".xlsx,.xls,.csv"></div>
-      <div style="display:flex;align-items:flex-end;gap:8px">
-        <button class="btn" type="button" onclick="analizarMarcajesExcel()">Revisar archivo</button>
-        <button class="btn" type="button" id="btnImportarMarcajes" onclick="importarMarcajesExcel()" disabled>Importar</button>
+  <div class="card attendance-panel" role="tabpanel" data-sup-panel="importar">
+
+      <small>Para cuando el reloj de la obra manda el reporte y no se puede pasar tarjeta por tarjeta.
+        Se leen las columnas <b>Tipo</b> o <b>Evento</b> (entrada / salida), <b>Fecha</b>, <b>Hora</b>,
+        <b>Rut</b> y <b>Colaborador</b>. Primero se muestra un resumen de lo que se va a guardar y
+        solo después se importa: si el archivo está mal, no se toca nada.</small>
+      <div class="row" style="margin-top:10px">
+        <div><label>Archivo del reloj (.xlsx o .csv)</label><input type="file" id="marcajesFile" accept=".xlsx,.xls,.csv"></div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn" type="button" onclick="analizarMarcajesExcel()">Revisar archivo</button>
+          <button class="btn" type="button" id="btnImportarMarcajes" onclick="importarMarcajesExcel()" disabled>Importar</button>
+        </div>
       </div>
-    </div>
-    <div id="marcajesExcelMsg" style="margin-top:10px" role="status" aria-live="polite"></div>
-    <div id="marcajesExcelPreview" style="margin-top:10px"></div>
+      <div id="marcajesExcelMsg" style="margin-top:10px" role="status" aria-live="polite"></div>
+      <div id="marcajesExcelPreview" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -2567,10 +2571,21 @@ const ICONOS_MENU={
   'bodega-asignar':'<rect x="3" y="7" width="18" height="13" rx="2" ry="2"/><path d="M3 11h18"/><polyline points="9 18 12 15 15 18"/><line x1="12" y1="15" x2="12" y2="11"/>',
   'bodega-qr':'<path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="14" y1="12" x2="14" y2="12.01"/>',
   'supervisores':'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
-  'sup-diaria':'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M5 19a4 4 0 0 1 0-8"/>'
+  'sup-diaria':'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><path d="M5 19a4 4 0 0 1 0-8"/>',
+  'conciliacion':'<circle cx="9" cy="12" r="8"/><polyline points="9 8 9 12 12 13.5"/><circle cx="17" cy="12" r="8"/><polyline points="17 16 17 12 20 10.5"/>',
+  'avisos-mios':'<rect x="2" y="5" width="20" height="14" rx="2" ry="2"/><polyline points="2 7 12 13 22 7"/><circle cx="19" cy="19" r="4"/><polyline points="19 16.5 19 19 21 19.8"/>',
+  'avisos-dia':'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
+  'importar-excel':'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 18 12 15 15 18"/><line x1="12" y1="15" x2="12" y2="10"/>',
+  'marcar-entrada':'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><polyline points="7 12 5 12 6 10"/>',
+  'marcar-avisar':'<circle cx="10" cy="12" r="8"/><polyline points="10 8 10 12 13.5 13.5"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>'
 };
 
 // Devuelve el SVG del icono de una clave, o una cadena vacia si no hay.
+//
+// La cadena vacia es la respuesta correcta para algo sin icono: sale solo
+// el texto, sin un hueco raro donde deberia estar el dibujo. Pero la lista
+// de arriba esta completa a proposito: dentro de una lista, tres botones
+// con dibujo y dos sin el se leen como que los dos ultimos estan rotos.
 function iconoMenu(clave){
   const d=ICONOS_MENU[clave];
   if(!d)return '';
@@ -2584,23 +2599,19 @@ function iconoMenu(clave){
 // Las pestanas son HTML plano: el texto esta en el archivo, sin una
 // plantilla alrededor. Si se escribe "${iconoMenu(...)}" ahi adentro, el
 // navegador no lo resuelve: lo pinta tal cual, y en la pantalla sale la
-// llamada entera como texto. Es lo que paso la primera vez, y no se ve
-// en el codigo: el HTML es valido.
+// llamada entera como texto.
 //
 // En el submenu y en el menu principal si funciona, porque esos se arman
 // con plantillas. Mismo codigo, bien de un lado y mal del otro, y la
 // unica diferencia es de donde viene el HTML.
 //
-// Y sigue habiendo una sola lista de iconos: la clave se lee del
-// data-attendance-tab que ya estaba.
-//
 // SOLO UNA VEZ: si ya hay un svg, no se agrega otro. Esta funcion se
 // llama al cambiar de pestana tambien, y sin esa guarda el icono se
 // duplicaria a la segunda.
 function ponerIconosEnPestanas(){
-  document.querySelectorAll('button[data-attendance-tab]').forEach(b=>{
+  document.querySelectorAll('button[data-attendance-tab],button[data-sup-tab]').forEach(b=>{
     if(b.querySelector('svg.ico'))return;
-    const svg=iconoMenu(b.dataset.attendanceTab);
+    const svg=iconoMenu(b.dataset.attendanceTab||b.dataset.supTab);
     if(!svg)return;
     b.insertAdjacentHTML('afterbegin',svg);
   });
@@ -5942,14 +5953,53 @@ function conciliarDia(supCode){
   });
   return filas;
 }
+// LAS PESTANAS DE LA PANTALLA DEL SUPERVISOR
+//
+// Mismo comportamiento que las pestañas de asistencia mensual, con
+// otros atributos: data-sup-tab y data-sup-panel. No se reutiliza la
+// función de aquellas porque busca por atributo, y una que sirve para
+// dos pares de atributos distintos se vuelve una función con dos
+// outperformedores.
+//
+// Y la pestaña elegida se guarda, para que al volver a la pantalla siga
+// en la que estaba la persona y no vuelva a la primera. Perder la
+// posición al cambiar de pantalla es de las cosas que más se notan.
+function cambiarPestanaSup(clave){
+  document.querySelectorAll('[data-sup-tab]').forEach(b=>{
+    const on=b.dataset.supTab===clave;
+    b.classList.toggle('active',on);
+    b.setAttribute('aria-selected',on?'true':'false');
+  });
+  document.querySelectorAll('[data-sup-panel]').forEach(p=>{
+    p.classList.toggle('active',p.dataset.supPanel===clave);
+  });
+  pestanaSupActual=clave;
+  try{localStorage.setItem('pestanaSup',clave);}catch(error){}
+}
+let pestanaSupActual='diaria';
+function initPestanasSup(){
+  // La de la ultima vez, si es una de las que existen. Se comprueba contra
+  // los botones: si el nombre guardado no esta, se cae a la primera.
+  let elegida='diaria';
+  try{
+    const g=localStorage.getItem('pestanaSup');
+    if(g&&document.querySelector('[data-sup-tab="'+g+'"]'))elegida=g;
+  }catch(error){}
+  document.querySelectorAll('[data-sup-tab]').forEach(b=>{
+    b.addEventListener('click',()=>cambiarPestanaSup(b.dataset.supTab));
+  });
+  cambiarPestanaSup(elegida);
+  ponerIconosEnPestanas();
+}
+
 function renderConciliacion(){
   const box=document.getElementById('conciliacionBox');
   if(!box)return;
   const selSup=document.getElementById('supDiariaSup');
   const supCode=selSup?selSup.value:miCodigoSupervisor;
   if(asistenciaDiaError){
-    box.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'+
-      '<b>No se pudo leer la planilla del día.</b> <small>'+escHtml(asistenciaDiaError)+'</small></div>';
+    box.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);color:var(--danger);padding:10px 12px;border-radius:8px">'
+      +'<b>No se pudo leer la planilla del día.</b> <small>'+escHtml(asistenciaDiaError)+'</small></div>';
     return;
   }
   if(!supCode||!equipoDe(supCode).length){
@@ -5962,7 +6012,6 @@ function renderConciliacion(){
   const sinMarca=cuenta('sin_marcaje');
   const dif=cuenta('diferencia_hora');
   const alertas=filas.filter(f=>f.situacion!=='al_day'&&f.situacion!=='ninguno');
-
   const etiqueta={
     falta_marcar:{t:'Falta marcar en la planilla',b:'faltaMarcar',c:'var(--danger)'},
     // --accent2 es un gris de superficie: en modo oscuro es #404040 sobre
@@ -5973,40 +6022,83 @@ function renderConciliacion(){
     ninguno:{t:'Sin registro en ninguno de los dos',b:'ninguno',c:'var(--muted)'}
   };
 
-  box.innerHTML=`
-    <div class="row" style="margin-bottom:10px">
-      ${Object.entries(etiqueta).map(([k,v])=>{
-        const n=cuenta(k);
-        return `<span class="mkPill" style="border-color:${v.c};color:${v.c}">${escHtml(v.t)}: <b>${n}</b></span>`;
-      }).join('')}
-    </div>
-    <small style="color:var(--muted)">Se considera coincidente cuando la diferencia de hora es de hasta 10 minutos, que es lo
-      habitual entre lo que registró el reloj y lo que anotó una persona.</small>
-    ${alertas.length?`<div style="margin-top:10px">${alertas.map(f=>{
-      const v=etiqueta[f.situacion];
-      const dif=f.difMin!=null?` · ${f.difMin>0?'+':''}${f.difMin} min de diferencia`:'';
-      return `<div class="mkFila" style="border-left:3px solid ${v.c}">
-        <div class="mkNombre">
-          <b>${escHtml(f.w.code)}</b> ${escHtml(f.w.name)}
-          <small>${escHtml(f.w.spec||'')}</small>
-        </div>
-        <div class="mkEstado">
-          <span class="mkPill" style="border-color:${v.c};color:${v.c}">${escHtml(v.t)}</span>
-          <small>
-            Reloj: ${f.reloj?escHtml(f.reloj.hora)+' ('+escHtml(f.reloj.tipo)+')':'sin marcaje'} ·
-            Planilla: ${f.planilla?(escHtml(f.planilla.estado)+(f.planilla.hora_llegada?' a las '+escHtml(String(f.planilla.hora_llegada).slice(0,5)):'')):'sin registro'}
-            ${dif}
-          </small>
-        </div>
-        <div class="mkAcciones">
-          <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
-            onclick="conciliarMarcar('${escHtml(f.w.code)}','entrada')">Marcar entrada</button>
-          <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
-            onclick="marcarYAvisar('${escHtml(f.w.code)}','entrada')">Marcar y avisar</button>
-        </div>
-      </div>`;
-    }).join('')}</div>`
-      :'<div style="margin-top:10px"><small>El reloj y la planilla coinciden en todo el equipo.</small></div>'}`;
+  // LA LISTA, EN TABLA
+  //
+  // Una celda por dato: quien, que dijo el reloj, que dijo la planilla, en
+  // que se contradicen, y que se puede hacer.
+  //
+  // El cálculo viene de conciliarDia() y no se toca. Cambiar el cálculo y el
+  // formato en el mismo paso esconde un error de cálculo detrás de un cambio
+  // de estilo, que es la peor forma de que pase.
+  //
+  // EL BORDE DE COLOR
+  // -----------------
+  // Antes era un borde en el recuadro entero, a la izquierda. Una fila de
+  // tabla no lleva borde, así que va en la primera celda. Se ve igual: el
+  // color sigue a la izquierda de cada persona.
+  const filasTabla=alertas.map(f=>{
+    const v=etiqueta[f.situacion];
+    const difMin=f.difMin!=null?` · ${f.difMin>0?'+':''}${f.difMin} min de diferencia`:'';
+    const cod=escHtml(f.w.code);
+    const nom=escHtml(f.w.name);
+    const esp=escHtml(f.w.spec||'');
+    const reloj=f.reloj?escHtml(f.reloj.hora):'—';
+    const relojPie=f.reloj?escHtml(f.reloj.tipo+' (reloj)'):'no marcó';
+    const planilla=f.planilla?escHtml(f.planilla.estado):'sin registro';
+    const planillaPie=f.planilla&&f.planilla.hora_llegada
+      ?'a las '+escHtml(String(f.planilla.hora_llegada).slice(0,5))
+      :'—';
+    return `<tr>
+      <td class="conCelda conCeldaNombre conCeldaSituacion" style="border-left-color:${v.c}">
+        <b>${cod}</b> ${nom}
+        <small>${esp}</small>
+      </td>
+      <td class="conCelda conCeldaMarca">${reloj}<small>${relojPie}</small></td>
+      <td class="conCelda conCeldaMarca">${planilla}<small>${planillaPie}</small></td>
+      <td class="conCelda conCeldaEstado">
+        <span class="conPill" style="border-color:${v.c};color:${v.c}">${escHtml(v.t)}</span>
+        <small>${difMin||'—'}</small>
+      </td>
+      <td class="conCelda conCeldaAcciones">
+        <button class="btnIcono" type="button" data-dato="Marcar entrada"
+          title="Marcar entrada" aria-label="Marcar entrada a ${nom}"
+          onclick="conciliarMarcar('${cod}','entrada')">@ICONO_ENTRADA@</button>
+        <button class="btnIcono" type="button" data-dato="Marcar y avisar"
+          title="Marcar y avisar" aria-label="Marcar y avisar a ${nom}"
+          onclick="marcarYAvisar('${cod}','entrada')">@ICONO_AVISAR@</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  // El texto de los botones va en data-dato y el CSS lo dibuja al pasar el
+  // puntero. El icono lleva aria-label y title con el MISMO texto: el
+  // aria-label lo lee el lector de pantalla y el title es el respaldo si el
+  // CSS no carga.
+  //
+  // Y el texto NO va dentro del botón: el lector de pantalla lo diría dos
+  // veces, y la fila se alargaría con un hueco entre botón y botón.
+  let tabla='<div class="conTablaCaja"><table class="conTabla">'
+    +'<thead><tr><th>Trabajador</th><th>Reloj</th><th>Planilla</th><th>Situación</th><th></th></tr></thead>'
+    +'<tbody>'+filasTabla+'</tbody></table></div>';
+  // Los dos marcadores se cambian por el SVG de la tabla de iconos, para que
+  // el dibujo no quede pegado en el texto de la fila.
+  tabla=tabla.split('@ICONO_ENTRADA@').join(iconoMenu('marcar-entrada'));
+  tabla=tabla.split('@ICONO_AVISAR@').join(iconoMenu('marcar-avisar'));
+
+  const resumen='<div class="row" style="margin-bottom:10px">'
+    +Object.entries(etiqueta).map(([k,v])=>{
+      const n=cuenta(k);
+      return `<span class="conPill" style="border-color:${v.c};color:${v.c}">${escHtml(v.t)}: <b>${n}</b></span>`;
+    }).join('')+'</div>';
+
+  // La explicación de la tolerancia va DEBAJO de la tabla, no arriba. Arriba
+  // empujaba las filas hacia abajo y había que bajar para leerla.
+  const pie='<p><small style="color:var(--muted)">Se considera coincidente cuando la diferencia de hora es de hasta 10 minutos,'
+    +' que es lo habitual entre lo que registró el reloj y lo que anotó una persona.</small></p>';
+
+  box.innerHTML=resumen
+    +(alertas.length?tabla:'<small>El reloj y la planilla coinciden en todo el equipo.</small>')
+    +pie;
 }
 
 // ============================================================
@@ -6807,6 +6899,10 @@ async function initDiaria(){
   renderDiaria();
   renderConciliacion();
   renderAvisosIngresoEnviados();
+  // Las pestañas se inician acá y no en un arranque aparte: si la lista cambia
+  // al cambiar de supervisor o de fecha, tienen que seguir andando, y eso ya
+  // pasa porque se vuelve a llamar.
+  initPestanasSup();
 }
 async function verAvisosDelTrabajador(code){
   const w=workers.find(x=>x.code===code);
