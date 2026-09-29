@@ -210,6 +210,15 @@ small{color:var(--muted)}
 .eppItemMeta{font-size:.68rem;color:var(--muted);margin-top:2px;display:block;min-height:14px}
 .eppFirma{display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,.7fr);gap:14px;align-items:start;margin-top:10px}
 .sigPadWrap{position:relative;border:1px dashed var(--accent2);border-radius:8px;background:var(--panel);overflow:hidden}
+/* El botón de escanear el elemento, en la misma celda del desplegable.
+   Es ancho completo de la celda y chiquito: es la alternativa al desplegable,
+   no un botón protagonista. */
+.eppScanBtn{margin-top:6px;width:100%;padding:5px 8px;font-size:.65rem}
+/* Los tres campos de ubicación: pasillo, sector y nivel. Un grid de tres
+   columnas iguales, y en pantallas chicas bajan a uno. */
+.locRow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:640px){.locRow{grid-template-columns:1fr}}
+
 /* El lienzo NO sigue al tema oscuro, y es a proposito.
    La tinta es #101a14, la misma del encabezado, y esa imagen es la que va
    dentro del PDF con addImage: lo que se ve en pantalla es lo que queda
