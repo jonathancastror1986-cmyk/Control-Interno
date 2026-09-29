@@ -1730,11 +1730,6 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
         <div id="totemEmpresaNombre">-</div>
         <div id="totemEmpresaCentro"></div>
       </div>
-      <!-- El identificador del reloj va en la esquina, con la empresa. Los dos
-           dicen DÓNDE se está marcando: la empresa para quién y el reloj en
-           qué punto. Y la esquina superior izquierda es la que menos estorba,
-           porque en el centro están la cámara y la hora. -->
-      <span class="totem-identificador" id="totemRelojActual"></span>
     </div>
     <div class="totem-col totem-col-centro">
       <div id="totemConexion" class="totem-conexion"><span class="totem-conexion-punto"></span></div>
@@ -1892,6 +1887,12 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
     </small>
   </div>
   <div class="totem-pie">
+    <!-- El identificador del reloj va ABAJO, con el campo de la tarjeta.
+         Arriba, en la esquina, quedaba competingiendo con la hora y con el
+         nombre de la empresa, y esos dos son los que la persona viene a ver.
+         Abajo acompaña lo que está haciendo en ese momento, que es pasar la
+         tarjeta: es el pie, no la cabecera. -->
+    <span class="totem-identificador" id="totemRelojActual"></span>
     <span id="totemCodigoLeido" class="totem-pill"></span>
     <label for="totemCampo" class="totem-campo-label">Tarjeta</label>
     <input id="totemCampo" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
@@ -14132,8 +14133,30 @@ function ponerPlaceholderTotem(){
 function pintarEmpresaEnTotem(){
   const cajaNombre=document.getElementById('totemEmpresaNombre');
   if(!cajaNombre)return;
-  const empresa=empresaDelPapel();
-  cajaNombre.textContent=empresa&&empresa.nombre?empresa.nombre:'';
+  // ------------------------------------------------------------------
+  // LA EMPRESA DEL RELOJ, NO LA DEL DESPLEGABLE
+  // ------------------------------------------------------------------
+  // Antes usaba empresaDelPapel(), que devuelve la empresa seleccionada arriba.
+  // En la portería eso no sirve: en la portería nadie selecciona nada, y el
+  // reloj es de una empresa sola. Con el desplegable en "todas las empresas" o
+  // en otra, el tótem mostraba el nombre y el logo de la empresa equivocada.
+  //
+  // Y no es un detalle: el logo es lo que dice de quién es el papel que se está
+  // firmando ahí. Con dos empresas en el sistema se firmaba con el logo de la
+  // otra.
+  //
+  // Si la empresa del reloj no está en la lista que esta persona puede ver, se
+  // deja el nombre en el número de id: es mejor un código que un nombre
+  // equivocado.
+  const lista=(typeof empresas!=='undefined'&&empresas)?empresas:[];
+  let empresa=null;
+  const idDelReloj=totemActual?totemActual.empresa_id:null;
+  if(idDelReloj!=null)empresa=lista.find(e=>mismoId(e.id,idDelReloj))||null;
+  if(!empresa)empresa=empresaDelPapel();
+
+  cajaNombre.textContent=empresa
+    ?(empresa.nombre||('#'+idDelReloj))
+    :(idDelReloj!=null?('#'+idDelReloj):'');
 
   const centro=document.getElementById('totemEmpresaCentro');
   if(centro)centro.textContent=totemActual?centroDe(totemActual):'';

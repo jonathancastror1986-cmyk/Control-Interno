@@ -5054,21 +5054,20 @@ body.nav-compacto #mainNav button.active .ico{transform:scale(.9)}
 #pantallaTotem.abierta .totem-contador-texto{font-size:clamp(9px,.78vw,12px);line-height:1.15}
 
 /* -------------------------------------------------------------------
-   2) EL IDENTIFICADOR DEL RELOJ, A LA ESQUINA SUPERIOR IZQUIERDA
+   2) EL IDENTIFICADOR DEL RELOJ, ABAJO CON EL CAMPO DE LA TARJETA
    -------------------------------------------------------------------
-   Con la empresa, en la misma esquina. Los dos dicen DÓNDE se está
-   marcando, y juntos se leen mejor que separados: la empresa dice para quién
-   y el reloj dice en qué punto.
-
-   Es también la esquina que menos estorba, porque en el centro está la
-   cámara y la hora, que es donde la mirada ya está. */
-#pantallaTotem.abierta .totem-col-izq{align-items:flex-start}
+   Estaba arriba a la izquierda, compitiendo con la hora y con el nombre de la
+   empresa. Los dos que estaban ahí son los que la persona viene a ver, y el
+   identificador del reloj es un dato de apoyo: va abajo, con el campo, que es
+   lo que la persona tiene en la mano en ese momento. */
 #pantallaTotem.abierta .totem-identificador{
   display:block;
-  font-size:clamp(11px,1.1vw,19px);
-  color:var(--secondary-text);
-  letter-spacing:.02em;
-  margin-top:6px;
+  width:100%;
+  text-align:center;
+  font-size:clamp(11px,1.1vw,18px);
+  color:var(--muted);
+  letter-spacing:.04em;
+  margin-bottom:6px;
   max-width:100%;
   overflow-wrap:anywhere;
 }
@@ -5076,6 +5075,7 @@ body.nav-compacto #mainNav button.active .ico{transform:scale(.9)}
    estaban en la misma caja. Ahora están en columnas distintas y cada uno
    tiene su tamaño: la hora manda y el identificador acompaña. */
 #pantallaTotem.abierta #totemRelojActual{font-size:inherit;color:inherit;letter-spacing:inherit}
+#pantallaTotem.abierta .totem-pie{flex-direction:column;align-items:center;gap:6px}
 
 /* -------------------------------------------------------------------
    3) "MARCA" COMO TEXTO, NO COMO LISTA
@@ -5092,14 +5092,30 @@ body.nav-compacto #mainNav button.active .ico{transform:scale(.9)}
    del trabajador, que es lo que la persona viene a ver. Por eso tiene
    que estar escrito con la misma fuente grande que el resto, y no como
    una nota al pie. */
+/* -------------------------------------------------------------------
+   3) "MARCA" COMO TEXTO, DEL TAMAÑO QUE CORRESPONDE
+   -------------------------------------------------------------------
+   La palabra sola, al tamaño de la hora, se comía la columna del medio y
+   quedaba más grande que el nombre del trabajador, que es lo que la persona
+   viene a mirar. La hora es la que manda; "Entrada" es un dato de apoyo, y va
+   dos pasos más abajo.
+
+   Y la etiqueta "Marca" más chica que la palabra, para que se lea como
+   "Marca: Entrada" y no como dos textos del mismo peso. */
 #pantallaTotem.abierta .totem-marca-texto{
   display:inline-block;
-  font-size:clamp(16px,1.9vw,34px);
+  font-size:clamp(14px,1.35vw,24px);
   font-weight:600;
   color:var(--ink);
-  line-height:1.1;
+  line-height:1.15;
+  vertical-align:baseline;
 }
-#pantallaTotem.abierta .totem-tipo-etiqueta{font-size:clamp(10px,.95vw,15px)}
+#pantallaTotem.abierta .totem-tipo-etiqueta{
+  font-size:clamp(9px,.82vw,13px);
+  vertical-align:baseline;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
 
 /* El selector, escondido salvo que alguien lo esté mirando. */
 #pantallaTotem.abierta #totemTipoCaja{position:relative;display:inline-block}
