@@ -5153,3 +5153,264 @@ body.nav-compacto #mainNav button.active .ico{transform:scale(.9)}
   max-width:100%;
   overflow-wrap:anywhere;
 }
+
+
+/* ===================================================================
+   LA ANIMACIÓN DE LAS BARRAS: MÁS SUAVE Y, SOBRE TODO, MÁS BARATA
+   ===================================================================
+   La transición de arriba dura 180ms e incluye font-size y padding. Los dos
+   cambian el layout, y cambiar el layout obliga a recalcular la posición de
+   todo lo que viene abajo. En un formulario largo con fotos, eso es la página
+   entera recalculada once veces en menos de un quinto de segundo.
+
+   Eso es el lagueo. No era la duración: era el trabajo de cada fotograma.
+
+   contain:layout le dice al navegador que lo que cambia adentro de la barra no
+   mueve al resto de la página. El encabezado sigue encogiendo de verdad, y el
+   contenido de abajo sube y baja con él, pero sin repintar un formulario
+   entero por fotograma.
+   =================================================================== */
+
+#barrasSuperiores{contain:layout}
+
+body.nav-compacto header,
+body.nav-compacto #mainNav button,
+body.nav-compacto #subNav button,
+body.nav-compacto #subNav .nav-dropdown-trigger,
+body.nav-compacto header h1,
+body.nav-compacto #empresaSel,
+header,
+#mainNav button .ico,
+#subNav .ico{
+  transition:
+    padding .3s cubic-bezier(.4,0,.2,1),
+    margin .3s cubic-bezier(.4,0,.2,1),
+    font-size .3s cubic-bezier(.4,0,.2,1),
+    min-width .3s cubic-bezier(.4,0,.2,1),
+    transform .3s cubic-bezier(.4,0,.2,1),
+    background-color .2s ease,
+    color .15s ease,
+    border-color .15s ease;
+}
+
+/* -------------------------------------------------------------------
+   LA CIMA Y EL FINAL, MÁS SUAVES
+   -------------------------------------------------------------------
+   "ease" de fábrica es rápido en el medio, y el medio es justo donde el ojo
+   detecta el tirón. Con la curva de arriba el cambio se lee como un movimiento
+   y no como un salto seguido de un rebote.
+
+   La escala del ícono no necesita su propia regla: la transición del
+   transform ya está en la lista de más arriba, y aplica a los íconos igual que
+   a todo lo demás. Estaba puesta aparte con un "scale-timing-function", que no
+   es una propiedad de CSS: el navegador la descarta sin avisar, y por eso la
+   animación salía mal sin que hubiera un error en la consola que lo explicara.
+   ------------------------------------------------------------------- */
+body.nav-compacto #mainNav button .ico,
+body.nav-compacto #subNav .ico{transform:scale(.82)}
+
+/* Con "reduce" no hay transición. Además de lo que ya se dijo del vértigo, acá
+   hay una razón técnica: sin transición el cambio de alto del encabezado
+   nunca se interpola, y el cálculo se hace una sola vez, no en 18. */
+@media (prefers-reduced-motion: reduce){
+  header,
+  #mainNav button .ico,
+  #subNav .ico,
+  #mainNav button,
+  #subNav button,
+  #subNav .nav-dropdown-trigger,
+  header h1,
+  #empresaSel{transition:none}
+}
+
+
+/* ===================================================================
+   ESQUINAS SUAVES Y SOMBRA: BARRAS Y BOTONES
+   ===================================================================
+   La idea es que las barras parezcan estar ENCIMA de la página y no ser parte
+   de la página. Eso se consigue con dos cosas juntas: separar la barra del
+   borde, y ponerle sombra solo hacia abajo.
+
+   Y el hueco que deja esa separación lleva el fondo de la página, porque si
+   fuera transparente se vería el contenido parpadeando entre las barras al
+   bajar.
+   =================================================================== */
+
+#barrasSuperiores{
+  background:var(--bg);
+  padding:0 clamp(6px,1vw,14px) clamp(6px,1vw,10px);
+  /* El contenedor pega, las barras de adentro flotan. Al revés no funciona:
+     un contenedor redondeado con barras recta se ve como un marco. */
+  border-radius:0;
+}
+
+/* -------------------------------------------------------------------
+   LAS BARRAS
+   ------------------------------------------------------------------- */
+#barrasSuperiores header,
+#barrasSuperiores #mainNav,
+#barrasSuperiores #subNav{
+  border-radius:12px;
+  box-shadow:0 2px 5px rgba(0,0,0,.10),0 8px 18px -6px rgba(0,0,0,.14);
+  margin-bottom:clamp(5px,.7vh,8px);
+  /* Sin esto, el fondo del contenedor se transparenta por las esquinas
+     redondeadas y se ve un cuadrado del color de la página en las cuatro
+     puntas de la barra. */
+  background-clip:padding-box;
+  border:1px solid rgba(0,0,0,.06);
+}
+/* La última barra no necesita hueco abajo: abajo está la página */
+#barrasSuperiores #subNav{margin-bottom:0}
+
+/* -------------------------------------------------------------------
+   LOS BOTONES
+   -------------------------------------------------------------------
+   Las mismas dos cosas, en menor: esquinas suaves y una sombra cortita hacia
+   abajo. Los botones ya tenían un borde, así que la sombra se apoya en él en
+   vez de reemplazarlo.
+   ------------------------------------------------------------------- */
+button,.btn{
+  border-radius:10px;
+  box-shadow:0 1px 2px rgba(0,0,0,.10);
+  transition:transform .14s ease,box-shadow .14s ease,background-color .2s ease;
+}
+/* Al apretar, la sombra se achica y el botón baja un pelo. Es la sombra lo
+   único que cambia de verdad: un botón que se hunde al apretarse se siente
+   como un botón. */
+button:active,.btn:active{
+  transform:translateY(1px);
+  box-shadow:0 1px 1px rgba(0,0,0,.10);
+}
+/* Y al pasar el mouse, la sombra se separa un poco: es el mismo truco del
+   que se usa para levantar una tarjeta de una mesa. */
+button:hover,.btn:hover{box-shadow:0 2px 4px rgba(0,0,0,.12),0 6px 12px -6px rgba(0,0,0,.16)}
+
+/* Los botones de las barras: más planos, porque están pegados arriba y una
+   sombra fuerte ahí compite con la hora. */
+#barrasSuperiores button{
+  border-radius:9px;
+  box-shadow:none;
+}
+#barrasSuperiores button:hover{
+  box-shadow:0 1px 2px rgba(0,0,0,.10);
+}
+#barrasSuperiores button.active{box-shadow:0 1px 2px rgba(0,0,0,.14)}
+
+/* -------------------------------------------------------------------
+   LOS CAMPOS
+   -------------------------------------------------------------------
+   Un campo de texto con la sombra puesta parece un botón. Se le quita la
+   sombra y se le deja un borde, que es lo que lo dice "acá se escribe".
+   ------------------------------------------------------------------- */
+input,select,textarea{
+  border-radius:10px;
+  box-shadow:none;
+  border:1px solid var(--line);
+}
+input:focus,select:focus,textarea:focus{
+  box-shadow:0 0 0 3px rgba(0,0,0,.06);
+}
+
+/* -------------------------------------------------------------------
+   EN TEMA OSCURO LA SOMBRA NO SE VE
+   -------------------------------------------------------------------
+   Una sombra negra sobre un fondo casi negro no se nota. Lo que hace el
+   volumen en oscuro es un borde ligeramente claro arriba, como la luz que
+   da a un objeto.
+   ------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark){
+  #barrasSuperiores header,
+  #barrasSuperiores #mainNav,
+  #barrasSuperiores #subNav{
+    box-shadow:0 2px 6px rgba(0,0,0,.45);
+    border-color:rgba(255,255,255,.07);
+  }
+  button,.btn:hover{box-shadow:0 2px 5px rgba(0,0,0,.40)}
+  button:active,.btn:active{box-shadow:0 1px 2px rgba(0,0,0,.40)}
+}
+
+@media (prefers-reduced-motion: reduce){
+  button,.btn{transition:none}
+  button:active,.btn:active{transform:none}
+}
+
+
+/* ===================================================================
+   EL TÓTEM CABE EN CUALQUIER PANTALLA
+   ===================================================================
+   Lo de arriba y lo de abajo se leen siempre. Lo del medio es lo único que
+   cede, y por eso es lo único con flex:1.
+
+   El padding de 118px que tenía no lo necesitaba: el tótem es position:fixed
+   con z-index 200 y ya tapa el encabezado de la aplicación. Ese padding eran
+   118 píxeles de espacio vacío que empujaban todo hacia abajo, y empujaban
+   tanto que en una pantalla de 1080 el campo de la tarjeta quedaba debajo
+   del borde y había que achicar la ventana para verlo.
+   =================================================================== */
+
+#pantallaTotem{padding-top:clamp(4px,1vh,12px)!important}
+
+/* -------------------------------------------------------------------
+   LA DISTRIBUCIÓN: FIJA, Y CHICA
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta .totem-distribucion{
+  padding:0 clamp(10px,1.5vw,26px);
+  gap:clamp(8px,1vw,20px);
+}
+
+/* -------------------------------------------------------------------
+   LA CÁMARA: LA QUE MÁS ALTO SE COME
+   -------------------------------------------------------------------
+   420 de ancho con proporción 16:9 son 236 de alto. En dvh, porque el alto
+   disponible depende de la ventana y no del ancho. */
+#pantallaTotem.abierta #totemCamara{width:min(34dvh,360px)}
+
+/* -------------------------------------------------------------------
+   EL MEDIO: LO QUE SE ENCOJA
+   -------------------------------------------------------------------
+   min-height:0 es la parte que se olvida. Sin él, un hijo flexible no baja de
+   su alto mínimo y el contenedor crece en vez de dejar que el hijo se encoja:
+   el texto empujaría el pie de la pantalla en vez de recortarse. */
+#pantallaTotem.abierta #totemMensaje{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+  padding:clamp(2px,.6vh,8px) 0;
+}
+
+/* -------------------------------------------------------------------
+   EL MENSAJE DE REPOSO, CON MEDIDAS DE LA PANTALLA
+   -------------------------------------------------------------------
+   El ícono estaba en 7vw, que en una pantalla ancha de 1900 son 133 píxeles
+   de un cuadrado gris que no dice nada. Y los tres renglones de texto, cada
+   uno con su clamp en vw, sumaban más que la cámara.
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta #totemMensaje .totem-idle-icono{font-size:clamp(24px,4dvh,44px)}
+#pantallaTotem.abierta #totemMensaje .totem-idle-texto b{font-size:clamp(16px,3.4dvh,32px)}
+#pantallaTotem.abierta #totemMensaje .totem-idle-texto span{font-size:clamp(12px,2.4dvh,22px)}
+#pantallaTotem.abierta #totemMensaje .totem-idle{gap:clamp(6px,1.2dvh,14px)}
+
+/* -------------------------------------------------------------------
+   EL PIE Y LOS CONTADORES: LO DE ABAJO
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta .totem-pie{padding-bottom:clamp(4px,1dvh,12px)}
+#pantallaTotem.abierta #totemCampo{min-height:clamp(40px,7dvh,58px)}
+
+/* -------------------------------------------------------------------
+   EN UNA PANTALLA ALTA
+   -------------------------------------------------------------------
+   Un tótem de 32" en la portería tiene la misma información que uno de 15" en
+   un escritorio, pero con espacio de sobra. Ahí se aprovecha para agrandar la
+   cámara, que es lo que más conviene ver de cerca. */
+@media (min-height:1000px){
+  #pantallaTotem.abierta #totemCamara{width:min(46dvh,520px)}
+}
+
+/* -------------------------------------------------------------------
+   Y SI AUN ASI NO CABE
+   -------------------------------------------------------------------
+   Se recorta por abajo y se avisa. Es peor que dejar el campo de la tarjeta
+   debajo del borde de la pantalla, donde no se ve y no se puede apretar: ahí la
+   persona cree que el reloj está roto.
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta{overflow:hidden}

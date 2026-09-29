@@ -1030,6 +1030,98 @@ porque salen del mismo lugar.
   </div>
 </section>
 
+<section class="view" id="v-empresas-cargos">
+  <h2>Empresas: cargos, grupos y permisos</h2>
+  <div class="small" style="max-width:960px;margin-bottom:14px">
+    Cada empresa maneja sus propios oficios. El <b>grupo</b> es el área (Obra,
+    Oficina, Bodega) y el <b>cargo</b> es el oficio (Maestro, Jorna, Ventas).
+    Un trabajador pertenece a un cargo, y el cargo se elige en dos desplegables:
+    primero el grupo, después el cargo de ese grupo.
+    <br><br>
+    <b>Por qué el grupo no se guarda en el trabajador:</b> porque se deduce del
+    cargo. Guardar los dos sería guardar el mismo dato dos veces, y el día que
+    alguien moviera un cargo de grupo sin actualizar a la gente que lo tenía,
+    el trabajador quedaría en un grupo con un cargo que no es de ese grupo. Eso
+    no se ve hasta que la persona recibe el EPP de otra área.
+  </div>
+
+  <div class="card">
+    <div class="row" style="align-items:flex-end">
+      <div style="flex:1">
+        <label for="ecEmpresa">Empresa</label>
+        <select id="ecEmpresa" onchange="cargarEmpresasCargos()"></select>
+      </div>
+      <div>
+        <button class="btn" type="button" onclick="abrirImportarCargos()">Cargar lista de cargos</button>
+        <button class="btn secondary" type="button" onclick="cargarJerarquiaCargos(true).then(renderEmpresasCargos)">Actualizar</button>
+      </div>
+    </div>
+    <div id="ecAviso" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Grupos</h3>
+    <small>Los grupos del catálogo. Se pueden agregar y dar de baja; los que se
+    usan no se borran, quedan desactivados.</small>
+    <div id="ecGrupos" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px;align-items:flex-end">
+      <div><label for="ecGrupoNombre">Nombre del grupo nuevo</label>
+        <input id="ecGrupoNombre" placeholder="Ej. Taller, Bodega, Servicios"></div>
+      <div><button class="btn secondary" type="button" onclick="crearGrupoDesdePantalla()">Crear grupo</button></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Cargos de esta empresa</h3>
+    <small>Lo que esta empresa ofrece. Los cargos de la lista maestra se pueden
+    activar o desactivar por empresa. Lo que determina el EPP y las charlas es
+    el <b>cargo</b>, no el grupo.</small>
+    <div id="ecCargos" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Permisos de esta empresa</h3>
+    <small>Qué puede ver y hacer esta empresa. Se marca por rol; un usuario con
+    variosRoles tiene la unión de todos. El rol Administración siempre tiene
+    acceso total.</small>
+    <div id="ecPermisos" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!--
+LA VENTANA DE CARGA DE CARGOS
+============================
+Un textarea y no un botón de archivo, porque la lista casi siempre viene de
+una columna de un Excel que ya está pegado en un correo o en una hoja. Y
+porque desde un teléfono, que es desde donde se configura esto muchas veces, no
+se puede elegir un archivo.
+
+Un hecho por línea, o separadas por punto y coma:
+
+    maestro
+    jorna
+    ayudante
+    ventas;ventas
+
+La clave sale del nombre siempre igual, sin tildes y en minúsculas, así que
+"Gasfitería" y "GASFIT" dan la misma clave. Y volver a cargar la misma lista no
+duplica nada: la base lo sabe y lo cuenta.
+-->
+<div id="dlgCargos" class="dialog">
+  <div class="dialog-caja" style="max-width:620px">
+    <h3>Cargar la lista de cargos</h3>
+    <small>Un cargo por línea. Si pones "nombre;clave" la clave se respeta.
+    Si la dejas, se arma sola y siempre igual.</small>
+    <textarea id="cargosTexto" rows="10" style="width:100%;margin-top:8px"
+      placeholder="maestro&#10;jorna&#10;ayudante&#10;ventas"></textarea>
+    <div id="cargosAviso" style="margin-top:8px;min-height:1.4em"></div>
+    <div class="row" style="margin-top:10px;justify-content:flex-end">
+      <button class="btn secondary" type="button" onclick="cerrarDialogoCargos()">Cancelar</button>
+      <button class="btn" type="button" id="cargosGuardar" onclick="importarCargosDesdePantalla()">Cargar</button>
+    </div>
+  </div>
+</div>
+
 <section class="view" id="v-permisos">
   <div class="card">
     <h2>Permisos por rol</h2>
@@ -2957,7 +3049,12 @@ const navGroups = {
       {v:'usuarios',label:'Usuarios'},
       {v:'permisos',label:'Permisos por rol'},
       {v:'empresa',label:'Datos de empresa'}
-    ]}
+    ]},
+    // Empresas: qué oficios maneja cada una, qué grupos de cargos existen, y
+    // qué puede ver esta empresa. Va suelto y no dentro de Configuración porque
+    // la pregunta que contesta no es "cómo se configura el sistema" sino "qué
+    // trabaja esta empresa", que es de RRHH y se pregunta seguido.
+    {v:'empresas-cargos',label:'Empresas: cargos y permisos'}
   ],
   'asistente-social': [
     {v:'alertas-sociales',label:'Alertas'},
