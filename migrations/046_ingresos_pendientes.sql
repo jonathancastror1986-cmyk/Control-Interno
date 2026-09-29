@@ -77,30 +77,50 @@
 -- -------------------------------------------------------------------
 -- -------------------------------------------------------------------
 -- COLUMNA VIEJA: "empresa"
+
 -- -------------------------------------------------------------------
--- La primera versión de esta migración usó la columna "empresa", y el editor
--- de SQL alcanzó a crear la FUNCIÓN antes de que la tabla quedara lista.
--- Después la tabla se creó bien con "empresa_id", y quedó la función pidiendo
--- una columna que ya no existe: "column empresa of relation
--- ingresos_pendientes does not exist".
+-- SI LA TABLA QUEDO CON LA COLUMNA VIEJA, SE CORRIGE
+-- -------------------------------------------------------------------
+-- La primera versión usó la columna "empresa", y el editor alcanzó a crear la
+-- FUNCIÓN aunque la tabla ya había fallado. Después la tabla quedó bien con
+-- "empresa_id", y la función siguió pidiendo una columna que ya no existía:
+-- "column empresa of relation ingresos_pendientes does not exist".
 --
--- "create table if not exists" no arregla nada: la tabla existe y para
--- PostgreSQL está bien. Por eso el bloque de arriba, que es idempotente y
--- resuelve los dos casos.
-do $
+-- Va en una FUNCIÓN y no en un "do" por dos razones, y las dos_importantes:
+--
+--   1) El archivo quedó con "do $" y "end $;" — un signo de dollar menos en
+--      cada lado. Al aplicarse da "syntax error at or near $" en la palabra
+--      "do", que no dice que falte un signo.
+--   2) El editor de SQL de Supabase parte el archivo por punto y coma, y un
+--      "do" tiene punto y coma ADENTRO: lo corta. Las funciones con cuerpo
+--      las respeta, y la llamada es una sentencia de una línea.
+create or replace function public.corregir_columna_ingresos()
+returns text
+language plpgsql
+security definer
+set search_path = public
+as $
 begin
-  if exists (
-       select 1 from information_schema.columns
+  if exists (select 1 from information_schema.columns
         where table_schema='public' and table_name='ingresos_pendientes'
-          and column_name='empresa'
-     ) and not exists (
-       select 1 from information_schema.columns
+          and column_name='empresa')
+     and not exists (select 1 from information_schema.columns
         where table_schema='public' and table_name='ingresos_pendientes'
-          and column_name='empresa_id'
-     ) then
+          and column_name='empresa_id') then
     alter table ingresos_pendientes rename column empresa to empresa_id;
+    return 'se renombro empresa a empresa_id';
   end if;
-end $;
+  if exists (select 1 from information_schema.columns
+        where table_schema='public' and table_name='ingresos_pendientes'
+          and column_name='empresa_id') then
+    return 'la columna empresa_id ya estaba bien';
+  end if;
+  return 'ATENCION: ingresos_pendientes no tiene ni empresa ni empresa_id';
+end;
+$;
+
+-- Y la llamada, que es una sola linea y no se parte
+select public.corregir_columna_ingresos();
 
 create table if not exists ingresos_pendientes (
   id            uuid primary key default gen_random_uuid(),
