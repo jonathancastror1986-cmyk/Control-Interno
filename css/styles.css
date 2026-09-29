@@ -4031,21 +4031,21 @@ button[role="tab"][aria-selected="true"] .ico {
 }
 
 [data-group="bodega"] {
-  --fondo-seccion: #733C1B;
+  --fondo-seccion: #4A2710;
   --cat: #FCF0E9;
-  --cat-claro: #733C1B;
+  --cat-claro: #4A2710;
 }
 
 [data-group="supervisores"] {
-  --fondo-seccion: #2C5E24;
-  --cat: #EDF9EC;
-  --cat-claro: #2C5E24;
+  --fondo-seccion: #14380C;
+  --cat: #ECFCE9;
+  --cat-claro: #14380C;
 }
 
 [data-group="soporte"] {
-  --fondo-seccion: #751256;
-  --cat: #FDE7F6;
-  --cat-claro: #751256;
+  --fondo-seccion: #0C0D6B;
+  --cat: #E7E7FE;
+  --cat-claro: #0C0D6B;
 }
 
 [data-group="prevencion"] {
@@ -4259,4 +4259,148 @@ header {
    la confirmación de que se registró, y tiene que verse a dos metros. */
 #totemMensaje .totem-texto b {
   color: var(--ink);
+}
+/* ======================= LA CAJA DE LA EMPRESA, ARRIBA A LA IZQUIERDA (2026-09-29) ======================= *//* ===================================================================
+   LA CAJA DE LA EMPRESA, ARRIBA A LA IZQUIERDA (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDIÓ
+   -----------
+   Que la empresa quede arriba a la izquierda, y que no haya dos textos que
+   digan lo mismo.
+
+   -------------------------------------------------------------------
+   LA POSICIÓN YA ESTABA
+   --------------------
+   #totemEmpresa ya era "position: absolute" con "top" y "left", y el comentario
+   del HTML de al lado explica por qué tiene que estar ahí y no en el centro:
+   en el medio está la cámara, que es donde hay que mirar para marcar.
+
+   Lo que NO estaba era la caja hecha. En la foto se ve como un campo de texto
+   vacío: un rectángulo con borde y un nombre adentro, del mismo tamaño que un
+   input. Por eso parece un input, y por eso el nombre se lee chico.
+
+   -------------------------------------------------------------------
+   EL LOGO ESTABA OCULTO
+   ---------------------
+   #totemLogo arranca con "display: none", y solo se muestra cuando le ponen
+   la clase "visible". Sin logo, la caja es un rectángulo con un texto, que es
+   exactamente lo que se ve en la foto.
+
+   -------------------------------------------------------------------
+   EL TAMAÑO
+   ----------
+   El nombre iba en 1.02rem, que es el tamaño de un texto de formulario. En
+   una pantalla de 1280, mirando de lejos, a dos metros, el nombre de la
+   empresa tiene que leerse de un vistazo: eso para lo que está.
+
+   Y va en mayúsculas espaciadas, como las barras de la aplicación. La caja
+   dice QUÉ LUGAR ES, y las barras ya dicen cómo se ve un lugar en esta
+   aplicación.
+
+   -------------------------------------------------------------------
+   EL FONDO
+   --------
+   Era "var(--surface)", que en la caja de la aplicación es blanca. Sobre el
+   fondo casi blanco del reloj, una caja blanca con borde se pierde: se ve
+   el borde y no la caja. Va con la superficie de tarjeta y sombra suave, como
+   las cajas de la aplicación.
+   =================================================================== */
+
+#totemEmpresa {
+  top: 18px;
+  left: 22px;
+  width: auto;
+  max-width: min(38vh, 380px);
+  padding: 14px 18px;
+  background: var(--panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+
+/* El nombre de la empresa: grande, en mayúsculas, y del color del texto.
+   Antes iba en 1.02rem, que es tamaño de formulario, y en una pantalla de
+   1280 a dos metros no se lee. */
+#totemEmpresaNombre {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+/* El centro de costo, que va debajo: es el dato más fino, y tiene que quedar
+   abajo del nombre sin competir con él. */
+#totemEmpresaCentro {
+  font-size: .82rem;
+  font-weight: 500;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--secondary-text);
+}
+
+/* El logo con su espacio reservado. El "display" lo sigue decidiendo la clase
+   "visible": si la empresa no tiene logo, la caja no deja un hueco vacío. */
+#totemLogo {
+  max-height: 64px;
+}
+/* ======================= SOPORTE EN AZUL MARINO, Y EL TEXTO CLARO AL SELECCIONAR (2026-09-29) ======================= *//* ===================================================================
+   SOPORTE EN AZUL MARINO, Y EL TEXTO CLARO AL SELECCIONAR (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDIÓ
+   -----------
+   - Soporte en el azul marino #0C0D6B
+   - Y que al presionar una sección, el texto al lado del icono tome un color
+     claro de esa sección, con una animación rápida
+
+   -------------------------------------------------------------------
+   POR QUÉ EL TEXTO Y NO SOLO EL ICONO
+   ------------------------------------
+   El icono mide 15 píxeles. El texto es lo que se lee.
+
+   Si solo se enciende el icono, la diferencia entre "elegida" y "no elegida"
+   queda en un detalle pequeño, y a dos metros mirando de reojo no se
+   distingue. Con el texto también en el tono de la sección, la sección
+   elegida se ve ENTERA.
+
+   Y el tono claro es el mismo que ya usaba el icono: no es un color nuevo, es
+   el que la sección ya tenía. La regla nueva no inventa un valor, lo levanta
+   al texto.
+
+   -------------------------------------------------------------------
+   LA ANIMACIÓN ES CORTA
+   --------------------
+   0.15 segundos. Es un cambio de estado, no un despliegue: si dura más, al
+   recorrer las siete secciones se ve el color corriendo por la barra.
+
+   Y solo cuando se pide. Con "prefers-reduced-motion" se apaga, como las
+   otras.
+   =================================================================== */
+
+[data-group="soporte"] {
+  --fondo-seccion: #0C0D6B;
+  --cat: #E7E7FE;
+  --cat-claro: #0C0D6B;
+}
+
+/* -------------------------------------------------------------------
+   EL TEXTO DE LA SECCIÓN ELEGIDA
+   -------------------------------------------------------------------
+   El de la barra del menú principal, que es el que se ve en la foto. El
+   submenú tiene su propio tratamiento, porque va sobre fondo claro y usa el
+   tono oscuro. */
+#mainNav button {
+  transition: color .15s ease, border-color .15s ease;
+}
+
+#mainNav button.active {
+  color: var(--cat, currentColor);
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  #mainNav button {
+    transition: none;
+  }
 }

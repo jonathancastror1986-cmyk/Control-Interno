@@ -1733,7 +1733,7 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
     <span id="totemCodigoLeido" class="totem-pill"></span>
     <label for="totemCampo" class="totem-campo-label">Tarjeta</label>
     <input id="totemCampo" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-      inputmode="none" placeholder="Presenta la tarjeta o escribe el código y presiona Enter">
+      inputmode="none" placeholder="Escribe el código y presiona Enter">
   </div>
 </div>
 
@@ -13306,6 +13306,30 @@ function pararHoraTotem(){
 //
 // Si no hay logo, no se dibuja nada: queda solo el nombre. Un rectangulo
 // vacio con un borde seria peor, porque parece que falta algo.
+// EL PLACEHOLDER DEL CAMPO, SEGUN COMO LEE EL RELOJ
+//
+// El mensaje grande de arriba ya decia lo correcto: "frente a la camara" con
+// camara, y "o pasala por el lector" con lector USB. Lo que decia mal era el
+// placeholder del campo, que siempre mencionaba la camara.
+//
+// Ahora el placeholder se pone segun el lector, y no al reves. Un texto que
+// dice una cosa y la pantalla dice otra es peor que un texto generico: la
+// persona se queda con la instruccion que ve mas grande.
+//
+// Con camara: el campo es el respaldo, para cuando el QR no se lee. Se dice
+// eso, y no "presenta la tarjeta", porque la camara ya se encarga.
+//
+// Con lector USB: la tarjeta se pasa por ahi y el campo queda solo para
+// escribir el numero a mano. Que es lo unico que sirve hacer en el.
+function ponerPlaceholderTotem(){
+  const campo=document.getElementById('totemCampo');
+  if(!campo)return;
+  const conCamara=totemActual&&totemActual.tipo_lector==='camara';
+  campo.placeholder=conCamara
+    ? 'Si la cámara no lee, escribe el código y presiona Enter'
+    : 'O escribe el código a mano y presiona Enter';
+}
+
 function pintarEmpresaEnTotem(){
   const cajaNombre=document.getElementById('totemEmpresaNombre');
   if(!cajaNombre)return;
@@ -13360,6 +13384,9 @@ function pintarTotemInicial(){
   const caja=document.getElementById('totemCodigoLeido');
   caja.textContent='';
   pintarEmpresaEnTotem();
+  // El placeholder se pone al abrir, no al escribir el codigo: si se
+  // pusiera en el handler, al recargar la pagina quedaria el texto viejo.
+  ponerPlaceholderTotem();
   const barraCentro=document.getElementById('totemCentroActual');
   if(barraCentro)barraCentro.textContent=totemActual?centroDe(totemActual):'';
   document.getElementById('totemRelojActual').textContent=
