@@ -978,3 +978,193 @@ que uno dude de cómo va a salir impreso.
     color: #000;
   }
 }
+
+/* ======================= COMO QUEDA LA PANTALLA DEL RELOJ (2026-09-29) ======================= */
+
+/* ===================================================================
+   COMO QUEDA LA PANTALLA DEL RELOJ
+   ===================================================================
+
+   QUE SE PIDIÓ
+   -----------
+   La cámara en la esquina superior izquierda, el logo y los datos de la
+   empresa debajo de la cámara, y el campo de la tarjeta centrado.
+
+   QUE PASABA
+   ----------
+   #pantallaTotem es una columna de flex, y por omisión sus hijos se
+   estiran a lo ancho. #totemMensaje tiene max-width:1000px, y con el
+   estiramiento quedaba pegado a la IZQUIERDA: en una pantalla de 1900
+   píxeles el recuadro terminaba a la mitad de la pantalla y el texto
+   parecía descentrado. En la foto se ve exactamente eso: el recuadro
+   verde empieza en el borde izquierdo y se corta.
+
+   OJO CON LA SOLUCIÓN FÁCIL: no es poner align-items:center en la
+   columna. Eso también encoge .totem-barra, que usa space-between para
+   poner el nombre del centro a la izquierda y los controles a la
+   derecha. Si la barra se encoge, se junta al centro y queda peor de lo
+   que estaba.
+
+   Lo correcto es centrar SÓLO lo que lo necesita, con margin-inline:auto,
+   que es lo que hace un bloque de ancho fijo dentro de un padre más
+   ancho.
+
+   -------------------------------------------------------------------
+   LO QUE NO SE TOCA
+   -------------------------------------------------------------------
+   Todas estas reglas viven debajo de #pantallaTotem o con prefijo totem-.
+   La pantalla de marcaje es una pantalla aparte, fija, a pantalla
+   completa: nada de esto se ve en el escritorio. La aplicación de
+   escritorio no cambia. */
+
+#pantallaTotem {
+  /* El hueco de arriba, para la hora. La hora va fija sobre todo lo
+     demás (position:absolute), y sin este espacio la cámara se le
+     montaría encima. */
+  padding-bottom: 0;
+}
+
+/* -------------------------------------------------------------------
+   LA CÁMARA, ARRIBA A LA IZQUIERDA, Y LA EMPRESA DEBAJO
+   -------------------------------------------------------------------
+   La cámara va en esa esquina porque la persona se para frente al
+   aparato: la tiene a la altura de los ojos. Al centro, con el reloj a
+   dos metros, habría que inclinar la cabeza.
+
+   La columna con align-items:flex-start pone la cámara a la izquierda y
+   la empresa debajo, que es justo lo pedido. */
+.totem-izquierda {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 0 10px 18px;
+}
+
+#totemCamara {
+  width: min(38vh, 340px);
+  border-radius: 12px;
+  overflow: hidden;
+  align-self: flex-start;
+}
+
+/* -------------------------------------------------------------------
+   EL LOGO Y LOS DATOS DE LA EMPRESA
+   -------------------------------------------------------------------
+   No es decoración. En una obra con más de una empresa o más de un
+   centro de costo, la persona tiene que poder confirmar de un vistazo
+   que está marcando en el lugar correcto. Si se equivoca de reloj, la
+   asistencia queda mal puesta y eso ya no se arregla sola.
+
+   El logo va sobre un fondo claro, porque los logos casi siempre son
+   oscuros o con fondo transparente, y sobre la pantalla blanca salía
+   apenas una mancha gris. */
+#totemEmpresa {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: min(38vh, 340px);
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+#totemLogo {
+  display: none;
+  max-height: 52px;
+  max-width: 100%;
+  object-fit: contain;
+  margin-bottom: 4px;
+}
+
+#totemLogo.visible {
+  display: block;
+}
+
+#totemEmpresaNombre {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: .01em;
+}
+
+#totemEmpresaCentro {
+  font-size: .9rem;
+  color: var(--secondary-text);
+  line-height: 1.25;
+}
+
+#totemEmpresaCentro:empty {
+  display: none;
+}
+
+/* -------------------------------------------------------------------
+   EL RECUADRO DE MENSAJE, CENTRADO DE VERDAD
+   -------------------------------------------------------------------
+   Esta es la corrección de lo que se veía en la foto. El elemento
+   conserva su max-width, pero con margin-inline:auto se centra en vez
+   de quedar pegado al borde izquierdo. */
+#totemMensaje {
+  margin-inline: auto;
+  align-self: center;
+}
+
+/* -------------------------------------------------------------------
+   EL PIE: EL CAMPO DE LA TARJETA, CENTRADO
+   -------------------------------------------------------------------
+   Antes el campo ocupaba todo el ancho, de borde a borde, con la
+   etiqueta "TARJETA" pegada al margen izquierdo. Se veía como un
+   formulario de escritorio estirado, no como un reloj de portería.
+
+   Ahora el pie centra su contenido y el campo tiene un ancho máximo, con
+   la etiqueta arriba. En un aparato grande queda centrado; en uno chico
+   se achica solo. */
+.totem-pie {
+  justify-content: center;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 18px 16px;
+}
+
+#totemCampo {
+  flex: 0 1 auto;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+  min-height: 58px;
+  font-size: 1.15em;
+  text-align: center;
+}
+
+.totem-campo-label {
+  text-align: center;
+  display: block;
+  font-size: .78em;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* El cartucho de lo que se leyó (marcaje OK, etc.) también al centro,
+   para que no quede pegado al borde y parezca un error suelto. */
+#totemCodigoLeido {
+  align-self: center;
+}
+
+/* -------------------------------------------------------------------
+   EL MODO KIOSCO, QUE ES EL QUE SE VE EN LA PORTERÍA
+   -------------------------------------------------------------------
+   En kiosco no hay barra, así que la cámara sube. Se le deja aire
+   arriba para que no se monte con la hora. */
+.modo-kiosco #pantallaTotem {
+  padding-top: 132px;
+}
+
+.modo-kiosco .totem-izquierda {
+  padding-top: 4px;
+}

@@ -1606,8 +1606,27 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
        Va al final para que quede por encima de todo lo demás. -->
   <div id="totemZonaKiosco" style="display:none" onpointerdown="pulsacionKiosco()"></div>
   <div id="totemPistaKiosco" aria-hidden="true"></div>
-  <div class="totem-zona" id="totemZonaCamara" style="display:none">
+  <!--
+  LA CAMARA, ARRIBA A LA IZQUIERDA, Y LA EMPRESA DEBAJO
+
+  La camara va en esa esquina y no en el medio porque la persona se para
+  frente al aparato: la tiene a la altura de los ojos, no delante de la
+  cara. Al centro, con el reloj a dos metros, habria que inclinar la
+  cabeza.
+
+  Debajo de la camara van el logo y el nombre de la empresa. No es
+  decoracion: en una obra con mas de una empresa o mas de un centro de
+  costo, la persona tiene que poder confirmar en un vistazo que esta
+  marcando en el lugar correcto. Si se equivoca de reloj, la asistencia
+  queda mal puesta y eso ya no se puede arreglar sola.
+  -->
+  <div class="totem-zona totem-izquierda" id="totemZonaCamara" style="display:none">
     <div id="totemCamara"></div>
+    <div id="totemEmpresa">
+      <img id="totemLogo" alt="">
+      <div id="totemEmpresaNombre">-</div>
+      <div id="totemEmpresaCentro"></div>
+    </div>
   </div>
   <div id="totemMensaje" class="totem-idle"></div>
   <!--
@@ -3211,7 +3230,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION = '2026-09-29-f';
+const APP_VERSION = '2026-09-29-g';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -12748,6 +12767,42 @@ function pararHoraTotem(){
   if(relojTotemTimer){clearInterval(relojTotemTimer);relojTotemTimer=null;}
 }
 
+// LA EMPRESA, EN LA PANTALLA DEL RELOJ
+//
+// El logo se sube en Configurar y queda en la empresa como un data-URL
+// (columna "logo"). Esto lo trae a la pantalla del reloj.
+//
+// Va debajo de la camara, no arriba del todo, porque arriba esta la hora
+// y la hora es lo que la persona viene a ver. La empresa va con la
+// camara porque son las dos cosas que confirman que la persona esta
+// donde debe: la camara es donde apunta la cara, y la empresa es de
+// quien es el reloj.
+//
+// Si no hay logo, no se dibuja nada: queda solo el nombre. Un rectangulo
+// vacio con un borde seria peor, porque parece que falta algo.
+function pintarEmpresaEnTotem(){
+  const cajaNombre=document.getElementById('totemEmpresaNombre');
+  if(!cajaNombre)return;
+  const empresa=empresaDelPapel();
+  cajaNombre.textContent=empresa&&empresa.nombre?empresa.nombre:'';
+
+  const centro=document.getElementById('totemEmpresaCentro');
+  if(centro)centro.textContent=totemActual?centroDe(totemActual):'';
+
+  const logo=document.getElementById('totemLogo');
+  if(!logo)return;
+  const url=empresa&&empresa.logo?String(empresa.logo):'';
+  if(url){
+    logo.src=url;
+    logo.classList.add('visible');
+  }else{
+    // Se saca el src y no solo la classe: un logo que se oculto por CSS
+    // sigue cargado, y en un reloj con poca memoria sobra tener en la
+    // memoria una imagen que no se ve.
+    logo.removeAttribute('src');
+    logo.classList.remove('visible');
+  }
+}
 function pintarTotemInicial(){
   // Se borra la hora del marcaje anterior. Si queda, alguien que pasa
   // después ve la hora del compañero y cree que ya marcó.
@@ -12778,6 +12833,7 @@ function pintarTotemInicial(){
   avisosDelReloj=[];
   const caja=document.getElementById('totemCodigoLeido');
   caja.textContent='';
+  pintarEmpresaEnTotem();
   const barraCentro=document.getElementById('totemCentroActual');
   if(barraCentro)barraCentro.textContent=totemActual?centroDe(totemActual):'';
   document.getElementById('totemRelojActual').textContent=
