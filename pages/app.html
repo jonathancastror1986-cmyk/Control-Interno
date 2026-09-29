@@ -481,6 +481,23 @@ quiere correr.
 <link rel="stylesheet" href="../css/movil.css" media="(max-width: 860px)">
 </head>
 <body>
+<!--
+LAS TRES BARRAS, EN UN SOLO PEGAJOSO
+
+Antes cada barra era pegajosa por su cuenta y cada una decía "me pego en
+y=algo", y esos "algo" se medían en JavaScript. Con eso, cualquier cambio de
+alto las separa: se ve una franja de contenido entre el encabezado y el menú, y
+las barras quedan pegadas a la posición de la medición anterior.
+
+En vez de eso, las tres van DENTRO de un solo elemento pegajoso. Las de
+adentro están en su flujo normal, se apilan solas y no se pueden separar. Y
+que el encabezado se encoja al bajar ya no recalcula nada: el contenedor se
+achica con él y las tres bajan juntas.
+
+Un solo elemento pegajoso en vez de tres medidos es la diferencia entre que
+funcione siempre y que funcione hasta que alguien cambia una fuente.
+-->
+<div id="barrasSuperiores">
 <header><h1 id="tituloSeccion">Control de Asistencia y Portería</h1><div class="header-actions"><button type="button" class="btn secondary theme-toggle" data-theme-toggle></button><div class="row" style="margin:0 0 0 12px;align-items:center;flex-wrap:nowrap">
         <label for="empresaSel" style="margin:0;white-space:nowrap">Empresa</label>
         <select id="empresaSel" onchange="cambiarEmpresa(this.value)" style="width:auto;min-width:170px"></select>
@@ -496,6 +513,7 @@ quiere correr.
   <button data-group="prevencion"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Prevención</button>
 </nav>
 <nav id="subNav"></nav>
+</div>
 <main>
 
 <section class="view active" id="v-nuevo-trabajador">
@@ -675,7 +693,12 @@ porque salen del mismo lugar.
     </div>
     <div class="row">
       <div><label>Hora de entrada</label><input type="time" id="emp-hora-entrada"></div>
+      <div><label>Hora de salida</label><input type="time" id="emp-hora-salida">
+        <small style="display:block;color:var(--muted);font-size:.72rem">Sin hora de salida solo se puede medir el atraso, no la salida. Vacío = no se controla.</small></div>
       <div><label>Tolerancia (minutos)</label><input type="number" min="0" step="1" id="emp-tolerancia"></div>
+      <div><label>Inicio de la colación</label><input type="time" id="emp-colacion-inicio">
+        <small style="display:block;color:var(--muted);font-size:.72rem">Vacío = la empresa no controla la colación y el reporte lo dice así, en vez de inventar una.</small></div>
+      <div><label>Duración de la colación (min)</label><input type="number" min="0" max="240" step="5" id="emp-colacion-duracion"></div>
     </div>
     <div class="row">
       <div style="flex:1">
@@ -1707,22 +1730,39 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
         <div id="totemEmpresaNombre">-</div>
         <div id="totemEmpresaCentro"></div>
       </div>
+      <!-- El identificador del reloj va en la esquina, con la empresa. Los dos
+           dicen DÓNDE se está marcando: la empresa para quién y el reloj en
+           qué punto. Y la esquina superior izquierda es la que menos estorba,
+           porque en el centro están la cámara y la hora. -->
+      <span class="totem-identificador" id="totemRelojActual"></span>
     </div>
     <div class="totem-col totem-col-centro">
       <div id="totemConexion" class="totem-conexion"><span class="totem-conexion-punto"></span></div>
       <div id="totemHoraCaja">
         <span class="totem-hora" id="totemHoraActual">--:--:--</span>
-        <span class="totem-nombre" id="totemRelojActual"></span>
         <span class="totem-marcaje" id="totemHoraMarcada"></span>
       </div>
+      <!--
+      "Marca" es un TEXTO que cambia solo, no una lista.
+
+      En la portería un desplegable es un botón que alguien puede apretar sin
+      querer, y el botón Salir está escondido justamente porque tocar cualquier
+      cosa en modo kiosco es un problema. El texto se ve siempre; el selector
+      queda atrás y solo se abre con el mouse encima, para quien esté
+      configurando. En el aparato no hay nada que apretar por error.
+      -->
       <div id="totemTipoCaja">
         <span class="totem-tipo-etiqueta">Marca</span>
+        <span class="totem-marca-texto" id="totemMarcaTexto">Entrada</span>
         <select id="totemTipo" onchange="cambiarTipoTotem()"></select>
       </div>
     </div>
     <div class="totem-col totem-col-der">
       <span class="totem-fecha" id="totemFechaActual"></span>
-      <span class="totem-centro-actual" id="totemCentroActual"></span>
+      <!-- El LUGAR, con más peso que la fecha. La fecha se sabe de memoria; el
+           lugar no. Con dos cajas en la portería, la respuesta a "¿dónde
+           estoy?" tiene que estar en la pantalla sin abrir nada. -->
+      <span class="totem-ubicacion" id="totemCentroActual"></span>
       <button type="button" class="totem-salir" onclick="cerrarTotem()">Salir</button>
     </div>
   </div>
@@ -2942,10 +2982,10 @@ const navGroups = {
       {v:'bodega-qr',label:'QR / Etiquetas'}
     ]}
   ],
-  supervisores: [{v:'supervisores',label:'Supervisores',options:[
-    {v:'supervisores',label:'Equipos y tarja'},
-    {v:'sup-diaria',label:'Asistencia diaria'}
-  ]},
+  supervisores: [{v:'supervisores',label:'Supervisores',options:[
+    {v:'supervisores',label:'Equipos y tarja'},
+    {v:'sup-diaria',label:'Asistencia diaria'}
+  ]},
   {v:'solicitar-ingreso',label:'Solicitar ingreso'}]
 };
 // ===================================================================
@@ -3376,8 +3416,8 @@ function cambiarGrupoIngreso(){
 
 function initView(v){
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
-  if(v==='solicitar-cambio'){initSolicitarCambio();initVistaSolicitar();}
-  if(v==='solicitar-ingreso'){llenarEspecialidadIngreso();limpiarFormularioIngreso();renderMisIngresos();}
+  if(v==='solicitar-cambio'){initSolicitarCambio();initVistaSolicitar();}
+  if(v==='solicitar-ingreso'){llenarEspecialidadIngreso();limpiarFormularioIngreso();renderMisIngresos();}
   if(v==='ingresos-cola'){cargarIngresosPendientes();}
   if(v==='aprobar-cambio'){
     renderSolicitudes();renderMisSolicitudes();renderAvisoSolicitudes();
@@ -11653,6 +11693,13 @@ function dbToEmpresa(r){
     telefono:r.telefono||'', email:r.email||'', sitio_web:r.sitio_web||'',
     hora_entrada:r.hora_entrada||'08:00',
     tolerancia_minutos:(r.tolerancia_minutos!=null)?Number(r.tolerancia_minutos):10,
+    // hora_salida y colacion NO llevan un valor por omisión. Se devuelven
+    // tal cual, y si están vacías la pantalla muestra vacío. Ponerles un
+    // "08:00" o un "30" de relleno acá sería mostrar como acordado un dato que
+    // nadie acordó.
+    hora_salida:r.hora_salida||null,
+    colacion_inicio:r.colacion_inicio||null,
+    colacion_duracion_min:(r.colacion_duracion_min!=null)?Number(r.colacion_duracion_min):30,
     activa:r.activa!==false
   };
 }
@@ -11662,6 +11709,9 @@ function empresaToDb(e){
     rut:e.rut||null, giro:e.giro||null, direccion:e.direccion||null,
     telefono:e.telefono||null, email:e.email||null, sitio_web:e.sitio_web||null,
     hora_entrada:e.hora_entrada||null, tolerancia_minutos:(e.tolerancia_minutos!=null)?Number(e.tolerancia_minutos):null,
+    hora_salida:e.hora_salida||null,
+    colacion_inicio:e.colacion_inicio||null,
+    colacion_duracion_min:(e.colacion_duracion_min!=null)?Number(e.colacion_duracion_min):null,
     activa:e.activa!==false
   };
 }
@@ -11810,6 +11860,9 @@ function editarEmpresa(id){
   document.getElementById('emp-web').value=e.sitio_web||'';
   document.getElementById('emp-hora-entrada').value=e.hora_entrada||'08:00';
   document.getElementById('emp-tolerancia').value=(e.tolerancia_minutos!=null)?e.tolerancia_minutos:10;
+  document.getElementById('emp-hora-salida').value=e.hora_salida||'';
+  document.getElementById('emp-colacion-inicio').value=e.colacion_inicio||'';
+  document.getElementById('emp-colacion-duracion').value=(e.colacion_duracion_min!=null)?e.colacion_duracion_min:30;
   document.getElementById('emp-activa').checked=e.activa;
   document.getElementById('emp-logo-preview').src=e.logo||'';
   const aviso=document.getElementById('emp-logo-aviso');
@@ -11822,7 +11875,11 @@ function nuevaEmpresa(){
     alert('Crear una empresa nueva es tarea de administración. Pídele a un administrador que la registre.');
     return;
   }
-  ['emp-id','emp-rut','emp-giro','emp-direccion','emp-telefono','emp-email','emp-web','emp-hora-entrada'].forEach(id=>document.getElementById(id).value='');
+  ['emp-id','emp-rut','emp-giro','emp-direccion','emp-telefono','emp-email','emp-web','emp-hora-entrada','emp-hora-salida','emp-colacion-inicio'].forEach(id=>document.getElementById(id).value='');
+  // La duración de la colación vuelve a 30 y no a vacío. Vacío se convertiría en
+  // 0 al guardar, y una colación de 0 minutos en el reporte es un dato falso,
+  // no un dato que falta: la diferencia es que "30" es el valor de la 034.
+  document.getElementById('emp-colacion-duracion').value=30;
   document.getElementById('emp-name').value='';
   document.getElementById('emp-activa').checked=true;
   document.getElementById('emp-logo-preview').src='';
@@ -12132,7 +12189,15 @@ async function saveEmpresa(){
     email:document.getElementById('emp-email').value.trim(),
     sitio_web:document.getElementById('emp-web').value.trim(),
     hora_entrada:document.getElementById('emp-hora-entrada').value||'08:00',
+    // Sin hora de salida se manda null y no una cadena vacía. La columna es
+    // 'time': una cadena vacía no es una hora, es basura, y Postgres la
+    // rechazaría con un error que no dice "dejaste en blanco la salida".
+    hora_salida:document.getElementById('emp-hora-salida').value||null,
     tolerancia_minutos:parseInt(document.getElementById('emp-tolerancia').value,10)||0,
+    // Igual que la salida: vacío es null, que es lo que significa "esta empresa
+    // no controla la colación" en el reporte.
+    colacion_inicio:document.getElementById('emp-colacion-inicio').value||null,
+    colacion_duracion_min:parseInt(document.getElementById('emp-colacion-duracion').value,10)||0,
     activa:document.getElementById('emp-activa').checked
   });
   const file=document.getElementById('emp-logo').files[0];
@@ -13066,8 +13131,8 @@ const VISTAS_POR_PERMISO={
   'v-bodega-catalogo':'bodega.herramientas',
   'v-bodega-asignar':'bodega.herramientas',
   'v-bodega-qr':'bodega.qr',
-  'v-solicitar-cambio':'tarja.solicitar_cambio',
-  'v-solicitar-ingreso':'ingresos.pedir',
+  'v-solicitar-cambio':'tarja.solicitar_cambio',
+  'v-solicitar-ingreso':'ingresos.pedir',
   'v-ingresos-cola':'ingresos.aprobar',
   'v-supervisores':'tarja.ver',
   'v-sup-diaria':'tarja.marcaje',
@@ -14127,6 +14192,33 @@ function pintarTotemInicial(){
   document.getElementById('totemRelojActual').textContent=
     (totemActual?totemActual.code+' · ':'')+(totemActual?centroDe(totemActual):'');
 }
+// ------------------------------------------------------------------
+// LLAMAR AL MARCAJE, Y VOLVER ATRÁS SI LA 052 NO ESTÁ
+// ------------------------------------------------------------------
+// La 052 mete marcar_por_reloj_controlado(), que es la de siempre con el
+// horario del reloj revisado antes. Si esa función no existe, se vuelve a la
+// vieja y NO se vuelve a intentar: un reloj que va a la portería tiene que
+// poder marcar aunque alguien no haya subido una migración.
+//
+// Y se avisa por consola, no por pantalla. Un cartel de "falta la 052" cada
+// vez que alguien pasa la tarjeta en la portería es peor que no avisar: la
+// gente cree que su marcaje falló.
+async function llamarMarcaje(nombre,args){
+  let r=await window.supabaseClient.rpc(nombre,args);
+  if(!r.error)return r;
+
+  if(nombre==='marcar_por_reloj_controlado'
+     && /does not exist|Could not find the function|PGRST202|marcar_por_reloj_controlado/i.test(String(r.error.message||''))){
+    marcarPorRelojConHorario=false;
+    console.warn('La 052 no está aplicada: el reloj marcará sin revisar el horario. '
+      +'Aplícala para que el horario de marcaje funcione.');
+    return await window.supabaseClient.rpc('marcar_por_reloj',args);
+  }
+  return r;
+}
+
+// ------------------------------------------------------------------
+// LLAMAR AL MARCAJE, Y VOLVER ATRÁS SI LA 052 NO ESTÁ
 async function registrarDesdeTotem(codigo){
   if(!totemActual)return;
   const leido=String(codigo||'').trim();
@@ -14161,7 +14253,30 @@ async function registrarDesdeTotem(codigo){
     return;
   }
 
-  const {data,error}=await window.supabaseClient.rpc('marcar_por_reloj',{
+  // ------------------------------------------------------------------
+  // MARCAR CON HORARIO, Y SIN ROMPER NADA SI LA 052 NO ESTÁ
+  // ------------------------------------------------------------------
+  // Se llama a marcar_por_reloj_controlado, que es la de la 052: revisa el
+  // horario del reloj y, si deja pasar, delega a la función de siempre.
+  //
+  // null = todavía no se sabe. undefined sería lo mismo, pero se escribe null
+// a propósito: la diferencia entre "no se probó" y "probó y no estaba"
+// importa cuando se está leyendo el código a las dos de la mañana.
+let marcarPorRelojConHorario=null;
+
+// null = todavía no se sabe. undefined sería lo mismo, pero se escribe null
+// a propósito: la diferencia entre "no se probó" y "probó y no estaba"
+// importa cuando se está leyendo el código a las dos de la mañana.
+
+
+// Y si la 052 no está aplicada, se vuelve a la de siempre sin decir nada.
+  // No es una degradada de verdad: es lo que evita que un reloj quede sin poder
+  // marcar porque alguien no subió una migración. La primera vez que se llama
+  // y falla se marca, y después no se vuelve a intentar, porque una pantalla
+  // que reintenta en cada marcaje envejece al reloj.
+  let rpcMarcaje='marcar_por_reloj_controlado';
+  if(marcarPorRelojConHorario===false)rpcMarcaje='marcar_por_reloj';
+  let resp=await llamarMarcaje(rpcMarcaje,{
     // El token lo tiene que mandar el tótem, no la pantalla. Si no hay
     // ninguno cargado, se avisa en vez de mandar un marcaje que va a
     // rebotar sin explicación.
@@ -14219,6 +14334,23 @@ async function registrarDesdeTotem(codigo){
       (d.marca_tipo==='entrada'?'Entrada':d.marca_tipo==='salida'?'Salida'
         :d.marca_tipo==='colacion_entrada'?'Salida a colación':'Vuelta de colación')
       +' registrada a las '+escHtml(d.marca_hora));
+  }else if(d.resultado==='fuera_de_horario'){
+    // ------------------------------------------------------------------
+    // EL REYLO ESTÁ CERRADO
+    // ------------------------------------------------------------------
+    // Es un caso aparte y no un error más, porque lo que la persona tiene que
+    // hacer es otra cosa: no reintentar. El reloj tiene un horario y ahora no
+    // está dentro, y la respuesta a eso no es provar otra vez con la tarjeta en
+    // la mano.
+    //
+    // Y se dice a dónde ir. Un "no se pudo marcar" sin más en un aparato de la
+    // portería es un callejón sin salida: la persona no tiene teléfono, no
+    // tiene usuario y no puede hacer nada. Por eso el texto nombra a quién y
+    // en qué pantalla.
+    mostrarTotem('error','Fuera del horario de marcaje',
+      'Intentaste marcar a las <b>'+escHtml(d.marca_hora||'')+'</b> y este reloj ya no está en horario. '
+      +'Pide en <b>Administración</b> que registren tu marcaje a mano, o márcalo mañana a la hora de entrada.',
+      12000);
   }else if(d.resultado==='ya_marcado'){
     mostrarTotem('ya_marcado',d.trabajador_nombre,
       'Ya tenías esta marca de hoy, a las '+escHtml(d.marca_hora)+'.');
@@ -17845,6 +17977,11 @@ function marcarNavCompacto(){
   if(chico===navCompactoYa)return;
   navCompactoYa=chico;
   document.body.classList.toggle('nav-compacto',chico);
+  // Y acá ya no hay nada que recalcular. Las tres barras están dentro de un
+  // solo elemento pegajoso, así que cuando el encabezado se encoge el
+  // contenedor se achica solo y todo baja junto. Lo único que hay que evitar
+  // es que la transición del encabezado tape el contenido de golpe, y eso se
+  // resuelve con un pouco de delay abajo.
 }
 function conectarNavCompacto(){
   if(conectarNavCompacto.hecho)return;

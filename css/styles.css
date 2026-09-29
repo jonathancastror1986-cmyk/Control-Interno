@@ -4840,7 +4840,7 @@ label[for="empresaSel"] {
   display:grid;
   grid-template-columns:repeat(3,1fr);
   gap:1px;
-  margin:auto clamp(12px,2vw,32px) clamp(10px,1.6vh,20px);
+  margin:auto auto clamp(8px,1.2vh,16px) auto;
   width:min(100%,1180px);
   background:var(--line);
   border:1px solid var(--line);
@@ -4900,6 +4900,36 @@ label[for="empresaSel"] {
    =================================================================== */
 
 header{z-index:30}
+
+/* -------------------------------------------------------------------
+   LAS TRES BARRAS, EN UN SOLO PEGAJOSO
+   -------------------------------------------------------------------
+   Encabezado, secciones y submenú van DENTRO de #barrasSuperiores, y solo
+   ese es pegajoso.
+
+   La versión anterior hacía las tres pegajosas por separado y le decía a cada
+   una "pégate en tal posición", con esas posiciones medidas en JavaScript. Es
+   frágil por construcción: en cuanto el encabezado cambia de alto —que es lo
+   que hace al encogerse, y lo que hace al cambiar la fuente o el ancho de la
+   ventana— las otras dos quedan pegadas donde estaban y aparece una franja de
+   contenido entre ellas.
+
+   Con un solo elemento pegajoso no hay posiciones que sincronizar: las tres
+   de adentro están en su flujo normal y se apilan solas. El contenedor se
+   achica cuando el encabezado se encoge, y todo baja junto.
+
+   El `padding-top` con env() es lo que estaba en el header, y va acá porque
+   ahora es el contenedor el que se pega arriba de todo. */
+#barrasSuperiores{
+  position:sticky;
+  top:0;
+  z-index:30;
+  padding-top:env(safe-area-inset-top,0px);
+}
+/* adentro de la barra, nada es pegajoso: se apilan por su cuenta */
+#barrasSuperiores header,
+#barrasSuperiores #mainNav,
+#barrasSuperiores #subNav{position:static;top:auto}
 
 /* Los menús desplegados sí van por encima del encabezado, y es la excepción
    a propósito: un menú que alguien abrió a propósito no puede quedar debajo
@@ -4990,4 +5020,120 @@ body.nav-compacto #mainNav button.active .ico{transform:scale(.9)}
   #empresaSel{transition:none}
   body.nav-compacto #mainNav button:hover .ico,
   body.nav-compacto #subNav button:hover .ico{transform:none}
+}
+
+
+/* ===================================================================
+   EL TÓTEM, AJUSTADO A LA FOTO
+   ===================================================================
+   Tres cosas que estaban mal y que se ven a simple vista en la pantalla
+   grande.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   1) LA BARRA DE NÚMEROS, CENTRADA Y CHICA
+   -------------------------------------------------------------------
+   Estaba pegada a la izquierda. No era el ancho: el atajo de margen de tres
+   valores que tenía puesto NO era "laterales auto", era "laterales con un
+   clamp", y por eso nunca se centró. El ancho estaba bien todo el tiempo.
+
+   Y baja el tamaño de los números y de las etiquetas. Un contador en una
+   pantalla de portería se mira de reojo mientras uno apoya la tarjeta: tiene
+   que estar ahí, pero no tapar la cámara ni la instrucción. */
+#pantallaTotem.abierta .totem-contadores{
+  max-width:min(100%,860px);
+  margin-left:auto;
+  margin-right:auto;
+  border-radius:10px;
+}
+#pantallaTotem.abierta .totem-contador{
+  padding:clamp(5px,.8vh,10px) clamp(8px,1.1vw,14px);
+  gap:2px;
+}
+#pantallaTotem.abierta .totem-contador-cifra{font-size:clamp(18px,2.1vw,30px)}
+#pantallaTotem.abierta .totem-contador-texto{font-size:clamp(9px,.78vw,12px);line-height:1.15}
+
+/* -------------------------------------------------------------------
+   2) EL IDENTIFICADOR DEL RELOJ, A LA ESQUINA SUPERIOR IZQUIERDA
+   -------------------------------------------------------------------
+   Con la empresa, en la misma esquina. Los dos dicen DÓNDE se está
+   marcando, y juntos se leen mejor que separados: la empresa dice para quién
+   y el reloj dice en qué punto.
+
+   Es también la esquina que menos estorba, porque en el centro está la
+   cámara y la hora, que es donde la mirada ya está. */
+#pantallaTotem.abierta .totem-col-izq{align-items:flex-start}
+#pantallaTotem.abierta .totem-identificador{
+  display:block;
+  font-size:clamp(11px,1.1vw,19px);
+  color:var(--secondary-text);
+  letter-spacing:.02em;
+  margin-top:6px;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+/* Antes la hora agrandaba el identificador junto con ella, porque los dos
+   estaban en la misma caja. Ahora están en columnas distintas y cada uno
+   tiene su tamaño: la hora manda y el identificador acompaña. */
+#pantallaTotem.abierta #totemRelojActual{font-size:inherit;color:inherit;letter-spacing:inherit}
+
+/* -------------------------------------------------------------------
+   3) "MARCA" COMO TEXTO, NO COMO LISTA
+   -------------------------------------------------------------------
+   En la portería, un desplegable con la lista de tipos de marca es un
+   botón que alguien puede apretar sin querer, y en modo kiosco el botón
+   Salir está escondido justamente por eso.
+
+   Entonces el texto se ve siempre y cambia solo, y el selector queda
+   atrás: se abre solamente con el mouse encima, para quien esté
+   configurando. En el aparato no hay nada que apretar por error.
+
+   El texto NO es decorativo: se cambia con la hora y con la última marca
+   del trabajador, que es lo que la persona viene a ver. Por eso tiene
+   que estar escrito con la misma fuente grande que el resto, y no como
+   una nota al pie. */
+#pantallaTotem.abierta .totem-marca-texto{
+  display:inline-block;
+  font-size:clamp(16px,1.9vw,34px);
+  font-weight:600;
+  color:var(--ink);
+  line-height:1.1;
+}
+#pantallaTotem.abierta .totem-tipo-etiqueta{font-size:clamp(10px,.95vw,15px)}
+
+/* El selector, escondido salvo que alguien lo esté mirando. */
+#pantallaTotem.abierta #totemTipoCaja{position:relative;display:inline-block}
+#pantallaTotem.abierta #totemTipo{
+  position:absolute;
+  top:100%;left:50%;
+  transform:translateX(-50%);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s ease;
+  z-index:30;
+  min-width:200px;
+}
+#pantallaTotem.abierta #totemTipoCaja:hover #totemTipo,
+#pantallaTotem.abierta #totemTipo:focus{
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* -------------------------------------------------------------------
+   4) LA UBICACIÓN, JUNTO CON LA FECHA
+   -------------------------------------------------------------------
+   Junto a la fecha va el nombre del lugar: la obra, la sucursal o el
+   centro de costo de este reloj. Es el dato que contesta "¿dónde
+   estoy?", y con dos cajas en la portería la respuesta tiene que estar
+   en la pantalla sin abrir nada.
+
+   Y va con más peso que la fecha. La fecha se sabe de memoria; el lugar
+   no. */
+#pantallaTotem.abierta .totem-ubicacion{
+  display:block;
+  font-size:clamp(15px,1.7vw,30px);
+  color:var(--ink);
+  line-height:1.2;
+  max-width:100%;
+  overflow-wrap:anywhere;
 }
