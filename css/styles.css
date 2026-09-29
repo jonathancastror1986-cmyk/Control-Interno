@@ -4764,6 +4764,40 @@ label[for="empresaSel"] {
 }
 #pantallaTotem.abierta #totemEmpresaNombre{font-size:clamp(15px,1.7vw,30px)}
 
+/* -------------------------------------------------------------------
+   SACAR LA HORA Y LA FECHA DE "POSITION:ABSOLUTE"
+   -------------------------------------------------------------------
+   Antes vivían flotando sobre la pantalla entera: #totemHoraCaja con
+   "position:absolute; top:0; left:0; right:0", y la fecha igual por separado.
+   Eso las sacaba del flujo, así que la cámara subía hasta el borde de arriba y
+   ellas le quedaban encima.
+
+   En una columna tienen que volver al flujo. Si no, la grilla de tres columnas
+   es puramente decorativa: mide bien las columnas pero el contenido de cada
+   una se sale de su caja, y por eso la fecha salía en el medio y no a la
+   derecha.
+
+   Y la fecha y el identificador del reloj NO se quitan. El identificador dice
+   en qué reloj se está marcando, y con dos cajas en la portería esa es la
+   diferencia entre un marcaje bien puesto y uno que hay que ir a buscar
+   después. Encima van a quedar, pero arriba de la cámara y no encima de ella.
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta #totemHoraCaja,
+#pantallaTotem.abierta .totem-fecha,
+#pantallaTotem.abierta .totem-nombre,
+#pantallaTotem.abierta .totem-marcaje,
+#pantallaTotem.abierta #totemEmpresa,
+#pantallaTotem.abierta #totemLogo,
+#pantallaTotem.abierta #totemEmpresaNombre,
+#pantallaTotem.abierta #totemEmpresaCentro{
+  position:static;
+  top:auto;left:auto;right:auto;bottom:auto;
+  transform:none;
+}
+
+/* La cámara baja para que quepa lo de arriba, y nunca queda detrás. */
+#pantallaTotem.abierta #totemCamara{position:relative;z-index:1}
+
 /* La fecha, arriba a la derecha. Se lee sin bajar la vista de la cámara. */
 #pantallaTotem.abierta .totem-col-der .totem-fecha {
   font-size:clamp(14px,1.5vw,26px);
