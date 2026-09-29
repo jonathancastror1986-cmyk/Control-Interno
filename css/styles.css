@@ -81,7 +81,7 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 
 body{margin:0;background:var(--bg);color:var(--text);font-family:'Montserrat',system-ui,sans-serif;min-height:100vh}
 
-h1,h2,h3{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;margin:.2em 0;color:var(--text)}
+h1,h2,h3{font-family:'Questrial','Segoe UI',system-ui,sans-serif;font-weight:400;margin:.2em 0;color:var(--text)}
 
 header{display:flex;align-items:center;gap:16px;padding:14px 24px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--accent2);z-index:5}
 
@@ -2788,7 +2788,7 @@ que uno dude de cómo va a salir impreso.
     font-size: .84rem;
   }
 }
-/* ======================= LA ASISTENCIA DIARIA EN TABLA (2026-09-29) ======================= *//* ===================================================================
+/* ======================= LA ASISTENCIA DIARIA EN TABLA (2026-09-29) ======================= *//* ===================================================================
    LA ASISTENCIA DIARIA, EN TABLA
    ===================================================================
 
@@ -3012,3 +3012,578 @@ que uno dude de cómo va a salir impreso.
     font-size: .84rem;
   }
 }
+/* ======================= EL MENU: ICONOS DE TRAZO Y COLOR POR CATEGORIA (2026-09-29) ======================= *//* ===================================================================
+   EL MENU: ICONOS DE TRAZO Y COLOR POR CATEGORIA (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDE
+   ----------
+   1) Los iconos del menu principal pasan de emoji a dibujo de una sola
+      linea, sin relleno, con las puntas redondeadas de la imagen de
+      referencia.
+
+   2) Con color por categoria: en reposo el icono es del MISMO color que el
+      texto, al pasar el puntero toma el color de la seccion, y al
+      seleccionar se queda con ese color.
+
+   -------------------------------------------------------------------
+   POR QUE ESTO VA AL FINAL DEL ARCHIVO, Y NO EN SU LUGAR
+   -------------------------------------------------------------------
+   Porque hay reglas anteriores que dicen exactamente lo contrario:
+
+       #mainNav button:hover      { color: #fff }
+       #mainNav button.active     { color: #fff }
+       #mainNav button.active     { border-color: var(--accent) }
+
+   Tienen la MISMA especificidad que las de este bloque. Cuando dos reglas
+   empatan, gana la que esta despues en el archivo. Ponerlas en su lugar
+   obligaria a subir especificidad con "!important", que es la manera de
+   que una correccion se vuelva a perder en la siguiente.
+
+   Es la misma razon por la que el bloque de la asistencia diaria quedo al
+   final. La regla no es "acomodar el CSS": es que el color del menu se
+   decide en UN solo lado, y ese lado es el final.
+
+   -------------------------------------------------------------------
+   EL COLOR DE REPOSO ES EL DEL TEXTO, Y NO UN GRIS
+   -------------------------------------------------------------------
+   El texto del menu va en #d4dbe4 sobre una barra oscura. Si el icono
+   tuviera su propio gris, el texto y el icono dirian cosas distintas: uno
+   "estas aqui" y el otro "estas a punto de apretar". Con currentColor el
+   icono toma el color del texto, y los dos dicen lo mismo siempre.
+
+   -------------------------------------------------------------------
+   LOS COLORES DE CADA CATEGORIA
+   -------------------------------------------------------------------
+   Todos claros, porque la barra es oscura: var(--accent2) es #101a14 en
+   claro. Un color de paleta sobre fondo oscuro tiene que tener luz propia,
+   no basta con ser el color correcto: si no se lee, esta mal elegido.
+
+   Y cada uno esta en su propio token, --cat, en la regla del boton. Asi el
+   color de la seccion se cambia en un solo lugar, y el estado de reposo y
+   el de seleccionado no pueden separarse: los dos leen el mismo token.
+
+   -------------------------------------------------------------------
+   EL COLOR NO SE APLICA AL BOTON ENTERO
+   -------------------------------------------------------------------
+   Si el boton entero tomara el color de la categoria al seleccionar, el
+   texto y el icono se pintarían igual y quedaria un bloque de color en vez
+   de una seccion distinguida. Se aplica solo al icono, y el texto sigue en
+   blanco. El icono se enciende; el texto no cambia.
+   =================================================================== */
+
+#mainNav button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* El icono: una sola linea, sin relleno, con las puntas redondeadas.
+   El tamano va aqui y no en el SVG, para que cambiarlo sea cambiar una
+   regla y no siete atributos. */
+#mainNav button .ico {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+
+/* -------------------------------------------------------------------
+   EL COLOR DE CADA SECCION
+   -------------------------------------------------------------------
+   Va en el boton, no en una regla aparte, para que el estado de reposo y el
+   de seleccionado lean el mismo token. Si el color viviera en un selector
+   aparte, un dia uno de los dos estados se olvida de usarlo.
+   ------------------------------------------------------------------- */
+#mainNav button[data-group="porteria"] {
+  --cat: #5EE0C8;
+}
+
+#mainNav button[data-group="administracion"] {
+  --cat: #8AB4FF;
+}
+
+#mainNav button[data-group="bodega"] {
+  --cat: #FFC178;
+}
+
+#mainNav button[data-group="supervisores"] {
+  --cat: #86E0A0;
+}
+
+#mainNav button[data-group="soporte"] {
+  --cat: #C0AEF7;
+}
+
+#mainNav button[data-group="asistente-social"] {
+  --cat: #F7A8C4;
+}
+
+#mainNav button[data-group="prevencion"] {
+  --cat: #FF8A7A;
+}
+
+/* -------------------------------------------------------------------
+   LOS TRES ESTADOS
+   -------------------------------------------------------------------
+   reposo   el icono con el texto, del color del texto
+   puntero  se enciende el de la seccion
+   elegido  se queda encendido, y el borde de abajo también
+
+   La transicion es corta a proposito: si dura mas, al mover el puntero de
+   una seccion a la otra se ve el color "corriendo" por el menu y parece que
+   algo se esta moviendo.
+   ------------------------------------------------------------------- */
+#mainNav button .ico {
+  transition: stroke .13s ease;
+}
+
+#mainNav button:hover .ico,
+#mainNav button.active .ico {
+  stroke: var(--cat);
+}
+
+#mainNav button.active {
+  border-color: var(--cat);
+}
+
+/* El que no tiene color propio (por ejemplo, si se agrega una seccion nueva
+   y todavia no se le dio token) no se apaga: --cat cae a "inherit" y el
+   icono sigue siendo visible. Un icono invisible es peor que un icono
+   sin color propio. */
+#mainNav button .ico {
+  stroke: var(--cat, currentColor);
+}
+
+/* -------------------------------------------------------------------
+   CUANDO SE PIDE QUE NO HAYA MOVIMIENTO
+   -------------------------------------------------------------------
+   Con transicion de color apagada, el cambio sigue siendo instantaneo: lo
+   que se apaga es el tiempo que tarda, no el cambio.
+   ------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  #mainNav button .ico {
+    transition: none;
+  }
+}
+/* ======================= LOS ICONOS DEL SUBMENU Y DE LAS PESTANAS (2026-09-29) ======================= *//* ===================================================================
+   LOS ICONOS DEL SUBMENU Y DE LAS PESTANAS (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDE
+   -----------
+   Iconos tambien en la barra de submenu ("Trabajadores", "Asistencia
+   mensual", "Aprobaciones y estados", "Relojes y centros de costo", "Kit de
+   contratacion", "Consultar trabajador") y en las pestanas de dentro de las
+   vistas ("Tarja mensual", "Registrar marcaje", "Justificar inasistencia",
+   "Cargar asistencia desde Excel").
+
+   -------------------------------------------------------------------
+   EL COLOR DE CATEGORIA, DEFINIDO UNA SOLA VEZ PARA LOS TRES NIVELES
+   -------------------------------------------------------------------
+   El bloque anterior define el color de cada seccion con un selector que
+   dice "#mainNav button[data-group=...]". Si el submenu usara su propia
+   lista, la paleta estaria escrita en dos lugares, y el dia que se cambie
+   un color el menu principal y el submenu quedarian de tonos distintos.
+
+   Asi que las reglas de color se promiscuan ahora a cualquier elemento con
+   data-group, sin importar donde este. El submenu recibe el mismo atributo
+   que el boton de arriba, y hereda el color por la misma via.
+
+   Poner --cat en un selector ancho es seguro: una variable heredada solo
+   hace algo donde alguien la lea, y el unico que la lee son las reglas de
+   los iconos de este bloque.
+
+   -------------------------------------------------------------------
+   LAS PESTANAS NO TIENEN CATEGORIA
+   -------------------------------------------------------------------
+   Las pestanas de dentro de una vista no cuelgan de un grupo del menu: son
+   cuatro parte de la misma pantalla. Pintarlas del verde de la aplicacion
+   es lo que ya hace la raya de abajo, asi que el icono sigue esa misma
+   senal. Si tomaran el color del grupo, un icono de "Aprobaciones" y uno de
+   "Trabajadores" se verian iguales dentro de la misma vista, y la
+   jerarquia se pierde.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   EL COLOR DE CADA SECCION, PARA LOS TRES NIVELES
+   -------------------------------------------------------------------
+   Sin "#mainNav button" adelante a proposito: la barra de submenu lleva el
+   mismo data-group y tiene que recibir el mismo color.
+   ------------------------------------------------------------------- */
+[data-group="porteria"] {
+  --cat: #5EE0C8;
+}
+
+[data-group="administracion"] {
+  --cat: #8AB4FF;
+}
+
+[data-group="bodega"] {
+  --cat: #FFC178;
+}
+
+[data-group="supervisores"] {
+  --cat: #86E0A0;
+}
+
+[data-group="soporte"] {
+  --cat: #C0AEF7;
+}
+
+[data-group="asistente-social"] {
+  --cat: #F7A8C4;
+}
+
+[data-group="prevencion"] {
+  --cat: #FF8A7A;
+}
+
+/* -------------------------------------------------------------------
+   EL DIBUJO, IGUAL QUE EN EL MENU PRINCIPAL
+   -------------------------------------------------------------------
+   Se agrupan los tres niveles con un selector comun para que los siete
+   botones de arriba, los seis del submenu y las cuatro pestanas se comporten
+   igual. Si cada nivel tuviera su propia copia, el dia que se cambie el
+   grosor del trazo habria que acordarse de cambiarlo en tres lugares.
+   ------------------------------------------------------------------- */
+#mainNav button .ico,
+#subNav .ico,
+.tabs .ico,
+button[role="tab"] .ico {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+  transition: stroke .13s ease;
+}
+
+/* El boton del submenu es una fila, para que el icono quede al lado del
+   texto y no en una linea aparte. */
+#subNav button,
+#subNav .nav-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#subNav .nav-dropdown-children .ico,
+#subNav .nav-dropdown-menu .ico {
+  width: 14px;
+  height: 14px;
+}
+
+/* -------------------------------------------------------------------
+   LOS TRES ESTADOS, OTRA VEZ
+   -------------------------------------------------------------------
+   reposo   del color del texto
+   puntero  el de la seccion
+   elegido  el de la seccion, y el borde tambien
+
+   Y el respaldo: si un item del submenu no tiene --cat porque su data-group
+   no esta en la lista de arriba, el icono se sigue viendo del color del
+   texto. Un icono invisible en un menu es peor que un icono sin color.
+   ------------------------------------------------------------------- */
+#mainNav button:hover .ico,
+#mainNav button.active .ico,
+#subNav button:hover .ico,
+#subNav button.active .ico,
+#subNav .nav-dropdown-trigger:hover .ico,
+#subNav .nav-dropdown[open] > .nav-dropdown-trigger .ico {
+  stroke: var(--cat, currentColor);
+}
+
+#subNav button.active,
+#subNav .nav-dropdown[open] > .nav-dropdown-trigger {
+  border-color: var(--cat, var(--accent));
+}
+
+/* -------------------------------------------------------------------
+   LAS PESTANAS
+   -------------------------------------------------------------------
+   Siguen la senal que ya tenian: la raya verde de abajo. El icono se
+   enciende al pasar el puntero y queda encendido en la elegida.
+   ------------------------------------------------------------------- */
+button[role="tab"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+button[role="tab"]:hover .ico,
+button[role="tab"].active .ico,
+button[role="tab"][aria-selected="true"] .ico {
+  stroke: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mainNav button .ico,
+  #subNav .ico,
+  .tabs .ico,
+  button[role="tab"] .ico {
+    transition: none;
+  }
+}
+/* ======================= EL TONO DEL ICONO, ELEGIDO POR DONDE SE DIBUJA (2026-09-29) ======================= *//* ===================================================================
+   EL TONO DEL ICONO, ELEGIDO POR DONDE SE DIBUJA (2026-09-29)
+   ===================================================================
+
+   EL PROBLEMA, MEDIDO EN EL NAVEGADOR
+   -----------------------------------
+   Cada seccion tiene un color. El mismo color no sirve sobre un fondo claro
+   que sobre uno oscuro, y en esta aplicacion hay los dos:
+
+     la barra del menu principal   siempre oscura   (--accent2 es #101a14)
+     la barra del submenu          clara en tema claro, oscura en oscuro
+     las pestanas                  siguen el fondo de la pagina
+
+   Se eligieron siete tonos claros porque el menu principal es oscuro. Ahi el
+   contraste da entre 8.5 y 12.8, que es excelente. Pero esos mismos tonos,
+   medidos sobre la barra blanca del submenu, daban:
+
+       porteria            1.62
+       asistente social    1.85
+       soporte             1.97
+       prevencion          2.29
+
+   El minimo para un dibujo es 3.0. O sea que casi no se veian.
+
+   Y al oscurecer los tonos para arreglar eso, aparecio el problema inverso:
+   en tema oscuro la barra del submenu es rgb(30,30,30), y los tonos oscuros
+   ahi dan entre 2.71 y 3.19, con "soporte" por debajo del minimo.
+
+   -------------------------------------------------------------------
+   LA SOLUCION: UN TOKEN QUE CADA CONTEXTO ELIGE
+   -------------------------------------------------------------------
+   Cada seccion tiene dos tonos, --cat y --cat-claro, en la MISMA regla, uno
+   debajo del otro. Y despues, cada lugar donde se dibuja un icono declara
+   en --tono cual de los dos le sirve.
+
+   A partir de ahi, todas las reglas leen --tono y no saben de donde sale. La
+   barra oscura toma el claro, la blanca toma el oscuro, y cambiar un color
+   de seccion se sigue tocando en un solo lugar.
+
+   Esa es la diferencia entre tener dos listas de colores y tener dos tonos de
+   un color. Con dos listas, el dia que se cambia un tono se cambia uno y se
+   olvida el otro, y la mitad del menu queda con el color viejo.
+
+   -------------------------------------------------------------------
+   POR QUE EL TONO CLARO ES EL QUE SE USA POR DEFECTO
+   ---------------------------------------------------
+   Porque el tema oscuro es el que esta puesto cuando no se dice nada. La
+   aplicacion lo declara asi: ":root:not([data-theme=light])" es el tema
+   oscuro por defecto. Si --tono quedara sin definir, un icono se dibujaria
+   sin color en vez de dibujarse con el tono equivocado. Un color que no es
+   el correcto se nota; un icono invisible, no.
+   =================================================================== */
+
+[data-group="porteria"] {
+  --cat: #5EE0C8;
+  --cat-claro: #0F7A6A;
+}
+
+[data-group="administracion"] {
+  --cat: #8AB4FF;
+  --cat-claro: #2F6FBF;
+}
+
+[data-group="bodega"] {
+  --cat: #FFC178;
+  --cat-claro: #B5651D;
+}
+
+[data-group="supervisores"] {
+  --cat: #86E0A0;
+  --cat-claro: #2E7D4F;
+}
+
+[data-group="soporte"] {
+  --cat: #C0AEF7;
+  --cat-claro: #6D4BC0;
+}
+
+[data-group="asistente-social"] {
+  --cat: #F7A8C4;
+  --cat-claro: #B03A6B;
+}
+
+[data-group="prevencion"] {
+  --cat: #FF8A7A;
+  --cat-claro: #C0392B;
+}
+
+/* -------------------------------------------------------------------
+   CADA LUGAR DICE QUE TONO NECESITA
+   -------------------------------------------------------------------
+   El menu principal es oscuro siempre, en los dos temas: tono claro.
+   ------------------------------------------------------------------- */
+#mainNav button {
+  --tono: var(--cat, currentColor);
+}
+
+/* El submenu sigue el fondo de la pagina. En tema oscuro es oscuro, asi que
+   necesita el tono claro. */
+#subNav {
+  --tono: var(--cat, currentColor);
+}
+
+/* En tema claro la barra del submenu es blanca: necesita el tono oscuro. */
+:root[data-theme="light"] #subNav {
+  --tono: var(--cat-claro, var(--accent));
+}
+
+/* Las pestanas viven en la pagina. El verde de la aplicacion ya se adapta
+   solo en los dos temas, asi que no hacen falta dos tonos: se usa el que ya
+   dibuja la raya de abajo, para que el icono y la raya digan lo mismo. */
+button[role="tab"] {
+  --tono: var(--accent);
+}
+
+/* -------------------------------------------------------------------
+   Y TODAS LAS REGLAS LEEN SOLO --tono
+   -------------------------------------------------------------------
+   Sin saber de donde viene. Esa es la idea: el color se decide una vez por
+   seccion, el tono se decide una vez por lugar, y el icono no se entera.
+   ------------------------------------------------------------------- */
+#mainNav button:hover .ico,
+#mainNav button.active .ico,
+#subNav button:hover .ico,
+#subNav button.active .ico,
+#subNav .nav-dropdown-trigger:hover .ico,
+#subNav .nav-dropdown[open] > .nav-dropdown-trigger .ico,
+#subNav .nav-dropdown-menu button:hover .ico,
+#subNav .nav-dropdown-children button:hover .ico,
+button[role="tab"]:hover .ico,
+button[role="tab"].active .ico,
+button[role="tab"][aria-selected="true"] .ico {
+  stroke: var(--tono);
+}
+
+#mainNav button.active,
+#subNav button.active,
+#subNav .nav-dropdown[open] > .nav-dropdown-trigger {
+  border-color: var(--tono);
+}
+/* ======================= EL TEXTO JUNTO AL ICONO, Y LOS TITULOS QUE COINCIDEN (2026-09-29) ======================= *//* ===================================================================
+   EL TEXTO JUNTO AL ICONO, Y LOS TITULOS QUE COINCIDEN (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDE
+   -----------
+   1) En el desplegable, el texto pegado al icono. Ahora queda contra el
+      borde derecho, con un hueco en el medio que hace que el menu parezca
+      más ancho de lo que es.
+   2) Las pestañas en mayusculas, como las otras dos barras.
+   3) El titulo de abajo de cada pestaña, en mayusculas y con la misma
+      fuente de la pestaña, para que los dos digan lo mismo con el mismo
+      aspecto.
+   4) El titulo del encabezado cambia con la seccion, y dice para que sirve.
+
+   -------------------------------------------------------------------
+   POR QUE EL MENU DESPLEGABLE QUEDABA AL DERECHA
+   ------------------------------------------------
+   La regla que lo dibuja es
+
+       justify-content: space-between
+
+   que reparte los hijos a los dos extremos. Antes habia un solo hijo: el
+   texto, y space-between no hacia nada visible. Al agregar el icono
+   aparecen dos hijos, y space-between los manda a los bordes: el icono a la
+   izquierda, el texto a la derecha, y un vacio en el medio.
+
+   O sea que el problema no lo causó el icono: lo destapó. La regla llevaba
+   ahi desde antes, escrita para un solo hijo.
+
+   La correccion es flex-start con un hueco, no borrar space-between: el
+   hueco entre icono y texto es lo que separa las dos cosas.
+
+   -------------------------------------------------------------------
+   POR QUE LAS MAYUSCULAS LAS PONE EL CSS Y NO EL TEXTO
+   ---------------------------------------------------
+   Porque el texto en el archivo tiene que seguir siendo "Tarja mensual" y
+   no "TARJA MENSUAL". Si se escribiera en mayusculas, buscar el texto en el
+   archivo habria que resolver si se escribe con mayusculas o sin, y un
+   archivo donde eso importa termina con las dos formas mezcladas.
+
+   Ademas, la barra del menu principal y la del submenu ya/are in
+   mayusculas por la misma razon. Con esto son las tres iguales, y el cambio
+   de estilo se hace en un solo lugar.
+
+/* -------------------------------------------------------------------
+   1) EL DESPLEGABLE: TEXTO PEGADO AL ICONO
+   ------------------------------------------------------------------- */
+#subNav .nav-dropdown-menu button,
+#subNav .nav-dropdown-children button,
+#subNav .nav-dropdown-nested > summary {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+/* El boton de "bloqueado" tiene un candado dibujado con ":before". Con dos
+   hijos y flex-start, el candado se suma al hueco: se separa un poco más,
+   para que el candado no quede pegado al icono. */
+#subNav button.bloqueado {
+  gap: 8px;
+}
+
+/* -------------------------------------------------------------------
+   2) LAS PESTANAS EN MAYUSCULAS
+   ------------------------------------------------------------------- */
+.attendance-tabs button {
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------
+   3) EL TITULO DE ABAJO, IGUAL QUE LA PESTANA
+   -------------------------------------------------------------------
+   La misma familia, el mismo peso, mayusculas y el mismo espaciado entre
+   letras. Se elige el mismo espaciado a proposito: es lo que hace que dos
+   textos con las mismas palabras se vean como la misma cosa y no como dos
+   cosas parecidas.
+   ------------------------------------------------------------------- */
+.attendance-panel > h2 {
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 0 0 12px;
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------
+   4) EL TITULO DEL ENCABEZADO, QUE DICE PARA QUE SIRVE LA SECCION
+   -------------------------------------------------------------------
+   El nombre va en negrita y lo que hace la seccion despues, en un tono mas
+   bajo. No es solo decoracion: sin la diferencia de peso, "Portería" y
+   "Registro de ingresos y salidas" se leen como una frase sola, y no queda
+   claro cual es el nombre de la seccion y cual su funcion.
+   ------------------------------------------------------------------- */
+#tituloSeccion {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+#tituloSeccion .tituloQue {
+  font-weight: 400;
+  opacity: .7;
+  font-size: .92em;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.attendance-panel > h2{
+  font-family:'Montserrat',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.05em;font-weight:600;font-size:1.05rem;margin:0 0 12px;}
