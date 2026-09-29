@@ -3238,7 +3238,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION = '2026-09-29-h';
+const APP_VERSION = '2026-09-29-i';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -4085,7 +4085,12 @@ function resolverCodigoTrabajador(scanned,opciones){
   opciones=opciones||{};
   const leido=String(scanned||'').trim();
   if(!leido)return null;
-  const card=tarjetas.find(t=>mismoId(t.id,leido));
+  // Se compara con normalizarCodigo y no con "==". El resto del programa
+  // lo hace asi, y con "==" una tarjeta guardada en minuscula no se
+  // encontraba si el lector la mandaba en mayuscula. Fallaba solo en este
+  // camino, sin que hubiera ninguna razon visible para eso.
+  const clave=normalizarCodigo(leido);
+  const card=tarjetas.find(t=>normalizarCodigo(t.id)===clave);
   if(card){
     if(card.estado==='anulada'){
       alert('⚠️ TARJETA ANULADA\nEsta tarjeta ya no es válida'+(card.motivo_anulacion?' ('+card.motivo_anulacion+')':'')+'. Pide la tarjeta vigente.');
@@ -4097,8 +4102,17 @@ function resolverCodigoTrabajador(scanned,opciones){
         '\n\nDebe pasar por Administración para regularizar su situación.');
       return null;
     }
-    const w=workers.find(x=>x.code===card.code);
-    if(!w){alert('⚠️ La tarjeta pertenece al código '+card.code+', que no está en la lista de trabajadores.');return null;}
+    // trabajadorEnAlcance mira solo la empresa que se esta viendo, y
+    // trabajadorEnCualquierEmpresa mira todas. La diferencia importa: si el
+    // trabajador es de otra empresa, decir "no esta en la lista" hace que
+    // el supervisor pida de mas.
+    const w=trabajadorEnAlcance(card.code)||trabajadorEnCualquierEmpresa(card.code);
+    if(!w){
+      alert('La tarjeta pertenece al codigo '+card.code+', que no esta en la lista de trabajadores.'
+        +(opciones.sinAvisoEnFallo?'':'\n\nPuede ser que el codigo este mal escrito en la tarjeta,'
+          +' o que el trabajador se haya dado de baja. Revisalo en Administracion.'));
+      return null;
+    }
     if(w.status==='desvinculado'&&!opciones.permitirDesvinculado){
       alert('⛔ TRABAJADOR DESVINCULADO\n'+w.name+' ya no está activo en la empresa, por lo que su tarjeta no habilita el marcaje.'+
         '\n\nDebe pasar por Administración.');
@@ -4108,8 +4122,14 @@ function resolverCodigoTrabajador(scanned,opciones){
   }
   // No es una tarjeta emitida: se acepta el código del trabajador, pero
   // informed, porque el control de tarjeta es justamente lo que importa.
-  const w=workers.find(x=>x.code===leido);
-  if(!w){alert('No se encontró ni una tarjeta ni un trabajador con el código '+leido+'.');return null;}
+  // Con normalizarCodigo, y mirando tambien las otras empresas. Un
+  // supervisor que tiene varias podria escanear la tarjeta de alguien de
+  // la otra y recibir un "no encontrado" en vez de un "es de otra".
+  const w=trabajadorEnAlcance(leido)||trabajadorEnCualquierEmpresa(leido);
+  if(!w){
+    if(!opciones.sinAvisoEnFallo)avisoCodigoNoEncontrado(leido);
+    return null;
+  }
   if(w.status==='desvinculado'&&!opciones.permitirDesvinculado){
     alert('⛔ TRABAJADOR DESVINCULADO\n'+w.name+' ya no está activo en la empresa.'+'\n\nDebe pasar por Administración.');
     return null;
@@ -4119,6 +4139,75 @@ function resolverCodigoTrabajador(scanned,opciones){
       '\n\nLa tarjeta permite comprobar que no esté bloqueada ni anulada. Pasa la tarjeta.');
   }
   return w;
+}
+
+// EL MISMO RESOLUTOR, PERO CON LA BASE
+// -----------------------------------
+// resolverCodigoTrabajador no puede preguntar en la base porque no es
+// async, y un boton de escaneo en la porteria SI puede esperar: no hay nada
+// que la persona tenga que hacer mientras se consulta.
+//
+// Primero la memoria, que es lo rapido. Si no esta, se pregunta a la base
+// con tarjetaRegistrada, que ya hace exactamente eso. Y si tampoco, recien
+// ahi se avisa, porque hasta ese momento el aviso seria mentira.
+//
+// OJO: los avisos de tarjeta anulada o bloqueada NO se callan. Esos no son
+// un fallo de busqueda: son la respuesta, y son la unica parte del camino
+// que de verdad protege la asistencia.
+// POR QUE SALIA SIEMPRE LO MISMO
+// ------------------------------
+// El mensaje "no se encontro una tarjeta ni un trabajador" salia para
+// cuatro cosas distintas:
+//
+//   - la lista de tarjetas de la pantalla esta vacia
+//   - la tarjeta existe pero se emitio despues de abrir la pantalla
+//   - la tarjeta existe pero su trabajador es de otra empresa
+//   - el codigo esta mal escrito
+//
+// Decirle lo mismo a quien esta parado en la porteria es no decirle nada.
+// Este mensaje dice cual de las cuatro es, y que hacer.
+//
+// Y hay una razon de fondo para distinguir la primera: si la lista esta
+// vacia, el problema NO es la tarjeta que esta pasando la persona. Es que
+// la pantalla no cargo nada, y recargar lo arregla. Decirle a alguien que
+// su tarjeta no esta emitida, cuando lo que no esta emitido es la lista
+// de la pantalla, manda a hacer una cola en Administracion que no iba a
+// arreglar nada.
+function avisoCodigoNoEncontrado(leido){
+  const id=String(leido).trim();
+  const cantidad=tarjetas.length;
+  let texto;
+  if(!cantidad){
+    texto='No se encontro nada con el codigo '+id+'.\n\n'
+      +'Ademas, la lista de tarjetas de este equipo esta VACIA: la pantalla no '
+      +'cargo ninguna. Eso casi nunca es culpa de la tarjeta.\n'
+      +'Recarga esta pantalla y pasa la tarjeta de nuevo.';
+  }else{
+    texto='La tarjeta con el codigo '+id+' no esta en la lista.\n\n'
+      +'Esta pantalla tiene '+cantidad+' tarjeta(s) cargadas, y ninguna con ese codigo.\n'
+      +'Lo mas probable es que la tarjeta se haya emitido despues de abrir esta '
+      +'pantalla: recarga y pasa la tarjeta de nuevo.\n'
+      +'Si sigue igual, la tarjeta no esta emitida.';
+  }
+  texto+='\n\nSi es un codigo escrito a mano, revisa que no le falte un digito. '
+    +'Si es de verdad una tarjeta nueva, pedile a Administracion que la emita.';
+  alert(texto);
+}
+
+async function resolverCodigoTrabajadorCompleto(scanned,opciones){
+  opciones=opciones||{};
+  const directo=resolverCodigoTrabajador(scanned,Object.assign({},opciones,{sinAvisoEnFallo:true}));
+  if(directo)return directo;
+  const leido=String(scanned||'').trim();
+  if(!leido)return null;
+  const card=await tarjetaRegistrada(leido);
+  if(!card){
+    if(!opciones.sinAvisoEnFallo)avisoCodigoNoEncontrado(leido);
+    return null;
+  }
+  // Ahora la tarjeta si se conoce: se reaplican los mismos filtros del
+  // camino rapido, con el id de la tarjeta y no con el codigo.
+  return resolverCodigoTrabajador(card.id,opciones);
 }
 function selectEppWorkerByScan(scanned){
   const w=resolverCodigoTrabajador(scanned);
@@ -4138,7 +4227,8 @@ function selectKitWorkerByScan(scanned){
 }
 // En el historial el QR solo filtra por trabajador.
 async function filtrarHistorialPorScan(scanned){
-  const w=resolverCodigoTrabajador(scanned);
+  // Tambien async, asi que tambien puede esperar a la base.
+  const w=await resolverCodigoTrabajadorCompleto(scanned);
   if(!w)return;
   limpiarFiltrosEpp();
   if(typeof showView==='function')showView('bodega-historial');
@@ -4985,7 +5075,10 @@ function avisosSinSalida(w){
 
 // Escaneo de tarjeta en la asistencia diaria.
 async function marcarPorEscaneo(scanned){
-  const w=resolverCodigoTrabajador(scanned);
+  // Con el envoltorio, que ademas pregunta en la base. Antes usaba el
+  // resolutor rapido, que solo mira el arreglo en memoria: por eso una
+  // tarjeta emitida despues de abrir la pantalla salia "no encontrada".
+  const w=await resolverCodigoTrabajadorCompleto(scanned);
   if(!w)return;
   // Solo su equipo. Si es RRHH o administración, se avisa y no se marca.
   if(miCodigoSupervisor&&w.supervisor_code!==miCodigoSupervisor){
