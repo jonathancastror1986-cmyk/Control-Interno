@@ -1,0 +1,373 @@
+/* ===================================================================
+   LA CAPA MÓVIL
+   ===================================================================
+
+   Este archivo no cambia ni un píxel del escritorio, y no por disciplina
+   sino por construcción: el <link> que lo carga lleva el atributo
+
+       media="(max-width: 700px)"
+
+   O sea que por debajo de 700px se aplica este archivo y por encima no se
+   carga siquiera. No hay cascada que pueda ganarle, ni "!important" que
+   pueda joder al escritorio: arriba, este archivo no existe.
+
+   Por qué un archivo aparte y no otro bloque @media dentro de styles.css:
+
+   styles.css es el diseño. Lo que se toca ahí se ve en todos lados, y en
+   un proyecto con 37 vistas cualquier cambio de una línea se propaga a
+   todas. Con un archivo separado, el escritorio es intocable por
+   construcción y revisar el cambio móvil es abrir un archivo.
+
+   -------------------------------------------------------------------
+   LAS MISMAS LETRAS, LOS MISMOS COLORES
+   -------------------------------------------------------------------
+   Acá no se cambia el tipo de letra, ni la paleta, ni los radios, ni los
+   bordes, ni el grosor de las líneas. Sigue siendo Montserrat para los
+   rótulos, Cormorant Garamond para los títulos, y las mismas variables de
+   color.
+
+   Lo único que cambia es la DISPOSICIÓN: cómo se acomodan las cosas en
+   una pantalla angosta. Un formulario en dos columnas pasa a uno, una
+   tabla deja de desbordar y se desliza, un menú desplegable deja de
+   flotar fuera de la pantalla.
+
+   La misma aplicación, acomodada para una pantalla más angosta.
+
+
+   ===================================================================
+   1. EL ENCABEZADO
+   ===================================================================
+
+   -------------------------------------------------------------------
+   LA MEDICIÓN QUE LO DEMUESTRA
+   -------------------------------------------------------------------
+   El encabezado tenía dos estilos en línea:
+
+       flex-wrap:nowrap    en la fila de la empresa
+       min-width:170px     en el <select> de la empresa
+
+   Con esos dos, el bloque de la derecha mide 431 pixels fijos. En una
+   pantalla de 375 el encabezado llegaba a 542, y como el <body> se estira
+   con él, las 37 vistas de la aplicación se salían 167 pixels.
+
+   No eran 37 problemas. Era uno solo, arriba, y las 37 vistas pagaban las
+   consecuencias. Y se reconocía por la forma: si 37 vistas se salen
+   exactamente lo mismo, la causa no está en las vistas.
+
+   El "!important" es necesario y no es un atajo. Los dos estilos están
+   EN LÍNEA en el HTML, y lo que está en línea gana a cualquier regla de la
+   hoja de estilos. Sin "!important" esta capa no podría annularlos, y
+   tocar el HTML para sacarles sería cambiar el diseño de escritorio, que
+   es justo lo que no se puede hacer acá.
+
+   Lo que sí se puede, y es lo correcto, es que el valor por defecto pase
+   a estar en la hoja de estilos y el valor de escritorio quede escrito
+   una sola vez. Eso es un refactor del encabezado, que se puede hacer en
+   otro momento sin apuro. Esta capa es el atajo que no rompe nada.
+   ------------------------------------------------------------------- */
+
+header {
+  /* Que el título baje a su propia línea en vez de empujar a los demás. */
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+}
+
+/* El título se queda con toda la primera línea. Sin esto compite con los
+   botones por el espacio y gana el que tiene min-width, que es el título,
+   porque su min-width es el del texto entero. */
+header h1 {
+  flex: 1 0 100%;
+  margin: 0;
+}
+
+/* El bloque de la derecha sí puede encogerse por debajo de su contenido.
+   min-width:0 es el detalle que hace que un flex se comporte: sin él, un
+   hijo flex nunca baja de su tamaño mínimo, que es el del contenido. */
+.header-actions {
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  min-width: 0;
+  margin-left: 0;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* La fila de la empresa. Pasa a ocupar lo que queda, y el <select> se
+   estira en vez de medir 170 pixels fijos, que es lo que rompía todo. */
+header .row {
+  flex-wrap: wrap !important;
+  min-width: 0;
+  margin: 0 !important;
+  flex: 1 1 160px;
+}
+
+header .row label {
+  margin: 0;
+  white-space: nowrap;
+  font-size: .7rem;
+}
+
+#empresaSel {
+  min-width: 0 !important;
+  flex: 1 1 120px;
+  width: auto;
+  font-size: .8rem;
+  padding: 9px 10px;
+}
+
+
+/* ===================================================================
+   2. LOS MENÚS
+   ===================================================================
+
+   El menú principal ya se desliza con el dedo, porque tiene
+   overflow-x:auto. Eso está bien y no se toca: son siete secciones y en
+   una pantalla angosta no entran de otra manera.
+
+   El submenú es el problema. Sus menús desplegables son
+   position:absolute, o sea que flotan por encima de todo lo demás y se
+   salen de la pantalla por la derecha. En una pantalla angosta, un
+   desplegable que se sale no se puede usar.
+
+   Por eso pasan a ocupar el ancho: en vez de flotar, se acomodan debajo
+   de su título y empujan el contenido. Es el comportamiento que uno
+   espera en un teléfono, donde un menú que tapa la pantalla es peor que
+   un menú que ocupa lugar. */
+#subNav {
+  padding: 0 6px 6px;
+  gap: 4px;
+}
+
+#subNav .nav-dropdown,
+#subNav > button {
+  flex: 1 1 auto;
+}
+
+#subNav .nav-dropdown-menu {
+  position: static;
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  box-shadow: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  margin: 4px 0 0;
+}
+
+#subNav .nav-dropdown[open] > .nav-dropdown-menu {
+  display: flex;
+}
+
+#subNav .nav-dropdown-menu button,
+#subNav .nav-dropdown-nested > summary {
+  white-space: normal;
+  text-align: left;
+  padding: 11px 12px;
+}
+
+#subNav .nav-dropdown-nested {
+  width: 100%;
+}
+
+
+/* ===================================================================
+   3. LAS TABLAS
+   ===================================================================
+
+   Una tabla de asistencia tiene muchas columnas. En 375 pixels no entran
+   de ninguna manera sin que las letras queden de un pixel.
+
+   Se le da scroll propio a la tabla, en vez de scroll a la página. La
+   diferencia es importante: con la página desplazándose de lado, uno
+   pierde de vista el encabezado y no sabe en qué columna está. Con la
+   tabla desplazándose sola, el resto de la página queda quieto.
+
+   Es lo mismo que ya se hace con el menú principal. */
+table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  white-space: nowrap;
+}
+
+table thead,
+table tbody {
+  display: table;
+  width: 100%;
+  min-width: max-content;
+}
+
+
+/* ===================================================================
+   4. LOS CUADROS DE DIÁLOGO
+   ===================================================================
+
+   Los <dialog> traen max-width:520px, y algunos 94vw. En 360 pixels eso
+   deja un margen de 3 a cada lado, y los botones de adentro no entran.
+
+   Se los deja con un margen de 8 pixels y se les saca el ancho máximo. El
+   fondo, el borde y el radio se dejan: es el mismo cuadro que en el
+   escritorio, con otro ancho. */
+dialog {
+  max-width: none !important;
+  width: calc(100vw - 16px) !important;
+  margin: auto;
+}
+
+dialog .card {
+  padding: 14px;
+  max-height: 84vh;
+  overflow-y: auto;
+}
+
+
+/* ===================================================================
+   5. LO QUE NO ENTRA EN UNA PANTALLA ANGOSTA
+   ===================================================================
+
+   -------------------------------------------------------------------
+   EL MAPA DE ASISTENCIA
+   -------------------------------------------------------------------
+   Es una grilla de seis columnas con anchos fijos, que a 753 pixels ya
+   se salía 14. En el teléfono no cabe de ninguna manera: a dos columnas
+   la lectura es mala, y a una la planilla deja de ser una planilla.
+
+   Se deja en tres columnas: código, fecha y estado, que es lo que hace
+   falta para reconocer un marcaje, y el resto sigue estando en la fila
+   pero pasa a ocupar el ancho completo debajo. Es la misma información
+   con otra forma, no menos información.
+
+   -------------------------------------------------------------------
+   LOS ELEMENTOS CON ANCHO FIJO
+   -------------------------------------------------------------------
+   Los que tienen un width fijo en píxeles se convierten a porcentaje o a
+   "todo lo que hay". Es la lista corta de los que se midieron; lo que no
+   aparezca acá, el navegador lo reporta como desborde y se agrega.
+   ------------------------------------------------------------------- */
+.marcajes-fila,
+.marcajes-cabecera {
+  grid-template-columns: 78px 1fr !important;
+  gap: 4px 8px !important;
+}
+
+.marcajes-fila > *,
+.marcajes-cabecera > * {
+  min-width: 0 !important;
+}
+
+/* La octava columna, la que al lado del teléfono no se puede comprimir,
+   pasa a ocupar la fila entera. */
+.marcajes-fila .m7,
+.marcajes-cabecera .m7 {
+  grid-column: 1 / -1;
+  white-space: normal;
+  text-align: left;
+}
+
+.attendance-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.attendance-tabs > * {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+
+/* ===================================================================
+   6. LO GENERICO
+   =================================================================== */
+
+/* Los botones a lo ancho. En una pantalla angosta, un botón de 63
+   pixels al lado de otro de 143 se apretan mal y se aprietan por error:
+   el de "Cerrar sesión" al lado del de "Agregar" a 40 pixels de
+   separación. A lo ancho, uno debajo del otro, no hay forma de apretar el
+   equivocado. */
+.card .row > div > .btn,
+.btn {
+  min-height: 42px;
+}
+
+main {
+  padding: 12px 10px;
+}
+
+.card {
+  padding: 14px;
+}
+
+.card h2 {
+  font-size: 1.4rem;
+}
+
+/* Los campos de texto y los <select> a todo el ancho: en la mitad del
+   ancho de la pantalla un <select> de empresa es ilegible. */
+input,
+select,
+textarea {
+  font-size: 16px; /* sin esto, el iOS hace zoom al enfocar */
+  max-width: 100%;
+}
+
+/* -------------------------------------------------------------------
+   LOS GRUPOS DE BOTONES QUE EL HTML ARMA CON ESTILOS EN LÍNEA
+   -------------------------------------------------------------------
+   Es lo último que quedaba, y salía en dos vistas. El HTML tiene varios
+
+       <div style="display:flex;align-items:flex-end;gap:8px">
+
+   con dos o tres botones adentro. El display:flex está en línea, así que
+   un cambio de marcado lo dejaría igual de roto; pero flex-wrap NO está en
+   línea, y por eso alcanza con nombrarlo acá: si no está puesto, vale
+   nowrap, y nowrap en un grupo de botones en una pantalla angosta es
+   empujar los botones fuera de la vista.
+
+   El botón largo se parte en dos líneas en vez de empujar. Con
+   "Escanear QR de un supervisor" en un botón, lo que se quiere es que el
+   texto baje, no que la pantalla se deslice. */
+div[style*="display:flex"][style*="flex-end"] {
+  flex-wrap: wrap;
+}
+
+div[style*="display:flex"][style*="flex-end"] > .btn {
+  max-width: 100%;
+}
+
+.btn {
+  max-width: 100%;
+  white-space: normal;
+}
+
+/* Lo que tiene un ancho fijo muy grande, como la credencial, se recorta
+   en vez de empujar la página. */
+#cardArea,
+#supIntroCard,
+.print-area {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* Las imágenes, que en una credencial o un papel pueden venir grandes. */
+img,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* El código escaneado y los campos de pegado: son lo que más se usa en la
+   portería, y a 375 pixels con el teclado abierto queda muy poco. */
+#scanCode,
+#totemCampo,
+#totemTokenCampo,
+#tokenValor,
+#tokenInstalarCampo,
+#workerSearch {
+  min-width: 0;
+  width: 100%;
+}

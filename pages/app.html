@@ -415,6 +415,24 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/styles.css">
+<!--
+LA CAPA MÓVIL
+
+Va en un archivo aparte, y con el atributo media. Eso significa que por
+debajo de 860px se carga este archivo y por encima NO SE CARGA. No es que
+"no gane la cascada": es que no existe. El escritorio queda intocable por
+construcción, no por cuidado.
+
+El límite es 860 y no 700 a propósito. Con 700, una tablet en vertical
+—768 pixels— queda afuera, y ahí la vista de Supervisores se salía 10
+pixels. La de escritorio arranca bastante más arriba de 860, así que el
+margen es amplio.
+
+Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
+en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
+quiere correr.
+-->
+<link rel="stylesheet" href="../css/movil.css" media="(max-width: 860px)">
 </head>
 <body>
 <header><h1>Control de Asistencia y Portería</h1><div class="header-actions"><button type="button" class="btn secondary theme-toggle" data-theme-toggle></button><div class="row" style="margin:0 0 0 12px;align-items:center;flex-wrap:nowrap">
@@ -1570,11 +1588,6 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
        Va al final para que quede por encima de todo lo demás. -->
   <div id="totemZonaKiosco" style="display:none" onpointerdown="pulsacionKiosco()"></div>
   <div id="totemPistaKiosco" aria-hidden="true"></div>
-  <!-- La zona del kiosco. Transparente y sin ícono: si se le pone un ícono,
-       es un botón de salida, y entonces el bloqueo no protege de nada.
-       Va al final para que quede por encima de todo lo demás. -->
-  <div id="totemZonaKiosco" style="display:none" onpointerdown="pulsacionKiosco()"></div>
-  <div id="totemPistaKiosco" aria-hidden="true"></div>
   <div class="totem-zona" id="totemZonaCamara" style="display:none">
     <div id="totemCamara"></div>
   </div>
@@ -1735,7 +1748,6 @@ aplicación: no da error de sintaxis, no aparece en el control de
 calidad, y se come elementos que el código sigue usando por su nombre.
 -->
 <dialog id="dlgToken" style="max-width:520px;width:94vw">
-<dialog id="dlgToken" style="max-width:520px;width:94vw">
   <div class="card" style="margin:0">
     <h2 style="margin-top:0">Token de este reloj</h2>
     <small style="display:block;margin-bottom:8px">
@@ -1757,7 +1769,8 @@ calidad, y se come elementos que el código sigue usando por su nombre.
     <input id="tokenValor" readonly style="font-family:ui-monospace,monospace">
     <label for="tokenInstalarCampo" style="margin-top:10px">Pegar el token para que ESTE equipo marque con este reloj</label>
     <div class="row" style="margin-top:6px;gap:8px">
-      <div style="flex:1"><input id="tokenInstalarCampo" placeholder="pegalo acá si querés probar la pantalla en este navegador"></div>
+      <div style="flex:1"><input id="tokenInstalarCampo" placeholder="3f2504e0-4f89-11d3-9a0c-0305e82c3301"></div>
+               title="El token son 36 caracteres con guiones, como el de ejemplo. Si se corta al copiar, no sirve."
       <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="guardarTotemToken()">Instalar</button></div>
     </div>
     <small style="display:block;margin-top:4px">Se guarda en este navegador, no en el archivo de la app. En un equipo compartido cualquiera con acceso al navegador podría marcar: por eso el tótem tiene que ser un aparato dedicado.</small>
@@ -3112,7 +3125,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-w';
+const APP_VERSION='2026-09-29-a';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -12323,8 +12336,11 @@ function pintarEstadoToken(code,instalado){
 // no dice "te equivocaste al copiar": dice que el reloj no existe, y se
 // pierde tiempo buscando el problema en el lugar equivocado.
 function copiarTokenReloj(){
-  const v=document.getElementById('tokenValor').value
-    ||document.getElementById('tokenInstalarCampo').value;
+  // Primero lo que está pegado, después lo que se mostró. Al revés pasaba lo
+  // contrario: quien abría la pantalla, pegaba un token y aprieta Copiar se
+  // llevaba el token viejo, que era justo el que ya no servía.
+  const v=document.getElementById('tokenInstalarCampo').value.trim()
+    ||document.getElementById('tokenValor').value.trim();
   if(!v){
     alert('No hay un token en pantalla para copiar.\n\n'
       +'Si lo perdiste, cerrá esto y presioná "Rotar token" en la lista de relojes.');
@@ -12850,17 +12866,176 @@ async function guardarTokenDesdeTotem(){
     +'Detalle: '+msg.slice(0,140));
 }
 
+// ------------------------------------------------------------------
+// EL GUARDAR EL TOKEN DESDE LA PANTALLA DE RELOJES
+// ------------------------------------------------------------------
+// Tres cosas estaban mal, y las tres terminan con un reloj que no marca y
+// sin que nadie sepa por qué.
+//
+// 1) NO COMPROBABA EL TOKEN ANTES DE GUARDARLO.
+//
+//    El reloj, en su pantalla, comprueba el token antes de usarlo. Esta
+//    pantalla no: guardaba lo que se le pegara. Se podía instalar el
+//    token de otro reloj, o cortado al pegar, y la pantalla decía
+//    "guardado". El error aparecía recién en el primer marcaje, en la
+//    portería, con la gente esperando.
+//
+//    Y hay una razón de fondo para que sea grave: guardar un token
+//    equivocado es una de las pocas acciones que deja al sistema sin
+//    registrar, y sin que en la planilla se note que falta nada.
+//
+// 2) NO ACTUALIZABA EL ESTADO DE LA PANTALLA.
+//
+//    El texto de arriba decía "este reloj NO está instalado en este
+//    navegador". Después de apretar Instalar, seguía diciendo exactamente
+//    eso, con el token recién guardado. La pantalla le mintió a la
+//    persona justo después de hacer lo que le pedía.
+//
+// 3) NO DISTINGUÍA "NO PUDO COMPROBAR" DE "NO SIRVE".
+//
+//    Un corte de conexión de un segundo y un token equivocado dan el
+//    mismo error de la base. No pueden llevar la misma respuesta: con el
+//    primero no se toca nada y se reintenta; con el segundo no se guarda
+//    y hay que rotar el token.
+//
+// Lo que sigue: el token se comprueba contra la base antes de guardarlo,
+// el estado se repinta después, y el diálogo se cierra para que la
+// persona pueda ir a probarlo.
+
 function guardarTotemToken(code){
   code=code||document.getElementById('tokenRelojCodigo').value;
   const inp=document.getElementById('tokenInstalarCampo');
   const t=inp.value.trim();
   if(!t){alert('Pegá el token.');return;}
-  if(!relojPorCodigo(code)){alert('Ese código de reloj no existe.');return;}
-  try{
-    localStorage.setItem('totemToken_'+code,t);
-    alert('Token guardado en este aparato.\n\nA partir de ahora este navegador marca con ese reloj. Para probarlo, abrí la pantalla de ese reloj.');
-  }catch(error){
-    alert('No se pudo guardar: '+error.message+'\n\nSi el navegador está en modo privado, no guarda nada y el token hay que ponerlo cada vez.');
+  const reloj=relojPorCodigo(code);
+  if(!reloj){alert('Ese código de reloj no existe.');return;}
+
+  // Que no se pueda apretar Instalar dos veces: la comprobación va a la
+  // base y puede tardar, y dos llamadas a la vez guardarían la segunda.
+  const btn=document.querySelector('#dlgToken button[onclick^="guardarTotemToken"]');
+  const textoBtn=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Comprobando...';}
+
+  comprobarTokenEnLaBase(code,t).then(r=>{
+    if(btn){btn.disabled=false;btn.textContent=textoBtn||'Instalar';}
+
+    // ----------------------------------------------------------------
+    // NO SE PUDO COMPROBAR: NO SE TOCA NADA
+    // ----------------------------------------------------------------
+    // Puede ser que la obra se haya quedado sin internet un segundo. Si
+    // el token que ya está instalado es el mismo que se está por
+    // guardar, se deja todo como está: puede estar perfectamente bien, y
+    // borrarle el token a alguien que sí marcaba es el peor resultado
+    // posible.
+    if(r.sinRed){
+      if(totemTokenDe(code)===t){
+        pintarEstadoToken(code,true);
+        alert('No se pudo comprobar con la base, pero el token de este reloj\n'
+          +'ya estaba instalado en este equipo. Se dejó como estaba.\n\n'
+          +'Si marcaba y ahora no marca, el problema no es el token.');
+        return;
+      }
+      alert('No se pudo comprobar el token: la base no respondió.\n\n'
+        +'No se guardó nada, para no dejar el reloj sin token. '
+        +'Probá de nuevo cuando haya conexión.');
+      return;
+    }
+
+    // ----------------------------------------------------------------
+    // EL TOKEN NO SIRVE: NO SE GUARDA, Y SE DICE POR QUÉ
+    // ----------------------------------------------------------------
+    if(!r.ok){
+      alert('Ese token no sirve para el reloj '+code+'.\n\n'
+        +r.motivo
+        +'\n\nNo se guardó nada.');
+      return;
+    }
+
+    // ----------------------------------------------------------------
+    // SIRVE: AHORA SÍ SE GUARDA
+    // ----------------------------------------------------------------
+    try{
+      localStorage.setItem('totemToken_'+code,t);
+    }catch(error){
+      alert('No se pudo guardar: '+error.message
+        +'\n\nSi el navegador está en modo privado, no guarda nada y el token '
+        +'hay que ponerlo cada vez.');
+      return;
+    }
+    // El estado se repinta con la verdad, y el diálogo se cierra para ir a
+    // probarlo. Dejarlo abierto con el texto viejo diciendo que no está
+    // instalado era la peor de las dos opciones.
+    pintarEstadoToken(code,true);
+    document.getElementById('dlgToken').close();
+    alert('Token de '+reloj.nombre+' guardado en este equipo.\n\n'
+      +'Para probarlo, abrí la pantalla de marcaje de ese reloj con "Abrir pantalla".');
+  });
+}
+
+// ------------------------------------------------------------------
+// COMPROBAR EL TOKEN CONTRA LA BASE
+// ------------------------------------------------------------------
+// La migración 036. Devuelve tres cosas y no un sí o un no, porque son
+// tres casos que la persona tiene que distinguir:
+//
+//   - sinRed: la base no respondió. NO se toca lo que hay instalado.
+//   - ok:     el token sirve para este reloj.
+//   - motivo: por qué no sirve, en palabras.
+//
+// Un token puede estar mal por cinco razones, y cada una se arregla con
+// una acción distinta. Que la base diga cuál es, y que esta función solo
+// la traduzca, es lo que hace que el mensaje sirva de algo.
+
+function comprobarTokenEnLaBase(code,token){
+  return window.supabaseClient.rpc('comprobar_token_reloj',{p_code:code,p_token:token})
+    .then(({data,error})=>{
+      // La función es de la migración 036. Si todavía no está, el error
+      // lo dice con nombre, y el mensaje dice qué aplicar.
+      if(error&&/42883|does not exist|no existe/i.test(error.message)){
+        return {ok:false,motivo:'La base todavía no tiene esta comprobación. '
+          +'Falta aplicar la migración 036_comprobar_token_reloj.sql.'};
+      }
+      if(error){
+        if(/fetch|network|failed|conex/i.test(error.message))return {sinRed:true};
+        // Un 42501 es de permiso: no es que el token esté malo.
+        if(/42501|SIN_PERMISO/i.test(error.message)){
+          return {ok:false,motivo:'Tu usuario no tiene permiso para comprobar tokens. '
+            +'Pídele a un administrador que te habilite reloj.ver.'};
+        }
+        return {ok:false,motivo:'La base lo rechazó: '+error.message};
+      }
+      const r=data&&(data.comprobar_token_reloj||data);
+      if(r&&r.ok)return {ok:true};
+      return {ok:false,motivo:explicarTokenInvalido(String((r&&r.motivo)||'TOKEN_INVALIDO'),code)};
+    })
+    .catch(error=>{
+      // La llamada ni siquiera llegó: eso es red, no un token malo.
+      return {sinRed:true,motivo:String(error&&error.message)};
+    });
+}
+
+// Cada motivo de la base, traducido a lo que la persona puede hacer. Un
+// "no sirve" a secas no dice si hay que volver a copiar, activar el reloj
+// o rotar el token, y con eso no se puede hacer nada.
+function explicarTokenInvalido(motivo,code){
+  switch(motivo){
+    case 'RELOJ_INEXISTENTE':
+      return 'No hay ningún reloj con el código "'+code+'" en esta empresa.';
+    case 'RELOJ_INACTIVO':
+      return 'El reloj está marcado como inactivo. Activalo con "Configurar" antes de instalar el token.';
+    case 'TOKEN_VACIO':
+      return 'No pegaste ningún token.';
+    case 'TOKEN_MAL_CORRIDO':
+      // El token es un UUID: 36 caracteres, con guiones, en hexadecimal.
+      // Lo decide rotar_token_reloj(), que genera gen_random_uuid().
+      return 'El texto pegado no tiene forma de token. Son 36 caracteres, '
+        +'con guiones, como 3f2504e0-4f89-11d3-9a0c-0305e82c3301. '
+        +'Si está cortado al copiar, vuelve a copiarlo entero.';
+    case 'TOKEN_INVALIDO':
+      return 'El token es válido pero no es el de este reloj. Cada reloj tiene el suyo: '
+        +'cerrá esto y apretá "Rotar token" en la lista, y instalá el nuevo.';
+    default:
+      return 'El token no corresponde a este reloj.';
   }
 }
 function mostrarTotem(clase,titulo,detalle){
