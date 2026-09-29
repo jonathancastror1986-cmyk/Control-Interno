@@ -1,3 +1,4 @@
+
 -- DÓNDE ESTÁ REALMENTE "perfiles", Y SI EL SISTEMA DE PERMISOS FUNCIONA
 --
 -- Ya sabemos que "to_regclass('public.profiles')" da null, y que al mismo

@@ -1,3 +1,4 @@
+
 -- UNA sola consulta: por qué "relation profiles does not exist"
 --
 -- Va en un solo SELECT a propósito. El editor de SQL muestra el ÚLTIMO

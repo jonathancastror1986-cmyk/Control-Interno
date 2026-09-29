@@ -1,3 +1,4 @@
+
 -- POR QUÉ UNA CONSULTA VE LA TABLA Y LA OTRA NO
 --
 -- Esto se ve en un editor de SQL de Supabase cuando el proyecto tiene más de

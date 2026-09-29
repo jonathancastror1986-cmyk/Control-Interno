@@ -1,3 +1,4 @@
+
 -- ¿FUNCIONA EL SISTEMA DE PERMISOS?
 --
 -- Es la llamada REAL a es_usuario_activo(), no una que devuelva un texto fijo.

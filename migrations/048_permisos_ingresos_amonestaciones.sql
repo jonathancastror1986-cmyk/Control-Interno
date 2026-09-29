@@ -2,7 +2,7 @@
 -- 048: QUIÉN PUEDE PEDIR Y QUIÉN PUEDE RESOLVER (2026-09-29)
 -- ===================================================================
 --
--- LA 046 Y LA 047 DECLARAN LOS PERMISOS, NO LOS ASIGNAN
+-- LA 046 Y LA 047 DECLARABAN LOS PERMISOS, NO LOS ASIGNAN
 -- ------------------------------------------------------
 -- Eso fue a propósito: decidir que prevención puede registrar amonestaciones
 -- es una decisión de la empresa, y si se asigna desde el código, se toma sola.
@@ -12,103 +12,126 @@
 -- recuerda.
 --
 -- -------------------------------------------------------------------
--- LOS PERMISOS, Y QUIÉN LOS RECIBE
--- -------------------------------------------------------------------
---   ingresos.pedir          el supervisor escribe con el RUT delante, y
---                           técnica también. RRHH por si lo necesita.
---                           NO lo lleva prevención: no es un tema suyo.
+-- EL ERROR DE LA PRIMERA VERSIÓN, Y POR QUÉ PASÓ
+-- -----------------------------------------------
+-- La primera versión hacía esto:
 --
---   ingresos.aprobar        solo RRHH. Es la parte donde se asigna el código
---                           del trabajador, que es la llave de todo lo demás
---                           (tarjetas, asistencia, EPP, herramientas). Que lo
---                           apruebe más de un rol es repartir esa llave.
+--     from roles_sistema r
+--     cross join (values ('ingresos.pedir', r.rol in ('supervisores',...)))
+--                as v(permiso, aplica)
 --
---   amonestaciones.registrar  técnica, prevención y RRHH. Así lo pidió la
---                           empresa.
+-- Y PostgreSQL la rechazó con "invalid reference to FROM-clause entry for
+-- table r", con una pista: "marca esta subconsulta con LATERAL".
 --
---   amonestaciones.archivar   los mismos tres. Archivar es lo que desmarca la
---                           casilla, así que el permiso va aparte: puede
---                           archivar quien no debería poder registrar.
+-- Tiene sentido: una lista VALUES dentro de un FROM no puede mirar a las otras
+-- tablas de ese mismo FROM. No es un detalle de sintaxis, es que la lista se
+-- evalúa antes. La pista que da PostgreSQL es LATERAL, y LATERAL sería
+--。, pero no es la forma más simple ni la más legible.
 --
---   amonestaciones.ver       los tres más supervisores. El supervisor LEE el
---                           historial para conocer a su gente, pero no
---                           escribe: si el supervisor pudiera marcar, el
---                           registro dejaría de servir para nada.
---
--- -------------------------------------------------------------------
--- LOS ROLES SE TOMAN DE LA TABLA, NO DE UNA LISTA ESCRITA
--- ------------------------------------------------------
--- El "insert ... select" desde roles_sistema con una lista de roles FILTRADA
--- hace que, si un rol no existe, no se conceda nada a un rol inventado en vez
--- de dar error. Es la diferencia entre "este rol no existe todavía" y "le di
--- amonestaciones a un rol fantasma".
---
--- Y la migración es de las pocas que se pueden correr dos veces sin romper
--- nada: todo lleva "on conflict do nothing".
---
--- -------------------------------------------------------------------
--- LO QUE NO SE TOCA
--- -----------------
--- admin no se agrega. Las funciones lo aceptan con es_admin(), y en el
--- catálogo de permisos la casilla de admin ya está siempre marcada. Meterlo
--- acá sería una fila más que dice lo mismo que todas.
+-- La versión buena, y la que va aquí, es la lista explícita de thirteen
+-- asignaciones. Se lee de un vistazo qué permiso tiene qué rol, que es
+-- justamente lo que hay que poder revisar en seis meses. Y con el "where
+-- exists" no se le concede nada a un rol que no exista.
 -- ===================================================================
 
+-- -------------------------------------------------------------------
+-- LAS ASIGNACIONES
+-- -------------------------------------------------------------------
+-- Los criterios, que no son caprichos:
+--
+--   ingresos.pedir            el supervisor escribe con el RUT delante, y
+--                             técnica también. RRHH por si lo necesita.
+--                             NO lo lleva prevención: no es un tema suyo.
+--
+--   ingresos.aprobar          SOLO RRHH. Ahí se asigna el código del
+--                             trabajador, que es la llave de todo lo demás:
+--                             tarjetas, asistencia, EPP, herramientas. Que lo
+--                             apruebe más de un rol es repartir esa llave.
+--
+--   amonestaciones.registrar  técnica, prevención y RRHH, como lo pidió la
+--                             empresa.
+--
+--   amonestaciones.archivar   los mismos tres. El permiso va aparte del de
+--                             registrar, porque archivar es lo que desmarca la
+--                             casilla: puede archivar quien no debería poder
+--                             registrar.
+--
+--   amonestaciones.ver        los tres más supervisores. El supervisor LEE el
+--                             historial para conocer a su gente, pero no
+--                             escribe. Si el supervisor pudiera marcar, el
+--                             registro dejaría de servir para nada.
+--
+-- admin NO aparece: las funciones lo aceptan con es_admin(), y su casilla ya
+-- está siempre marcada. Ponerlo acá sería una fila que dice lo mismo que
+-- todas.
 insert into roles_permisos (rol, permiso)
-select r.rol, v.permiso
-  from roles_sistema r
- cross join (values
-    -- el ingreso lo pide quien está en terreno
-    ('ingresos.pedir',             r.rol in ('supervisores','tecnica','rrhh')),
-    -- y lo resuelve solo RRHH
-    ('ingresos.aprobar',           r.rol = 'rrhh'),
-    -- las amonestaciones
-    ('amonestaciones.registrar',   r.rol in ('tecnica','prevencion','rrhh')),
-    ('amonestaciones.archivar',    r.rol in ('tecnica','prevencion','rrhh')),
-    ('amonestaciones.ver',         r.rol in ('tecnica','prevencion','rrhh','supervisores'))
-  ) as v(permiso, aplica)
- where v.aplica
+select v.rol, v.permiso
+  from (values
+    ('supervisores',  'ingresos.pedir'),
+    ('tecnica',       'ingresos.pedir'),
+    ('rrhh',          'ingresos.pedir'),
+
+    ('rrhh',          'ingresos.aprobar'),
+
+    ('tecnica',       'amonestaciones.registrar'),
+    ('prevencion',    'amonestaciones.registrar'),
+    ('rrhh',          'amonestaciones.registrar'),
+
+    ('tecnica',       'amonestaciones.archivar'),
+    ('prevencion',    'amonestaciones.archivar'),
+    ('rrhh',          'amonestaciones.archivar'),
+
+    ('tecnica',       'amonestaciones.ver'),
+    ('prevencion',    'amonestaciones.ver'),
+    ('rrhh',          'amonestaciones.ver'),
+    ('supervisores',  'amonestaciones.ver')
+  ) as v(rol, permiso)
+ where exists (select 1 from roles_sistema r where r.rol = v.rol)
 on conflict (rol, permiso) do nothing;
 
 -- -------------------------------------------------------------------
 -- DIAGNÓSTICO
 -- -------------------------------------------------------------------
--- Dice qué se concedió y qué falta. Se lee después de correr la migración, y
--- también dentro de un mes, cuando alguien pregunte por qué una casilla no
--- aparece.
+-- Dice qué se concedió y qué falta, para los roles que la 048 toca. Si
+-- mañana se agrega un permiso, esta lista se ve desactualizada a la vista en
+-- vez de fallar en silencio.
 --
--- La lista de permisos esperados está en el propio diagnóstico, y no en el
--- código de la aplicación: si mañana se agrega un permiso, esta lista se ve
--- desactualizada en vez de fallar en silencio.
+-- También es un solo SELECT sin bloques ni manejadores de excepción, porque
+-- el editor de SQL parte las sentencias y un bloque con muchos punto y coma se
+-- corta a la mitad.
 create or replace function public.diagnostico_permisos_ingresos_amonestaciones()
 returns table (
-  rol text,
-  permiso text,
-  asignado boolean
+  rol       text,
+  permiso   text,
+  asignado  boolean
 )
 language sql
 security definer
 set search_path = public
 as $$
-  with esperados(clave) as (
-    values ('ingresos.pedir'), ('ingresos.aprobar'),
-           ('amonestaciones.ver'), ('amonestaciones.registrar'),
-           ('amonestaciones.archivar')
-  ),
-  concedidos as (
-    select r.rol, e.clave
-      from esperados e
-      join roles_sistema r on true
-      join roles_permisos rp on rp.rol = r.rol and rp.permiso = e.clave
+  with esperados (rol, permiso) as (
+    values
+      ('supervisores',  'ingresos.pedir'),
+      ('tecnica',       'ingresos.pedir'),
+      ('rrhh',          'ingresos.pedir'),
+      ('rrhh',          'ingresos.aprobar'),
+      ('tecnica',       'amonestaciones.registrar'),
+      ('prevencion',    'amonestaciones.registrar'),
+      ('rrhh',          'amonestaciones.registrar'),
+      ('tecnica',       'amonestaciones.archivar'),
+      ('prevencion',    'amonestaciones.archivar'),
+      ('rrhh',          'amonestaciones.archivar'),
+      ('tecnica',       'amonestaciones.ver'),
+      ('prevencion',    'amonestaciones.ver'),
+      ('rrhh',          'amonestaciones.ver'),
+      ('supervisores',  'amonestaciones.ver')
   )
-  select r.rol, e.clave, (c.rol is not null) as asignado
+  select e.rol, e.permiso,
+         (rp.rol is not null) as asignado
     from esperados e
-    cross join roles_sistema r
-    left join concedidos c on c.rol = r.rol and c.clave = e.clave
-   order by e.clave, r.rol
-   -- Solo los roles que la 048 toca: los demás no tienen nada que ver con
-   -- estos permisos y ensucian la salida
-   where r.rol in ('supervisores','tecnica','rrhh','prevencion','porteria','oficina','bodega')
+    left join roles_permisos rp
+           on rp.rol = e.rol and rp.permiso = e.permiso
+   order by e.permiso, e.rol
 $$;
 
 grant execute on function public.diagnostico_permisos_ingresos_amonestaciones() to authenticated;
