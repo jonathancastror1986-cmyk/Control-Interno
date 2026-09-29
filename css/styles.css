@@ -4950,10 +4950,6 @@ header,
 #subNav button,
 #subNav .nav-dropdown-trigger,
 header h1,
-#empresaSel{
-  transition:padding .18s ease,font-size .18s ease,transform .18s ease,
-             background-color .2s ease,color .15s ease,border-color .15s ease;
-}
 
 /* -------------------------------------------------------------------
    AL BAJAR: MÁS CONTENIDO
@@ -4961,66 +4957,19 @@ header h1,
    La franja que se gana es real: unos 46 píxeles de alto del encabezado y
    unos 4 de cada ícono. En una pantalla de 1080 son casi dos Centímetros, que
    es una línea de tabla o el encabezado de una tarjeta. */
-body.nav-compacto header{padding:6px 16px;gap:10px}
-body.nav-compacto header h1{font-size:.78rem}
-body.nav-compacto #empresaSel{min-width:120px;padding:4px 8px}
-body.nav-compacto .header-actions{gap:6px}
-body.nav-compacto .header-actions .btn,
-body.nav-compacto header .btn{padding:4px 10px;font-size:.72rem}
-body.nav-compacto #mainNav button{padding:8px 10px}
-body.nav-compacto #mainNav button .ico,
-body.nav-compacto #subNav .ico{transform:scale(.82)}
-
 /* -------------------------------------------------------------------
-   AL PONER EL MOUSE ENCIMA: VUELVE A SU TAMAÑO
+   LO QUE HACÍA ESTE LUGAR
    -------------------------------------------------------------------
-   La animación va en el transform del ícono y en el padding del encabezado,
-   que es lo que se ve mientras el dedo o el mouse se mueve. Sin transición
-   esto sería un salto, y un salto en lo que se está por hacer clic es peor
-   que dejarlo Chico.
+   Aquí se encogía el encabezado por partes: el padding por un lado, la fuente
+   por otro, los botones de secciones por otro. Y del submenú solo se encogía
+   el ícono, que es lo único que no se ve al lado de "APROBACIONES Y ESTADOS".
+   Por eso el submenú era el que menos se encogía, siendo el que tiene las
+   etiquetas más largas.
+   Se quitó todo y quedó una sola regla que encoge la barra entera con un
+   scale vertical. Dos formas de animar lo mismo a la vez no se anulan: se
+   suman, y el resultado es un tirón.
+   La está en el bloque "EL SUBNAV TAMBIÉN SE ENCOGE", más abajo.
    ------------------------------------------------------------------- */
-header:hover,
-body.nav-compacto header:focus-within{padding:14px 24px;gap:16px}
-body.nav-compacto header:hover h1,
-body.nav-compacto header:focus-within h1{font-size:1rem}
-body.nav-compacto header:hover #empresaSel,
-body.nav-compacto header:focus-within #empresaSel{min-width:170px;padding:6px 10px}
-body.nav-compacto header:hover .header-actions .btn,
-body.nav-compacto header:hover header .btn,
-body.nav-compacto header:focus-within .header-actions .btn,
-body.nav-compacto header:focus-within header .btn{padding:8px 14px;font-size:.85rem}
-body.nav-compacto #mainNav button:hover,
-body.nav-compacto #mainNav button:focus-visible{padding:13px 12px}
-body.nav-compacto #mainNav button:hover .ico,
-body.nav-compacto #mainNav button:focus-visible .ico,
-body.nav-compacto #subNav button:hover .ico,
-body.nav-compacto #subNav .nav-dropdown-trigger:hover .ico{transform:scale(1.14)}
-
-/* El que está parado tampoco crece, porque no es el que hace clic: es el que
-   está mirando. Si creciera, se movería el resto de la fila y el resto de la
-   fila es la lista de secciones. */
-body.nav-compacto #mainNav button.active .ico{transform:scale(.9)}
-
-/* -------------------------------------------------------------------
-   CUANDO NO SE PIDEN ANIMACIONES
-   -------------------------------------------------------------------
-   Con "reduce" no hay transición: el tamaño cambia de golpe. Es lo que se
-   pide y además es lo correcto: en una persona con problemas de vértigo, un
-   ícono que crece al pasar el mouse es exactamente el movimiento que le
-   molesta, y no vale la pena discutirlo.
-   ------------------------------------------------------------------- */
-@media (prefers-reduced-motion: reduce){
-  header,
-  #mainNav button .ico,
-  #subNav .ico,
-  #mainNav button,
-  #subNav button,
-  #subNav .nav-dropdown-trigger,
-  header h1,
-  #empresaSel{transition:none}
-  body.nav-compacto #mainNav button:hover .ico,
-  body.nav-compacto #subNav button:hover .ico{transform:none}
-}
 
 
 /* ===================================================================
@@ -5173,25 +5122,6 @@ body.nav-compacto #mainNav button.active .ico{transform:scale(.9)}
 
 #barrasSuperiores{contain:layout}
 
-body.nav-compacto header,
-body.nav-compacto #mainNav button,
-body.nav-compacto #subNav button,
-body.nav-compacto #subNav .nav-dropdown-trigger,
-body.nav-compacto header h1,
-body.nav-compacto #empresaSel,
-header,
-#mainNav button .ico,
-#subNav .ico{
-  transition:
-    padding .3s cubic-bezier(.4,0,.2,1),
-    margin .3s cubic-bezier(.4,0,.2,1),
-    font-size .3s cubic-bezier(.4,0,.2,1),
-    min-width .3s cubic-bezier(.4,0,.2,1),
-    transform .3s cubic-bezier(.4,0,.2,1),
-    background-color .2s ease,
-    color .15s ease,
-    border-color .15s ease;
-}
 
 /* -------------------------------------------------------------------
    LA CIMA Y EL FINAL, MÁS SUAVES
@@ -5206,8 +5136,6 @@ header,
    es una propiedad de CSS: el navegador la descarta sin avisar, y por eso la
    animación salía mal sin que hubiera un error en la consola que lo explicara.
    ------------------------------------------------------------------- */
-body.nav-compacto #mainNav button .ico,
-body.nav-compacto #subNav .ico{transform:scale(.82)}
 
 /* Con "reduce" no hay transición. Además de lo que ya se dijo del vértigo, acá
    hay una razón técnica: sin transición el cambio de alto del encabezado
@@ -5582,3 +5510,115 @@ input:focus,select:focus,textarea:focus{
    redondeada y no un botón.
    ------------------------------------------------------------------- */
 button,.btn{border-radius:7px}
+
+
+/* ===================================================================
+   EL SUBNAV TAMBIÉN SE ENCOGE, Y LA ANIMACIÓN ES UNA SOLA COSA
+   ===================================================================
+   El encabezado y las secciones se achicaban; el submenú no, y era el más
+   notorio porque tiene las etiquetas más largas. El ícono se achicaba, que es
+   lo único que no se ve al lado de "APROBACIONES Y ESTADOS".
+
+   Y la animación tiraba. No porque fuera corta, sino porque animaba cinco
+   propiedades a la vez: cada una se recalcula por separado y todas a la misma
+   velocidad, así que no se mueven como una sola cosa.
+
+   Acá se hace al revés. Se encoge la barra ENTERA con una sola propiedad, el
+   transform:scale() vertical. Una sola propiedad, se calcula en la GPU, no toca
+   el layout y no recalcula la página en ningún fotograma.
+
+   Y como el alto del contenedor queda fijo, el contenido de abajo no se mueve
+   de golpe: la barra se achica de adentro hacia afuera.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   EL ENCOJIDO
+   -------------------------------------------------------------------
+   scaleY es lo único que se anima. El eje Y es el que importa: encoger el
+   alto de la barra es lo que devuelve espacio a la página, y encoger el ancho
+   solo hace que el texto se aplaste.
+
+   El transform-origin arriba es a propósito: si se encoge desde el centro, la
+   barra se hunde hacia abajo y el contenido de abajo trepa, que es justo el
+   tirón que se veía. Desde arriba, la barra se comprime contra su propio borde
+   y lo que sube es el contenido, que es lo que se espera. */
+body.nav-compacto #barrasSuperiores header,
+body.nav-compacto #mainNav,
+body.nav-compacto #subNav{
+  transform:scaleY(.72);
+  transform-origin:top center;
+  transition:transform .34s cubic-bezier(.25,.46,.45,.94);
+  will-change:transform;
+}
+
+/* -------------------------------------------------------------------
+   QUE NO SE VEA BORROSO
+   -------------------------------------------------------------------
+   Escalar texto hacia abajo lo deja medio pixel arriba. El navegador no lo
+   suaviza solo, y por eso el texto se ve un poco borroso al terminar.
+   ------------------------------------------------------------------- */
+body.nav-compacto #barrasSuperiores header h1,
+body.nav-compacto #mainNav button,
+body.nav-compacto #subNav button,
+body.nav-compacto #subNav .nav-dropdown-trigger{
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+/* -------------------------------------------------------------------
+   EL TEXTO DEL SUBMENÚ, QUE ANTES NO SE ACHICABA
+   -------------------------------------------------------------------
+   Con la barra entera escalada ya no hace falta achicar cada pieza. Estas
+   reglas quedan solo para los tamaños FIJOS, que el scale no toca: el borde
+   de 2 del desplegable, que sí se vería gordo, y el alto del campo de
+   búsqueda que cuelga del submenú.
+   ------------------------------------------------------------------- */
+body.nav-compacto #subNav .nav-dropdown-trigger{border-bottom-width:1px}
+
+/* -------------------------------------------------------------------
+   AL PASAR EL MOUSE, VUELVE A SU TAMAÑO
+   -------------------------------------------------------------------
+   Y ahora sí crece, porque la escala es la de la barra entera y se nota. Es
+   la misma idea de antes pero sobre una sola propiedad, que es lo que la
+   hace ver natural: la barra crece, no cada pieza por separado.
+   ------------------------------------------------------------------- */
+#barrasSuperiores header:hover,
+body.nav-compacto #barrasSuperiores header:focus-within,
+body.nav-compacto #mainNav:hover,
+body.nav-compacto #subNav:hover,
+body.nav-compacto #subNav .nav-dropdown:hover{
+  transform:scaleY(1);
+  transition:transform .26s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* -------------------------------------------------------------------
+   LO QUE QUEDA: EL COLOR Y EL FONDO
+   -------------------------------------------------------------------
+   Siguen con su transición propia, corta. El color no cambia el layout, así
+   que es barato y no estorba. Lo que se quitó de la lista fue todo lo demás.
+   ------------------------------------------------------------------- */
+#barrasSuperiores header,
+#mainNav button,
+#subNav button,
+#subNav .nav-dropdown-trigger{
+  transition:transform .34s cubic-bezier(.25,.46,.45,.94),
+             background-color .2s ease,
+             color .15s ease,
+             border-color .15s ease;
+}
+
+@media (prefers-reduced-motion: reduce){
+  body.nav-compacto #barrasSuperiores header,
+  body.nav-compacto #mainNav,
+  body.nav-compacto #subNav{transform:none}
+  #barrasSuperiores header:hover,
+  body.nav-compacto #mainNav:hover,
+  body.nav-compacto #subNav:hover{transform:none}
+  body.nav-compacto #barrasSuperiores header,
+  body.nav-compacto #mainNav,
+  body.nav-compacto #subNav,
+  #barrasSuperiores header,
+  #mainNav button,
+  #subNav button,
+  #subNav .nav-dropdown-trigger{transition:none}
+}
