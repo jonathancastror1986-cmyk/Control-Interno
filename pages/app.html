@@ -1115,6 +1115,15 @@ porque salen del mismo lugar.
       <button class="btn secondary" type="button" id="eppKitBtn" onclick="addEppCargoKit()" style="display:none">Agregar kit del cargo</button>
     </div>
 
+    <label>Dónde se entrega (opcional)</label>
+    <div class="row" style="gap:8px">
+      <div><label>Pasillo</label><input id="epp-pasillo" placeholder="Ej. P-4"></div>
+      <div><label>Sector</label><input id="epp-sector" placeholder="Ej. Taller de gasfitería"></div>
+      <div><label>Nivel</label><input id="epp-nivel" placeholder="Ej. Planta baja"></div>
+    </div>
+    <div id="eppScanAviso"></div>
+    <small>Estos tres campos se pueden dejar vacíos: hay entregas que no son en un punto fijo, como una entrega inicial que se hace en la propia obra.</small>
+
     <label>Elementos entregados</label>
     <div class="eppItems">
       <div class="eppItemRow eppItemHead">
@@ -1216,6 +1225,12 @@ porque salen del mismo lugar.
       </div>
     </div>
 
+    <label>Dónde se entrega (opcional)</label>
+    <div class="row" style="gap:8px">
+      <div><label>Pasillo</label><input id="kit-pasillo" placeholder="Ej. P-4"></div>
+      <div><label>Sector</label><input id="kit-sector" placeholder="Ej. Bodega central"></div>
+      <div><label>Nivel</label><input id="kit-nivel" placeholder="Ej. Planta baja"></div>
+    </div>
     <button class="btn" type="button" onclick="entregarKitItems()" id="kitSaveBtn">Entregar marcados y generar PDF</button>
     <span id="kitSaveMsg" style="margin-left:10px;font-size:.8rem"></span>
   </div>
@@ -4354,6 +4369,9 @@ function handleScannedCode(rawCode,purpose){
   if(purpose==='kit-worker'){selectKitWorkerByScan(code);return;}
   if(purpose==='epp-historial'){filtrarHistorialPorScan(code);return;}
   if(purpose==='tool-owner'){lookupQrOwner(code);return;}
+  // Elemento, herramienta o kit. El numero es la fila a la que va.
+  if(purpose.indexOf('epp-item:')===0){escanearEppItem(+purpose.slice(9),code);return;}
+  if(purpose.indexOf('kit-item:')===0){escanearKitItem(+purpose.slice(9),code);return;}
   const input=document.getElementById('scanCode');
   if(input)input.value=code;
   doScan();
@@ -9099,6 +9117,8 @@ function renderEppItemRows(){
           <option value="" ${(!r.otro&&!r.eppCodigo)?'selected':''}>— elegir elemento —</option>
           ${eppCatalog.filter(c=>c.activo!==false).map(c=>`<option value="${c.codigo}" ${!r.otro&&r.eppCodigo===c.codigo?'selected':''}>${c.codigo} — ${c.nombre}</option>`).join('')}
         </select>
+        <button class="btn secondary eppScanBtn" type="button" data-dato="Escanear el código del elemento de esta fila"
+          onclick="openQrCamera('epp-item:${i}')">📷 Escanear</button>
         ${r.otro?`<input style="margin-top:6px" placeholder="Nombre del elemento" value="${r.nombre}" oninput="eppItemRows[${i}].nombre=this.value">
         <select style="margin-top:6px" onchange="eppItemRows[${i}].tipoTalla=this.value;renderEppItemRows()">
           ${['','calzado','ropa','general'].map(t=>`<option value="${t}" ${tipo===t?'selected':''}>${t?('Talla: '+(TIPO_TALLA_LABEL[t]||t)):'Talla: según elemento'}</option>`).join('')}
@@ -9134,6 +9154,38 @@ function onEppItemChange(i,value){
   // al cambiar de elemento la talla elegida puede dejar de existir
   const tallas=tallasDeTipo(tipoTallaDeItem(row));
   if(!tallas.includes(row.talla))row.talla='';
+  renderEppItemRows();
+}
+// Un elemento escaneado que no está en el catálogo.
+function avisarElementoFueraDeCatalogo(codigo){
+  const hay=eppCatalog.find(c=>normalizarCodigo(c.codigo)===normalizarCodigo(codigo));
+  if(hay)return false;
+  const avis=document.getElementById('eppScanAviso');
+  if(avis)avis.innerHTML='<small style="color:var(--warn-ink)"><b>'+escHtml(codigo)+'</b> no está en el catálogo de EPP, así que se agregó como carga manual. '
+    +'Si es un elemento que se usa siempre, conviene darlo de alta en el catálogo.</small>';
+  return true;
+}
+function escanearEppItem(indice,codigo){
+  const fila=eppItemRows[indice];
+  if(!fila)return;
+  const limpia=String(codigo||'').trim();
+  if(!limpia)return;
+  const cat=eppCatalog.find(c=>normalizarCodigo(c.codigo)===normalizarCodigo(limpia));
+  if(cat){
+    fila.otro=false;
+    fila.eppCodigo=cat.codigo;
+    fila.nombre=cat.nombre;
+    if(!fila.detalle)fila.detalle=cat.detalle||'';
+    fila.tipoTalla=cat.tipo_talla||null;
+    const tallas=tallasDeTipo(tipoTallaDeItem(fila));
+    if(!tallas.includes(fila.talla))fila.talla='';
+  }else{
+    fila.otro=true;
+    fila.eppCodigo='';
+    fila.nombre=limpia;
+    fila.tipoTalla=null;
+    avisarElementoFueraDeCatalogo(limpia);
+  }
   renderEppItemRows();
 }
 function removeEppItemRow(i){
@@ -9584,7 +9636,10 @@ async function saveEpp(){
   if(!gps)gps=eppGps;
 
   const stamp=new Date();
-  const base={code,fecha,detalle:eppDetalleResumen(items),observacion:observacion||null,es_entrega_inicial:esInicial,cargo};
+  const base={code,fecha,detalle:eppDetalleResumen(items),observacion:observacion||null,es_entrega_inicial:esInicial,cargo,
+    pasillo:document.getElementById('epp-pasillo').value.trim()||null,
+    sector:document.getElementById('epp-sector').value.trim()||null,
+    nivel:document.getElementById('epp-nivel').value.trim()||null};
   // La hora que se guarda es la de la FIRMA, no la del guardado. Entre una
   // y otra puede pasar un rato: se revisa la entrega, se conversa con la
   // persona, se busca un elemento. Guardar la hora del guardado haría que
@@ -10521,12 +10576,30 @@ function renderKitEntrega(){
   host.innerHTML=pendientes.map((it,idx)=>`
     <div class="kitFila" data-id="${it.id}">
       <div><input type="checkbox" id="kc-${idx}" checked onchange="kitItemSeleccionado('${it.id}',this.checked)"></div>
-      <div><b>${it.epp_codigo||''}</b> ${it.nombre}<br><small>${it.detalle||''}</small></div>
+      <div><b>${it.epp_codigo||''}</b> ${it.nombre}<br><small>${it.detalle||''}</small><button class="btn secondary" type="button" data-dato="Escanear el código de este elemento del kit" style="padding:3px 7px;font-size:.62rem;margin-top:4px" onclick="openQrCamera('kit-item:${idx}')">📷 Escanear</button></div>
       <div><select onchange="kitItemTalla('${it.id}',this.value)">${tallaOptions(it.tipo_talla,it.talla)}</select></div>
       <div><input type="number" min="1" step="1" value="${it.cantidad}" onchange="kitItemCantidad('${it.id}',this.value)"></div>
       <div style="text-align:center"><b>${it.cantidad}</b></div>
       <div><span class="kitEstado pendiente">Pendiente</span></div>
     </div>`).join('');
+}
+function escanearKitItem(indice,codigo){
+  const limpia=String(codigo||'').trim();
+  if(!limpia)return;
+  const fila=kitFilaActual(indice);
+  if(!fila)return;
+  const cat=eppCatalog.find(c=>normalizarCodigo(c.codigo)===normalizarCodigo(limpia));
+  const sought=cat?cat.codigo:limpia;
+  const enElKit=fila.items&&fila.items.find(i=>normalizarCodigo(i.epp_codigo||'')===normalizarCodigo(sought));
+  const caja=document.getElementById('kitScanAviso');
+  if(enElKit){
+    const cb=document.getElementById('kc-'+indice);
+    if(cb)cb.checked=true;
+    if(caja)caja.innerHTML='<small style="color:var(--accent)"><b>'+escHtml(sought)+'</b> está en el kit. Queda marcado para entregar.</small>';
+  }else{
+    if(caja)caja.innerHTML='<small style="color:var(--warn-ink)"><b>'+escHtml(sought)+'</b>'
+      +' no está en este kit. No se agregó: los elementos de un kit son los que trae la asignación, no los que se escanean.</small>';
+  }
 }
 function kitItemSeleccionado(id,checked){
   const a=asignacionActual();
@@ -10582,6 +10655,9 @@ function marcarTodosPendientes(valor){
       fecha:hoyLocal(),
       detalle:eppDetalleResumen(items),
       observacion:document.getElementById('kit-obs').value.trim()||null,
+      pasillo:document.getElementById('kit-pasillo').value.trim()||null,
+      sector:document.getElementById('kit-sector').value.trim()||null,
+      nivel:document.getElementById('kit-nivel').value.trim()||null,
       es_entrega_inicial:true,
       cargo:a.especialidad_nombre||null,
       firma_url:null,
