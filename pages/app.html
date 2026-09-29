@@ -2331,7 +2331,23 @@ no se pueden editar con la barra.
       </select></div>
     </div>
     <div class="row" style="margin-top:8px">
-      <div style="flex:1"><label>Especialidad</label><select id="plantillaEspecialidad" onchange="actualizarAyudaPlantilla()"></select></div>
+      <div style="flex:1">
+        <label for="plantillaDestino">Le toca a</label>
+        <select id="plantillaDestino" onchange="cambiarDestinoPlantilla()">
+          <option value="">A todo el mundo</option>
+          <option value="grupo">A un grupo entero</option>
+          <option value="cargo">Solo a un cargo</option>
+        </select>
+        <small style="display:block;color:var(--muted);font-size:.72rem" id="plantillaDestinoAviso"></small>
+      </div>
+      <div id="plantillaGrupoCaja" style="display:none;flex:1">
+        <label for="plantillaGrupo">Grupo</label>
+        <select id="plantillaGrupo" onchange="actualizarAyudaPlantilla()"></select>
+      </div>
+      <div id="plantillaCargoCaja" style="display:none;flex:1">
+        <label for="plantillaCargo">Cargo</label>
+        <select id="plantillaCargo" onchange="actualizarAyudaPlantilla()"></select>
+      </div>
       <div><label>Orden en el kit</label><input type="number" id="plantillaOrden" min="1" step="10" value="100"></div>
       <div><label>Quién lo firma</label>
         <select id="plantillaFirmas" onchange="actualizarAyudaPlantilla()">
@@ -15857,7 +15873,7 @@ function renderPlantillas(){
       escHtml(etiquetaTipo(p.tipo))+'</small>'+
       (p.vigente?'':' <span class="pill" style="color:var(--danger);border-color:var(--danger)">No vigente</span>')+
       (vacio?' <span class="pill" style="color:var(--warn);border-color:var(--warn)">Sin contenido</span>':'')+
-      '<br><small>'+escHtml(p.especialidad_clave?especialidadNombre(p.especialidad_clave):'General (le toca a todos)')+
+      '<br><small>'+escHtml(textoDestinoPlantilla(p))+
       (p.firmas==='ninguno'?'':' · firma'+(p.firmas==='trabajador_supervisor'?' del trabajador y del supervisor':' del trabajador'))+
       (hechas?' · '+hechas+' firmada(s)':'')+'</small></div>'+
       '<span style="display:flex;gap:6px;flex:0 0 auto">'+
@@ -15869,14 +15885,32 @@ function renderPlantillas(){
   }).join('');
 }
 function actualizarAyudaPlantilla(){
-  const esp=document.getElementById('plantillaEspecialidad').value;
+  // ------------------------------------------------------------------
+  // EL DESTINO NUEVO, EN LAS TRES FORMAS
+  // ------------------------------------------------------------------
+  // Antes leía #plantillaEspecialidad, que ya no existe. Con ?.value no rompe,
+  // pero la ayuda quedaba siempre con el texto de "a todos", que es lo
+  // contrario de lo que la persona eligió. Un aviso que miente es peor que
+  // ningún aviso.
+  const destino=document.getElementById('plantillaDestino');
+  const modo=destino?destino.value:'';
+  const grupo=document.getElementById('plantillaGrupo');
+  const cargo=document.getElementById('plantillaCargo');
+  const gTxt=grupo&&grupo.value?nombreDeGrupo(grupo.value):'';
+  const cTxt=cargo&&cargo.value
+    ?((jerarquiaCargos.find(f=>f.cargo===cargo.value)||{}).cargoNombre||cargo.value)
+    :'';
+
   const conSup=document.getElementById('plantillaFirmas').value!=='ninguno';
   const esCharla=document.getElementById('plantillaTipo').value==='charla';
   document.getElementById('plantillaAyuda').innerHTML=
-    (esp
-      ?'Le tocará <b>solo</b> a los trabajadores con esa especialidad. Para que también la '
-       +'reciban todos, hacé otra plantilla igual pero como General: las dos conviven sin pisarse.'
-      :'Le toca a <b>todos</b> los trabajadores, tengan la especialidad que tengan.')+
+    (modo==='grupo'
+      ?'Le toca a <b>todo el grupo '+(gTxt?escHtml(gTxt):'(sin elegir)')+'</b>, sea del cargo que sea dentro de él. '
+       +'A los demás no les llega, aunque tengan otro cargo de la misma empresa.'
+      :modo==='cargo'
+        ?'Le toca <b>solo a '+(cTxt?escHtml(cTxt):'(sin elegir)')+'</b>. Para que también la reciban los demás del mismo '
+         +'oficio, hacé otra plantilla igual pero apuntando al grupo.'
+        :'Le toca a <b>todos</b> los trabajadores, tengan el cargo que tengan. Es para seguridad general.')+
     (esCharla
       ?'<br>Una charla es para explicarla: texto corrido, y los {{campos}} donde vaya el nombre.'
       :'')+
@@ -15907,10 +15941,7 @@ async function abrirEditorPlantilla(code){
   // "solo el trabajador".
   document.getElementById('plantillaFirmas').value=
     p?(p.firmas||'trabajador_supervisor'):'trabajador_supervisor';
-  const sel=document.getElementById('plantillaEspecialidad');
-  sel.innerHTML='<option value="">General (le toca a todos)</option>'+
-    (typeof especialidades!=='undefined'?especialidades:[]).map(e=>`<option value="${escHtml(e.clave)}">${escHtml(e.nombre)}</option>`).join('');
-  sel.value=p&&p.especialidad_clave?p.especialidad_clave:'';
+  llenarDestinoPlantilla(p);
   document.getElementById('plantillaEditor').innerHTML=p?(p.contenido||''):
     '<h2>Inducción</h2><p>Bienvenido a la obra. Tu supervisor es {{nombre}}.</p>';
   actualizarAyudaPlantilla();
@@ -15938,7 +15969,14 @@ async function guardarPlantilla(){
   const cuerpo={
     nombre,
     tipo:document.getElementById('plantillaTipo').value,
-    especialidad_clave:document.getElementById('plantillaEspecialidad').value||null,
+    // Las DOS columnas del destino, y solo una puede venir puesta. Es lo que
+    // dice la frase "le toca a": o todo el mundo, o un grupo, o un cargo. Las
+    // dos puestas no significan nada, y hay un CHECK en la base que lo rechaza
+    // por si acaso.
+    grupo_clave:document.getElementById('plantillaDestino').value==='grupo'
+      ?(document.getElementById('plantillaGrupo').value||null):null,
+    especialidad_clave:document.getElementById('plantillaDestino').value==='cargo'
+      ?(document.getElementById('plantillaCargo').value||null):null,
     orden:Number(document.getElementById('plantillaOrden').value)||100,
     firmas:document.getElementById('plantillaFirmas').value||'trabajador_supervisor',
     contenido
@@ -18104,6 +18142,77 @@ function marcarNavCompacto(){
   // es que la transición del encabezado tape el contenido de golpe, y eso se
   // resuelve con un pouco de delay abajo.
 }
+function llenarDestinoPlantilla(p){
+  // ------------------------------------------------------------------
+  // A QUIÉN LE TOCA: TODOS, UN GRUPO, O UN CARGO
+  // ------------------------------------------------------------------
+  // Antes era un desplegable de oficios, y vacío significaba "a todos". Con una
+  // columna sola no se puede decir "a todos los de OBRA", que es una charla
+  // distinta de "a los MAESTROS" y las dos tienen que poder existir.
+  //
+  // Son dos columnas y no una con tres valores, porque "grupo obra" y "cargo
+  // maestro" no son la misma clase de dato: el primero es un área y el segundo
+  // es un oficio. Meterlos en un solo desplegable es lo mismo que antes, con
+  // dos "General" distintos.
+  //
+  // Y las dos no pueden estar puestas a la vez. No es una preferencia: hay un
+  // CHECK en la base que lo prohíbe, y es la base la que dice "esta charla es
+  // del grupo obra Y del cargo maestro", que no significa nada.
+  const elDestino=document.getElementById('plantillaDestino');
+  if(elDestino){
+    // El destino se deduce de lo que ya venía guardado. Una plantilla vieja
+    // solo puede tener cargo, porque el grupo no existía.
+    if(p&&p.grupo_clave)elDestino.value='grupo';
+    else if(p&&p.especialidad_clave)elDestino.value='cargo';
+    else elDestino.value='';
+  }
+
+  // El grupo, de la jerarquía que ya está cargada. Sin ella no se puede armar
+  // la lista, y sin lista el desplegable queda con un solo "--" que no dice nada.
+  const selGrupo=document.getElementById('plantillaGrupo');
+  if(selGrupo){
+    const grupos=[];
+    const vistos={};
+    jerarquiaCargos.forEach(f=>{
+      if(!f.grupo||vistos[f.grupo])return;
+      vistos[f.grupo]=1;grupos.push(f);
+    });
+    selGrupo.innerHTML=grupos.length
+      ?grupos.map(f=>'<option value="'+escHtml(f.grupo)+'">'+escHtml(f.grupoNombre||f.grupo)+'</option>').join('')
+      :'<option value="">— no hay grupos —</option>';
+    selGrupo.value=p&&p.grupo_clave?p.grupo_clave:'';
+  }
+
+  // El cargo: TODOS los cargos, sin filtrar por grupo. Y es a propósito: el
+  // destino de una charla se elige primero, y filtrar el segundo desplegable
+  // por el primero sería obligar a elegir el grupo antes de saber si la charla
+  // es de un cargo.
+  const selCargo=document.getElementById('plantillaCargo');
+  if(selCargo){
+    const lista=jerarquiaCargos.slice()
+      .sort((a,b)=>String(a.cargoNombre||a.cargo).localeCompare(String(b.cargoNombre||b.cargo)));
+    selCargo.innerHTML=lista.length
+      ?lista.map(f=>'<option value="'+escHtml(f.cargo)+'">'+escHtml(f.cargoNombre||f.cargo)+'</option>').join('')
+      :'<option value="">— no hay cargos —</option>';
+    selCargo.value=p&&p.especialidad_clave?p.especialidad_clave:'';
+  }
+  cambiarDestinoPlantilla();
+}
+
+function cambiarDestinoPlantilla(){
+  const d=document.getElementById('plantillaDestino');
+  const cg=document.getElementById('plantillaGrupoCaja');
+  const cc=document.getElementById('plantillaCargoCaja');
+  const av=document.getElementById('plantillaDestinoAviso');
+  if(!d)return;
+  const v=d.value;
+  if(cg)cg.style.display=v==='grupo'?'':'none';
+  if(cc)cc.style.display=v==='cargo'?'':'none';
+  if(!av)return;
+  if(v==='grupo')av.textContent='Le toca a todo el mundo del grupo, sea del cargo que sea dentro de él.';
+  else if(v==='cargo')av.textContent='Solo a las personas que tienen ese cargo.';
+  else av.textContent='Le toca a todo el mundo, sin importar el oficio. Es para seguridad general.';
+}
 // ===================================================================
 // EMPRESAS: CARGOS, GRUPOS Y PERMISOS
 // ===================================================================
@@ -18166,6 +18275,25 @@ function renderEmpresasCargos(){
 // -------------------------------------------------------------------
 // Salen de la misma jerarquía, sin pedir nada extra. Un grupo que no aparece es
 // que no hay ningún cargo en él, y eso se ve distinto de "el grupo no existe".
+// -------------------------------------------------------------------
+// LE TOCA A: TODOS, UN GRUPO, O UN CARGO
+// -------------------------------------------------------------------
+// El texto de la lista. Dice a QUIÉN le toca y con qué palabras, porque "obra"
+// y "maestro" son cosas distintas y una lista que solo muestra la clave obliga
+// a saber la clave de memoria.
+//
+// Y las tres respuestas se distinguen a propósito: "A todo el mundo" no es lo
+// mismo que "al grupo obra", y confundirlas es como se terminaba mandando la
+// charla de una obra al personal de oficina.
+function textoDestinoPlantilla(p){
+  if(p&&p.grupo_clave){
+    const g=jerarquiaCargos.find(f=>f.grupo===p.grupo_clave);
+    return 'A todo el grupo '+(g?(g.grupoNombre||p.grupo_clave):p.grupo_clave);
+  }
+  if(p&&p.especialidad_clave)return 'Solo a '+(especialidadNombre(p.especialidad_clave)||p.especialidad_clave);
+  return 'A todo el mundo';
+}
+
 function renderGruposCargos(){
   const caja=document.getElementById('ecGrupos');
   if(!caja)return;
