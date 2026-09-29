@@ -1607,26 +1607,34 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
   <div id="totemZonaKiosco" style="display:none" onpointerdown="pulsacionKiosco()"></div>
   <div id="totemPistaKiosco" aria-hidden="true"></div>
   <!--
-  LA CAMARA, ARRIBA A LA IZQUIERDA, Y LA EMPRESA DEBAJO
+  LA EMPRESA, ARRIBA A LA IZQUIERDA
 
-  La camara va en esa esquina y no en el medio porque la persona se para
-  frente al aparato: la tiene a la altura de los ojos, no delante de la
-  cara. Al centro, con el reloj a dos metros, habria que inclinar la
-  cabeza.
+  El logo y el nombre de la empresa van en la esquina de arriba a la
+  izquierda, APARTE de la camara.
 
-  Debajo de la camara van el logo y el nombre de la empresa. No es
-  decoracion: en una obra con mas de una empresa o mas de un centro de
-  costo, la persona tiene que poder confirmar en un vistazo que esta
+  No es decoracion. En una obra con mas de una empresa o mas de un centro
+  de costo, la persona tiene que poder confirmar en un vistazo que esta
   marcando en el lugar correcto. Si se equivoca de reloj, la asistencia
   queda mal puesta y eso ya no se puede arreglar sola.
+
+  Va ahi y no al medio porque al medio esta la camara, que es donde la
+  persona tiene que mirar para marcar, y arriba esta la hora, que es el
+  dato que viene a ver. La esquina de arriba a la izquierda es el unico
+  lugar que no le quita nada a nadie.
+
+  Y va APARTE de la camara, no pegada a ella. La camara se enciende y se
+  apaga segun el reloj tenga lector de camara o sea un lector USB
+  pegado; si la empresa fuera parte de la zona de la camara, en un reloj
+  con lector USB no se veria, que es justo cuando mas falta hace para
+  confirmar en que lugar se esta marcando.
   -->
-  <div class="totem-zona totem-izquierda" id="totemZonaCamara" style="display:none">
+  <div id="totemEmpresa">
+    <img id="totemLogo" alt="">
+    <div id="totemEmpresaNombre">-</div>
+    <div id="totemEmpresaCentro"></div>
+  </div>
+  <div class="totem-zona" id="totemZonaCamara" style="display:none">
     <div id="totemCamara"></div>
-    <div id="totemEmpresa">
-      <img id="totemLogo" alt="">
-      <div id="totemEmpresaNombre">-</div>
-      <div id="totemEmpresaCentro"></div>
-    </div>
   </div>
   <div id="totemMensaje" class="totem-idle"></div>
   <!--
@@ -3230,7 +3238,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION = '2026-09-29-g';
+const APP_VERSION = '2026-09-29-h';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
