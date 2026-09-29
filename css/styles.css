@@ -4849,3 +4849,111 @@ label[for="empresaSel"] {
   .totem-col-izq,.totem-col-der{align-items:flex-start;text-align:left}
   .totem-contadores{grid-template-columns:1fr}
 }
+
+
+/* ===================================================================
+   EL ENCABEZADO NO SE DEJA TAPAR, Y SE ENCOGE AL BAJAR
+   ===================================================================
+   El encabezado es lo único pegajoso de las tres barras. Por eso es el que
+   va arriba: si el submenú lo tapara, la persona vería las secciones
+   aparecer y desaparecer por debajo de una franja que no se mueve, sin
+   entender por qué.
+
+   Y al bajar, el encabezado y los íconos se encogen para devolverle a la
+   página la franja que estaban ocupando. Al pasar el mouse por encima
+   vuelven a su tamaño, con transición, para que el puntero no tenga que
+   apuntar a un botón más chico de lo que aparenta.
+   =================================================================== */
+
+header{z-index:30}
+
+/* Los menús desplegados sí van por encima del encabezado, y es la excepción
+   a propósito: un menú que alguien abrió a propósito no puede quedar debajo
+   de una franja, porque entonces no se le puede hacer clic. */
+#subNav .nav-dropdown-menu,
+#subNav .nav-dropdown-nested{z-index:40}
+
+/* -------------------------------------------------------------------
+   LA TRANSICIÓN
+   -------------------------------------------------------------------
+   En el encabezado y en los íconos, y en nada más. Si se le pone transición
+   a todo lo que hay arriba, la página se pone pastosa al bajar, y eso se
+   nota más en un computador viejo de la oficina que en uno nuevo. */
+header,
+#mainNav button .ico,
+#subNav .ico,
+#mainNav button,
+#subNav button,
+#subNav .nav-dropdown-trigger,
+header h1,
+#empresaSel{
+  transition:padding .18s ease,font-size .18s ease,transform .18s ease,
+             background-color .2s ease,color .15s ease,border-color .15s ease;
+}
+
+/* -------------------------------------------------------------------
+   AL BAJAR: MÁS CONTENIDO
+   -------------------------------------------------------------------
+   La franja que se gana es real: unos 46 píxeles de alto del encabezado y
+   unos 4 de cada ícono. En una pantalla de 1080 son casi dos Centímetros, que
+   es una línea de tabla o el encabezado de una tarjeta. */
+body.nav-compacto header{padding:6px 16px;gap:10px}
+body.nav-compacto header h1{font-size:.78rem}
+body.nav-compacto #empresaSel{min-width:120px;padding:4px 8px}
+body.nav-compacto .header-actions{gap:6px}
+body.nav-compacto .header-actions .btn,
+body.nav-compacto header .btn{padding:4px 10px;font-size:.72rem}
+body.nav-compacto #mainNav button{padding:8px 10px}
+body.nav-compacto #mainNav button .ico,
+body.nav-compacto #subNav .ico{transform:scale(.82)}
+
+/* -------------------------------------------------------------------
+   AL PONER EL MOUSE ENCIMA: VUELVE A SU TAMAÑO
+   -------------------------------------------------------------------
+   La animación va en el transform del ícono y en el padding del encabezado,
+   que es lo que se ve mientras el dedo o el mouse se mueve. Sin transición
+   esto sería un salto, y un salto en lo que se está por hacer clic es peor
+   que dejarlo Chico.
+   ------------------------------------------------------------------- */
+header:hover,
+body.nav-compacto header:focus-within{padding:14px 24px;gap:16px}
+body.nav-compacto header:hover h1,
+body.nav-compacto header:focus-within h1{font-size:1rem}
+body.nav-compacto header:hover #empresaSel,
+body.nav-compacto header:focus-within #empresaSel{min-width:170px;padding:6px 10px}
+body.nav-compacto header:hover .header-actions .btn,
+body.nav-compacto header:hover header .btn,
+body.nav-compacto header:focus-within .header-actions .btn,
+body.nav-compacto header:focus-within header .btn{padding:8px 14px;font-size:.85rem}
+body.nav-compacto #mainNav button:hover,
+body.nav-compacto #mainNav button:focus-visible{padding:13px 12px}
+body.nav-compacto #mainNav button:hover .ico,
+body.nav-compacto #mainNav button:focus-visible .ico,
+body.nav-compacto #subNav button:hover .ico,
+body.nav-compacto #subNav .nav-dropdown-trigger:hover .ico{transform:scale(1.14)}
+
+/* El que está parado tampoco crece, porque no es el que hace clic: es el que
+   está mirando. Si creciera, se movería el resto de la fila y el resto de la
+   fila es la lista de secciones. */
+body.nav-compacto #mainNav button.active .ico{transform:scale(.9)}
+
+/* -------------------------------------------------------------------
+   CUANDO NO SE PIDEN ANIMACIONES
+   -------------------------------------------------------------------
+   Con "reduce" no hay transición: el tamaño cambia de golpe. Es lo que se
+   pide y además es lo correcto: en una persona con problemas de vértigo, un
+   ícono que crece al pasar el mouse es exactamente el movimiento que le
+   molesta, y no vale la pena discutirlo.
+   ------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce){
+  header,
+  #mainNav button .ico,
+  #subNav .ico,
+  #mainNav button,
+  #subNav button,
+  #subNav .nav-dropdown-trigger,
+  header h1,
+  #empresaSel{transition:none}
+  body.nav-compacto #mainNav button:hover .ico,
+  body.nav-compacto #subNav button:hover .ico{transform:none}
+}

@@ -17811,6 +17811,52 @@ function exportPayroll(){
   XLSX.writeFile(wb,`carga_remuneraciones_${y}-${String(m).padStart(2,'0')}.xlsx`);
 }
 
+// ===================================================================
+// EL ENCABEZADO SE ENCOGE AL BAJAR
+// ===================================================================
+//
+// Con el encabezado pegajoso y el submenú por encima, al bajar el submenú le
+// cruzaba por encima. El z-index ya está corregido en el CSS; esto es solo la
+// parte de encoger.
+//
+// -------------------------------------------------------
+// POR QUÉ UN UMBRAL Y NO "SI ESTOY ABAJO"
+// -------------------------------------------------------
+// Si se encogiera en cuanto el scroll pasa de 0, la primera línea de la
+// página ya lo encogería, y al volver arriba habría que subir hasta el 0
+// exacto para que crezca otra vez. Con dos umbrales separados, uno para
+// encoger y otro más chico para crecer, hace falta bajar bastante para que
+// crezca solo, y no queda pegado en el tamaño chico.
+//
+// -------------------------------------------------------
+// UNA VEZ POR FRAME, NO UNA VEZ POR EVENTO
+// -------------------------------------------------------
+// El scroll dispara decenas de eventos por segundo. Con un rAF se espera a
+// que el navegador termine de pintar y se decide una sola vez, que es lo que
+// alcanza: entre un evento y el siguiente no cambió nada visible.
+//
+// Y solo se llama a classList.toggle cuando el valor cambia de verdad. Con
+// toggle siempre, el navegador revisa las transiciones en cada evento, que es
+// lo que hace que una barra pegajosa se sienta pesada en un computador viejo.
+let navCompactoYa=false;
+function marcarNavCompacto(){
+  if(totemActual)return;   // con el reloj abierto la pantalla es de él
+  const chico=window.scrollY>40;
+  if(chico===navCompactoYa)return;
+  navCompactoYa=chico;
+  document.body.classList.toggle('nav-compacto',chico);
+}
+function conectarNavCompacto(){
+  if(conectarNavCompacto.hecho)return;
+  conectarNavCompacto.hecho=true;
+  let pendiente=false;
+  addEventListener('scroll',()=>{
+    if(pendiente)return;
+    pendiente=true;
+    requestAnimationFrame(()=>{pendiente=false;marcarNavCompacto();});
+  },{passive:true});
+}
+
 async function boot(){
   // ----------------------------------------------------------------
   // LO PRIMERO: ¿SE PUDO HABLAR CON LA BASE?
@@ -17828,6 +17874,7 @@ async function boot(){
     mostrarAvisoFalloBase(window.supabaseFallo);
     return;
   }
+  conectarNavCompacto();
 
   try{
     const session = await requireAuth('login.html');
