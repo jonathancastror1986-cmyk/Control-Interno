@@ -536,6 +536,40 @@ Las proporciones son de la más ancha a la más chica: nombre del trabajador
   margin-right: auto;
 }
 
+/* El aviso de que no se pudo hablar con la base.
+
+   Va arriba de todo, grande, porque es la única cosa que la persona
+   necesita ver cuando aparece: sin base no hay sistema, y no hay nada que
+   hacer hasta que se solucione. Un aviso chiquito arriba a la derecha pasa
+   inadvertido, y la persona empieza a apretar botones que no hacen nada. */
+.fallo-base {
+  padding: 22px 26px;
+  margin: 0 0 22px;
+  background: var(--danger-surface);
+  border-bottom: 3px solid var(--danger);
+  color: var(--danger);
+}
+.fallo-base h2 {
+  margin: 0 0 10px;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+/* El mensaje va en un <pre> para que respete los saltos de línea, que son
+   los que separan los pasos que la persona tiene que hacer. Sin eso todo
+   queda en un párrafo largo que nadie lee hasta el final. */
+.fallo-base pre {
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+.fallo-base small {
+  display: block;
+  font-size: .85rem;
+  opacity: .8;
+}
+
 /* Lo que arma el importador desde Word. La tabla ES el contenido de una
    inducción: sin bordes y sin anchos no se lee. */
 .docx-tabla {

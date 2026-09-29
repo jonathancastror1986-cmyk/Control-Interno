@@ -3091,7 +3091,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-t';
+const APP_VERSION='2026-09-28-u';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -15231,25 +15231,79 @@ function exportPayroll(){
 }
 
 async function boot(){
-  const session = await requireAuth('login.html');
-  if(!session) return; // requireAuth ya redirigió a login.html
-  // La entrada a la bitácora va después de requireAuth (que ya sabemos que
-  // hay sesión) y antes de todo lo demás, para que quede registrada aunque
-  // algo de la carga falle después. Es en segundo plano: si la tabla no
-  // existe, la app arranca igual.
-  registrarAcceso('entrada');
-  await loadPermisosUsuario();          // qué menús y acciones ve esta persona
-  await loadEmpresas();                 // antes de los trabajadores: define su ámbito
-  fillWorkerEmpresaSelect();
-  await Promise.all([loadWorkers(), loadAttendanceFromDB(), loadTarjetas()]);
-  recalcularMiSupervisor();   // ya con los trabajadores cargados
-  renderSelectorEmpresas();   // recién ahora "workers" tiene el total real
-  renderList('');
-  renderMatrix();
-  showGroup('porteria');
-  marcarTarjaSoloLectura();
-  loadSolicitudes(true).then(()=>{renderSolicitudes();renderMisSolicitudes();});
-  loadBodega(true); // en segundo plano: avisa en consola si falta alguna migración
+  // ----------------------------------------------------------------
+  // LO PRIMERO: ¿SE PUDO HABLAR CON LA BASE?
+  // ----------------------------------------------------------------
+  // Antes de cualquier otra cosa. Si la librería de la CDN no cargó, o
+  // falta la configuración, window.supabaseClient no existe y el primer uso
+  // revienta.
+  //
+  // Como el arranque es una lista de awaits, el primero que falla corta
+  // todos los que vienen después: la pantalla queda con el encabezado y la
+  // barra de secciones vacía, sin decir por qué. Y el síntoma se reporta
+  // como "no se ven los submenús", que no dice nada de la causa: la causa
+  // no es el menú, es que no hay conexión con la base.
+  if(window.supabaseFallo){
+    mostrarAvisoFalloBase(window.supabaseFallo);
+    return;
+  }
+
+  try{
+    const session = await requireAuth('login.html');
+    if(!session) return; // requireAuth ya redirigió a login.html
+    // La entrada a la bitácora va después de requireAuth (que ya sabemos que
+    // hay sesión) y antes de todo lo demás, para que quede registrada aunque
+    // algo de la carga falle después. Es en segundo plano: si la tabla no
+    // existe, la app arranca igual.
+    registrarAcceso('entrada');
+    await loadPermisosUsuario();          // qué menús y acciones ve esta persona
+    await loadEmpresas();                 // antes de los trabajadores: define su ámbito
+    fillWorkerEmpresaSelect();
+    await Promise.all([loadWorkers(), loadAttendanceFromDB(), loadTarjetas()]);
+    recalcularMiSupervisor();   // ya con los trabajadores cargados
+    renderSelectorEmpresas();   // recién ahora "workers" tiene el total real
+    renderList('');
+    renderMatrix();
+    showGroup('porteria');
+    marcarTarjaSoloLectura();
+    loadSolicitudes(true).then(()=>{renderSolicitudes();renderMisSolicitudes();});
+    loadBodega(true); // en segundo plano: avisa en consola si falta alguna migración
+  }catch(error){
+    // Un fallo en cualquier paso deja la app a medio cargar, que es peor
+    // que no cargarla: la persona ve botones que no hacen nada y no sabe si
+    // apretó mal o si la aplicación está mala.
+    console.error('[boot] la aplicación no pudo arrancar:',error);
+    mostrarAvisoFalloBase({
+      motivo:'error-de-arranque',
+      mensaje:'La aplicación no pudo cargar.\n\n'
+        +(error&&error.message?error.message:'Error sin detalle.')
+    });
+  }
+}
+
+// ------------------------------------------------------------------
+// EL AVISO DE QUE NO SE PUDO HABLAR CON LA BASE
+// ------------------------------------------------------------------
+//
+// Va arriba y grande, porque es la única cosa que la persona necesita ver:
+// sin base no hay sistema, y no hay nada que hacer hasta que se solucione.
+//
+// El texto dice qué pasó y qué se puede hacer. Un "error de red" sin más no
+// ayuda: no se sabe si hay que reiniciar el router, esperar, o llamar a
+// alguien. Y no usa alert(), que bloquearía la pantalla: con varios
+// problemas serían varios "Aceptar" antes de poder hacer nada.
+function mostrarAvisoFalloBase(fallo){
+  let caja=document.getElementById('falloBase');
+  if(!caja){
+    caja=document.createElement('div');
+    caja.id='falloBase';
+    document.body.insertBefore(caja,document.body.firstChild);
+  }
+  caja.className='fallo-base';
+  caja.innerHTML='<h2>No se pudo conectar con la base</h2>'
+    +'<pre>'+escHtml(fallo.mensaje)+'</pre>'
+    +'<small>Si esto pasa en todos los equipos, es un problema del servicio. '
+    +'Si es en uno solo, es de ese equipo.</small>';
 }
 boot();
 </script>
