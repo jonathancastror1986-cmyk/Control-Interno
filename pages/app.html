@@ -13128,14 +13128,77 @@ function comprobarTokenEnLaBase(code,token){
         }
         return {ok:false,motivo:'La base lo rechazó: '+error.message};
       }
-      const r=data&&(data.comprobar_token_reloj||data);
-      if(r&&r.ok)return {ok:true};
-      return {ok:false,motivo:explicarTokenInvalido(String((r&&r.motivo)||'TOKEN_INVALIDO'),code)};
+      // ----------------------------------------------------------------
+      // LEER LA RESPUESTA, QUE VIENE EN ARRAY
+      // ----------------------------------------------------------------
+      // Esto era el bug que impedía instalar un token que estaba bien.
+      //
+      // comprobar_token_reloj devuelve "table (ok boolean, motivo text)",
+      // y PostgREST responde a una función que devuelve tabla con un
+      // ARRAY: [{ok:true, motivo:'OK'}].
+      //
+      // El código leía data.comprobar_token_reloj, que no existe en un
+      // array, y se quedaba con el array entero. Entonces r.ok era
+      // undefined, que es distinto de false, así que caía en la rama del
+      // error y anunciaba "el token no es de este reloj".
+      //
+      // O sea: la base decía QUE SÍ, y la pantalla decía QUE NO. El
+      // token estaba bien, el hash estaba bien, y no se podía instalar.
+      //
+      // En el resto de la aplicación el patrón correcto ya estaba usado:
+      // "Array.isArray(data) ? data[0] : data". Acá no se usó, y por eso
+      // el fallo era invisible: la respuesta era válida, solo que mal
+      // leída.
+      const r=leerFilaDeTabla(data,'comprobar_token_reloj');
+
+      // Y si no se pudo leer, NO se acusa al token. Un problema de lectura
+      // y un token malo tienen que decir cosas distintas: con el primero
+      // se reintenta, con el segundo hay que rotar.
+      if(!r||typeof r.ok!=='boolean'){
+        return {ok:false,motivo:'La base contestó algo que esta versión no entiende, '
+          +'así que no se puede decir si el token sirve. Probá de nuevo. '
+          +'Detalle: '+JSON.stringify(data).slice(0,140)};
+      }
+      if(r.ok)return {ok:true};
+      return {ok:false,motivo:explicarTokenInvalido(String(r.motivo||'TOKEN_INVALIDO'),code)};
     })
     .catch(error=>{
       // La llamada ni siquiera llegó: eso es red, no un token malo.
       return {sinRed:true,motivo:String(error&&error.message)};
     });
+}
+
+// ------------------------------------------------------------------
+// LEER LA FILA DE UNA FUNCIÓN QUE DEVUELVE TABLA
+// ------------------------------------------------------------------
+// PostgREST responde distinto según lo que devuelva la función:
+//
+//   returns table  ->  un ARRAY de filas:  [{ok:true}]
+//   returns json   ->  {ok:true}
+//   returns text   ->  el valor solo:     "algo"
+//
+// Y según la versión y el esquema, la fila puede venir envuelta con el
+// nombre de la función. Por eso se prueban las tres formas y se devuelve
+// la primera que tenga la forma de una fila.
+//
+// Es una función chiquita, pero es la que decide si el token se instala o
+// no. Cuando la respuesta se leyó mal, el síntoma fue "el token no sirve"
+// para un token que sí servía: un error de lectura disfrazado de error de
+// la base, que es la forma más difícil de pillar que hay.
+function leerFilaDeTabla(data,nombreDeLaFuncion){
+  if(data==null)return null;
+  // Un array: la forma de "returns table", que es lo normal acá.
+  if(Array.isArray(data))return data.length?data[0]:null;
+  // Un objeto: puede ser la fila, o la fila envuelta con el nombre.
+  if(typeof data==='object'){
+    if(nombreDeLaFuncion&&data[nombreDeLaFuncion]!=null){
+      const envuelto=data[nombreDeLaFuncion];
+      return Array.isArray(envuelto)?(envuelto.length?envuelto[0]:null):envuelto;
+    }
+    if(typeof data.ok==='boolean'||typeof data.motivo==='string')return data;
+    return null;
+  }
+  return null;
 }
 
 // Cada motivo de la base, traducido a lo que la persona puede hacer. Un
