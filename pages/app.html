@@ -3091,7 +3091,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-u';
+const APP_VERSION='2026-09-28-v';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -11482,7 +11482,43 @@ function descargarPlantillaWord(){
     + ayuda
     + tablas
     + pie
-    + '</body></html>';
+    // ----------------------------------------------------------------
+    // POR QUÉ ESTAS DOS LÍNEAS ESTÁN PARTIDAS EN DOS
+    // ----------------------------------------------------------------
+    // Aquí se cierra el documento de Word. Se vería más limpio escribir la
+    // etiqueta de cierre del cuerpo y la del documento enteras, una sola
+    // línea. Y así estaba.
+    //
+    // Rompía la aplicación completa, y solo en algunos equipos, que es lo
+    // que lo hace especialmente bueno para volver a pasar.
+    //
+    // El navegador, adentro de un script, busca el cierre del script. La
+    // etiqueta de cierre del cuerpo, escrita dentro de una cadena, no le
+    // hace nada: la ve como texto y sigue. Por eso el archivo funcionaba
+    // cuando se abría del disco o lo servía cualquier otro servidor.
+    //
+    // Live Server —el que recarga la página al guardar, y el que sirve el
+    // archivo en el 127.0.0.1:5500— no funciona así. Ese lee el archivo
+    // como texto plano, busca el PRIMER cierre de cuerpo que encuentra, y
+    // mete ahí su propio script de recarga. El primero no era el del
+    // documento: era este, que estaba escrito en JavaScript.
+    //
+    // Entonces le cayó código en medio del script. El comentario HTML que
+    // inyecta es legal en JavaScript, así que pasó en silencio; el script
+    // que le seguía no es nada válido, y ahí reventó con:
+    //
+    //     Uncaught SyntaxError: Invalid or unexpected token
+    //
+    // Un error de sintaxis tumba el script ENTERO. Por eso no había menú,
+    // ni reloj, ni nada: todo había dejado de correr.
+    //
+    // La forma de evitarlo es no tener nunca el cierre de cuerpo escrito
+    // entero en el archivo. Se arma pegando dos partes: una con el signo
+    // menor y otra con el nombre de la etiqueta. Ninguna de las dos tiene
+    // el cierre completo, así que Live Server no encuentra nada que
+    // inyectarle. El .doc que se descarga queda idéntico: Word lo abre igual.
+    + '<'+'/body>'
+    + '<'+'/html>';
 
   // Se arma un Blob con tipo MIME de Word. El nombre lleva el código,
   // que es lo que después se reconoce al reimportarlo.
