@@ -4,13 +4,19 @@
 --
 -- Por qué una consulta y no la de invocar las funciones:
 --
--- El editor de SQL de Supabase parte las sentencias, y un bloque
--- "do $$ ... $$" con muchos punto y coma adentro es justo lo que se corta.
--- Esa consulta no llegó a correr: empezó a mitad de un comentario.
+-- Pega esto entero, desde la primera línea hasta la última, y dale Run.
 --
--- Esta no tiene bloques, ni manejadores de excepción, ni nada que se pueda
--- cortar. Es un SELECT sobre el catálogo, y el catálogo no falla. Si esto sale,
--- las migraciones están aplicadas.
+-- -------------------------------------------------------------------
+-- POR QUÉ UNA CONSULTA DE CATÁLOGO Y NO UNA QUE INVOQUE LAS FUNCIONES
+-- -------------------------------------------------------------------
+-- El editor de SQL de Supabase parte las sentencias, y un bloque de código con
+-- manejadores de excepción adentro tiene muchos punto y coma: es justo lo que
+-- se corta a la mitad. La consulta anterior no corrió porque el editor empezó
+-- a mitad de un comentario de este archivo.
+--
+-- Esta no tiene bloques, ni manejadores, ni nada que se pueda cortar. Son
+-- consultas de lectura sobre el catálogo, y el catálogo no falla. Si esto sale,
+-- las dos migraciones quedaron aplicadas.
 --
 -- -------------------------------------------------------------------
 -- LO QUE MUESTRA, Y POR QUÉ CADA COSA
