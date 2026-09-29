@@ -99,7 +99,7 @@ returns text
 language plpgsql
 security definer
 set search_path = public
-as $
+as $$
 begin
   if exists (select 1 from information_schema.columns
         where table_schema='public' and table_name='ingresos_pendientes'
@@ -117,7 +117,7 @@ begin
   end if;
   return 'ATENCION: ingresos_pendientes no tiene ni empresa ni empresa_id';
 end;
-$;
+$$;
 
 -- Y la llamada, que es una sola linea y no se parte
 select public.corregir_columna_ingresos();
