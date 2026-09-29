@@ -1031,19 +1031,18 @@ porque salen del mismo lugar.
 </section>
 
 <section class="view" id="v-empresas-cargos">
-  <h2>Empresas: cargos, grupos y permisos</h2>
-  <div class="small" style="max-width:960px;margin-bottom:14px">
-    Cada empresa maneja sus propios oficios. El <b>grupo</b> es el área (Obra,
-    Oficina, Bodega) y el <b>cargo</b> es el oficio (Maestro, Jorna, Ventas).
-    Un trabajador pertenece a un cargo, y el cargo se elige en dos desplegables:
-    primero el grupo, después el cargo de ese grupo.
-    <br><br>
-    <b>Por qué el grupo no se guarda en el trabajador:</b> porque se deduce del
-    cargo. Guardar los dos sería guardar el mismo dato dos veces, y el día que
-    alguien moviera un cargo de grupo sin actualizar a la gente que lo tenía,
-    el trabajador quedaría en un grupo con un cargo que no es de ese grupo. Eso
-    no se ve hasta que la persona recibe el EPP de otra área.
-  </div>
+  <h2 class="con-ayuda">Empresas: cargos, grupos y permisos
+  <details class="ayuda"><summary class="ayuda-ico" title="Qué son el grupo y el cargo">i</summary>
+  <div class="ayuda-caja">
+  El <b>grupo</b> es el área (Obra, Oficina, Bodega) y el <b>cargo</b> es el oficio (Maestro, Jorna, Ventas).
+  Un trabajador pertenece a un cargo, y el cargo se elige en dos desplegables: primero el grupo, después el cargo de ese grupo.
+  <br><br>
+  <b>Por qué el grupo no se guarda en el trabajador:</b> porque se deduce del cargo. Guardar los dos sería
+  guardar el mismo dato dos veces, y el día que alguien moviera un cargo de grupo sin actualizar a la gente que
+  lo tenía, el trabajador quedaría en un grupo con un cargo que no es de ese grupo. Eso no se ve hasta que la
+  persona recibe el EPP de otra área.
+  </div></details>
+  </h2>
 
   <div class="card">
     <div class="row" style="align-items:flex-end">
@@ -1060,9 +1059,13 @@ porque salen del mismo lugar.
   </div>
 
   <div class="card" style="margin-top:14px">
-    <h3>Grupos</h3>
-    <small>Los grupos del catálogo. Se pueden agregar y dar de baja; los que se
-    usan no se borran, quedan desactivados.</small>
+    <h3 class="con-ayuda">Grupos
+    <details class="ayuda"><summary class="ayuda-ico" title="Qué son los grupos">i</summary>
+    <div class="ayuda-caja">
+    Los grupos del catálogo. Se pueden agregar y dar de baja; los que se usan no se borran, quedan desactivados.
+    <br><br>Si un grupo desaparece de la lista es porque no hay ningún cargo en él, que es distinto
+    de que el grupo no exista.
+    </div></details></h3>
     <div id="ecGrupos" style="margin-top:10px"></div>
     <div class="row" style="margin-top:10px;align-items:flex-end">
       <div><label for="ecGrupoNombre">Nombre del grupo nuevo</label>
@@ -1072,10 +1075,14 @@ porque salen del mismo lugar.
   </div>
 
   <div class="card" style="margin-top:14px">
-    <h3>Cargos de esta empresa</h3>
-    <small>Lo que esta empresa ofrece. Los cargos de la lista maestra se pueden
-    activar o desactivar por empresa. Lo que determina el EPP y las charlas es
-    el <b>cargo</b>, no el grupo.</small>
+    <h3 class="con-ayuda">Cargos de esta empresa
+    <details class="ayuda"><summary class="ayuda-ico" title="Qué pasa al activar un cargo">i</summary>
+    <div class="ayuda-caja">
+    Lo que esta empresa ofrece. Los cargos de la lista maestra se pueden activar o desactivar por empresa.
+    <br><br>Lo que determina el EPP y las charlas es el <b>cargo</b>, no el grupo.
+    <br><br>Desactivar un cargo lo saca del desplegable del ingreso, pero no borra a nadie: los trabajadores
+    que lo tienen lo conservan, y el EPP y las charlas ya entregadas siguen en el historial.
+    </div></details></h3>
     <div id="ecCargos" style="margin-top:10px"></div>
   </div>
 
@@ -18414,6 +18421,46 @@ async function activarCargoDeEmpresa(cargo,activo,casilla){
 //
 // Y la clave sale del data-cargo del label, no del onclick. Por eso aquí no hay
 // ninguna comilla que escapar.
+// -------------------------------------------------------------------
+// LAS VENTANITAS DE AYUDA
+// -------------------------------------------------------------------
+// Tres cosas que un <details> no trae solo:
+//
+//   1. Cerrar con Escape. Una ventana que no se cierra con Escape hay que
+//      cerrarla volviendo a apretar el ícono a ciegas.
+//   2. Cerrar las demás al abrir una. Si quedan dos abiertas, la pantalla se
+//      llena de cajas y ya no se sabe cuál es cuál.
+//   3. Cerrar al hacer clic afuera, que es lo que uno espera sin pensarlo.
+//
+// Y solo se escucha una vez en todo el documento. Si se pusiera un
+// escuchador por ayuda, abrir y cerrar la pantalla los acumularía.
+//
+// Se usa el evento "toggle" y no el clic, porque el clic no se dispara
+// cuando el <details> se abre con el teclado.
+function conectarAyudas(){
+  if(conectarAyudas.hecho)return;
+  conectarAyudas.hecho=true;
+
+  addEventListener('keydown',(ev)=>{
+    if(ev.key!=='Escape')return;
+    const abiertas=document.querySelectorAll('.ayuda[open]');
+    if(!abiertas.length)return;
+    abiertas.forEach(d=>d.removeAttribute('open'));
+  });
+
+  addEventListener('toggle',(ev)=>{
+    const d=ev.target;
+    if(!d||!d.classList||!d.classList.contains('ayuda')||!d.open)return;
+    document.querySelectorAll('.ayuda[open]').forEach(otro=>{
+      if(otro!==d)otro.removeAttribute('open');
+    });
+  },true);
+
+  addEventListener('click',(ev)=>{
+    if(ev.target.closest&&ev.target.closest('.ayuda'))return;
+    document.querySelectorAll('.ayuda[open]').forEach(d=>d.removeAttribute('open'));
+  });
+}
 function conectarCajasDeCargos(caja){
   if(!caja||caja.conCargos)return;
   caja.conCargos=true;
@@ -18512,6 +18559,7 @@ async function boot(){
     return;
   }
   conectarNavCompacto();
+  conectarAyudas();
 
   try{
     const session = await requireAuth('login.html');

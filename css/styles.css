@@ -5466,7 +5466,16 @@ input:focus,select:focus,textarea:focus{
   transition:background-color .15s ease,border-color .15s ease;
 }
 .ecCargo:hover{background:var(--surface-hover)}
-.ecCargo input{margin:0;flex:0 0 auto}
+/* El width:auto es lo que faltaba. La regla general del archivo pone
+   width:100% en todos los input, y una casilla no ocupa el ancho entero.
+   Sin esto el <span> del nombre queda empujado fuera de la tarjeta. */
+.ecCargo input{
+  width:auto;
+  max-width:18px;
+  margin:0;
+  flex:0 0 auto;
+  accent-color:var(--accent);
+}
 .ecCargo span{font-weight:600}
 /* Sin empresa elegida no se puede activar nada, y se ve que no se puede. */
 .ecCargo.apagado{opacity:.5;cursor:not-allowed}
@@ -5622,3 +5631,148 @@ body.nav-compacto #subNav .nav-dropdown:hover{
   #subNav button,
   #subNav .nav-dropdown-trigger{transition:none}
 }
+
+
+/* ===================================================================
+   LAS AYUDAS: UN ICONO QUE ABRE UNA VENTANITA
+   ===================================================================
+   Los textos de explicación estaban siempre abiertos y ocupaban media
+   pantalla. Ahora son un ícono de ocho píxeles que abre el texto al apretarlo.
+
+   Es un <details> y no un ":hover" porque ":hover" no existe en un teléfono:
+   ahí hay toque. Y no es un ":focus" a secas porque en el escritorio nadie
+   tabula por la pantalla para leer una ayuda.
+
+   Con <details> el elemento tiene estado de verdad: se sabe si está abierto, se
+   puede cerrar con el mismo clic, y funciona con el mouse, con el dedo y con el
+   teclado.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   EL ICONO
+   ------------------------------------------------------------------- */
+/* -------------------------------------------------------------------
+   EL ICONO
+   -------------------------------------------------------------------
+   Es un <summary>, o sea un control. Sin decirselo se ve como un elemento de
+   lista: sin viñeta (list-style:none), con el cursor de mano, y con un title
+   que dice qué hace. El title no es decoración: es lo que evita que alguien
+   pase por encima cinco veces y concluya que no funciona.
+   ------------------------------------------------------------------- */
+.ayuda-ico{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:17px;
+  height:17px;
+  border:1px solid var(--line);
+  border-radius:50%;
+  font-size:.68rem;
+  font-weight:700;
+  line-height:1;
+  color:var(--muted);
+  background:var(--panel);
+  cursor:pointer;
+  list-style:none;
+  vertical-align:middle;
+  -webkit-user-select:none;
+  user-select:none;
+  transition:color .15s ease,border-color .15s ease,background-color .15s ease;
+}
+.ayuda-ico::-webkit-details-marker{display:none}
+.ayuda-ico:hover{color:var(--accent);border-color:var(--accent);background:var(--surface-hover)}
+
+/* El <details> solo posiciona. Sin ancho, sin alto, sin borde: la ventanita
+   tiene que salir de una caja normal y no de un círculo. */
+.ayuda{position:relative;display:inline-block;vertical-align:middle}
+
+}
+.ayuda::-webkit-details-marker{display:none}
+.ayuda:hover{color:var(--accent);border-color:var(--accent);background:var(--surface-hover)}
+
+/* -------------------------------------------------------------------
+   LA VENTANITA
+   -------------------------------------------------------------------
+   Absolutely posicionada para que NO empuje el contenido que está debajo.
+   Si fuera un bloque normal, abrir una ayuda bajaría todo lo de abajo, que es
+   justo lo contrario de lo que se busca: sacar la ayuda del medio, no meterla
+   entre medio.
+   ------------------------------------------------------------------- */
+.ayuda-caja{
+  position:absolute;
+  top:calc(100% + 8px);
+  left:0;
+  z-index:40;
+  width:min(340px,78vw);
+  padding:10px 12px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:0 10px 30px -8px rgba(0,0,0,.35);
+  font-size:.78rem;
+  line-height:1.45;
+  color:var(--ink);
+  text-align:left;
+  font-weight:400;
+  text-transform:none;
+  letter-spacing:normal;
+  cursor:auto;
+  animation:ayudaEntra .16s cubic-bezier(.25,.46,.45,.94);
+}
+@keyframes ayudaEntra{
+  from{opacity:0;transform:translateY(-4px)}
+  to{opacity:1;transform:none}
+}
+
+/* La flechita de la ventanita, para que se vea de dónde sale */
+.ayuda-caja:before{
+  content:"";
+  position:absolute;
+  top:-5px;
+  left:15px;
+  width:9px;
+  height:9px;
+  background:var(--panel);
+  border-left:1px solid var(--line);
+  border-top:1px solid var(--line);
+  transform:rotate(45deg);
+}
+
+/* -------------------------------------------------------------------
+   LOS TÍTULOS QUE LLEVAN AYUDA
+   ------------------------------------------------------------------- */
+h2.con-ayuda,h3.con-ayuda{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:2px;
+}
+
+/* -------------------------------------------------------------------
+   EN UN PUNTO ESTRECHO
+   -------------------------------------------------------------------
+   La ventanita se ancla a la derecha, porque en un teléfono el ícono suele
+   estar al final de la línea y una caja de 340 píxeles a la izquierda se sale
+   de la pantalla.
+   ------------------------------------------------------------------- */
+@media (max-width:560px){
+  .ayuda-caja{
+    left:auto;
+    right:0;
+    width:min(300px,86vw);
+  }
+  .ayuda-caja:before{left:auto;right:15px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .ayuda-caja{animation:none}
+}
+
+/* -------------------------------------------------------------------
+   CIERRE CON LA TECLA ESC
+   -------------------------------------------------------------------
+   <details> no se cierra con Escape, y una ventana que no se cierra con Escape
+   es una ventana molesta: se abre, uno lee, y tiene que volver a apretar el
+   ícono a ciegas.
+   ------------------------------------------------------------------- */
+body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);outline-offset:2px}
