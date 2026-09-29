@@ -561,6 +561,54 @@ quiere correr.
   </div>
 </section>
 
+<!--
+LA FICHA PERSONAL
+=================
+Todos los datos de un trabajador en una pantalla, cada uno con su boton
+para copiarlo.
+
+POR QUE EXISTE, Y POR QUE NO ES SOLO "EXPORTAR"
+---------------------------------------------
+Porque hay dos clases de sistema de remuneraciones, y para uno de los dos
+no hay boton de exportar que sirva:
+
+  - los que aceptan importar un archivo: se le da el archivo
+  - los que NO aceptan: hay que abrir el sistema, buscar el campo, y
+    escribir el dato a mano
+
+Para el segundo, copiar el campo y pegarlo es la unica manera. Y para
+que eso sirva, el boton tiene que estar al lado del dato, no en una
+barra de herramientas arriba: si hay que buscarlo, se deja de usar a las
+veces.
+
+ADEMAS SIRVE PARA ARCHIVAR
+-------------------------
+Una hoja con todo el papel de una persona junta: sus datos, su contrato,
+su induccion, su derecho a saber. Eso es lo que se guarda en la carpeta
+del trabajador, y lo que se pide cuando hay que ver que paso con una
+persona hace tres años.
+
+LA LISTA DE CAMPOS ESTA EN UN SOLO LADO
+--------------------------------------
+En CAMPOS_FICHA, en el codigo. La pantalla la usa para pintarse, y la
+descarga la usa para escribir el archivo. No hay dos listas, y por eso no
+pueden separarse: si un campo esta en la pantalla, esta en el archivo,
+porque salen del mismo lugar.
+-->
+<section class="view" id="v-ficha-trabajador">
+  <div class="card">
+    <h2 id="fichaTitulo">Ficha del trabajador</h2>
+    <div class="fichaHerramientas">
+      <select id="fichaSelector" onchange="abrirFichaTrabajador(this.value)"></select>
+      <button type="button" class="btn primary" onclick="copiarFichaCompleta(this)">Copiar todo</button>
+      <button type="button" class="btn secondary" onclick="descargarFichaFormato()">Descargar ficha</button>
+    </div>
+    <p id="fichaResumen"></p>
+    <div id="fichaCuerpo"></div>
+    <div id="fichaAviso" role="status" aria-live="polite"></div>
+  </div>
+</section>
+
 <section class="view" id="v-carga-csv-trabajadores">
   <div class="card">
     <h2>Carga masiva de trabajadores</h2>
@@ -3238,7 +3286,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION = '2026-09-29-i';
+const APP_VERSION = '2026-09-29-j';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -3847,6 +3895,26 @@ function renderList(filter){
     }
     botones[botones.length-2].onclick=(ev)=>{ev.stopPropagation();desvincularWorker(w.code);};
     botones[botones.length-1].onclick=(ev)=>{ev.stopPropagation();eliminarWorker(w);};
+    // ------------------------------------------------------------------
+    // EL BOTON DE LA FICHA
+    // ------------------------------------------------------------------
+    // Va como hermano DESPUES de lista-iconos, y no dentro. Los botones de
+    // la fila se conectan por posicion (botones[0], botones[length-2], y
+    // asi), asi que agregar uno DENTRO corre los indices una posicion y
+    // "desvincular" pasa a disparar la ficha.
+    //
+    // No sale ningun error cuando eso pasa: las dos funciones existen y
+    // reciben un codigo valido, solo que hacen otra cosa. Y un trabajador
+    // desvinculado por un clic equivocado se va de la planilla sin que
+    // nadie lo note hasta que alguien lo reclama.
+    const btnFicha=document.createElement('button');
+    btnFicha.type='button';
+    btnFicha.className='btn secondary';
+    btnFicha.style.cssText='flex:0 0 auto;min-height:40px;padding:6px 12px;font-size:.82rem';
+    btnFicha.textContent='Ficha';
+    btnFicha.title='Ver la ficha completa, con boton de copiar en cada campo';
+    btnFicha.onclick=(ev)=>{ev.stopPropagation();abrirFichaTrabajador(w.code);};
+    d.appendChild(btnFicha);
     el.appendChild(d);
   });
 }
@@ -11392,7 +11460,7 @@ const VARIABLES_PLANTILLA = [
   {clave:'fecha',            etiqueta:'Fecha de hoy',                 de:'la del sistema'},
   {clave:'fecha_ingreso',    etiqueta:'Fecha de ingreso',             de:'trabajadores.fecha_ingreso'},
   {clave:'supervisor',       etiqueta:'Nombre del supervisor',        de:'el que firma'},
-  {clave:'cargo',            etiqueta:'Cargo',                        de:'trabajadores.cargo'}
+  {clave:'spec',            etiqueta:'Cargo',                        de:'trabajadores.cargo'}
 ];
 
 // ------------------------------------------------------------------
@@ -13695,6 +13763,411 @@ function imprimirAvisoTotem(){
   window.print();
   caja.innerHTML='';
 }
+
+// ------------------------------------------------------------------
+// LA FICHA PERSONAL, Y EL FORMATO
+// ------------------------------------------------------------------
+// QUE RESUELVE
+// ------------
+// Que se pueda llevar los datos de un trabajador a otro sistema. Y hay dos
+// maneras, porque no todos los sistemas de remuneraciones dejan importar:
+//
+//   a) el que TIENE importacion: se le da el archivo
+//   b) el que NO tiene: se copia campo por campo y se pega a mano
+//
+// Para el caso (b) no sirve de nada un boton de copiar por campo si el
+// campo no esta, o si el boton no dice si se copio o no. Por eso el
+// boton cambia un instante y lo dice.
+//
+//
+// EL FORMATO ESTA DEFINIDO ACA, Y EN UN SOLO LADO
+// -----------------------------------------------
+// CAMPOS_FICHA es la unica lista. La pantalla la usa para pintar las
+// filas, y la descarga la usa para escribir el archivo. No hay dos listas.
+//
+// Cuando hay dos listas, la primera se actualiza y la segunda no, y el
+// resultado es una pantalla con un campo que el archivo no tiene, o al
+// reves. Eso es peor que no tener formato: es un formato que miente.
+//
+// Con una sola lista no puede pasar: si el campo esta en la pantalla, esta
+// en el archivo, porque salen del mismo lugar.
+//
+//
+// QUE SIGNIFICA CADA COSA DE LA LISTA
+// ----------------------------------
+//   clave     el nombre del campo, como esta en la base. Cambia si cambia
+//             la base, y eso hay que saberlo.
+//   etiqueta  lo que se ve escrito. Es lo que el usuario lee para saber
+//             que campo esta copiando.
+//   grupo     para que la ficha no sea una lista de 25 renglones sueltos.
+//   formato   como se convierte el valor al archivo. Un RUT se escribe
+//             con guiones, un telefono sin ellos, y una fecha como AAAA-MM-DD.
+//             Si no se dice, cada quien lo escribe como quiere y el
+//             archivo entra igual en el sistema equivocado.
+//
+// LA VERSION DEL FORMATO
+// ----------------------
+// El archivo lleva su version en la primera linea. Si un dia se agrega un
+// campo, la version pasa a 2, y el que recibe el archivo sabe que no es el
+// mismo que recibio la vez pasada. Sin eso, un archivo viejo y uno nuevo se
+// ven iguales y nadie sabe cual es cual.
+//
+// La version va PRIMERA y sola en su linea, con un # adelante para que
+// ningun sistema la tome como un dato de un trabajador. Si el sistema
+// receptor no la entiende, la ignora como un comentario: es preferible
+// que ignore una linea a que tome la version como si fuera el nombre de
+// un trabajador.
+const CAMPOS_FICHA=[
+  {grupo:'Identificacion',clave:'code',etiqueta:'Codigo',formato:'texto'},
+  {grupo:'Identificacion',clave:'name',etiqueta:'Nombre completo',formato:'texto'},
+  {grupo:'Identificacion',clave:'rut',etiqueta:'RUT',formato:'rut'},
+  {grupo:'Trabajo',clave:'spec',etiqueta:'Cargo o especialidad',formato:'texto'},
+  {grupo:'Trabajo',clave:'especialidad_clave',etiqueta:'Especialidad del kit',formato:'texto'},
+  {grupo:'Trabajo',clave:'fecha_ingreso',etiqueta:'Fecha de ingreso',formato:'fecha'},
+  {grupo:'Trabajo',clave:'tipo_trabajador',etiqueta:'Tipo de trabajador',formato:'texto'},
+  {grupo:'Trabajo',clave:'empresa_id',etiqueta:'Empresa',formato:'texto'},
+  {grupo:'Trabajo',clave:'supervisor_code',etiqueta:'Codigo del supervisor',formato:'texto'},
+  {grupo:'Trabajo',clave:'status',etiqueta:'Situacion',formato:'texto'},
+  {grupo:'Contacto',clave:'phone',etiqueta:'Telefono',formato:'telefono'},
+  {grupo:'Contacto',clave:'emerg_name',etiqueta:'Contacto de emergencia',formato:'texto'},
+  {grupo:'Contacto',clave:'emerg_rel',etiqueta:'Parentesco del contacto',formato:'texto'},
+  {grupo:'Contacto',clave:'emerg_phone',etiqueta:'Telefono de emergencia',formato:'telefono'},
+  {grupo:'Salud',clave:'salud',etiqueta:'Salud',formato:'texto'},
+  {grupo:'Salud',clave:'medicamentos',etiqueta:'Medicamentos',formato:'texto'},
+  {grupo:'Salud',clave:'precauciones',etiqueta:'Precauciones',formato:'texto'},
+  {grupo:'Alertas',clave:'alerta_social',etiqueta:'Alerta social',formato:'texto'},
+  {grupo:'Alerta',clave:'alerta_social_nota',etiqueta:'Detalle de la alerta social',formato:'texto'},
+  {grupo:'Alertas',clave:'alerta_prevencion',etiqueta:'Alerta de prevencion',formato:'texto'},
+  {grupo:'Alertas',clave:'alerta_prevencion_nota',etiqueta:'Detalle de la alerta de prevencion',formato:'texto'},
+  {grupo:'Indicaciones',clave:'indicaciones_sociales',etiqueta:'Indicacion del asistente social',formato:'texto'},
+  {grupo:'Indicaciones',clave:'indicaciones_prevencion',etiqueta:'Indicacion de prevencion',formato:'texto'},
+  {grupo:'Desvinculacion',clave:'fecha_termino',etiqueta:'Fecha de termino',formato:'fecha'},
+  {grupo:'Desvinculacion',clave:'articulo_termino',etiqueta:'Articulo de termino',formato:'texto'},
+  {grupo:'Desvinculacion',clave:'motivo_desvinculacion',etiqueta:'Motivo de la desvinculacion',formato:'texto'},
+];
+const VERSION_FORMATO_FICHA='1';
+
+// CUANTOS HAY QUE AVISAR
+// -----------------------
+// Un campo vacio en una ficha es normal: no todos los de tinta tienen grupo
+// sanguíneo, no todos tienen alkifer. Pero hay una diferencia entre "no
+// lo tiene" y "no lorellenaron y deberian".
+//
+// Por eso se avisara cuantos campos estan vacios al abrir, y no se
+// bloquea nada. Un campo vacio se puede copiar igual: copiar un vacio no
+// rompe nada, y molesta que se avise de un campo que la persona si
+// tiene.
+function fichaVacia(w){
+  if(!w)return 0;
+  return CAMPOS_FICHA.filter(c=>!valorDeCampo(w,c)).length;
+}
+
+
+// ------------------------------------------------------------------
+// LEER UN CAMPO
+// ------------------------------------------------------------------
+// El valor crudo, tal como esta en el objeto. Devuelve '' en vez de
+// undefined, porque un undefined pegado en un archivo pone la palabra
+// "undefined" y eso ya no se sabe de donde salio.
+function valorDeCampo(w,campo){
+  if(!w)return '';
+  const v=w[campo.clave];
+  return v==null?'':String(v);
+}
+
+// CADA CAMPO EN EL FORMATO DEL ARCHIVO
+// -------------------------------------
+// Un RUT con guiones y un telefono con guiones NO se escriben igual. Un
+// sistema de remuneraciones que espera el RUT con guiones rechaza el que
+// viene sin ellos, y uno que espera el telefono con guiones al reves.
+//
+// Por eso el formato se declara campo por campo. Si no se dice, cada
+// quien lo escribe como quiere y el archivo no entra en ningun lado.
+function valorParaArchivo(w,campo){
+  const crudo=valorDeCampo(w,campo);
+  if(!crudo)return '';
+  switch(campo.formato){
+    case 'rut':{
+      // "13.199.887-2" se deja con guiones, que es como lo escribe la
+      // gente y como lo muestra casi todo. Un RUT sin puntos se lee como
+      // un numero y se confunde con el codigo del trabajador.
+      const solo=crudo.replace(/[^0-9kK]/g,'').toUpperCase();
+      if(solo.length<2)return crudo;
+      const cuerpo=solo.slice(0,-1);
+      const dv=solo.slice(-1);
+      const puntos=cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+      return puntos+'-'+dv;
+    }
+    case 'telefono':{
+      // Sin guiones ni espacios: el telefono se usa para hacer un
+      // contacto, no para leerlo. Un espacio en el medio rompe el envio
+      // de un mensaje.
+      return crudo.replace(/[^\d+]/g,'');
+    }
+    case 'fecha':{
+      // AAAA-MM-DD. Es el unico formato que no se malinterpreta: el
+      // 03/04/2026 es el 3 de abril en Chile y el 4 de marzo en
+      // Estados Unidos, y en un archivo que viaja entre dos países eso
+      // termina en el fecha de ingreso equivocada de un trabajador.
+      const d=new Date(crudo);
+      if(isNaN(d.getTime()))return crudo;
+      const mes=String(d.getMonth()+1).padStart(2,'0');
+      const dia=String(d.getDate()).padStart(2,'0');
+      return d.getFullYear()+'-'+mes+'-'+dia;
+    }
+    default:
+      // Los textos pueden traer saltos de linea y comas. En un archivo
+      // separado por comas, un salto de linea parte el dato en dos y la
+      // fila se corrige. Se aplanan.
+      return crudo.replace(/\s+/g,' ').trim();
+  }
+}
+
+// ------------------------------------------------------------------
+// COPIAR
+// ------------------------------------------------------------------
+// Por que no se usa el portapapeles a secas: cuando la pagina no esta
+// en https, o cuando el navegador lo niegue, navigator.clipboard no
+// existe o falla, y la excepcion se come el error. En una obra, con la
+// aplicacion instalada en un equipo viejo o abierta como archivo, eso
+// pasa seguido.
+//
+// Por eso hay un camino de reserva con un textarea invisible, que es lo
+// que funcione siempre. Y en los dos caminos el boton dice que copio:
+// copiar en silencio deja a la persona creyendo que quedo en el
+// portapapeles cuando no quedo, y eso es peor que no copiar.
+function copiarTextoFicha(texto,boton){
+  const original=boton?boton.textContent:'';
+  const bien=()=>{marcarBotonFicha(boton,'Copiado',true);};
+  const mal=()=>{
+    marcarBotonFicha(boton,'No se pudo copiar',false);
+    if(original)setTimeout(()=>marcarBotonFicha(boton,original,false),1600);
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(bien).catch(()=>copiarPorReserva(texto,bien,mal));
+    return;
+  }
+  copiarPorReserva(texto,bien,mal);
+}
+
+// El camino de reserva: un textarea invisible, se selecciona, y el
+// comando de copiar. Es de 1995 y funciona en todas partes.
+function copiarPorReserva(texto,bien,mal){
+  try{
+    const caja=document.createElement('textarea');
+    caja.value=texto;
+    caja.setAttribute('readonly','');
+    caja.style.position='fixed';
+    caja.style.left='-9999px';
+    caja.style.opacity='0';
+    document.body.appendChild(caja);
+    caja.select();
+    caja.setSelectionRange(0,caja.value.length);
+    const ok=document.execCommand&&document.execCommand('copy');
+    document.body.removeChild(caja);
+    ok?bien():mal();
+  }catch(error){mal();}
+}
+
+// El boton que dice si copio. El cambio dura un instante y se vuelve
+// solo: si el texto se queda puesto, la pantalla queda llena de
+// "Copiado" y no se ve mas nada.
+function marcarBotonFicha(boton,texto,bueno){
+  if(!boton)return;
+  boton.textContent=texto;
+  boton.classList.add(bueno?'copiado':'copiadoNo');
+  setTimeout(()=>{
+    boton.classList.remove('copiado','copiadoNo');
+    if(bueno)boton.textContent='Copiar';
+  },1200);
+}
+function copiarCampoFicha(campo,boton){
+  const w=fichaEnPantalla;
+  const valor=valorParaArchivo(w,campo);
+  if(!valor){
+    marcarBotonFicha(boton,'Vacio',false);
+    return;
+  }
+  copiarTextoFicha(valor,boton);
+}
+
+// ------------------------------------------------------------------
+// COPIAR LA FICHA ENTERA
+// ------------------------------------------------------------------
+// Separado por tabuladores, NO por comas.
+//
+// El tabulador es el separador que Excel y Google Sheets reconocen al
+// pegar, y es el unico que no se rompe con un punto y coma dentro de un
+// texto. Un nombre de empresa con coma, o una observacion de salud con
+// punto y coma, partirian la fila en dos y la mitad de los datos
+// quedaria en la columna equivocada.
+//
+// Ademas lleva el nombre del campo arriba, con la misma lista. Pegado en
+// una hoja queda con encabezado, y la persona ve que columna es cada
+// cosa sin preguntar.
+function textoFichaParaPegar(){
+  const w=fichaEnPantalla;
+  if(!w)return '';
+  const lineas=[];
+  lineas.push('ficha\tversion\t'+VERSION_FORMATO_FICHA);
+  lineas.push(CAMPOS_FICHA.map(c=>c.etiqueta).join('\t'));
+  lineas.push(CAMPOS_FICHA.map(c=>valorParaArchivo(w,c)).join('\t'));
+  return lineas.join('\n');
+}
+function copiarFichaCompleta(boton){
+  if(!fichaEnPantalla){marcarBotonFicha(boton,'No hay nadie',false);return;}
+  copiarTextoFicha(textoFichaParaPegar(),boton);
+}
+
+
+// ------------------------------------------------------------------
+// DESCARGAR LA FICHA, CON SU FORMATO
+// ------------------------------------------------------------------
+// Un CSV, no un Excel. El motivo es concreto: el archivo va a un sistema
+// de remuneraciones que lo lee por columnas, y un .xlsx tiene
+// hojas, formatos y una estructura interna que hay que entender. Un CSV
+// es texto plano: se abre en cualquier lado y se ve.
+//
+// Separa por punto y coma, que es lo que aceptan casi todos los sistemas
+// de remuneraciones en la region. Y lo pone en la configuracion:
+// si el sistema de destino usa coma, se cambia UNA constante y el archivo
+// entero cambia con ella.
+const SEPARADOR_FICHA=';';
+
+// La cabecera va con el nombre del campo, porque un archivo de veinte
+// columnas sin nombre no se puede revisar: si un dato sale mal, no hay
+// forma de saber de que campo era.
+function descargarFichaFormato(){
+  const w=fichaEnPantalla;
+  if(!w)return;
+  const cabecera=CAMPOS_FICHA.map(c=>c.clave).join(SEPARADOR_FICHA);
+  const valores=CAMPOS_FICHA.map(c=>protegerParaCsv(valorParaArchivo(w,c))).join(SEPARADOR_FICHA);
+  // La version va sola y con un # adelante, para que un sistema que no la
+  // conozca la tome por un comentario y no por el nombre de un
+  // trabajador. Es preferible que ignore una linea a que guarde un
+  // "#version" como si fuera una persona.
+  const contenido=[
+    '#ficha-version '+VERSION_FORMATO_FICHA,
+    '#generado '+new Date().toISOString(),
+    cabecera,
+    valores,
+  ].join('\n');
+
+  const blob=new Blob(['\uFEFF'+contenido],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download='ficha-'+(w.code||'trabajador')+'.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Se libera despues, no antes: si se libera en el mismo instante, a
+  // veces el navegador todavia no alcanzo a leer el archivo y la
+  // descarga sale vacia.
+  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  avisarFicha('Ficha descargada. Es el formato '+VERSION_FORMATO_FICHA
+    +', separado por "'+SEPARADOR_FICHA+'". Si el sistema de destino usa otro separador, se cambia una sola constante.');
+}
+
+// Un valor puede traer el separador adentro: una observacion de salud que
+// dice "diabetes; hipertension" partiría la fila en dos y los datos
+// quedarían corridos. El separador y los saltos de linea van entre
+// comillas, que es lo que el formato CSV define para eso.
+function protegerParaCsv(valor){
+  const v=String(valor==null?'':valor);
+  if(v.indexOf(SEPARADOR_FICHA)<0 && v.indexOf('"')<0 && !/[\r\n]/.test(v))return v;
+  return '"'+v.replace(/"/g,'""')+'"';
+}
+function avisarFicha(texto){
+  const caja=document.getElementById('fichaAviso');
+  if(!caja)return;
+  caja.textContent=texto;
+  caja.classList.add('visible');
+  setTimeout(()=>{caja.classList.remove('visible');caja.textContent='';},7000);
+}
+
+// ------------------------------------------------------------------
+// LA PANTALLA
+// ------------------------------------------------------------------
+let fichaEnPantalla=null;
+
+function abrirFichaTrabajador(code){
+  const w=trabajadorEnCualquierEmpresa(code)||trabajadorEnAlcance(code);
+  if(!w){alert('No se encontro al trabajador '+code+'.');return;}
+  fichaEnPantalla=w;
+  pintarFicha(w);
+  if(typeof showView==='function')showView('ficha-trabajador');
+}
+
+// La lista para elegir a quien se le ve la ficha. Se usan todos los
+// trabajadores, no solo los de la empresa que se esta viendo: la ficha es
+// el lugar donde se revisa una persona, y muchas veces se revisa a alguien
+// que esta en otra empresa o que ya se desvinculo y ya no aparece en la
+// lista de la empresa.
+//
+// Se ordena por codigo y no por nombre, porque en una obra hay varias
+// personas con el mismo nombre y el mismo apellido. El codigo es lo unico
+// que las distingue, y es lo que se copia al sistema de remuneraciones.
+function llenarSelectorFicha(){
+  const sel=document.getElementById('fichaSelector');
+  if(!sel)return;
+  const todos=(workers||[]).concat(todosWorkers||[]);
+  const lista=[...new Map(todos.filter(w=>w&&w.code).map(w=>[w.code,w])).values()]
+    .sort((a,b)=>String(a.code).localeCompare(String(b.code)));
+  sel.innerHTML='<option value="">Elige un trabajador</option>'
+    +lista.map(w=>'<option value="'+escHtml(w.code)+'">'+escHtml(codigoMostrar(w.code))+' — '+escHtml(w.name||'')+'</option>').join('');
+}
+
+function pintarFicha(w){
+  // El selector se llena solo, una sola vez. Sin esto, la primera vez que
+  // se abre la ficha aparece vacio y hay que entrar por la lista cada vez;
+  // la segunda ya esta lleno porque abrirFichaTrabajador lo setea.
+  const selTrab=document.getElementById('fichaSelector');
+  if(selTrab&&!selTrab.options.length)llenarSelectorFicha();
+  const caja=document.getElementById('fichaCuerpo');
+  const titulo=document.getElementById('fichaTitulo');
+  if(titulo)titulo.textContent=(w.code||'')+' — '+(w.name||'');
+  if(!caja)return;
+
+  // Los grupos en el orden en que salen de la lista, sin repetir.
+  const grupos=[];
+  CAMPOS_FICHA.forEach(c=>{ if(grupos.indexOf(c.grupo)<0)grupos.push(c.grupo); });
+
+  let html='';
+  grupos.forEach(grupo=>{
+    const delGrupo=CAMPOS_FICHA.filter(c=>c.grupo===grupo);
+    const vacios=delGrupo.filter(c=>!valorDeCampo(w,c)).length;
+    html+='<section class="fichaGrupo"><h3>'+escHtml(grupo)+'</h3><div class="fichaFilas">';
+    delGrupo.forEach(c=>{
+      const valor=valorParaArchivo(w,c);
+      const vacio=!valor;
+      html+='<div class="fichaFila'+(vacio?' vacio':'')+'">'
+        +'<div class="fichaDato"><span class="fichaEtiqueta">'+escHtml(c.etiqueta)+'</span>'
+        +'<span class="fichaValor">'+(vacio?'<em>sin dato</em>':escHtml(valor))+'</span></div>'
+        +'<button type="button" class="btn fichaCopiar" '
+        +'onclick="copiarCampoFicha(CAMPOS_FICHA['+CAMPOS_FICHA.indexOf(c)+'],this)" '
+        +'title="Copiar el valor de '+escHtml(c.etiqueta)+'">Copiar</button>'
+        +'</div>';
+    });
+    html+='</div>'
+      +'<p class="fichaGrupoAviso">'+(vacios?vacios+' sin dato en este grupo':'')+'</p>'
+      +'</section>';
+  });
+  caja.innerHTML=html;
+
+  // Cuantos hay en total. Se avisa, no se bloquea: un campo vacio es
+  // normal, y frenar la ficha por eso haria que la gente no la use.
+  const faltan=fichaVacia(w);
+  const aviso=document.getElementById('fichaResumen');
+  if(aviso){
+    aviso.textContent=faltan
+      ?'Faltan '+faltan+' de '+CAMPOS_FICHA.length+' campos. Se pueden copiar igual: un campo sin dato se copia vacio.'
+      :'Esta la ficha completa: '+CAMPOS_FICHA.length+' campos.';
+  }
+  const sel=document.getElementById('fichaSelector');
+  if(sel)sel.value=w.code;
+}
+
 
 function mostrarTotem(clase,titulo,detalle){
   const caja=document.getElementById('totemMensaje');

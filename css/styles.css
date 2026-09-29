@@ -1188,3 +1188,187 @@ que uno dude de cómo va a salir impreso.
 .modo-kiosco #pantallaTotem {
   padding-top: 132px;
 }
+
+/* ======================= LA FICHA PERSONAL (2026-09-29) ======================= */
+
+/* ===================================================================
+   LA FICHA PERSONAL
+   ===================================================================
+
+   COMO ESTA PENSADA
+   -----------------
+   Cada campo es una fila con su boton de copiar. No es que quede lindo:
+   es que el que lo usa va a leer un renglon, apretar, y pegar en el
+   sistema de remuneraciones. Si el boton quedara en un rincon, habria
+   que buscarlo 25 veces por trabajador.
+
+   El boton es ancho para que se pueda apretar con el dedo, y dice
+   "Copiado" un instante cuando funciono. Ese ultimo detalle es lo que
+   hace que la pantalla sirva: copiar en silencio deja a la persona
+   creyendo que quedo en el portapapeles cuando no quedo, y eso es peor
+   que no copiar.
+
+   LA CUADRICULA
+   -------------
+   Dos columnas en una pantalla de escritorio, una sola en angosto. La
+   etiqueta arriba del valor, no al lado: con 25 campos de nombres
+   largos, al lado el valor queda en diez pixeles y hay que abrir la
+   ventana.
+
+   LO QUE NO SE HACE
+   -----------------
+   No se agranda la tipografia del escritorio. La ficha es una pantalla
+   mas, con su propia regla, y vive bajo #ficha-trabajador para que no
+   alcance a nada mas. */
+
+#v-ficha-trabajador .fichaHerramientas {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+#v-ficha-trabajador .fichaHerramientas select {
+  flex: 1 1 260px;
+  min-width: 200px;
+  min-height: 42px;
+}
+
+#fichaResumen {
+  font-size: .9rem;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+/* ------------------------------------------------------------------
+   LOS GRUPOS
+   ------------------------------------------------------------------ */
+.fichaGrupo {
+  margin-bottom: 22px;
+}
+
+.fichaGrupo h3 {
+  font-size: .78rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--secondary-text);
+  margin: 0 0 8px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+}
+
+.fichaGrupoAviso {
+  margin: 6px 0 0;
+  font-size: .78rem;
+  color: var(--muted);
+  min-height: 1em;
+}
+
+/* ------------------------------------------------------------------
+   LAS FILAS
+   ------------------------------------------------------------------ */
+.fichaFilas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 18px;
+}
+
+.fichaFila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  min-height: 52px;
+}
+
+.fichaDato {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fichaEtiqueta {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--secondary-text);
+}
+
+.fichaValor {
+  font-size: 1rem;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+/* Un campo sin dato se ve que esta vacio, sin que parezca un error.
+   El gris lo dice; un borde rojo haria pensar que esta mal. */
+.fichaFila.vacio .fichaValor em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.fichaFila.vacio {
+  border-style: dashed;
+}
+
+/* ------------------------------------------------------------------
+   EL BOTON DE COPIAR
+   ------------------------------------------------------------------ */
+.fichaCopiar {
+  flex: 0 0 auto;
+  min-width: 84px;
+  min-height: 40px;
+  font-size: .85rem;
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.fichaCopiar.copiado {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+
+.fichaCopiar.copiadoNo {
+  background: var(--danger);
+  color: #fff;
+  border-color: var(--danger);
+}
+
+/* ------------------------------------------------------------------
+   EL AVISO QUE APARECE UN INSTANTE
+   ------------------------------------------------------------------ */
+#fichaAviso {
+  display: none;
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: 6px;
+  font-size: .88rem;
+  line-height: 1.5;
+}
+
+#fichaAviso.visible {
+  display: block;
+}
+
+/* ------------------------------------------------------------------
+   EN ANGOSTO, UNA SOLA COLUMNA
+   ------------------------------------------------------------------ */
+@media (max-width: 860px) {
+  .fichaFilas {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fichaFila {
+    min-height: 56px;
+  }
+}
