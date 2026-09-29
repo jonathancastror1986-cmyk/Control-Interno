@@ -5414,3 +5414,76 @@ input:focus,select:focus,textarea:focus{
    persona cree que el reloj está roto.
    ------------------------------------------------------------------- */
 #pantallaTotem.abierta{overflow:hidden}
+
+
+/* ===================================================================
+   LA SOMBRA DEL NAV, Y EL DIÁLOGO DE CARGAR CARGOS
+   ===================================================================
+   Entre dos barras pegadas, una sombra hacia abajo no dice "esto flota": dice
+   "esto tiene algo raro arriba". La sombra de la barra de secciones caía sobre
+   el submenú y la del submenú caía sobre la página, y las dos se veían como una
+   mancha gris entre las barras.
+
+   La sombra queda solo en la barra de ARRIBA del todo, que es la única que
+   está realmente encima de la página. Las de abajo alcanzan con un borde.
+   =================================================================== */
+
+#barrasSuperiores header{
+  box-shadow:0 2px 5px rgba(0,0,0,.10),0 8px 18px -6px rgba(0,0,0,.14);
+}
+#barrasSuperiores #mainNav,
+#barrasSuperiores #subNav{
+  box-shadow:none;
+  border:1px solid rgba(0,0,0,.10);
+}
+
+/* En oscuro el borde claro es lo que separa, porque la sombra negra no se ve. */
+@media (prefers-color-scheme: dark){
+  #barrasSuperiores #mainNav,
+  #barrasSuperiores #subNav{border-color:rgba(255,255,255,.09)}
+}
+
+/* -------------------------------------------------------------------
+   EL DIÁLOGO
+   -------------------------------------------------------------------
+   El patrón del archivo: oculto por defecto, y ".open" lo pone el JavaScript.
+   Sin la primera línea el div queda en el flujo de la página y el formulario
+   aparece con el diálogo adentro, que es exactamente lo que se estaba viendo.
+   ------------------------------------------------------------------- */
+#dlgCargos{
+  display:none;
+  position:fixed;
+  inset:0;
+  z-index:220;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+  /* El difuminado va AQUÍ, en el fondo de atrás, y no en la caja. La caja es
+     opaca; lo que separa la ventana del resto es el desenfoque de lo que hay
+     detrás, y una sombra fuerte encima de eso solo se ve como una mancha. */
+  background:rgba(15,23,19,.42);
+  backdrop-filter:blur(7px) saturate(115%);
+  -webkit-backdrop-filter:blur(7px) saturate(115%);
+}
+#dlgCargos.open{display:flex}
+
+#dlgCargos .dialog-caja{
+  background:var(--panel);
+  border:1px solid var(--line);
+  /* Más cuadrado que una barra: 8 en vez de 12. La caja es grande, y con 12 de
+     redondeo las esquinas se leen como un botón. */
+  border-radius:8px;
+  padding:18px 20px 16px;
+  width:min(100%,620px);
+  max-height:88vh;
+  overflow:auto;
+  box-shadow:0 18px 50px -12px rgba(0,0,0,.45);
+  animation:dlgCargosEntra .18s cubic-bezier(.4,0,.2,1);
+}
+@keyframes dlgCargosEntra{
+  from{opacity:0;transform:translateY(8px) scale(.99)}
+  to{opacity:1;transform:none}
+}
+@media (prefers-reduced-motion: reduce){
+  #dlgCargos .dialog-caja{animation:none}
+}

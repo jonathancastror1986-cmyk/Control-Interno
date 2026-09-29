@@ -3525,6 +3525,7 @@ function initView(v){
     loadBitacora();
   }
   if(v==='permisos'){renderPermisos();}
+  if(v==='empresas-cargos'){cargarEmpresasCargos();}
   if(v==='buscar-tarjeta'){fillCardSelect();renderCard();}
   if(v==='imprimir-tarjetas'){fillPdfChecks();}
   if(v==='empresa'){loadEmpresaForm();revisarMigraciones();}
@@ -18103,6 +18104,228 @@ function marcarNavCompacto(){
   // es que la transición del encabezado tape el contenido de golpe, y eso se
   // resuelve con un pouco de delay abajo.
 }
+// ===================================================================
+// EMPRESAS: CARGOS, GRUPOS Y PERMISOS
+// ===================================================================
+//
+// Tres bloques y un diálogo. Todo se apoya en la 050 y la 051, que ya están
+// aplicadas: esto no agrega migraciones, es la pantalla que faltaba.
+//
+// -------------------------------------------------------------------
+// LA LISTA VIENE DE LA BASE, NO DE AQUÍ
+// -------------------------------------------------------------------
+// jerarquia_cargos() ya trae el filtro por empresa de la 050. Si esta pantalla
+// cruzara los datos por su cuenta estaría haciendo en el navegador lo que la
+// base ya hace, y un día las dos cosas no coinciden y no se sabe cuál manda.
+//
+// Y el filtro es lo que importa: una empresa que no maneja gasfitería no debe
+// ofrecerla, porque alguien la elige y recibe un kit que ahí no existe.
+// -------------------------------------------------------------------
+let ecEmpresaId=null;
+
+function empresaDeCargos(){
+  const sel=document.getElementById('ecEmpresa');
+  if(sel&&sel.value)return parseInt(sel.value,10);
+  return ecEmpresaId;
+}
+function nombreDeEmpresaCargos(id){
+  const lista=(typeof empresas!=='undefined'&&empresas)?empresas:[];
+  const e=lista.find(x=>mismoId(x.id,id));
+  return e?e.nombre:'';
+}
+
+async function cargarEmpresasCargos(){
+  const sel=document.getElementById('ecEmpresa');
+  const aviso=document.getElementById('ecAviso');
+  if(!sel)return;
+  const lista=(typeof empresas!=='undefined'&&empresas)?empresas:[];
+
+  if(!sel.options.length&&lista.length){
+    const antes=sel.value;
+    sel.innerHTML='<option value="">Todas las empresas</option>'
+      +lista.map(e=>'<option value="'+escHtml(String(e.id))+'">'+escHtml(e.nombre||'')+'</option>').join('');
+    if(antes&&[...sel.options].some(o=>o.value===antes))sel.value=antes;
+  }
+  ecEmpresaId=empresaDeCargos();
+  await cargarJerarquiaCargos(true);
+  renderEmpresasCargos();
+  if(!aviso)return;
+  aviso.textContent=ecEmpresaId
+    ?'Editando: '+(nombreDeEmpresaCargos(ecEmpresaId)||('empresa #'+ecEmpresaId))
+    :'Estás viendo todas las empresas. Las casillas de abajo no se pueden marcar sin elegir una: '
+     +'activar un cargo es activarle a UNA empresa, no a todas.';
+}
+
+function renderEmpresasCargos(){
+  renderGruposCargos();
+  renderCargosDeEmpresa();
+}
+
+// -------------------------------------------------------------------
+// LOS GRUPOS
+// -------------------------------------------------------------------
+// Salen de la misma jerarquía, sin pedir nada extra. Un grupo que no aparece es
+// que no hay ningún cargo en él, y eso se ve distinto de "el grupo no existe".
+function renderGruposCargos(){
+  const caja=document.getElementById('ecGrupos');
+  if(!caja)return;
+  const vistos={};
+  const filas=[];
+  jerarquiaCargos.forEach(f=>{
+    if(!f.grupo||vistos[f.grupo])return;
+    vistos[f.grupo]=1;
+    const n=jerarquiaCargos.filter(x=>x.grupo===f.grupo).length;
+    filas.push('<div class="ecFila">'
+      +'<div><b>'+escHtml(f.grupoNombre||f.grupo)+'</b> <small style="color:var(--muted)">'
+      +n+' cargo'+(n===1?'':'s')+'</small></div>'
+      +'<div><small style="color:var(--muted)">clave: '+escHtml(f.grupo)+'</small></div>'
+      +'</div>');
+  });
+  caja.innerHTML=filas.length?filas.join('')
+    :'<small style="color:var(--muted)">Todavía no hay grupos. Crea el primero: sin un grupo, los cargos no se pueden ordenar en el desplegable anidado del ingreso.</small>';
+}
+
+async function crearGrupoDesdePantalla(){
+  const inp=document.getElementById('ecGrupoNombre');
+  const aviso=document.getElementById('ecAviso');
+  if(!inp)return;
+  const nombre=inp.value.trim();
+  if(!nombre){if(aviso)aviso.textContent='Escribe el nombre del grupo.';return;}
+  const {data,error}=await window.supabaseClient.rpc('gestionar_grupo',{
+    p_clave:null,p_nombre:nombre,p_orden:900,p_activo:true
+  });
+  if(error){
+    if(aviso)aviso.textContent='No se pudo crear el grupo: '+error.message;
+    return;
+  }
+  inp.value='';
+  if(aviso)aviso.textContent='Grupo creado con la clave "'+(data[0]?data[0].gestionar_grupo:'')+'".';
+  await cargarJerarquiaCargos(true);
+  renderEmpresasCargos();
+}
+
+// -------------------------------------------------------------------
+// LOS CARGOS DE ESTA EMPRESA
+// -------------------------------------------------------------------
+// La casilla manda un pedido a la base y, si la base dice que no, vuelve atrás.
+// Un checkbox que se queda marcado cuando el pedido falló está mintiendo, y
+// peor: hace creer que el sistema anda raro cuando lo que falla es el permiso.
+//
+// Y sin empresa elegida las casillas van apagadas: activar un cargo es
+// activarle a UNA empresa. No hay "activar a todas" que signifique algo.
+function renderCargosDeEmpresa(){
+  const caja=document.getElementById('ecCargos');
+  if(!caja)return;
+  if(!jerarquiaCargos.length){
+    caja.innerHTML='<small style="color:var(--muted)">No hay cargos. Carga la lista con el botón de arriba.</small>';
+    return;
+  }
+  const emp=empresaDeCargos();
+  const porGrupo={};
+  jerarquiaCargos.forEach(f=>{
+    const g=f.grupo||'general';
+    if(!porGrupo[g])porGrupo[g]={nombre:f.grupoNombre||g,cargos:[]};
+    porGrupo[g].cargos.push(f);
+  });
+  const grupos=Object.keys(porGrupo)
+    .sort((a,b)=>String(porGrupo[a].nombre).localeCompare(String(porGrupo[b].nombre)));
+
+  caja.innerHTML=grupos.map(g=>{
+    const b=porGrupo[g];
+    return '<div class="ecGrupo"><div class="ecGrupoNombre">'+escHtml(b.nombre)+'</div>'
+      +b.cargos.map(f=>
+        '<label class="ecCargo'+(emp!=null?'':' apagado')+'">'
+        +'<input type="checkbox"'+(emp!=null?' checked':'')
+        +' onchange="activarCargoDeEmpresa(\''+escHtml(f.cargo)+'\',this.checked,this)">'
+        +'<span>'+escHtml(f.cargoNombre||f.cargo)+'</span>'
+        +'<small style="color:var(--muted)">'+escHtml(f.cargo)+'</small>'
+        +'</label>'
+      ).join('')
+      +'</div>';
+  }).join('')
+  +'<small style="color:var(--muted);display:block;margin-top:10px">'
+  +'Desactivar un cargo lo saca del desplegable del ingreso, pero no borra a nadie: los trabajadores que lo '
+  +'tienen lo conservan, y el EPP y las charlas ya entregadas siguen en el historial.</small>';
+}
+
+async function activarCargoDeEmpresa(cargo,activo,casilla){
+  const aviso=document.getElementById('ecAviso');
+  const espId=especialidadIdDeClave(cargo);
+  if(!espId){
+    if(casilla)casilla.checked=!activo;
+    if(aviso)aviso.textContent='Ese cargo no está en el catálogo.';
+    return;
+  }
+  const {error}=await window.supabaseClient.rpc('activar_especialidad_empresa',{
+    p_empresa_id:empresaDeCargos(),p_especialidad_id:espId,p_activa:activo
+  });
+  if(error){
+    if(casilla)casilla.checked=!activo;
+    if(aviso)aviso.textContent='No se pudo cambiar: '+error.message;
+    return;
+  }
+  if(aviso)aviso.textContent=(activo?'Activado: ':'Desactivado: ')+cargo;
+  await cargarJerarquiaCargos(true);
+  renderEmpresasCargos();
+}
+
+function especialidadIdDeClave(clave){
+  const lista=(typeof especialidades!=='undefined'&&especialidades)?especialidades:[];
+  const e=lista.find(x=>x.clave===clave);
+  return e?e.id:null;
+}
+
+// -------------------------------------------------------------------
+// EL DIÁLOGO DE CARGA
+// -------------------------------------------------------------------
+// Un textarea y no un botón de archivo, porque la lista casi siempre viene de
+// una columna de un Excel que ya está pegado en un correo, y porque desde un
+// teléfono no se puede elegir un archivo.
+function abrirImportarCargos(){
+  const dlg=document.getElementById('dlgCargos');
+  const txt=document.getElementById('cargosTexto');
+  const av=document.getElementById('cargosAviso');
+  if(av){av.textContent='';av.style.color='';}
+  if(txt)txt.value='';
+  // Sin esta línea el diálogo no aparece: el "display:none" del CSS es lo
+  // único que lo tiene oculto.
+  if(dlg)dlg.classList.add('open');
+  if(txt)setTimeout(()=>txt.focus(),60);
+}
+function cerrarDialogoCargos(){
+  const dlg=document.getElementById('dlgCargos');
+  if(dlg)dlg.classList.remove('open');
+}
+async function importarCargosDesdePantalla(){
+  const txt=document.getElementById('cargosTexto');
+  const av=document.getElementById('cargosAviso');
+  const btn=document.getElementById('cargosGuardar');
+  const texto=txt?txt.value.trim():'';
+  if(!texto){
+    if(av){av.textContent='La lista llegó vacía.';av.style.color='var(--danger)';}
+    return;
+  }
+  if(btn){btn.disabled=true;btn.textContent='Cargando…';}
+  const {data,error}=await window.supabaseClient.rpc('importar_especialidades',{
+    p_empresa_id:empresaDeCargos(),p_texto:texto,p_archivo_nombre:'carga manual'
+  });
+  if(btn){btn.disabled=false;btn.textContent='Cargar';}
+  if(error){
+    if(av){av.textContent=error.message;av.style.color='var(--danger)';}
+    return;
+  }
+  const f=(data&&data[0])?data[0]:{};
+  if(av){
+    av.style.color='';
+    av.textContent='Leídas '+f.total+' · agregadas '+f.agregadas
+      +' · ya estaban '+f.ya_existian+' · claves nuevas '+f.nuevas_claves;
+  }
+  await cargarJerarquiaCargos(true);
+  renderEmpresasCargos();
+  cerrarDialogoCargos();
+}
+
+
 function conectarNavCompacto(){
   if(conectarNavCompacto.hecho)return;
   conectarNavCompacto.hecho=true;
