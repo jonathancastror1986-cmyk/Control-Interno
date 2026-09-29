@@ -985,6 +985,10 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
     </div>
     <label>Nota (opcional)</label>
     <input id="just-nota">
+    <!-- El aviso de "ya puse el trabajador y la fecha". El código lo escribía
+         desde antes de que este elemento existiera, así que nunca se vio: la
+         función comprueba que esté y, si no está, no pasa nada. -->
+    <div id="justMsg"></div>
     <button class="btn" onclick="justificar()">Justificar rango</button>
   </div>
   <div class="card attendance-panel" role="tabpanel" data-attendance-panel="excel">
@@ -1714,6 +1718,23 @@ leer, y alguien que abra DevTools no obtiene nada con esto.
 </dialog>
 
 <!--
+Este diálogo tiene que quedar FUERA de todo comentario HTML.
+
+El 2026-09-28 estuvo un rato con el comentario de arriba sin cerrar, y el
+diálogo entero quedó adentro: el navegador no creó ninguno de sus
+elementos. El botón que lo abre reventaba con
+
+    TypeError: Cannot set properties of null (setting 'value')
+
+que no dice nada de la causa. El archivo estaba bien, el script parseaba,
+y el diálogo simplemente no existía. Por eso el token no se podía
+instalar.
+
+Un comentario HTML mal cerrado es la forma más difícil de romper una
+aplicación: no da error de sintaxis, no aparece en el control de
+calidad, y se come elementos que el código sigue usando por su nombre.
+-->
+<dialog id="dlgToken" style="max-width:520px;width:94vw">
 <dialog id="dlgToken" style="max-width:520px;width:94vw">
   <div class="card" style="margin:0">
     <h2 style="margin-top:0">Token de este reloj</h2>
@@ -3091,7 +3112,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-28-v';
+const APP_VERSION='2026-09-28-w';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
