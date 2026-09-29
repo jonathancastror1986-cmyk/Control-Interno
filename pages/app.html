@@ -506,9 +506,10 @@ quiere correr.
       <div><label>Nombre</label><input id="w-name"></div>
       <div><label>Cargo / Especialidad</label><input id="w-spec">
        <small style="display:block;color:var(--muted);font-size:.72rem">Texto libre: es lo que se imprime en las planillas. Para el kit de contratación lo que decide es la especialidad de abajo, que es una lista.</small></div>
-      <div><label>Especialidad del kit</label><select id="w-especialidad-clave"><option value="">Sin asignar (solo los papeles generales)</option></select>
-      <small style="display:block;color:var(--muted);font-size:.72rem">Determina qué charlas de inducción le tocan. Se deja vacío a propósito: adivinarlo desde el texto del cargo es la forma fácil de mandarle a alguien la charla del oficio equivocado.</small></div>
-       <small style="display:block;margin-top:4px"><a href="#" id="enlaceCrearEspecialidad" style="font-size:.78rem" onclick="irACrearEspecialidad(event)">No está la especialidad que necesita? Crear una</a></small>
+      <div><label>Grupo del cargo</label><select id="w-grupo" onchange="cambiarGrupoTrabajador()"><option value="">Sin asignar</option></select></div>
+      <div><label>Cargo del kit</label><select id="w-cargo"><option value="">Sin asignar (solo los papeles generales)</option></select>
+      <small style="display:block;color:var(--muted);font-size:.72rem">Determina qué charlas de inducción le tocan y qué kit recibe. Se guarda el CARGO y el grupo se deduce de él. Se deja vacío a propósito: adivinarlo desde el texto del cargo es la forma fácil de mandarle a alguien la charla del oficio equivocado.</small>
+       <small style="display:block;margin-top:4px"><a href="#" id="enlaceCrearEspecialidad" style="font-size:.78rem" onclick="irACrearEspecialidad(event)">No está el cargo que necesita? Crear uno</a></small></div>
     <div><label>Teléfono</label><input id="w-phone"></div>
       <div><label>RUT</label><input id="w-rut" placeholder="13.199.887-2">
         <small style="display:block;color:var(--muted);font-size:.72rem">Sirve para que las importaciones desde Excel reconozcan al trabajador sin depender del nombre.</small></div>
@@ -2319,12 +2320,13 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
         <input id="ingTelefono" placeholder="Opcional"></div>
     </div>
     <div class="row">
-      <div><label for="ingEspecialidad">Especialidad u oficio</label>
-        <select id="ingEspecialidad"></select>
-        <small>Decide qué kit recibe y qué charlas le tocan. Si no hay especialidades
-        creadas, se puede escribir a mano: <button class="btn secondary" type="button"
-          style="margin:0;padding:1px 6px;font-size:.7rem" onclick="irACrearEspecialidad()">
-          crear una</button></small></div>
+      <div><label for="ingGrupo">Grupo</label>
+        <select id="ingGrupo" onchange="cambiarGrupoIngreso()"></select>
+        <small>El área de trabajo. Sale de la lista real, no se escribe a mano.</small></div>
+      <div><label for="ingCargo">Cargo</label>
+        <select id="ingCargo"></select>
+        <small>Decide qué kit recibe y qué charlas le tocan. Se elige el CARGO; el
+        grupo se deduce de él, y por eso no se guarda dos veces.</small></div>
       <div><label for="ingFecha">Fecha de ingreso</label>
         <input type="date" id="ingFecha"></div>
     </div>
@@ -2918,7 +2920,7 @@ function avisoIngreso(mensaje){
 
 // -- el formulario del supervisor ---------------------------------------
 function limpiarFormularioIngreso(){
-  ['ingRut','ingNombre','ingTelefono','ingEspecialidad','ingFecha','ingNota']
+  ['ingRut','ingNombre','ingTelefono','ingGrupo','ingCargo','ingFecha','ingNota']
     .forEach(id=>{const c=document.getElementById(id);if(c)c.value='';});
   avisoIngreso('');
   const b=document.getElementById('ingEnviar');
@@ -2948,7 +2950,7 @@ async function enviarSolicitudIngreso(){
       p_nombre:nombre,
       p_rut:rut,
       p_telefono:document.getElementById('ingTelefono').value.trim()||null,
-      p_especialidad:document.getElementById('ingEspecialidad').value.trim()||null,
+      p_especialidad:document.getElementById('ingCargo').value.trim()||null,
       p_empresa_id:empresaDelIngreso(),
       p_fecha_ingreso:document.getElementById('ingFecha').value||null,
       p_nota:document.getElementById('ingNota').value.trim()||null
@@ -3156,22 +3158,142 @@ async function rechazarIngresoPendiente(){
   await cargarIngresosPendientes();
   renderMisIngresos();
 }
-// La lista del desplegable de especialidad del ingreso.
+// ===================================================================
+// LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO
+// ===================================================================
 //
-// Se copia el patrón de llenarSelectoresEspecialidad(), que ya hace esto mismo
-// para la ficha del trabajador. Misma variable, mismo orden por nombre, y se
-// conserva lo que había para que al volver a abrir no se pierda.
-function llenarEspecialidadIngreso(){
-  const sel=document.getElementById('ingEspecialidad');
+// Son dos porque son dos preguntas. La primera es "de qué ÁREA es", que tiene
+// pocas respuestas; la segunda es "de qué CARGO es", que tiene muchas y
+// además dependen de la primera: los cargos de OBRA no son los de OFICINA.
+//
+// -------------------------------------------------------------------
+// QUÉ SE GUARDA, Y NO ES LO MISMO EN LOS DOS LUGARES
+// ----------------------------------------------------
+//
+// En el TRABAJADOR se guarda solo el cargo. El grupo se deduce de él.
+//
+// Guardar los dos sería guardar el mismo dato dos veces, y el día que
+// alguien moviera un cargo de grupo sin actualizar a la gente que lo tenía,
+// el trabajador quedaría en un grupo con un cargo que no es de ese grupo.
+// Eso no se ve hasta que la persona recibe el EPP de otra área.
+//
+// En las CHARLAS y los DOCUMENTOS se guardan los dos, porque ahí la pregunta
+// es al revés: "esta charla es para todos los de OBRA" es un papel distinto
+// de "esta charla es para los MAESTROS", y las dos cosas tienen que poder
+// existir a la vez.
+//
+// -------------------------------------------------------------------
+// LO QUE SE GUARDA ES LA CLAVE, NUNCA EL NOMBRE
+// ---------------------------------------------
+// El nombre se puede cambiar ("Maestro" a "Jefe de obra") y la clave no. Si
+// se guardara el nombre, un cambio de nombre dejaría sin cargo a medio
+// mundo sin que nadie lo note.
+//
+// Y si la 051 no está aplicada, esto no se rompe: la lista queda vacía y el
+// ingreso se envía igual, sin cargo. Es la misma degraded que había antes,
+// no un error nuevo.
+let jerarquiaCargos=[];
+let jerarquiaCargada=false;
+
+async function cargarJerarquiaCargos(forzar){
+  if(jerarquiaCargada&&!forzar)return jerarquiaCargos;
+  jerarquiaCargada=true;   // antes de esperar, para no disparar dos veces
+  try{
+    const {data,error}=await window.supabaseClient.rpc('jerarquia_cargos',{
+      p_empresa_id:empresaDelIngreso(),
+      p_solo_activos:true
+    });
+    if(error){jerarquiaCargos=[];return jerarquiaCargos;}
+    jerarquiaCargos=(data||[]).map(r=>({
+      grupo:r.grupo_clave,
+      grupoNombre:r.grupo_nombre,
+      grupoOrden:Number(r.grupo_orden)||0,
+      cargo:r.cargo_clave,
+      cargoNombre:r.cargo_nombre
+    }));
+  }catch(e){jerarquiaCargos=[];}
+  return jerarquiaCargos;
+}
+
+// Los grupos, sin repetir, en el orden en que los manda la base.
+function gruposQueExisten(){
+  const vistos={},out=[];
+  jerarquiaCargos.forEach(f=>{
+    if(!f.grupo||vistos[f.grupo])return;
+    vistos[f.grupo]=1;out.push(f);
+  });
+  return out;
+}
+function cargosDeGrupo(g){
+  return jerarquiaCargos.filter(f=>f.grupo===g);
+}
+function grupoDeCargo(c){
+  const f=jerarquiaCargos.find(x=>x.cargo===c);
+  return f?f.grupo:'';
+}
+function nombreDeGrupo(g){
+  const f=jerarquiaCargos.find(x=>x.grupo===g);
+  return f?(f.grupoNombre||g):g;
+}
+
+// El segundo desplegable, ya con el grupo elegido.
+function pintarOpcionesCargo(sel,g){
   if(!sel)return;
-  const valor=sel.value;
-  const lista=(typeof especialidades!=='undefined'&&especialidades?especialidades:[])
-    .slice().sort((x,y)=>String(x.nombre||'').localeCompare(String(y.nombre||'')));
-  sel.innerHTML='<option value="">Sin asignar (solo los papeles generales)</option>'
-    +lista.map(e=>'<option value="'+escHtml(e.clave)+'">'+escHtml(e.nombre||e.clave)+'</option>').join('');
-  if(valor&&[...sel.options].some(o=>o.value===valor))sel.value=valor;
-  // Sin lista no hay nada que elegir, y un desplegable vacío parece un error
-  sel.style.display=lista.length?'':'none';
+  if(!g){
+    sel.innerHTML='<option value="">Sin asignar (solo los papeles generales)</option>';
+    return;
+  }
+  const lista=cargosDeGrupo(g);
+  sel.innerHTML='<option value="">— elige el cargo —</option>'
+    +lista.map(f=>'<option value="'+escHtml(f.cargo)+'">'+escHtml(f.cargoNombre||f.cargo)+'</option>').join('');
+}
+
+// Los dos, desde cero.
+function pintarGrupoCargo(selGrupo,selCargo,cargoPrevio){
+  if(!selGrupo||!selCargo)return;
+  selGrupo.innerHTML='<option value="">Sin asignar</option>'
+    +gruposQueExisten().map(f=>'<option value="'+escHtml(f.grupo)+'">'+escHtml(f.grupoNombre||f.grupo)+'</option>').join('');
+  // Si ya había un cargo, se abre SU grupo. Si no, se deja en "sin asignar":
+  // elegir el grupo de la persona a ciegas es peor que no elegirlo.
+  const g=cargoPrevio?grupoDeCargo(cargoPrevio):'';
+  selGrupo.value=g;
+  pintarOpcionesCargo(selCargo,g);
+  if(cargoPrevio&&[...selCargo.options].some(o=>o.value===cargoPrevio))selCargo.value=cargoPrevio;
+}
+
+// Al abrir una ficha con un cargo ya guardado: se arma el grupo solo.
+function seleccionarGrupoYCargo(selGrupo,selCargo,cargo){
+  if(!selGrupo||!selCargo)return;
+  if(!selGrupo.options.length||selGrupo.options.length===1){
+    selGrupo.innerHTML='<option value="">Sin asignar</option>'
+      +gruposQueExisten().map(f=>'<option value="'+escHtml(f.grupo)+'">'+escHtml(f.grupoNombre||f.grupo)+'</option>').join('');
+  }
+  const g=cargo?grupoDeCargo(cargo):'';
+  selGrupo.value=g;
+  pintarOpcionesCargo(selCargo,g);
+  if(cargo&&[...selCargo.options].some(o=>o.value===cargo))selCargo.value=cargo;
+}
+
+// El texto "Obra › Maestro" que se muestra al lado, para que se vea que se
+// eligió un cargo y no una palabra suelta.
+function textoGrupoYCargo(cargo){
+  if(!cargo)return 'Sin asignar (solo los papeles generales)';
+  const g=grupoDeCargo(cargo);
+  const f=jerarquiaCargos.find(x=>x.cargo===cargo);
+  return (g?nombreDeGrupo(g)+' › ':'')+(f?(f.cargoNombre||cargo):cargo);
+}
+
+// -- los dos del ingreso -------------------------------------------------
+async function llenarEspecialidadIngreso(){
+  await cargarJerarquiaCargos();
+  pintarGrupoCargo(document.getElementById('ingGrupo'),document.getElementById('ingCargo'),null);
+}
+function cambiarGrupoIngreso(){
+  const sg=document.getElementById('ingGrupo');
+  const sc=document.getElementById('ingCargo');
+  if(!sg||!sc)return;
+  pintarOpcionesCargo(sc,sg.value);
+  avisoIngreso('');
 }
 
 function initView(v){
@@ -4087,7 +4209,11 @@ function clearForm(){
   ['w-code','w-name','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('w-is-supervisor').checked=false;
   llenarSelectoresEspecialidad();
-  if(document.getElementById('w-especialidad-clave'))document.getElementById('w-especialidad-clave').value='';
+  if(document.getElementById('w-cargo')){
+    document.getElementById('w-cargo').value='';
+    pintarOpcionesCargo(document.getElementById('w-cargo'),'');
+  }
+  if(document.getElementById('w-grupo'))document.getElementById('w-grupo').value='';
   document.getElementById('w-tipo-trabajador').value='interno';
   fillWorkerEmpresaSelect();
   document.getElementById('pre-casual').src='';
@@ -4112,8 +4238,8 @@ async function saveWorker(){
   const code=document.getElementById('w-code').value.trim();
   const name=document.getElementById('w-name').value.trim();
   const spec=document.getElementById('w-spec').value.trim();
-  const espClave=document.getElementById('w-especialidad-clave')
-    ?document.getElementById('w-especialidad-clave').value:'';
+  const espClave=document.getElementById('w-cargo')
+    ?document.getElementById('w-cargo').value:'';
   if(!code||!name){alert('Código y nombre son obligatorios');return;}
   const existing=workers.find(w=>w.code===code)||todosWorkers.find(w=>w.code===code);
   const empSel=document.getElementById('w-empresa');
@@ -4640,7 +4766,7 @@ function editWorker(code){
   document.getElementById('w-name').value=w.name;
   document.getElementById('w-spec').value=w.spec||'';
   llenarSelectoresEspecialidad();
-  document.getElementById('w-especialidad-clave').value=w.especialidad_clave||'';
+  seleccionarGrupoYCargo(document.getElementById('w-grupo'),document.getElementById('w-cargo'),w.especialidad_clave||'');
   document.getElementById('w-phone').value=w.phone||'';
   document.getElementById('w-rut').value=w.rut||'';
   document.getElementById('w-is-supervisor').checked=!!w.is_supervisor;
@@ -15519,16 +15645,13 @@ async function guardarTimbre(){
 // guardar() lo lee siempre. Si no estuviera, cualquier guardado de una
 // ficha lanzaría un TypeError en null.
 function llenarSelectoresEspecialidad(){
-  const sel=document.getElementById('w-especialidad-clave');
-  if(!sel)return;
-  const valor=sel.value;
-  sel.innerHTML='<option value="">Sin asignar (solo los papeles generales)</option>'
-    +(typeof especialidades!=='undefined'&&especialidades?especialidades:[])
-      .slice().sort((x,y)=>String(x.nombre||'').localeCompare(String(y.nombre||'')))
-      .map(e=>'<option value="'+escHtml(e.clave)+'">'+escHtml(e.nombre||e.clave)+'</option>').join('');
-  // Se conserva lo que había: al abrir una ficha para editarla, el valor
-  // anterior se pierde si la lista se rehace desde cero.
-  if(valor&&[...sel.options].some(o=>o.value===valor))sel.value=valor;
+  pintarGrupoCargo(document.getElementById('w-grupo'),document.getElementById('w-cargo'),null);
+}
+function cambiarGrupoTrabajador(){
+  const sg=document.getElementById('w-grupo');
+  const sc=document.getElementById('w-cargo');
+  if(!sg||!sc)return;
+  pintarOpcionesCargo(sc,sg.value);
 }
 function initKitView(){
   const sel=document.getElementById('kitWorker');
@@ -17546,6 +17669,10 @@ async function boot(){
     await loadPermisosUsuario();          // qué menús y acciones ve esta persona
     await loadEmpresas();                 // antes de los trabajadores: define su ámbito
     fillWorkerEmpresaSelect();
+    // La jerarquía de grupos y cargos va temprano y en segundo plano, porque la
+    // usan el ingreso y la ficha del trabajador. Si la 051 no está, devuelve
+    // vacío y todo sigue funcionando: el cargo se deja sin asignar.
+    cargarJerarquiaCargos();
     await Promise.all([loadWorkers(), loadAttendanceFromDB(), loadTarjetas()]);
     recalcularMiSupervisor();   // ya con los trabajadores cargados
     renderSelectorEmpresas();   // recién ahora "workers" tiene el total real
