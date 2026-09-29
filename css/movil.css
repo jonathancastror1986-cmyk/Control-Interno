@@ -5,7 +5,7 @@
    Este archivo no cambia ni un píxel del escritorio, y no por disciplina
    sino por construcción: el <link> que lo carga lleva el atributo
 
-       media="(max-width: 700px)"
+       media="(max-width: 860px)"
 
    O sea que por debajo de 700px se aplica este archivo y por encima no se
    carga siquiera. No hay cascada que pueda ganarle, ni "!important" que
@@ -118,59 +118,200 @@ header .row label {
 
 
 /* ===================================================================
-   2. LOS MENÚS
+   2. LOS MENÚS, COMO LISTA DESPLEGABLE
    ===================================================================
 
-   El menú principal ya se desliza con el dedo, porque tiene
-   overflow-x:auto. Eso está bien y no se toca: son siete secciones y en
-   una pantalla angosta no entran de otra manera.
+   -------------------------------------------------------------------
+   LO QUE SE ESTABA VIENDO
+   -------------------------------------------------------------------
+   El submenú quedaba en una grilla de dos o tres columnas, con los
+   títulos de sección repartidos y el contenido de uno abierto en un
+   recuadro al lado. En un teléfono eso no es un menú: es una lista de
+   palabras sueltas, y no se sabe qué titula a qué.
 
-   El submenú es el problema. Sus menús desplegables son
-   position:absolute, o sea que flotan por encima de todo lo demás y se
-   salen de la pantalla por la derecha. En una pantalla angosta, un
-   desplegable que se sale no se puede usar.
+   La causa es una sola cosa, y está en el escritorio: el #subNav es
+   flex con wrap, y cada hijo con flex:1 1 auto. Al no entrar en una
+   línea, se reparten el ancho en varias columnas. En un escritorio de
+   1200 pixels entran en dos o tres y se ve bien; en 375 se ve como en
+   la foto.
 
-   Por eso pasan a ocupar el ancho: en vez de flotar, se acomodan debajo
-   de su título y empujan el contenido. Es el comportamiento que uno
-   espera en un teléfono, donde un menú que tapa la pantalla es peor que
-   un menú que ocupa lugar. */
+   -------------------------------------------------------------------
+   LO QUE ES AHORA
+   -------------------------------------------------------------------
+   Una sola columna, de arriba abajo. Cada sección es una fila que ocupa
+   todo el ancho; al tocarla se despliega su contenido debajo, y ese
+   contenido a su vez tiene sus propias filas, con un riel a la izquierda
+   que dice de quién son.
+
+   Es la misma información y el mismo menú, en la forma que se usa en un
+   teléfono. Lo que cambia es que ahora se sabe qué es qué: un riel, una
+   sangría, y un triángulo que gira.
+
+   -------------------------------------------------------------------
+   POR QUÉ NO SE TOCA EL MENÚ PRINCIPAL
+   -------------------------------------------------------------------
+   Las siete secciones de arriba sí se dejan deslizables con el dedo, que
+   es como ya funcionan. Es un padrão conocido y no hay razón para
+   cambiarlo: en una pantalla angosta no caben de otra manera, y
+   esconderlas detrás de un botón obliga a dos toques para llegar a
+   cualquier cosa.
+
+   El submenú es distinto porque sus grupos tienen muchos hijos: ahí sí
+   conviene el desplegable. */
+
 #subNav {
-  padding: 0 6px 6px;
-  gap: 4px;
+  /* Una columna. Con wrap y con hijos que se estiran, el menú se
+     repartía en varias columnas y no se sabía qué titulaba a qué. */
+  flex-direction: column;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  gap: 0;
+  padding: 0 0 6px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
 }
 
-#subNav .nav-dropdown,
-#subNav > button {
-  flex: 1 1 auto;
+#subNav > * {
+  width: 100%;
 }
 
+/* -------------------------------------------------------------------
+   LA FILA DE PRIMER NIVEL
+   -------------------------------------------------------------------
+   Ocupa todo el ancho, con el texto a la izquierda y el triángulo a la
+   derecha. 48 pixels de alto es lo que pide el dedo: con menos se
+   aprieta el de al lado. */
+#subNav > button,
+#subNav > .nav-dropdown > .nav-dropdown-trigger {
+  width: 100%;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 14px;
+  font-size: .8rem;
+  letter-spacing: .02em;
+  border-left: 3px solid transparent;
+  border-radius: 0;
+}
+
+#subNav > .nav-dropdown[open] > .nav-dropdown-trigger {
+  border-left-color: var(--accent);
+  background: var(--surface-hover);
+  color: var(--text);
+}
+
+/* El triángulo, y que gire. En el escritorio ponía un signo de
+   interrogación, que no dice si el grupo está abierto o cerrado. */
+#subNav > .nav-dropdown > .nav-dropdown-trigger::after {
+  content: '▾';
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: .9rem;
+  transition: transform .15s ease;
+}
+
+#subNav > .nav-dropdown[open] > .nav-dropdown-trigger::after {
+  transform: rotate(180deg);
+}
+
+/* -------------------------------------------------------------------
+   EL CONTENIDO DESPLEGADO
+   -------------------------------------------------------------------
+   Deja de flotar por encima de todo lo demás y se acomoda debajo de su
+   título. Un desplegable que se sale de la pantalla no se puede usar, y
+   en un teléfono no hay lugar a los lados.
+
+   El riel de la izquierda es lo que dice "esto pertenece a lo de
+   arriba". Sin él, en una columna sola, un hijo suelto parece otra
+   sección. */
 #subNav .nav-dropdown-menu {
   position: static;
   display: flex;
-  min-width: 0;
+  flex-direction: column;
+  /* calc y no 100%: el menú va 14 pixels corrido por el riel, y con
+     width:100% más ese margen ocupaba 100% + 14, que es justo lo que
+     lo saca de la pantalla. La sangría se paga descontando del ancho,
+     no sumando. */
+  width: calc(100% - 14px);
   max-width: 100%;
+  min-width: 0;
   box-shadow: none;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--card);
-  margin: 4px 0 0;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid var(--line);
+  border-radius: 0;
+  margin: 0 0 4px 14px;
+  padding: 0;
 }
 
 #subNav .nav-dropdown[open] > .nav-dropdown-menu {
   display: flex;
 }
 
-#subNav .nav-dropdown-menu button,
-#subNav .nav-dropdown-nested > summary {
-  white-space: normal;
+#subNav .nav-dropdown-menu button {
+  width: 100%;
   text-align: left;
-  padding: 11px 12px;
+  white-space: normal;
+  /* 15px y no 13: con 13 las filas quedan en 41 pixels, y el mínimo
+     cómodo para apretar con el dedo son 44. Es la diferencia entre
+     apretar un botón y apretar el de al lado. */
+  padding: 15px 14px;
+  border-radius: 0;
 }
 
+#subNav .nav-dropdown-menu button:hover,
+#subNav .nav-dropdown-menu button:focus-visible {
+  background: var(--surface-hover);
+}
+
+/* -------------------------------------------------------------------
+   EL SEGUNDO NIVEL
+   -------------------------------------------------------------------
+   Groups como "Tarjeta", que viven dentro de "Trabajadores". Van un
+   poco más adentro, y con su propia flechita. */
 #subNav .nav-dropdown-nested {
   width: 100%;
 }
 
+#subNav .nav-dropdown-nested > summary {
+  padding: 15px 14px;
+  white-space: normal;
+  list-style: none;
+}
+
+#subNav .nav-dropdown-nested > summary::after {
+  content: '›';
+  font-size: 1.1rem;
+  color: var(--muted);
+}
+
+#subNav .nav-dropdown-nested[open] > summary::after {
+  content: '⌄';
+}
+
+#subNav .nav-dropdown-children {
+  /* El mismo criterio que arriba, y por el mismo motivo: la sangría se
+     descuenta del ancho. */
+  width: calc(100% - 14px);
+  max-width: 100%;
+  padding-left: 0;
+  border-left: 3px solid var(--line);
+  margin-left: 14px;
+}
+
+#subNav .nav-dropdown-children button {
+  padding-left: 18px;
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+}
+
+/* Los que están dentro de un segundo nivel llevan un puntito, que es lo
+   que los distingue de los que abren otra lista. */
+#subNav .nav-dropdown-children button::before {
+  content: '·';
+  margin-right: 8px;
+  color: var(--muted);
+}
 
 /* ===================================================================
    3. LAS TABLAS

@@ -416,6 +416,24 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="../css/styles.css">
 <!--
+EL TEMA OSCURO DE WHATSAPP
+
+Está escrito y listo, en css/whatsapp.css. Va comentado a propósito.
+
+Hace dos mensajes se pidió conservar el diseño que había, y aplicar una
+paleta nueva es cambiar el diseño por definición. Con las dos cosas
+pedidas a la vez, la forma de que las dos sean verdad es que el archivo
+exista y no se cargue.
+
+Para usarlo, sacá el comentario de la línea de abajo. Va después de
+styles.css, así que gana por orden, y para volver atrás se saca la línea.
+
+Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
+#005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
+#53BDEB.
+-->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css"> -->
+<!--
 LA CAPA MÓVIL
 
 Va en un archivo aparte, y con el atributo media. Eso significa que por
@@ -3125,7 +3143,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-29-a';
+const APP_VERSION='2026-09-29-b';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;

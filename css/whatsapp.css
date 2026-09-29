@@ -1,0 +1,330 @@
+/* ===================================================================
+   LA PALETA OSCURA DE WHATSAPP
+   ===================================================================
+
+   Un tema alternativo, con los colores oficiales del modo oscuro de
+   WhatsApp. Está listo para usar, y NO está conectado: el <link> que lo
+   carga está comentado en app.html.
+
+   -------------------------------------------------------------------
+   POR QUÉ NO ESTÁ CONECTADO
+   -------------------------------------------------------------------
+   Hace dos mensajes se pidió conservar el diseño que había. Aplicar una
+   paleta nueva es, por definición, cambiar el diseño. Con las dos cosas
+   pedidas a la vez, la forma de que las dos sean verdad es que este
+   archivo exista y no se cargue.
+
+   Para usarlo, una línea en app.html, debajo de styles.css:
+
+     <link rel="stylesheet" href="../css/whatsapp.css">
+
+   Eso carga el tema DESPUÉS de styles.css, así que gana por orden. Si
+   se quiere volver atrás, se saca la línea y ya está.
+
+   -------------------------------------------------------------------
+   LOS MISMOS HEX, SIN CAMBIAR NADA
+   -------------------------------------------------------------------
+   Fondo                  #111B21
+   Tarjetas y encabezados #202C33
+   Campos y cajas         #2A3942
+   Énfasis, botón        #005C4B
+   Acento, detalles      #25D366
+   Texto                  #E9EDEF
+   Texto apagado          #8696A0
+   Enlaces                #53BDEB
+
+   Los códigos son exactamente los que se pidieron, sin convertir ni
+   redondear: un color uno punto más oscuro es un color distinto, y en
+   un tema la diferencia se nota en la pantalla, no en el código. */
+
+:root {
+  /* ----------------------------------------------------------------
+     LOS COLORES
+     ---------------------------------------------------------------- */
+  --wa-fondo: #111B21;         /* el fondo de la página */
+  --wa-superficie: #202C33;    /* tarjetas, encabezados, navegación */
+  --wa-superficie-alta: #2A3942; /* campos, cajas de texto, botones claros */
+  --wa-enfasis: #005C4B;       /* botón principal, estado activo */
+  --wa-acento: #25D366;        /* detalles, avisos, hover */
+  --wa-texto: #E9EDEF;         /* texto principal */
+  --wa-texto-apagado: #8696A0; /* texto secundario, deshabilitado */
+  --wa-enlace: #53BDEB;        /* enlaces */
+
+  /* ----------------------------------------------------------------
+     LOS MISMOS COLORES, CON NOMBRES QUE EL RESTO DE LA APLICACIÓN
+     ENTIENDE
+     ----------------------------------------------------------------
+     styles.css usa estos nombres. Si el tema no los define, el texto
+     queda del color que por omisión le daría el navegador, que es
+     negro sobre blanco: ilegible en un tema oscuro. Por eso se definen
+     los dos conjuntos, y no solo el primero. */
+  --bg: var(--wa-fondo);
+  --panel: var(--wa-superficie);
+  --card: var(--wa-superficie);
+  --line: #2A3942;
+  --accent: var(--wa-enfasis);
+  --accent2: #202C33;          /* el encabezado usa el fondo de tarjeta */
+  --text: var(--wa-texto);
+  --muted: var(--wa-texto-apagado);
+  --secondary-text: #B0BAC3;
+  --danger: #F15C6D;
+  --danger-ink: #FFFFFF;
+  --danger-surface: #3B2226;
+  --warn: #E8A33D;
+  --warn-ink: #1E1A12;
+  --warn-surface: #3A2E1B;
+  --ok: #25D366;
+  --field-line: #2A3942;
+  --surface: #182229;
+  --surface-hover: #222D34;
+  --link: var(--wa-enlace);
+}
+
+/* ===================================================================
+   EL TEMA APLICADO
+   =================================================================== */
+
+body {
+  background: var(--wa-fondo);
+  color: var(--wa-texto);
+}
+
+/* Los encabezados de sección, que son el fondo de la barra de arriba. */
+header,
+nav {
+  background: var(--wa-superficie);
+  border-bottom: 1px solid var(--line);
+}
+
+header h1 {
+  color: var(--wa-texto);
+}
+
+header a,
+header .btn {
+  color: var(--wa-texto);
+}
+
+/* ------------------------------------------------------------------
+   TEXTO
+   ------------------------------------------------------------------ */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--wa-texto);
+}
+
+p, li, td, th, label, small {
+  color: var(--wa-texto);
+}
+
+small,
+.muted,
+.text-muted {
+  color: var(--wa-texto-apagado);
+}
+
+/* Lo que está deshabilitado se ve apagado, y no con menos contraste
+   invisible: apagado y legible. */
+[disabled],
+[disabled]:hover,
+button:disabled {
+  color: var(--wa-texto-apagado);
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------
+   TARJETAS Y CONTENEDORES
+   ------------------------------------------------------------------ */
+.card,
+.panel,
+dialog > .card {
+  background: var(--wa-superficie);
+  border: 1px solid var(--line);
+  color: var(--wa-texto);
+}
+
+.card .card {
+  background: var(--wa-superficie-alta);
+}
+
+/* ------------------------------------------------------------------
+   ENLACES
+   ------------------------------------------------------------------ */
+a,
+a:visited {
+  color: var(--wa-enlace);
+}
+
+a:hover,
+a:focus-visible {
+  color: var(--wa-acento);
+  text-decoration: underline;
+}
+
+/* ------------------------------------------------------------------
+   CAMPOS
+   ------------------------------------------------------------------ */
+input,
+select,
+textarea {
+  background: var(--wa-superficie-alta);
+  border: 1px solid var(--field-line);
+  color: var(--wa-texto);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--wa-texto-apagado);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: 2px solid var(--wa-acento);
+  outline-offset: 1px;
+  border-color: var(--wa-acento);
+}
+
+/* ------------------------------------------------------------------
+   BOTONES
+   ------------------------------------------------------------------
+   El principal usa el verde de énfasis. El hover aclara un poco, con
+   el acento, y no con un color inventado: mezclar el verde de énfasis
+   con el acento da un verde que sí es de la paleta. */
+button.btn,
+.btn {
+  background: var(--wa-enfasis);
+  border: 1px solid var(--wa-enfasis);
+  color: #FFFFFF;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+
+button.btn:hover,
+.btn:hover,
+button.btn:focus-visible,
+.btn:focus-visible {
+  background: var(--wa-acento);
+  border-color: var(--wa-acento);
+  color: var(--wa-fondo);
+}
+
+.btn.secondary {
+  background: transparent;
+  border-color: var(--wa-superficie-alta);
+  color: var(--wa-acento);
+}
+
+.btn.secondary:hover,
+.btn.secondary:focus-visible {
+  background: var(--wa-superficie-alta);
+  border-color: var(--wa-acento);
+  color: var(--wa-acento);
+}
+
+/* El botón que está apretado, no el que tiene el cursor encima: son
+   dos estados distintos y se confunden todo el tiempo. */
+button.btn.active,
+.btn[aria-pressed="true"] {
+  background: var(--wa-acento);
+  border-color: var(--wa-acento);
+  color: var(--wa-fondo);
+}
+
+/* ------------------------------------------------------------------
+   LAS BARRAS DE NAVEGACIÓN
+   ------------------------------------------------------------------ */
+#mainNav {
+  background: var(--wa-superficie);
+  border-bottom: 1px solid var(--line);
+}
+
+#mainNav button {
+  color: var(--wa-texto-apagado);
+  border-bottom: 2px solid transparent;
+}
+
+#mainNav button:hover {
+  color: var(--wa-texto);
+}
+
+#mainNav button.active {
+  color: var(--wa-acento);
+  border-bottom-color: var(--wa-acento);
+}
+
+#subNav {
+  background: var(--wa-superficie);
+  border-bottom: 1px solid var(--line);
+}
+
+#subNav button,
+#subNav summary {
+  color: var(--wa-texto);
+  border-bottom: 1px solid transparent;
+}
+
+#subNav button:hover,
+#subNav summary:hover {
+  color: var(--wa-acento);
+  background: var(--surface-hover);
+}
+
+#subNav button.active {
+  color: var(--wa-acento);
+  border-bottom-color: var(--wa-acento);
+}
+
+/* ------------------------------------------------------------------
+   TABLAS Y ESTADOS
+   ------------------------------------------------------------------ */
+table {
+  background: var(--wa-superficie);
+  color: var(--wa-texto);
+}
+
+th {
+  background: var(--wa-superficie-alta);
+  color: var(--wa-texto);
+}
+
+tbody tr:nth-child(even) {
+  background: var(--wa-superficie-alta);
+}
+
+.aviso-fila {
+  border-left: 3px solid var(--wa-acento);
+  background: var(--wa-superficie-alta);
+  color: var(--wa-texto);
+}
+
+.aviso-fila.danger,
+.aviso-fila.error {
+  border-left-color: var(--wa-danger, #F15C6D);
+}
+
+/* El mensaje de éxito, que en WhatsApp es el verde de chats: el mismo
+   verde de acento, que es para lo que está. */
+.mensaje-ok,
+.ok {
+  color: var(--wa-acento);
+}
+
+/* ------------------------------------------------------------------
+   LA PANTALLA DEL RELOJ
+   ------------------------------------------------------------------
+   Es la única pantalla que se ve a distancia, en la portería, y de noche.
+   Un verde de acento sobre fondo oscuro es lo que mejor se lee a dos
+   metros, y es el que se usa para decir que la marcación quedó. */
+#pantallaTotem {
+  background: var(--wa-fondo);
+  color: var(--wa-texto);
+}
+
+.totem-marcaje-ok {
+  color: var(--wa-acento);
+}
+
+.totem-idle,
+.totem-ok {
+  background: var(--wa-superficie);
+}
