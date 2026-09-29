@@ -313,7 +313,7 @@ begin
     registrado_por, registrado_por_nombre
   ) values (
     current_date,
-    coalesce(p_hora, local_time),
+    coalesce(p_hora, localtime),
     btrim(p_nombre),
     nullif(btrim(coalesce(p_documento, '')), ''),
     nullif(btrim(coalesce(p_empresa, '')), ''),
@@ -340,7 +340,7 @@ set search_path = public
 as $$
 begin
   update public.visitas
-     set hora_salida = local_time,
+     set hora_salida = localtime,
          estado      = 'retirada'
    where id = p_id
      and estado = 'en_sitio';
@@ -392,7 +392,7 @@ begin
     registrado_por, registrado_por_nombre
   ) values (
     current_date,
-    coalesce(p_hora, local_time),
+    coalesce(p_hora, localtime),
     nullif(btrim(coalesce(p_numero, '')), ''),
     p_tipo,
     nullif(btrim(coalesce(p_origen, '')), ''),
@@ -470,7 +470,7 @@ begin
 
   update public.guias
      set estado             = 'recibida',
-         hora_recibida      = local_time,
+         hora_recibida      = localtime,
          recibido_por       = auth.uid(),
          recibido_por_nombre= (select nombre from public.perfiles where id = auth.uid()),
          observaciones      = nullif(btrim(coalesce(p_observaciones, '')), '')
