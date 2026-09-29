@@ -5509,31 +5509,9 @@ function renderJustificacionDiaria(){
     .sort((a,b)=>orden.indexOf(a.motivo)-orden.indexOf(b.motivo)||compararPorCodigo(a.w.code,b.w.code))
     .map(x=>{
       const et=etiqueta[x.motivo];
-      const sup=x.w.supervisor_code?workers.find(s=>s.code===x.w.supervisor_code):null;
-      return `<div class="mkFila" data-code="${escHtml(x.w.code)}">
-        <div class="mkNombre">
-          <b>${escHtml(codigoMostrar(x.w.code))}</b> ${escHtml(x.w.name)}
-          <small>${escHtml(x.w.spec||'')}${sup?(' · Supervisor: '+escHtml(sup.name)):''}</small>
-        </div>
-        <div class="mkEstado">
-          <span class="mkPill" style="border-color:${et.c};color:${et.c}">${escHtml(et.t)}</span>
-          <small>${escHtml(x.detalle)}</small>
-        </div>
-        <div class="mkAcciones">
-          ${x.motivo==='ok'||x.motivo==='justificado'?'':
-            `<button class="btn" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
-              onclick="abrirJustificarCon('${escHtml(x.w.code)}','${escHtml(fecha)}')"
-              title="Abre el formulario de justificación con el trabajador y el día ya puestos">Justificar</button>`}
-          <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
-            onclick="marcarRelojConHoraAhora('${escHtml(x.w.code)}','${escHtml(fecha)}')"
-            title="Registra que marcó el reloj AHORA, con la hora actual. Al día siguiente, cuando se cargue el Excel del reloj, esa hora se corrige con la que diga el reporte.">🕐 Marcó reloj</button>
-          <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
-            onclick="abrirTarjaDe('${escHtml(x.w.code)}')">Ver en la tarja</button>
-        </div>
-      </div>`;
+      const sup=x.w.supervisor_code?workers.find(s=>s.code===x.w.supervisor_code):null;      return `<tr class="justFila" data-code="${escHtml(x.w.code)}">        <td class="justCelda justCeldaNombre">          <b>${escHtml(codigoMostrar(x.w.code))}</b> ${escHtml(x.w.name)}          <small>${escHtml(x.w.spec||'')}${sup?(' · Supervisor: '+escHtml(sup.name)):''}</small>        </td>        <td class="justCelda">          <span class="mkPill" style="border-color:${et.c};color:${et.c}">${escHtml(et.t)}</span>        </td>        <td class="justCelda justCeldaDetalle">${escHtml(x.detalle)}</td>        <td class="justCelda justCeldaAcciones">          ${x.motivo==='ok'||x.motivo==='justificado'?'':            `<button class="btn" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"              onclick="abrirJustificarCon('${escHtml(x.w.code)}','${escHtml(fecha)}')"              title="Abre el formulario de justificación con el trabajador y el día ya puestos">Justificar</button>`}          <button class="btn secondary" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"            onclick="marcarRelojConHoraAhora('${escHtml(x.w.code)}','${escHtml(fecha)}')"            title="Registra que marcó el reloj AHORA, con la hora actual. Al día siguiente, cuando se cargue el Excel del reloj, esa hora se corrige con la que diga el reporte.">Marcó reloj</button>          <button class="btn secondary" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"            onclick="abrirTarjaDe('${escHtml(x.w.code)}')">Tarja</button>        </td>      </tr>`;
     }).join('');
-
-  lista.innerHTML='<div class="mkFila mkFilaHead"><div class="mkNombre">Trabajador</div><div class="mkEstado">Situación</div><div class="mkAcciones">Acciones</div></div>'+cuerpo;
+  lista.innerHTML='<div class="justTablaCaja">'    +'<table class="justTabla">'    +'<thead><tr><th>Trabajador</th><th>Situación</th>'    +'<th class="justThDetalle">Detalle</th>'    +'<th class="justThAcciones">Acciones</th></tr></thead>'    +'<tbody>'+cuerpo+'</tbody></table></div>';
 }
 // Abre el formulario de justificación con el trabajador y el día ya puestos.
 // Se reusa el que ya existe en la pestaña "Justificar" de Asistencia

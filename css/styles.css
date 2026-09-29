@@ -1,1395 +1,2790 @@
 :root{
+
   --bg:#f4f7f5; --panel:#ffffff; --card:#ffffff; --line:#dce5df;
+
   --accent:#218653; --accent2:#101a14; --text:#18221b; --muted:#707d74; --danger:#b54852;
+
   /* --danger es para TEXTO rojo; --danger-solid es para los fondos rojos con
+
      letra blanca. No pueden ser el mismo color: el rojo que se lee sobre
+
      superficie oscura es claro, y con letra blanca encima no se lee. */
+
   --field-line:#cfd9d1; --field-hover:#aebdb2; --button-hover:#1a6d44; --danger-solid:#b54852;
+
   /* El naranja de "la hora no coincide" estaba fijo en #e08b1a, que sobre
+
      blanco da 2.7:1. Necesita un valor por tema: uno que se lea de claro y
+
      otro que se lea de oscuro. */
+
   --warn:#a86410; --danger-surface:#fdeaea; --warn-surface:#fff6e0; --warn-ink:#8a5a00; --on-accent:#fff;
+
   --surface-hover:#edf4ef; --focus-shadow:rgba(33,134,83,.18); --secondary-text:#101a14;
+
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+
   box-sizing:border-box;
+
 }
+
 /* Modo oscuro: fondo #121212 · superficie #1e1e1e · primario #7eb96e ·
+
    secundario #404040 · texto #dedede.
 
+
    El bloque de arriba es SOLO para el sistema en oscuro y sin elección
+
    guardada; el de abajo es el que manda cuando theme.js pone
+
    data-theme="dark". Los dos tienen que decir lo mismo: si difieren, la
+
    pantalla cambia de paleta según de dónde se llegó. */
+
 @media (prefers-color-scheme: dark){
+
   :root:not([data-theme="light"]){
+
     --bg:#121212; --panel:#1e1e1e; --card:#1e1e1e; --line:#404040;
+
     --accent:#7eb96e; --accent2:#404040; --text:#dedede; --muted:#a3a3a3; --danger:#e5727a;
+
     --danger-solid:#c2454e; --warn:#e08b1a; --danger-surface:#2a1618; --warn-surface:#2a2113; --warn-ink:#e0a94a; --on-accent:#18221b;
+
     --field-line:#404040; --field-hover:#5c5c5c;
+
     --button-hover:#8fc47f; --surface-hover:#2a2a2a; --focus-shadow:rgba(126,185,110,.22);
+
     --secondary-text:#dedede;
+
   }
+
 }
+
 :root[data-theme="dark"]{
+
   --bg:#121212; --panel:#1e1e1e; --card:#1e1e1e; --line:#404040;
+
   --accent:#7eb96e; --accent2:#404040; --text:#dedede; --muted:#a3a3a3; --danger:#e5727a;
+
   --danger-solid:#c2454e; --warn:#e08b1a; --danger-surface:#2a1618; --warn-surface:#2a2113; --warn-ink:#e0a94a; --on-accent:#18221b;
+
   --field-line:#404040; --field-hover:#5c5c5c; --button-hover:#8fc47f;
+
   --surface-hover:#2a2a2a; --focus-shadow:rgba(126,185,110,.22); --secondary-text:#dedede;
+
 }
+
 *{box-sizing:border-box}
+
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
+
 body{margin:0;background:var(--bg);color:var(--text);font-family:'Montserrat',system-ui,sans-serif;min-height:100vh}
+
 h1,h2,h3{font-family:'Cormorant Garamond',Georgia,serif;font-weight:600;margin:.2em 0;color:var(--text)}
+
 header{display:flex;align-items:center;gap:16px;padding:14px 24px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--accent2);z-index:5}
+
 header h1{font-family:'Montserrat',system-ui,sans-serif;font-size:1rem;font-weight:700;color:#fff;text-transform:uppercase;margin:0}
+
 header>button{float:none!important;margin:0 0 0 auto!important}
+
 .header-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
+
 .header-actions .btn{margin:0}
+
 .header-actions .btn.secondary{border-color:rgba(255,255,255,.38);color:#fff}
+
 .header-actions .btn.secondary:hover{background:#fff;border-color:#fff;color:var(--accent2)}
+
 .theme-toggle{white-space:nowrap}
+
 .login-theme-toggle{display:flex;justify-content:flex-end;margin-bottom:14px}
+
 .login-theme-toggle .btn{margin:0}
+
 nav{display:flex;gap:8px;overflow-x:auto;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+
 nav button{flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;border-radius:5px 5px 0 0;color:var(--muted);padding:13px 12px;cursor:pointer;white-space:nowrap;font:600 .75rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;transition:color .18s ease,border-color .18s ease,background-color .18s ease}
+
 nav button:hover{color:var(--text)}
+
 nav button.active{background:none;color:var(--secondary-text);border-color:var(--accent)}
+
 #mainNav{background:var(--accent2);border:0}
+
 #mainNav button{color:#d4dbe4}
+
 #mainNav button:hover,#mainNav button.active{color:#fff}
+
 #mainNav button.active{border-color:var(--accent)}
+
 #subNav{gap:4px;flex-wrap:wrap;overflow:visible;position:relative;z-index:10;background:var(--panel);border-bottom:1px solid var(--line)}
+
 #subNav button.active{background:none;color:var(--secondary-text);border-color:var(--accent)}
+
 #subNav .nav-dropdown{position:relative;flex:0 0 auto;margin:0}
+
 #subNav summary{list-style:none;cursor:pointer}
+
 #subNav summary::-webkit-details-marker{display:none}
+
 #subNav .nav-dropdown-trigger{display:flex;align-items:center;gap:8px;padding:13px 12px;border-bottom:2px solid transparent;color:var(--muted);font:600 .75rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase}
+
 #subNav .nav-dropdown-trigger:after{content:'▾';font-size:.7rem}
+
 #subNav .nav-dropdown[open]>.nav-dropdown-trigger{color:var(--secondary-text);border-color:var(--accent)}
+
 #subNav .nav-dropdown-menu{position:absolute;top:100%;left:0;z-index:20;display:none;min-width:240px;max-height:70vh;overflow-y:auto;padding:4px;background:var(--panel);border:1px solid var(--line);box-shadow:0 8px 20px rgba(7,17,31,.16)}
+
 #subNav .nav-dropdown[open]>.nav-dropdown-menu{display:flex;flex-direction:column}
+
 #subNav .nav-dropdown-menu button,#subNav .nav-dropdown-nested>summary{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 12px;border:0;border-radius:4px;background:transparent;color:var(--text);text-align:left;text-transform:none;font:500 .8rem 'Montserrat',system-ui,sans-serif;white-space:nowrap}
+
 #subNav .nav-dropdown-menu button:hover,#subNav .nav-dropdown-nested>summary:hover{background:var(--surface-hover);color:var(--secondary-text)}
+
 #subNav .nav-dropdown-menu button.active{border:0;background:var(--surface-hover);color:var(--secondary-text)}
+
 #subNav .nav-dropdown-nested{width:100%}
+
 #subNav .nav-dropdown-nested>summary:after{content:'+';color:var(--muted)}
+
 #subNav .nav-dropdown-nested[open]>summary:after{content:'−'}
+
 #subNav .nav-dropdown-children{display:none;flex-direction:column;padding-left:10px}
+
 #subNav .nav-dropdown-nested[open]>.nav-dropdown-children{display:flex}
+
 #subNav .nav-dropdown-children button{padding-left:18px;font-size:.75rem}
+
 main{padding:24px;max-width:1280px;margin:0 auto}
+
 .view{display:none}
+
 .view.active{display:block}
+
 .card{background:var(--card);border:1px solid var(--line);border-radius:2px;padding:20px;margin-bottom:16px;box-shadow:0 2px 8px rgba(7,17,31,.035)}
+
 .card h2{font-size:1.65rem;margin:0 0 12px}
+
 label{display:block;font-size:.72rem;font-weight:600;color:var(--muted);margin:10px 0 4px;text-transform:uppercase}
+
 input,select,textarea{width:100%;padding:10px 11px;border-radius:8px;border:1px solid var(--field-line);background:var(--panel);color:var(--text);font-size:.88rem;font-family:inherit;transition:border-color .18s ease,box-shadow .18s ease,background-color .18s ease}
+
 input:hover,select:hover,textarea:hover{border-color:var(--field-hover)}
+
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--focus-shadow)}
+
 textarea{resize:vertical;min-height:72px}
+
 button.btn{background:var(--accent2);color:#fff;border:1px solid var(--accent2);padding:10px 16px;border-radius:8px;cursor:pointer;font:600 .75rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;margin-top:10px;transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+
 button.btn:hover{background:var(--button-hover);border-color:var(--button-hover);box-shadow:0 3px 9px rgba(7,17,31,.14);transform:translateY(-1px)}
+
 button.btn:focus-visible{outline:3px solid var(--focus-shadow);outline-offset:2px}
+
 button.btn.secondary{background:transparent;border:1px solid var(--field-hover);color:var(--secondary-text)}
+
 button.btn.secondary:hover{background:var(--accent2);border-color:var(--accent2);color:#fff}
+
 .row{display:flex;gap:14px;flex-wrap:wrap}
+
 .row>div{flex:1;min-width:140px}
+
 fieldset{border:1px solid var(--line);border-radius:8px;margin-top:14px;padding:12px}
+
 legend{color:var(--secondary-text);font-size:.75rem;font-weight:600;padding:0 6px}
+
 table{width:100%;border-collapse:collapse;font-size:.78rem;background:var(--panel)}
+
 th,td{border:1px solid var(--line);padding:6px;text-align:center}
+
 th{background:var(--accent2);color:#fff;font-weight:600}
+
 .overflow{overflow-x:auto}
+
 .day-feriado{background:rgba(23,197,181,.14)}
+
 .day-lab{background:transparent}
+
 .day-blocked{background:#0b0e0c;color:#5b6660;cursor:not-allowed;user-select:none}
+
 .pill{display:inline-block;background:var(--panel);border:1px solid var(--line);border-radius:0;padding:3px 8px;font-size:.7rem;margin:2px}
+
 small{color:var(--muted)}
+
 .list-item{display:flex;justify-content:space-between;align-items:center;padding:11px 8px;border-bottom:1px solid var(--line);cursor:pointer}
+
 .list-item:hover{background:var(--surface-hover)}
+
 /* ------------------------------------------------------------------
+
 LA PANTALLA DEL TÓTEM
+
 ------------------------------------------------------------------
+
 Pensada para un cartel fijo de 10 a 15 pulgadas a la altura de los ojos.
+
 Por eso es "grande" y no "lleno de cosas": la persona está parada, mira de
+
 reojo, y tiene dos segundos para entender si su marca entró.
 
+
 Lo que NO está acá a propósito: el menú de la aplicación, los botones de
+
 la attendance normal, y los textos de ayuda largos. Un tótem con menú es un
+
 tótem donde alguien apretó algo que no debía.
+
 ------------------------------------------------------------------ */
+
 #pantallaTotem{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;
+
   background:var(--bg);color:var(--ink);font-size:clamp(16px,1.6vw,22px)}
+
 #pantallaTotem.abierta{display:flex}
+
 /* La hora ocupa la franja de arriba, centrada. El contenido arranca
+
    más abajo para que no quede debajo: con la hora encima de la cámara, la
+
    gente no ve a quién está fotografiando. */
+
 #pantallaTotem{padding-top:118px}
+
 .modo-kiosco #pantallaTotem{padding-top:150px}
+
 /* El cuerpo entra en modo tótem para que la navegación de atrás no quede
+
    como fondo visible si algo se dibuja mal. */
+
 body.modoTotem{overflow:hidden}
 
+
 .totem-barra{display:flex;justify-content:space-between;align-items:center;gap:12px;
+
   padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--line);
+
   font-size:.8em;color:var(--secondary-text);flex:0 0 auto}
+
 .totem-barra-der{display:flex;align-items:center;gap:10px}
+
 .totem-barra-label{margin:0}
+
 .totem-salir{background:var(--secondary);color:var(--ink);border:1px solid var(--line);
+
   border-radius:8px;padding:6px 14px;cursor:pointer;font:inherit;font-size:1em}
+
 .totem-salir:hover{background:var(--secondary-text)}
 
+
 .totem-zona{flex:0 0 auto;display:flex;justify-content:center;padding:10px}
+
 #totemCamara{width:min(46vh,420px);border-radius:12px;overflow:hidden}
+
 #totemCamara video{width:100%!important;display:block}
 
+
 .totem-zona-central{flex:1 1 auto;display:flex;align-items:center;justify-content:center;padding:2vh 4vw;min-height:0}
+
 /* El mensaje es lo único grande de la pantalla. Cada estado tiene su
+
    color y su forma, y el color no es lo único: un cartel rojo y verde se
+
    distinguen igual para quien no distingue los colores. */
+
 #totemMensaje{display:flex;align-items:center;justify-content:center;gap:clamp(16px,3vw,40px);
+
   text-align:center;max-width:1000px}
+
 #totemMensaje .totem-icono{font-size:clamp(56px,10vw,120px);line-height:1;flex:0 0 auto}
+
 #totemMensaje .totem-texto b{font-size:clamp(28px,4.4vw,54px);display:block;line-height:1.15}
+
 #totemMensaje .totem-texto span{font-size:clamp(16px,2.1vw,28px);color:var(--secondary-text);display:block;margin-top:.4em}
+
 #totemMensaje.totem-ok{color:var(--accent)}
+
 #totemMensaje.totem-ya_marcado,#totemMensaje.totem-duplicado{color:var(--warn-ink)}
+
 #totemMensaje.totem-error{color:var(--danger)}
+
 #totemMensaje.totem-idle{color:var(--secondary-text)}
+
 #totemMensaje .totem-idle-icono{font-size:clamp(40px,7vw,84px);opacity:.35;flex:0 0 auto}
+
 #totemMensaje .totem-idle-texto b{font-size:clamp(22px,3vw,40px);color:var(--ink);display:block}
+
 #totemMensaje .totem-idle-texto span{font-size:clamp(16px,2.1vw,28px);display:block;margin-top:.2em}
 
+
 .totem-pie{flex:0 0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+
   padding:12px 18px;background:var(--surface);border-top:1px solid var(--line)}
+
 .totem-campo-label{font-size:.8em;color:var(--secondary-text);margin:0}
+
 /* El campo tiene que ser visible y grande aunque el foco esté en otro
+
    lado: si queda transparente, en un cartel de la portería parece que no
+
    hay campo y nadie entiende por qué no hay que tocar nada. */
+
 #totemCampo{flex:1 1 320px;min-height:56px;font-size:1.1em;padding:10px 14px;
+
   background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:10px;
+
   opacity:1}
+
 #totemCampo:focus{outline:3px solid var(--accent);outline-offset:1px}
+
 #totemCampo::placeholder{color:var(--muted);font-size:.85em}
 
+
 .totem-pill{font-size:.75em;padding:4px 10px;border-radius:999px;border:1px solid var(--line);
+
   color:var(--secondary-text);min-width:9em;text-align:center}
+
 .totem-pill-ok{color:var(--accent);border-color:var(--accent)}
+
 .totem-pill-ya_marcado,.totem-pill-duplicado{color:var(--warn-ink);border-color:var(--warn)}
+
 .totem-pill-error{color:var(--danger);border-color:var(--danger)}
 
+
 @media (max-width:700px){
+
   .totem-barra{flex-wrap:wrap}
+
   .totem-pie{gap:8px}
+
   #totemCampo{min-height:48px}
+
 }
+
 
 /* Los iconos de acción de una fila. Sin gap, dos emojis pegados no se
+
    distinguen al apretar. */
+
 .lista-iconos{display:flex;gap:6px;align-items:center;flex:0 0 auto}
+
 /* ------------------------------------------------------------------
+
 EL PAPEL QUE SE IMPRIME
+
 ------------------------------------------------------------------
+
 A4 a 96 dpi son 794 px de ancho. Se usa eso como unidad de toda la hoja
+
 para que lo que se ve en el editor y lo que sale en el PDF sean el mismo
+
 documento, y no "parecido".
 
+
 El fondo es blanco SIEMPRE, incluso en modo oscuro. Un acta firmada en
+
 negro sobre negro no se lee, y el que la va a imprimir es un usuario que
+
 puede tener el modo oscuro activado por accidente.
+
 ------------------------------------------------------------------ */
+
 /* ------------------------------------------------------------------
+
 EL KIOSCO
+
 ------------------------------------------------------------------
+
 La pantalla del reloj se muestra a pantalla completa con el navegador en
+
 modo kiosco. Eso obliga a que el CSS apague todo lo que no sirve para marcar
+
 y que se abra la pantalla completa: sin las dos cosas, el "bloqueo" es solo
+
 una barra de direcciones que el trabajador puede cerrar.
 
+
 `overflow: hidden` en html y body quita el scroll de todo el documento,
+
 incluido el scroll interno de las tarjetas: si queda, con el dedo en la
+
 pantalla se mueve la página y la zona de escaneo se va.
 
+
 `cursor: none` esconde el puntero tras 3 segundos sin moverlo. En una pantalla
+
 táctil no se nota; en un escritorio de prueba, sí, y por eso el kiosco se
+
 puede desactivar por reloj. */
+
 .modo-kiosco html, .modo-kiosco body {
+
   overflow: hidden !important;
+
   overscroll-behavior: none;
+
 }
+
 .modo-kiosco { cursor: none; }
+
 .modo-kiosco #totemZonaKiosco,
+
 .modo-kiosco #totemMensaje,
+
 .modo-kiosco #totemPistaKiosco { cursor: none; }
 
+
 /* La barra del tótem (el reloj, el selector de tipo, el botón salir) se
+
    esconde. El tipo de marca lo elige quien instala el reloj, no el
+
    trabajador, y si se deja puesto cualquier dedo lo cambia por error. */
+
 .modo-kiosco .totem-barra { display: none !important; }
+
 .modo-kiosco .totem-salir { display: none !important; }
+
 /* La hora del tótem sobrevive al modo kiosco.
 
+
    La hora se había puesto DENTRO de la barra del tótem, y el CSS del kiosco
+
    esconde la barra entera:
+
 
        .modo-kiosco .totem-barra { display: none !important; }
 
+
    Con razón: en modo kiosco no puede quedar un selector de tipo de marca
+
    (cualquier dedo lo cambia por error) ni un botón de salir.
 
+
    Resultado: la hora se agregaba y se escondía en el mismo momento. El
+
    código funcionaba, la prueba con DOM de mentira pasaba, y en el aparato
+
    no se veía nunca. Es el peor tipo de falla: todo está bien y la pantalla
+
    está incompleta.
 
+
    La solución NO es quitar esa regla, que cumple su función. Es sacar la
+
    hora de la barra y darle su propia caja, con su propia regla, para que
+
    las dos no se pisen: la barra se esconde, la hora no.
 
+
    Un reloj sin hora en pantalla genera el mismo problema que un reloj con
+
    la hora mala: la gente sospecha de la hora de la marcación. Y la hora
+
    de la marcación es lo primero que la DT revisa. */
+
 /* La hora del tótem: CENTRADA y grande.
 
+
    Estaba arriba a la derecha, de 1,9 rem. En un cartel de portería
+
    colgado a la altura de la cabeza, a dos metros, hay que acercarse a
+
    leerla; y si hay que acercarse, no sirve.
 
+
    La hora es lo primero que la persona mira para decidir si su marcación
+
    fue correcta. Y lo segundo que mira, si hay algo raro, es la hora que
+
    le quedó guardada. Las dos van apiladas y centradas, en ese orden.
 
+
    La caja no intercepta toques (pointer-events: none): la pantalla del
+
    reloj es toda pulsable, y un recuadro de texto en el medio tapa los
+
    dedos. */
+
 #totemHoraCaja {
+
   position: absolute;
+
   top: 0;
+
   left: 0;
+
   right: 0;
+
   z-index: 3;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: center;
+
   line-height: 1.05;
+
   padding: 10px 12px 6px;
+
   pointer-events: none;
+
 }
+
 #totemHoraCaja .totem-hora {
+
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
   /* A dos metros, con letra de 4,6 rem, se lee sin acercarse. */
+
   font-size: 4.6rem;
+
   font-weight: 700;
+
   font-variant-numeric: tabular-nums;
+
   color: var(--ink);
+
   letter-spacing: -.02em;
+
 }
+
 #totemHoraCaja .totem-fecha {
+
   font-size: 1.05rem;
+
   color: var(--secondary-text);
+
   text-transform: capitalize;
+
   font-weight: 600;
+
 }
+
 #totemHoraCaja .totem-nombre {
+
   font-size: .85rem;
+
   color: var(--secondary-text);
+
 }
+
 
 /* La hora que se acaba de guardar, y si el reloj del aparato va
+
    atrasado. Es el dato que la persona va a impugnar después, así que
+
    tiene que verse, no quedar dentro del cartel que desaparece. */
+
 .totem-marcaje {
+
   margin-top: 6px;
+
   font-size: 1rem;
+
   font-weight: 600;
+
   text-align: center;
+
 }
+
 .totem-marcaje-ok { color: var(--accent); }
+
 .totem-marcaje-desfasado { color: var(--warn); }
 
+
 /* La conexión, arriba de la hora. Un punto de color, no un dibujo: a dos
+
    metros y con luz de obra, un punto de 14 px se ve y un glifo no. Y con
+
    texto al lado, porque el color solo no le sirve a quien no distingue
+
    rojo de verde, que es una de cada doce personas. */
+
 .totem-conexion {
+
   display: flex;
+
   align-items: center;
+
   gap: 7px;
+
   margin-bottom: 2px;
+
   font-size: .8rem;
+
   font-weight: 600;
+
 }
+
 .totem-conexion-punto {
+
   width: 12px;
+
   height: 12px;
+
   border-radius: 50%;
+
   background: var(--muted);
+
   flex: 0 0 auto;
+
 }
+
 .totem-conexion-texto { color: var(--muted); }
 
+
 /* Sin señal, el punto late. Es la diferencia entre "está ahí" y "está
+
    funcionando". Un punto fijo parece un adorno. */
+
 .totem-conexion.latiendo .totem-conexion-punto {
+
   animation: latidoTotem 1.4s ease-in-out infinite;
+
 }
+
 @keyframes latidoTotem {
+
   0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+
   50% { opacity: .35; }
+
 }
+
 
 /* El campo de token del propio tótem. Aparece SOLO cuando el token
+
    instalado no es el de este reloj, porque en una pantalla que la gente
+
    toca con cualquier dedo, un campo de texto siempre tapa marcaciones. */
+
 .totem-token-caja {
+
   width: min(560px, 92vw);
+
   margin: 0 auto 12px;
+
   padding: 14px 16px;
+
   border: 2px solid var(--warn);
+
   border-radius: 10px;
+
   background: var(--surface);
+
   box-shadow: 0 6px 22px rgba(0, 0, 0, .16);
+
 }
+
 .totem-token-caja label {
+
   display: block;
+
   font-weight: 700;
+
   margin-bottom: 6px;
+
   font-size: 1rem;
+
 }
+
 .totem-token-caja input {
+
   width: 100%;
+
   font-family: ui-monospace, Menlo, Consolas, monospace;
+
   font-size: 1rem;
+
   padding: 10px 12px;
+
   border: 1px solid var(--line);
+
   border-radius: 8px;
+
 }
+
 .totem-token-caja small {
+
   display: block;
+
   margin-top: 6px;
+
   font-size: .8rem;
+
   color: var(--secondary-text);
+
   line-height: 1.35;
+
 }
+
 #totemHoraCaja .totem-fecha {
+
   font-size: .8rem;
+
   color: var(--secondary-text);
+
   text-transform: capitalize;
+
 }
+
 #totemHoraCaja .totem-nombre {
+
   font-size: .8rem;
+
   color: var(--secondary-text);
+
   font-weight: 600;
+
 }
+
 
 /* En kiosco crece un poco más. La hora es de 4,6 rem, y en modo kiosco
+
    no hay barra arriba: hay espacio de sobra. */
+
 .modo-kiosco #totemHoraCaja .totem-hora { font-size: 5.4rem; }
+
 .modo-kiosco #totemHoraCaja { padding: 16px 12px 8px; }
+
 .modo-kiosco #totemHoraCaja .totem-marcaje { font-size: 1.15rem; }
 
+
 /* La zona de las cinco pulsaciones. Transparente, sin ícono y con el área
+
    de la esquina superior izquierda. Es invisible a propósito: si se le
+
    pusiera un ícono, sería un botón de salida y el bloqueo no serviría. */
+
 #totemZonaKiosco {
+
   position: fixed;
+
   top: 0; left: 0;
+
   width: 18vw; height: 18vh;
+
   min-width: 90px; min-height: 90px;
+
   z-index: 60;
+
   /* Sin fondo, sin borde: es una zona de captura, no un control. */
+
   background: transparent;
+
   /* El outline se enciende a partir de la tercera pulsación, como
+
      confirmación de que algo está pasando. */
+
   outline: none;
+
   /* Sin esto el toque se traduce en un click y hace scroll en varios
+
      navegadores de Android. */
+
   touch-action: manipulation;
+
 }
+
 #totemZonaKiosco:active { background: rgba(255,255,255,.02); }
 
+
 /* La cuenta de pulsaciones. Aparece a partir de la tercera, en el medio
+
    abajo, donde no tapa la zona de escaneo. */
+
 #totemPistaKiosco {
+
   position: fixed;
+
   left: 0; right: 0;
+
   bottom: 14vh;
+
   text-align: center;
+
   color: rgba(255,255,255,.5);
+
   font-size: 1.4rem;
+
   letter-spacing: .3em;
+
   pointer-events: none;
+
   z-index: 59;
+
   min-height: 1.6em;
+
 }
+
 
 /* Un usuario reloj no ve el panel: la pantalla de marcaje es todo. */
+
 .solo-reloj #subNav,
+
 .solo-reloj #mainNav,
+
 .solo-reloj header { display: none !important; }
 
+
 /* ------------------------------------------------------------------
+
 LA TABLA DE MARCAJES
+
 ------------------------------------------------------------------
+
 Se hace con divs y no con una <table> porque cada fila es un registro
+
 dentro de un contenedor con scroll, y una tabla con muchos miles de filas
+
 deja de scrollear bien en varios navegadores. Con la cabecera fija y las
+
 filas con `display: grid` en las mismas proporciones, el scroll es fluido y
+
 las columnas quedan alineadas.
 
+
 Las proporciones son de la más ancha a la más chica: nombre del trabajador
+
 (que es lo más largo), fecha, hora, marca, origen y reloj. */
+
 .marcajes-tabla {
+
   border: 1px solid var(--line);
+
   border-radius: 8px;
+
   overflow: auto;
+
   max-height: 62vh;
+
   background: var(--surface);
+
 }
+
 .marcajes-cabecera,
+
 .marcajes-fila {
+
   display: grid;
+
   grid-template-columns:
+
     100px   /* fecha   */
+
     62px    /* hora    */
+
     minmax(0, 1fr)  /* nombre */
+
     92px    /* marca   */
+
     86px    /* origen  */
+
     minmax(0, 0.7fr)   /* reloj */
+
     minmax(0, 0.9fr);  /* centro de costo */
+
   }
+
   /* En pantallas angostas la septima columna no cabe. Se oculta la CELDA,
+
      no el dato: el filtro por centro sigue funcionando y el reloj ya
+
      identifica la fila. Es preferible a dejar el texto cortado a la
+
      mitad, que parece un error de la pantalla. */
+
   @media (max-width: 1150px) {
+
     .marcajes-fila,
+
     .marcajes-cabecera { grid-template-columns: 96px 58px minmax(0, 1fr) 88px 82px minmax(0, 0.8fr); }
+
     .marcajes-fila .m7,
+
     .marcajes-cabecera .m7 { display: none; }
+
   }
+
   align-items: center;
+
   gap: 10px;
+
   padding: 7px 12px;
+
   font-size: .88rem;
+
 }
+
 .marcajes-cabecera {
+
   position: sticky;
+
   top: 0;
+
   background: var(--panel);
+
   border-bottom: 1px solid var(--line);
+
   font-weight: 600;
+
   font-size: .78rem;
+
   text-transform: uppercase;
+
   letter-spacing: .05em;
+
   color: var(--muted);
+
   z-index: 2;
+
 }
+
 .marcajes-fila {
+
   border-bottom: 1px solid var(--line);
+
 }
+
 .marcajes-fila:last-child { border-bottom: 0; }
+
 .marcajes-fila:hover { background: var(--surface-hover); }
+
 .marcajes-fila .m2 { font-family: ui-monospace, monospace; }
+
 .marcajes-fila .m5,
+
 .marcajes-fila .m6,
+
 .marcajes-fila .m7 { color: var(--muted); font-size: .82rem; }
+
 .marcajes-fila small { color: var(--muted); }
 
+
 /* Los atajos de fecha de los marcajes. Un botón que está puesto tiene que
+
    verse puesto: si no, la persona aprieta "Hoy", ve la lista cambiar, y no
+
    puede confirmar que el filtro quedó bien. */
+
 .marcajes-atajos { display: flex; gap: 6px; flex-wrap: wrap; }
+
 .marcajes-atajos .btn { padding: .4rem .85rem; font-size: .85rem; }
+
 .marcajes-atajos .btn.activo {
+
   /* --accent es el verde de la paleta. Escribir --brand, que no existe,
+
      deja el fondo transparente: el botón queda igual de apretado que sin
+
      estarlo, y no hay forma de saber qué filtro está puesto. */
+
   background: var(--accent);
+
   color: var(--on-accent);
+
   border-color: var(--accent);
+
   font-weight: 600;
+
 }
+
 .marcajes-atajos .btn.activo:hover { filter: brightness(1.08); }
 
+
 /* La hora del reloj. Va en grande arriba a la derecha de la barra. Un
+
    Android TV Box colgado en la portería se mira a dos metros: letra de
+
    cuerpo no se lee a esa distancia. */
+
 .totem-hora {
+
   font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
   font-size: 1.5rem;
+
   font-weight: 700;
+
   letter-spacing: .02em;
+
   color: var(--text);
+
   font-variant-numeric: tabular-nums;
+
 }
+
 .totem-fecha {
+
   font-size: .85rem;
+
   color: var(--muted);
+
 }
+
 .totem-barra .totem-hora-caja {
+
   display: flex;
+
   flex-direction: column;
+
   align-items: flex-end;
+
   line-height: 1.15;
+
   margin-right: auto;
+
 }
+
 
 /* El aviso de que no se pudo hablar con la base.
 
+
    Va arriba de todo, grande, porque es la única cosa que la persona
+
    necesita ver cuando aparece: sin base no hay sistema, y no hay nada que
+
    hacer hasta que se solucione. Un aviso chiquito arriba a la derecha pasa
+
    inadvertido, y la persona empieza a apretar botones que no hacen nada. */
+
 .fallo-base {
+
   padding: 22px 26px;
+
   margin: 0 0 22px;
+
   background: var(--danger-surface);
+
   border-bottom: 3px solid var(--danger);
+
   color: var(--danger);
+
 }
+
 .fallo-base h2 {
+
   margin: 0 0 10px;
+
   font-size: 1.35rem;
+
   font-weight: 700;
+
 }
+
 /* El mensaje va en un <pre> para que respete los saltos de línea, que son
+
    los que separan los pasos que la persona tiene que hacer. Sin eso todo
+
    queda en un párrafo largo que nadie lee hasta el final. */
+
 .fallo-base pre {
+
   white-space: pre-wrap;
+
   font-family: inherit;
+
   font-size: 1rem;
+
   line-height: 1.55;
+
   margin: 0 0 12px;
+
 }
+
 .fallo-base small {
+
   display: block;
+
   font-size: .85rem;
+
   opacity: .8;
+
 }
+
 
 /* Lo que arma el importador desde Word. La tabla ES el contenido de una
+
    inducción: sin bordes y sin anchos no se lee. */
+
 .docx-tabla {
+
   border-collapse: collapse;
+
   width: 100%;
+
   margin: 8px 0;
+
   font-size: .92em;
+
 }
+
 .docx-tabla td,
+
 .docx-tabla th {
+
   border: 1px solid var(--line);
+
   padding: 5px 7px;
+
   text-align: left;
+
   vertical-align: top;
+
 }
+
 .docx-tabla tr:nth-child(even) td { background: var(--surface); }
 
+
 /* La lista de variables, que se abre con "Ver variables". */
+
 #plantillaListaVariables table {
+
   width: 100%;
+
   border-collapse: collapse;
+
   font-size: .85rem;
+
 }
+
 #plantillaListaVariables td,
+
 #plantillaListaVariables th {
+
   border-bottom: 1px solid var(--line);
+
   padding: 4px 6px;
+
   text-align: left;
+
 }
+
 #plantillaListaVariables code {
+
   background: var(--surface);
+
   padding: 1px 5px;
+
   border-radius: 4px;
+
   cursor: pointer;
+
 }
+
 #plantillaListaVariables code:hover { background: var(--surface-hover); }
 
+
 .aviso-fila {
+
   background: var(--warn-surface);
+
   border: 1px solid var(--warn);
+
   color: var(--warn-ink);
+
   padding: 9px 11px;
+
   border-radius: 8px;
+
   font-size: .88rem;
+
 }
+
 .vacio {
+
   padding: 26px;
+
   text-align: center;
+
   color: var(--muted);
+
   border: 1px dashed var(--line);
+
   border-radius: 8px;
+
 }
+
 
 .hoja-papel{
+
   width:794px;min-height:1123px;background:#fff;color:#111;
+
   margin:0 auto;padding:56px 62px;box-sizing:border-box;
+
   font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+
   font-size:13px;line-height:1.55;position:relative;
+
 }
+
 .hoja-papel h1{font-size:20px;margin:0 0 6px;text-align:center;color:#111}
+
 .hoja-papel h2{font-size:16px;margin:14px 0 6px;color:#111}
+
 .hoja-papel h3{font-size:14px;margin:12px 0 4px;color:#111}
+
 .hoja-papel p{margin:5px 0}
+
 .hoja-papel ul,.hoja-papel ol{margin:5px 0;padding-left:22px}
+
 .hoja-papel table{width:100%;border-collapse:collapse;margin:8px 0}
+
 .hoja-papel th,.hoja-papel td{border:1px solid #999;padding:5px 7px;text-align:left;vertical-align:top}
+
 .hoja-papel th{background:#eee}
+
 .hoja-papel .campo-linea{display:inline-block;min-width:210px;border-bottom:1px solid #333;margin:0 6px 3px 0}
+
 .hoja-papel .dato{border-bottom:1px solid #333;padding:0 4px;display:inline-block;min-width:160px}
+
 .hoja-papel .casilla{display:inline-block;width:11px;height:11px;border:1px solid #333;vertical-align:-1px;margin:0 4px 0 9px}
+
 .hoja-papel .aviso{border:1px solid #333;padding:7px 10px;margin:8px 0;background:#f4f4f4}
+
 .hoja-papel .referencia{font-size:10.5px;color:#444;margin-top:4px}
 
+
 /* ------------------------------------------------------------------
+
 EL TIMBRE
+
 ------------------------------------------------------------------
+
 Un recuadro de doble línea, girado. El giro es lo que lo hace parecer un
+
 sello y no una tabla: es la diferencia entre "papel con un recuadro" y
+
 "papel con un timbre puesto".
+
 ------------------------------------------------------------------ */
+
 .timbre{position:absolute;color:#1a3a6b;opacity:.82;pointer-events:none;font-weight:700;line-height:1.25}
+
 .timbre-borde{border:2.5px solid currentColor;border-radius:3px;padding:6px 12px;position:relative}
+
 .timbre-borde::before{content:"";position:absolute;inset:3px;border:1px solid currentColor;border-radius:2px;opacity:.65}
+
 .timbre-borde>b{font-size:1.02em;letter-spacing:.2px;display:block;text-align:center;padding:0 4px}
+
 .timbre-linea{font-size:.78em;font-weight:600;text-align:center;margin-top:2px;padding:0 6px}
+
 .timbre-prueba{position:relative;height:118px;background:#fff;border:1px dashed var(--line);border-radius:8px;overflow:hidden}
 
+
 /* ------------------------------------------------------------------
+
 LAS FIRMAS
+
 ------------------------------------------------------------------
+
 La imagen es un PNG con fondo transparente, así que se ve el papel de
+
 atrás. Un PNG con fondo blanco taparía el texto que queda debajo, y en un
+
 acta eso no es aceptable.
+
 ------------------------------------------------------------------ */
+
 .firmas{display:flex;gap:34px;margin-top:26px;page-break-inside:avoid;break-inside:avoid}
+
 .firma-bloque{flex:1;min-width:0}
+
 .firma-caja{height:58px;display:flex;align-items:flex-end}
+
 .firma-caja img{max-height:56px;max-width:100%;display:block}
+
 .firma-linea{border-top:1px solid #333;margin-top:2px}
+
 .firma-pie{font-size:10.5px;margin-top:3px;line-height:1.35}
+
 .firma-pie b{font-size:11px}
 
+
 .firmas-edicion{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;
+
   background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px}
+
 .firmas-edicion>div{flex:1 1 300px;min-width:240px}
+
 .firmas-edicion label{display:block;font-size:.8rem;color:var(--secondary-text);margin-bottom:4px}
+
 /* El canvas se dibuja con eventos de puntero, así que necesita
+
    touch-action:none: sin eso, en una pantalla táctil el dedo hace scroll
+
    en vez de firmar, y la firma sale como un rayón. */
+
 .firmas-edicion canvas{width:100%;height:150px;background:var(--bg);
+
   border:1.5px dashed var(--line);border-radius:8px;touch-action:none;cursor:crosshair;
+
   display:block}
+
 .firmas-edicion canvas:focus{outline:2px solid var(--accent)}
 
+
 /* ------------------------------------------------------------------
+
 EL EDITOR DE PLANTILLAS
+
 ------------------------------------------------------------------
+
 Una hoja blanca dentro de la pantalla oscura. Por la misma razón que el
+
 papel: se está escribiendo un documento, y un editor con fondo oscuro hace
+
 que uno dude de cómo va a salir impreso.
+
 ------------------------------------------------------------------ */
+
 .editor-barra{display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+
   background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px}
+
 .editor-barra .btn{cursor:pointer}
+
 .editor-hoja{background:#fff;color:#111;min-height:340px;max-height:56vh;overflow:auto;
+
   border:1px solid var(--line);border-radius:0 0 8px 8px;padding:18px 20px;
+
   font-size:13.5px;line-height:1.6;font-family:'Segoe UI',system-ui,Arial,sans-serif}
+
 .editor-hoja:focus{outline:2px solid var(--accent);outline-offset:-2px}
+
 .editor-hoja h2{color:#111}
+
 .editor-hoja table{width:100%;border-collapse:collapse}
+
 .editor-hoja th,.editor-hoja td{border:1px solid #999;padding:4px 6px}
 
+
 .papel-scroll{max-height:62vh;overflow:auto;background:var(--panel);
+
   border:1px solid var(--line);border-radius:8px;padding:14px;margin-top:10px}
 
+
 .lista-iconos>span{cursor:pointer;line-height:1}
+
 #scanResult{margin-top:12px}
+
 .photoRow{display:flex;gap:14px}
+
 .photoBox{flex:1;text-align:center}
+
 .photoBox img{width:100%;height:110px;object-fit:cover;border:1px solid var(--line);border-radius:0;background:var(--panel);display:block;margin-bottom:4px}
+
 .photoBox label.fileLabel{display:block;background:var(--panel);border:1px dashed var(--accent2);border-radius:0;padding:9px;cursor:pointer;font-size:.72rem;color:var(--secondary-text);text-align:center}
+
 .photoBox input[type=file]{display:none}
+
 .loginCard{max-width:420px;width:calc(100% - 32px);background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:32px;box-shadow:0 10px 32px rgba(7,17,31,.08)}
+
 .loginCard h1{font-size:2rem}
+
 .loginCard .btn{width:100%;margin-top:16px}
+
 @media(max-width:700px){
+
   header{padding:12px 14px}
+
   header h1{font-size:.75rem}
+
   .header-actions{gap:5px}
+
   .header-actions .btn{padding:8px 9px;font-size:.62rem}
+
   nav{padding:0 8px}
+
   nav button{padding:12px 9px;font-size:.68rem}
+
   main{padding:14px 10px}
+
   .card{padding:14px}
+
   .row>div{min-width:100%}
+
   .photoRow{flex-direction:column}
+
 }
 
+
 /* ---- tarjeta tamaño carnet: 85.6mm x 53.98mm ---- */
+
 .cardWrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+
 .idcard{width:85.6mm;height:53.98mm;border-radius:3mm;position:relative;perspective:1000px}
+
 .idcard-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d}
+
 .idcard.flipped .idcard-inner{transform:rotateY(180deg)}
+
 .idcard-face{position:absolute;width:100%;height:100%;backface-visibility:hidden;border:1px solid var(--line);border-radius:3mm;background:var(--card);padding:3mm;overflow:hidden;display:flex}
+
 .idcard-back{transform:rotateY(180deg);flex-direction:column;font-size:6.5pt;line-height:1.25}
+
 .idcard-photo{width:22mm;height:28mm;object-fit:cover;border-radius:1.5mm;border:1px solid var(--line)}
+
 .idcard-info{flex:1;padding-left:3mm;display:flex;flex-direction:column;justify-content:space-between}
+
 .idcard-name{font-size:9pt;font-weight:700;color:var(--accent);line-height:1.15}
+
 .idcard-cargo{font-size:7pt;color:var(--muted)}
+
 .idcard-code{font-size:7pt;margin-top:2mm}
+
 .idcard-codes{display:flex;align-items:center;gap:2mm;margin-top:1mm}
+
 .idcard-back h4{margin:0 0 1mm 0;font-size:7pt;color:var(--accent)}
+
 .idcard-back .sec{margin-bottom:1.5mm}
+
 
 /* ======================= ESTADOS DEL RELOJ (2026-09-29) ======================= */
 
+
 /* ===================================================================
+
    LOS ESTADOS DE LA PANTALLA DEL RELOJ, CON FONDO
+
    ===================================================================
 
+
    -------------------------------------------------------------------
+
    QUÉ PASABA
+
    -------------------------------------------------------------------
+
    El recuadro de mensaje cambiaba el COLOR DEL TEXTO, y nada más. Con
+
    eso, de lejos no se distingue un marcaje guardado de un aviso: los dos
+
    son un texto sobre un fondo claro, y quien está parado en la portería a
+
    las seis de la mañana, con medio metro de distancia y sin lentes, no
+
    lee la diferencia.
 
+
    El color tiene que estar en el FONDO. Es lo que se ve a dos metros, y es
+
    lo que distingue un cartel de "podés pasar" de uno de "tenés que ir a
+
    hablar con alguien".
 
+
    -------------------------------------------------------------------
+
    LOS TRES ESTADOS, Y POR QUÉ SON TRES Y NO DOS
+
    -------------------------------------------------------------------
+
    Verde   marcaje registrado. Se puede pasar.
+
    Amarillo hay algo que resolver. No es un error: es una indicación de
+
            Prevención, del Asistente Social o del supervisor, que alguien
+
            dejó para esa persona.
+
    Rojo    algo no se pudo hacer. El token no es de este reloj, el reloj
+
            está apagado, la tarjeta está anulada.
 
+
    El amarillo es el que faltaba. Es el estado que más se confunde con el
+
    verde si no se ve de lejos, y es el que más consecuencias tiene: la
+
    persona se va a trabajar con un pendiente sin enterarse.
 
+
    -------------------------------------------------------------------
+
    LOS COLORES
+
    -------------------------------------------------------------------
+
    Los mismos tonos que ya usa el resto de la aplicación, aclarados para
+
    que el texto encima se lea. Un verde saturado con texto blanco encima
+
    no se lee a distancia, y un amarillo muy claro con texto oscuro tampoco
+
    se ve de lejos.
 
+
    Por eso el texto del aviso va en casi negro sobre amarillo: es la
+
    única combinación que se lee a dos metros y a contraluz. */
 
+
 #pantallaTotem {
+
   --totem-fondo-ok:    #E4F3E4;
+
   --totem-tinta-ok:    #14401C;
+
   --totem-fondo-aviso: #FFE9A8;
+
   --totem-tinta-aviso: #4A3200;
+
   --totem-fondo-error: #FBDCDC;
+
   --totem-tinta-error: #6B1515;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    EL MARCAJE QUEDÓ
+
    ------------------------------------------------------------------- */
+
 #totemMensaje.totem-ok {
+
   background: var(--totem-fondo-ok);
+
   color: var(--totem-tinta-ok);
+
   border-radius: 14px;
+
   padding: 14px 18px;
+
   transition: background .2s ease;
+
 }
+
 
 #totemMensaje.totem-ok .totem-texto span {
+
   color: var(--totem-tinta-ok);
+
   opacity: .85;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    HAY UN AVISO
+
    -------------------------------------------------------------------
+
    El borde izquierdo es lo que lo distingue de lejos: la banda de color
+
    se ve aunque el texto no se lea, y de un vistazo se sabe que hay algo
+
    que mirar. */
+
 #totemMensaje.totem-aviso {
+
   background: var(--totem-fondo-aviso);
+
   color: var(--totem-tinta-aviso);
+
   border-left: 10px solid #C98A00;
+
   border-radius: 14px;
+
   padding: 14px 18px;
+
   transition: background .2s ease;
+
 }
+
 
 #totemMensaje.totem-aviso .totem-texto span {
+
   color: var(--totem-tinta-aviso);
+
   opacity: .9;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    ALGO NO SE PUDO HACER
+
    ------------------------------------------------------------------- */
+
 #totemMensaje.totem-error {
+
   background: var(--totem-fondo-error);
+
   color: var(--totem-tinta-error);
+
   border-left: 10px solid var(--danger);
+
   border-radius: 14px;
+
   padding: 14px 18px;
+
   transition: background .2s ease;
+
 }
+
 
 #totemMensaje.totem-error .totem-texto span {
+
   color: var(--totem-tinta-error);
+
   opacity: .9;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    EL BOTÓN DE "VER EL AVISO"
+
    -------------------------------------------------------------------
+
    Cuando el aviso no se puede leer en el momento —porque la persona ya
+
    se fue, o porque llegó a las nueve de la noche— queda un botón para
+
    abrirlo después. Es la diferencia entre un aviso que se pierde y uno
+
    que llega.
 
+
    Con el aviso esperando, el estado de reposo ya no es un estado de
+
    reposo: lo dice. */
+
 #totemVerAviso {
+
   display: none;
+
   margin-top: 10px;
+
   background: var(--totem-fondo-aviso);
+
   color: var(--totem-tinta-aviso);
+
   border: 3px solid #C98A00;
+
   border-radius: 10px;
+
   padding: 14px 20px;
+
   font-size: 1.05rem;
+
   font-weight: 700;
+
   min-height: 52px;
+
 }
+
 
 #totemVerAviso.visible {
+
   display: block;
+
 }
+
 
 #totemVerAviso .cuenta {
+
   display: inline-block;
+
   background: #C98A00;
+
   color: #fff;
+
   border-radius: 999px;
+
   padding: 1px 9px;
+
   margin-left: 8px;
+
   font-size: .85rem;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    LA VENTANA DEL AVISO
+
    -------------------------------------------------------------------
+
    Va centrada y con el texto grande, porque se lee a un brazo de
+
    distancia. El botón de cerrar es el más grande de todos, que es lo que
+
    se toca cuando alguien ya lo leyó. */
+
 #dlgAviso .card {
+
   max-width: 720px;
+
 }
+
 
 #dlgAviso h2 {
+
   margin: 0 0 4px;
+
 }
+
 
 #dlgAvisoQuien {
+
   display: block;
+
   color: var(--muted);
+
   margin-bottom: 14px;
+
 }
+
 
 #dlgAvisoTexto {
+
   background: var(--totem-fondo-aviso);
+
   color: var(--totem-tinta-aviso);
+
   border-left: 8px solid #C98A00;
+
   border-radius: 10px;
+
   padding: 18px 20px;
+
   font-size: 1.15rem;
+
   line-height: 1.55;
+
   white-space: pre-wrap;
+
 }
+
 
 #dlgAvisoEnviado {
+
   margin-top: 14px;
+
   font-size: .92rem;
+
   color: var(--secondary-text);
+
   line-height: 1.5;
+
 }
+
 
 #dlgAviso .row {
+
   margin-top: 18px;
+
   gap: 10px;
+
   justify-content: flex-end;
+
   flex-wrap: wrap;
+
 }
+
 
 #dlgAviso .btn {
+
   min-height: 46px;
+
   padding: 12px 18px;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    LA BOLETA IMPRESA
+
    -------------------------------------------------------------------
+
    Un aviso que se queda pegado en una pantalla y se borra a los dos
+
    minutos no sirve de nada al día siguiente, cuando la persona se
+
    acuerda de que le dejaron algo.
 
+
    Por eso el aviso se puede imprimir. Sale en un papel de los comunes, con
+
    los datos que hacen falta para que sirva: quién lo dejó, qué dice, a
+
    qué hora, y qué tiene que hacer.
 
+
    Solo se imprime esa parte. La pantalla del reloj no, que a medio metro
+
    de una impresora de ticket queda ilegible. */
+
 #boletaAviso {
+
   display: none;
+
 }
+
 
 /* -------------------------------------------------------------------
+
    IMPRESION DE LA BOLETA DEL AVISO
+
    -------------------------------------------------------------------
+
    OJO CON ESTA REGLA, porque la version anterior rompio todas las
+
    impresiones de la aplicacion.
 
+
    Antes decia "body * { visibility: hidden }". Eso no era imprimir la
+
    boleta: era no imprimir NADA, porque el selector es todo el cuerpo.
+
    Lo unico que se volvia a ver era la boleta. La tarjeta definitiva, la
+
    temporal, la plantilla de Word y los reportes salian en blanco, y sin
+
    ningun error: la impresora no se queja de una hoja vacia.
 
+
    Por que se escribio asi: el elemento que se quiere esconder se pone
+
    con "visibility", y uno se olvida de que el @media print es GLOBAL y
+
    no del elemento. Ademas, en un @media print no se puede cambiar el
+
    estilo desde el JavaScript justo antes de imprimir: el motor de
+
    impresion ya tomo la decision. Por eso va con una clase, y la clase
+
    se pone ANTES de imprimir y se saca despues.
 
+
    Con la clase NO puesta, ninguna de estas reglas hace nada, y cada
+
    impresion de la aplicacion sigue usando su propio estilo. */
+
 @media print {
+
   body.imprimiendo-boleta * {
+
     visibility: hidden;
+
   }
+
 
   /* Lo que se imprime se saca del flujo, porque con visibility la pagina
+
      sigue teniendo el alto de la pantalla y sale un papel en blanco con
+
      un renglón arriba. */
+
   body.imprimiendo-boleta #boletaAviso,
+
   body.imprimiendo-boleta #boletaAviso * {
+
     visibility: visible;
+
     display: block;
+
     position: absolute;
+
     top: 0;
+
     left: 0;
+
     width: 100%;
+
   }
 
+
   body.imprimiendo-boleta #boletaAviso {
+
     font-size: 12pt;
+
     line-height: 1.5;
+
     color: #000;
+
   }
+
 }
+
 
 /* ======================= COMO QUEDA LA PANTALLA DEL RELOJ (2026-09-29) ======================= */
 
+
 /* ===================================================================
+
    COMO QUEDA LA PANTALLA DEL RELOJ
+
    ===================================================================
 
+
    PEDIDO
+
    ------
+
    - la camara AL MEDIO
+
    - el logo y los datos de la empresa ARRIBA A LA IZQUIERDA
+
    - el campo de la tarjeta CENTRADO
+
    - el recuadro de mensaje CENTRADO
 
+
    -------------------------------------------------------------------
+
    POR QUE ANTES TODO QUEDABA ARRINCONADO A LA IZQUIERDA
+
    -------------------------------------------------------------------
+
    No era una cuestion de estilos: era un flex.
 
+
    #pantallaTotem es una columna de flex, y por omision sus hijos se
+
    estiran a lo ancho. #totemMensaje tiene max-width:1000px, y con el
+
    estiramiento quedaba pegado al BORDE IZQUIERDO: en una pantalla de
+
    1900 pixeles el recuadro terminaba a la mitad y el texto parecia
+
    descentrado.
 
+
    OJO CON LA SOLUCION FACIL, porque es peor que el problema: no es poner
+
    align-items:center en la columna. Eso tambien encoge .totem-barra, que
+
    usa space-between para poner el nombre del centro a la izquierda y los
+
    controles a la derecha. Si la barra se encoge, se junta al centro y
+
    queda peor de lo que estaba.
 
+
    Lo correcto es centrar SOLO lo que lo necesita, con margin-inline:auto,
+
    que es lo que hace un bloque de ancho fijo dentro de un padre mas
+
    ancho.
 
+
    -------------------------------------------------------------------
+
    NADA DE ESTO SE TOCA EN EL ESCRITORIO
+
    -------------------------------------------------------------------
+
    Todas las reglas viven bajo #pantallaTotem o con prefijo totem-. La
+
    pantalla de marcaje es una pantalla fija, a pantalla completa: nada de
+
    esto se ve en el escritorio. Ademas este bloque va al FINAL del CSS,
+
    para que gane sobre las reglas viejas del reloj; si se pone en el
+
    medio, el max-width anterior manda y no se ve el arreglo. */
 
+
 /* -------------------------------------------------------------------
+
    LA EMPRESA, ARRIBA A LA IZQUIERDA
+
    -------------------------------------------------------------------
+
    El logo y el nombre van en la esquina de arriba a la izquierda, APARTE
+
    de la camara.
 
+
    No es decoracion. En una obra con mas de una empresa o mas de un centro
+
    de costo, la persona tiene que poder confirmar en un vistazo que esta
+
    marcando en el lugar correcto. Si se equivoca de reloj, la asistencia
+
    queda mal puesta y eso ya no se arregla sola.
 
+
    Va ahi y no al medio porque al medio esta la camara, que es donde la
+
    persona tiene que mirar para marcar, y arriba esta la hora, que es el
+
    dato que viene a ver. La esquina de arriba a la izquierda es el unico
+
    lugar que no le quita nada a nadie.
+
 
    Y va FIJA, con position:absolute, por dos razones:
 
+
    1. La camara se enciende y se apaga segun el reloj tenga lector de
+
       camara o un lector USB pegado. Si la empresa fuera parte de la
+
       zona de la camara, en un reloj con lector USB no se veria, que es
+
       justo cuando mas falta hace para confirmar en que lugar se esta
+
       marcando.
 
+
    2. La hora va fija arriba, al centro, y ocupa casi todo el ancho. Si
+
       la empresa estuviera en el flujo, quedaria debajo de la franja de
+
       la hora o la empujaria hacia abajo. Con position:absolute queda en
+
       la esquina sin empujar nada.
 
+
    -------------------------------------------------------------------
+
    POR QUE LA HORA Y LA EMPRESA NO SE PISAN
+
    -------------------------------------------------------------------
+
    La hora mide unos 300 px y va centrada. En una pantalla de 1900 px
+
    quedan 800 px limpios a cada lado, y la caja de la empresa mide 340.
+
    No hay solapamiento. En una de 1024 todavia quedan 360 px libres de un
+
    lado, asi que se llega a 700 px de ancho antes de que empiece a
+
    estorbar, y un reloj de porteria es de 1280 para arriba. */
+
 #totemEmpresa {
+
   position: absolute;
+
   top: 14px;
+
   left: 18px;
+
   z-index: 2;
+
   display: flex;
+
   flex-direction: column;
+
   align-items: flex-start;
+
   gap: 2px;
+
   width: min(34vh, 320px);
+
   padding: 12px 14px;
+
   background: var(--surface);
+
   border: 1px solid var(--line);
+
   border-radius: 10px;
+
   /* Sin esto, la caja se come los toques. Abajo del todo de la pantalla
+
      hay una zona que cuenta pulsaciones para abrir el kiosco: si la
+
      empresa tocara esa zona, cinco pulsaciones de mas se pierden y el
+
      kiosco no se abre. */
+
   pointer-events: none;
+
 }
+
 
 #totemLogo {
+
   display: none;
+
   max-height: 54px;
+
   max-width: 100%;
+
   object-fit: contain;
+
   margin-bottom: 6px;
+
 }
+
 
 #totemLogo.visible {
+
   display: block;
+
 }
+
 
 #totemEmpresaNombre {
+
   font-size: 1.02rem;
+
   font-weight: 700;
+
   color: var(--ink);
+
   line-height: 1.2;
+
   text-transform: uppercase;
+
   letter-spacing: .01em;
+
   /* El nombre de una empresa puede ser largo: "Construcciones y
+
      Contratas del Sur Ltda." no entra en 320 px en una sola linea, y si
+
      se corta a la mitad la persona no sabe si es su obra. */
+
   overflow-wrap: anywhere;
+
 }
+
 
 #totemEmpresaCentro {
+
   font-size: .88rem;
+
   color: var(--secondary-text);
+
   line-height: 1.25;
+
 }
+
 
 #totemEmpresaCentro:empty {
+
   display: none;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    LA CAMARA, AL MEDIO
+
    -------------------------------------------------------------------
+
    .totem-zona ya traia justify-content:center, que es lo que la deja al
+
    medio. Lo unico que hace falta es quitar el align-self de la camara:
+
    con align-self:flex-start se pegaba al borde izquierdo DENTRO de una
+
    zona que sigue centrada, y por eso salia corrida aunque la zona
+
    estuviera centrada. */
+
 #totemCamara {
+
   align-self: center;
+
   width: min(42vh, 380px);
+
 }
 
+
 /* -------------------------------------------------------------------
+
    EL RECUADRO DE MENSAJE, CENTRADO DE VERDAD
+
    -------------------------------------------------------------------
+
    Conserva su max-width, pero con margin-inline:auto se centra en vez de
+
    quedar pegado al borde izquierdo. */
+
 #totemMensaje {
+
   margin-inline: auto;
+
   align-self: center;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    EL PIE: EL CAMPO DE LA TARJETA, CENTRADO
+
    -------------------------------------------------------------------
+
    Antes ocupaba todo el ancho, de borde a borde, con la etiqueta
+
    "TARJETA" pegada al margen izquierdo. Se veia como un formulario de
+
    escritorio estirado, no como un reloj de porteria.
 
+
    Ahora el pie centra su contenido, el campo tiene un ancho maximo, y la
+
    etiqueta va ARRIBA y en mayusculas. En un aparato grande queda
+
    centrado; en uno chico se achica solo. */
+
 .totem-pie {
+
   justify-content: center;
+
   align-items: stretch;
+
   flex-direction: column;
+
   gap: 6px;
+
   padding: 12px 18px 16px;
+
 }
+
 
 #totemCampo {
+
   flex: 0 1 auto;
+
   width: 100%;
+
   max-width: 720px;
+
   margin-inline: auto;
+
   min-height: 58px;
+
   font-size: 1.15em;
+
   text-align: center;
+
 }
+
 
 .totem-campo-label {
+
   text-align: center;
+
   display: block;
+
   font-size: .78em;
+
   letter-spacing: .04em;
+
   text-transform: uppercase;
+
 }
+
 
 /* El cartucho de lo que se leyó (marcaje OK, etc.) también al centro,
+
    para que no quede pegado al borde y parezca un error suelto. */
+
 #totemCodigoLeido {
+
   align-self: center;
+
 }
 
+
 /* -------------------------------------------------------------------
+
    EL MODO KIOSCO, QUE ES EL QUE SE VE EN LA PORTERÍA
+
    -------------------------------------------------------------------
+
    En kiosco no hay barra, asi que la camara sube. Se le deja aire
+
    arriba para que no se monte con la hora. */
+
 .modo-kiosco #pantallaTotem {
+
   padding-top: 132px;
+
 }
+
 
 /* ======================= LA FICHA PERSONAL (2026-09-29) ======================= */
 
+
 /* ===================================================================
+
    LA FICHA PERSONAL
+
    ===================================================================
 
+
    COMO ESTA PENSADA
+
    -----------------
+
    Cada campo es una fila con su boton de copiar. No es que quede lindo:
+
    es que el que lo usa va a leer un renglon, apretar, y pegar en el
+
    sistema de remuneraciones. Si el boton quedara en un rincon, habria
+
    que buscarlo 25 veces por trabajador.
 
+
    El boton es ancho para que se pueda apretar con el dedo, y dice
+
    "Copiado" un instante cuando funciono. Ese ultimo detalle es lo que
+
    hace que la pantalla sirva: copiar en silencio deja a la persona
+
    creyendo que quedo en el portapapeles cuando no quedo, y eso es peor
+
    que no copiar.
 
+
    LA CUADRICULA
+
    -------------
+
    Dos columnas en una pantalla de escritorio, una sola en angosto. La
+
    etiqueta arriba del valor, no al lado: con 25 campos de nombres
+
    largos, al lado el valor queda en diez pixeles y hay que abrir la
+
    ventana.
 
+
    LO QUE NO SE HACE
+
    -----------------
+
    No se agranda la tipografia del escritorio. La ficha es una pantalla
+
    mas, con su propia regla, y vive bajo #ficha-trabajador para que no
+
    alcance a nada mas. */
 
+
 #v-ficha-trabajador .fichaHerramientas {
+
   display: flex;
+
   align-items: center;
+
   gap: 10px;
+
   flex-wrap: wrap;
+
   margin-bottom: 14px;
+
 }
+
 
 #v-ficha-trabajador .fichaHerramientas select {
+
   flex: 1 1 260px;
+
   min-width: 200px;
+
   min-height: 42px;
+
 }
+
 
 #fichaResumen {
+
   font-size: .9rem;
+
   color: var(--muted);
+
   margin: 0 0 14px;
+
 }
 
+
 /* ------------------------------------------------------------------
+
    LOS GRUPOS
+
    ------------------------------------------------------------------ */
+
 .fichaGrupo {
+
   margin-bottom: 22px;
+
 }
+
 
 .fichaGrupo h3 {
+
   font-size: .78rem;
+
   text-transform: uppercase;
+
   letter-spacing: .06em;
+
   color: var(--secondary-text);
+
   margin: 0 0 8px;
+
   padding-bottom: 5px;
+
   border-bottom: 1px solid var(--line);
+
 }
+
 
 .fichaGrupoAviso {
+
   margin: 6px 0 0;
+
   font-size: .78rem;
+
   color: var(--muted);
+
   min-height: 1em;
+
 }
+
 
 /* ------------------------------------------------------------------
+
    LAS FILAS
+
    ------------------------------------------------------------------ */
+
 .fichaFilas {
+
   display: grid;
+
   grid-template-columns: repeat(2, minmax(0, 1fr));
+
   gap: 8px 18px;
+
 }
+
 
 .fichaFila {
+
   display: flex;
+
   align-items: center;
+
   gap: 10px;
+
   padding: 8px 10px;
+
   background: var(--bg);
+
   border: 1px solid var(--line);
+
   border-radius: 8px;
+
   min-height: 52px;
+
 }
+
 
 .fichaDato {
+
   flex: 1 1 auto;
+
   min-width: 0;
+
   display: flex;
+
   flex-direction: column;
+
   gap: 2px;
+
 }
 
+
 .fichaEtiqueta {
+
   font-size: .7rem;
+
+  text-transform: uppercase;
+
+  letter-spacing: .05em;
+
+  color: var(--secondary-text);
+
+}
+
+
+.fichaValor {
+
+  font-size: 1rem;
+
+  color: var(--ink);
+
+  word-break: break-word;
+
+}
+
+
+/* Un campo sin dato se ve que esta vacio, sin que parezca un error.
+
+   El gris lo dice; un borde rojo haria pensar que esta mal. */
+
+.fichaFila.vacio .fichaValor em {
+
+  color: var(--muted);
+
+  font-style: normal;
+
+}
+
+
+.fichaFila.vacio {
+
+  border-style: dashed;
+
+}
+
+
+/* ------------------------------------------------------------------
+
+   EL BOTON DE COPIAR
+
+   ------------------------------------------------------------------ */
+
+.fichaCopiar {
+
+  flex: 0 0 auto;
+
+  min-width: 84px;
+
+  min-height: 40px;
+
+  font-size: .85rem;
+
+  padding: 8px 12px;
+
+  cursor: pointer;
+
+}
+
+
+.fichaCopiar.copiado {
+
+  background: var(--accent);
+
+  color: #fff;
+
+  border-color: var(--accent);
+
+}
+
+
+.fichaCopiar.copiadoNo {
+
+  background: var(--danger);
+
+  color: #fff;
+
+  border-color: var(--danger);
+
+}
+
+
+/* ------------------------------------------------------------------
+
+   EL AVISO QUE APARECE UN INSTANTE
+
+   ------------------------------------------------------------------ */
+
+#fichaAviso {
+
+  display: none;
+
+  margin-top: 12px;
+
+  padding: 10px 12px;
+
+  background: var(--surface);
+
+  border: 1px solid var(--line);
+
+  border-left: 4px solid var(--accent);
+
+  border-radius: 6px;
+
+  font-size: .88rem;
+
+  line-height: 1.5;
+
+}
+
+
+#fichaAviso.visible {
+
+  display: block;
+
+}
+
+
+/* ------------------------------------------------------------------
+
+   EN ANGOSTO, UNA SOLA COLUMNA
+
+   ------------------------------------------------------------------ */
+
+@media (max-width: 860px) {
+
+  .fichaFilas {
+
+    grid-template-columns: minmax(0, 1fr);
+
+  }
+
+
+  .fichaFila {
+
+    min-height: 56px;
+
+  }
+
+}
+
+/* ======================= LA JUSTIFICACION DIARIA EN TABLA (2026-09-29) ======================= */
+/* ===================================================================
+   LA JUSTIFICACION DIARIA, EN TABLA
+   ===================================================================
+   QUE SE PIDE
+   -----------
+   Que sea una tabla y que se vea mas pequena. Hace rato que esta pedido:
+   "en la justificacion diaria dejalo en formato tabla, distribui las
+   opciones en una celda de botones y los datos en cada celda".
+   QUE LA HACIA GIGANTE
+   -------------------
+   Cada persona era un div con tres div adentro, y los tres botones iban
+   apilados en vertical: "Justificar", "Marco reloj" y "Ver en la tarja"
+   ocupaban tres lineas. Con 45 personas, la lista entera no entra ni en
+   tres pantallas.
+   EL ESPACIO REAL
+   ---------------
+   Sale de dos cosas, y las dos estan aca:
+   1. Los botones EN LINEA, que antes eran tres lineas y ahora son una.
+   2. El detalle en su propia celda, en vez de debajo del estado. Antes
+      eran dos lineas; asi, una.
+   -------------------------------------------------------------------
+   POR QUE LOS BOTONES NO SE PARTEN NUNCA
+   -------------------------------------------------------------------
+   Con "nowrap" en la celda no se parten, y con un ancho minimo declarado
+   el navegador prefiere ensanchar la tabla antes que partir el boton a
+   la mitad. Un boton partido ("Ver en la / tarja") es el peor resultado
+   posible: uno no sabe que se pudo apretar ahi, y a veces no se puede.
+   Y por eso la tabla puede salir con scroll horizontal en una pantalla
+   angosta: es preferible que se desplace a que los botones se corten.
+   -------------------------------------------------------------------
+   EL ENCABEZADO PEGADO
+   -------------------------------------------------------------------
+   Va con "position:sticky" para que los titulos de las columnas se queden
+   arriba al bajar. Sin esto, con 45 personas, uno tiene que subir a
+   recordar que columna era cual, y baja y sube y baja.
+   -------------------------------------------------------------------
+   LO QUE NO SE TOCA
+   -------------------------------------------------------------------
+   Los manejadores: abrirJustificarCon, marcarRelojConHoraAhora y
+   abrirTarjaDe siguen siendo los mismos. Esto es solo como se ve.
+   Y las clases ".mkFila" y ".mkPill" se conservan donde hacen falta: hay
+   otras dos vistas que las usan (la de marcajes y la de otra pantalla), y
+   si se tocaran se rompian. */
+.justTablaCaja {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.justTabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+.justTabla th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-bottom: 2px solid var(--line);
+  text-align: left;
+  padding: 9px 10px;
+  font-size: .72rem;
   text-transform: uppercase;
   letter-spacing: .05em;
   color: var(--secondary-text);
+  font-weight: 600;
+  white-space: nowrap;
 }
-
-.fichaValor {
-  font-size: 1rem;
-  color: var(--ink);
-  word-break: break-word;
+.justTabla td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
 }
-
-/* Un campo sin dato se ve que esta vacio, sin que parezca un error.
-   El gris lo dice; un borde rojo haria pensar que esta mal. */
-.fichaFila.vacio .fichaValor em {
-  color: var(--muted);
-  font-style: normal;
+.justTabla tbody tr:last-child td {
+  border-bottom: 0;
 }
-
-.fichaFila.vacio {
-  border-style: dashed;
+/* La fila se pasa por arriba apenas: con 45 personas hay que saber
+   rapidamente en cual se esta, y sin esto el cursor no dice nada. */
+.justTabla tbody tr:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
 }
-
-/* ------------------------------------------------------------------
-   EL BOTON DE COPIAR
-   ------------------------------------------------------------------ */
-.fichaCopiar {
-  flex: 0 0 auto;
-  min-width: 84px;
-  min-height: 40px;
-  font-size: .85rem;
-  padding: 8px 12px;
-  cursor: pointer;
+/* -------------------------------------------------------------------
+   LAS CELDAS, UNA POR UNA
+   ------------------------------------------------------------------- */
+.justCeldaNombre {
+  min-width: 220px;
 }
-
-.fichaCopiar.copiado {
-  background: var(--accent);
-  color: #fff;
-  border-color: var(--accent);
+.justCeldaNombre b {
+  margin-right: 4px;
 }
-
-.fichaCopiar.copiadoNo {
-  background: var(--danger);
-  color: #fff;
-  border-color: var(--danger);
-}
-
-/* ------------------------------------------------------------------
-   EL AVISO QUE APARECE UN INSTANTE
-   ------------------------------------------------------------------ */
-#fichaAviso {
-  display: none;
-  margin-top: 12px;
-  padding: 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-left: 4px solid var(--accent);
-  border-radius: 6px;
-  font-size: .88rem;
-  line-height: 1.5;
-}
-
-#fichaAviso.visible {
+.justCeldaNombre small {
   display: block;
+  font-size: .74rem;
+  color: var(--muted);
+  line-height: 1.25;
 }
-
-/* ------------------------------------------------------------------
-   EN ANGOSTO, UNA SOLA COLUMNA
-   ------------------------------------------------------------------ */
+.justCeldaDetalle {
+  min-width: 200px;
+  font-size: .8rem;
+  color: var(--secondary-text);
+  line-height: 1.3;
+}
+/* -------------------------------------------------------------------
+   LA CELDA DE LOS BOTONES
+   -------------------------------------------------------------------
+   El ancho minimo es lo que hace que los tres quepan en linea. Sin el,
+   el navegador apila el primero solo y los dos siguientes al lado, que es
+   justo lo que hay que evitar. */
+.justCeldaAcciones {
+  white-space: nowrap;
+  min-width: 260px;
+  text-align: right;
+}
+.justCeldaAcciones .btn {
+  display: inline-block;
+  margin-left: 4px;
+}
+.justCeldaAcciones .btn:first-child {
+  margin-left: 0;
+}
+/* -------------------------------------------------------------------
+   EN PANTALLA ANGOSTA
+   -------------------------------------------------------------------
+   La tabla no se reacomoda: se desplaza. Reacomodar las celdas en una
+   pantalla angosta parte los botones, y partir un boton es peor que
+   tener que desplazar. */
 @media (max-width: 860px) {
-  .fichaFilas {
-    grid-template-columns: minmax(0, 1fr);
+  .justCeldaAcciones {
+    min-width: 240px;
   }
-
-  .fichaFila {
-    min-height: 56px;
+  .justTabla {
+    font-size: .84rem;
   }
 }
