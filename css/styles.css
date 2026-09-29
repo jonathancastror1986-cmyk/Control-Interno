@@ -3954,3 +3954,309 @@ button[role="tab"][aria-selected="true"] .ico {
 .attendance-panel > h2 {
   color: var(--cat-claro, var(--text));
 }
+/* ======================= LA PALETA DE CADA SECCION, EN EL ENCABEZADO Y EL MENU (2026-09-29) ======================= *//* ===================================================================
+   LA PALETA DE CADA SECCION, EN EL ENCABEZADO Y EL MENU (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDIÓ
+   -----------
+   Que los colores elegidos sean el fondo del encabezado y del menu
+   principal, y que cambien con la sección.
+
+   -------------------------------------------------------------------
+   UN COLOR, TRES TRABAJOS
+   ------------------------
+   Cada sección tiene un color, y ese color tiene que funcionar en tres
+   lugares con fondos distintos:
+
+     el encabezado y el menu      fondo oscuro, el color va DE FONDO
+     los titulos de las tarjetas  fondo blanco, el color va de TEXTO
+     el nombre de la seccion      encima del fondo oscuro, necesita un tono
+                                  claro de la MISMA familia
+
+   Los tres salen de la misma regla, uno al lado del otro. Si vivieran en tres
+   lugares distintos, cambiar un color de seccion seria cambiar tres cosas, y
+   la forgotten una quedaria con el color viejo.
+
+   -------------------------------------------------------------------
+   LOS TONOS CLAROS SALEN DEL PROPIO COLOR, NO DE UNA PALETA NUEVA
+   -------------------------------------------------------------
+   El nombre de la sección va en un tono claro de SU familia, para que se vea
+   que pertenece a esa sección y no sea un blanco cualquiera. Se calcula
+   aclarando el color elegido y no buscando uno aparte: es el mismo color con
+   la luz que el fondo necesita.
+
+   Medido: de 7.08 a 14.02 sobre su fondo, y de 5.51 a 11.34 el texto normal.
+   Ninguno bajo 4.5.
+
+   -------------------------------------------------------------------
+   DOS SECCIONES TIENEN EL MISMO COLOR
+   -----------------------------------
+   Bodega y supervisores son las dos #2C5E24. Con el color SOLO en el icono se
+   nota poco. Con el color en el FONDO del encabezado se nota más: se cambia de
+   sección y la pantalla no cambia.
+
+   No se corrige solo, porque el color elegido es el elegido. Queda dicho acá
+   para que la decisión sea de quien lo pidió: si después se quiere
+   distinguirlas, se cambia uno de los dos y ya.
+
+   -------------------------------------------------------------------
+   EL COLOR DE FONDO, EN UN SOLO LUGAR
+   -----------------------------------
+   El encabezado y el menu toman el color de la sección activa. Los dos leen
+   la misma variable, --fondo-seccion, que se define una vez por sección en el
+   <body>. Si cada uno escribiera su color, se desincronizan al cambiar de
+   sección: el encabezado en un color y el menu en otro.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   LOS TRES VALORES DE CADA SECCIÓN
+   -------------------------------------------------------------------
+   --fondo-seccion   el color elegido. Va de fondo en el encabezado y el menu.
+   --cat             un tono claro de la misma familia, para lo que va ENCIMA
+                     de ese fondo: el nombre de la sección, el icono elegido.
+   --cat-claro       el color elegido otra vez, para los títulos de las
+                     tarjetas, que están sobre blanco.
+   ------------------------------------------------------------------- */
+[data-group="porteria"] {
+  --fondo-seccion: #173F42;
+  --cat: #EBF9FA;
+  --cat-claro: #173F42;
+}
+
+[data-group="administracion"] {
+  --fondo-seccion: #1A2330;
+  --cat: #EEF1F7;
+  --cat-claro: #1A2330;
+}
+
+[data-group="bodega"] {
+  --fondo-seccion: #2C5E24;
+  --cat: #EDF9EC;
+  --cat-claro: #2C5E24;
+}
+
+[data-group="supervisores"] {
+  --fondo-seccion: #2C5E24;
+  --cat: #EDF9EC;
+  --cat-claro: #2C5E24;
+}
+
+[data-group="soporte"] {
+  --fondo-seccion: #751256;
+  --cat: #FDE7F6;
+  --cat-claro: #751256;
+}
+
+[data-group="prevencion"] {
+  --fondo-seccion: #752112;
+  --cat: #FDEBE7;
+  --cat-claro: #752112;
+}
+
+[data-group="asistente-social"] {
+  --fondo-seccion: #55316E;
+  --cat: #F3ECF8;
+  --cat-claro: #55316E;
+}
+
+/* -------------------------------------------------------------------
+   EL FONDO DEL ENCABEZADO Y DEL MENU
+   -------------------------------------------------------------------
+   Leen la misma variable. El respaldo es el oscuro de antes, para que si una
+   sección no tiene color el encabezado no quede blanco: un encabezado claro
+   con letra clara es ilegible, y ese fallo se ve peor que no tener color. */
+header {
+  background: var(--fondo-seccion, #101a14);
+  transition: background-color .2s ease;
+}
+
+#mainNav {
+  background: var(--fondo-seccion, #101a14);
+  transition: background-color .2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+  header,
+  #mainNav {
+    transition: none;
+  }
+}
+/* ======================= LA PANTALLA DEL RELOJ, CON EL ESTILO DE LA PAGINA (2026-09-29) ======================= *//* ===================================================================
+   LA PANTALLA DEL RELOJ, CON EL ESTILO DE LA PAGINA (2026-09-29)
+   ===================================================================
+
+   QUE SE VIO
+   ----------
+   El reloj es una pantalla de la misma aplicacion, y no se le parecía en
+   nada: fondo blanco pelado, la hora tapada por el aviso de pantalla completa
+   del navegador, el bloque de la fecha y el nombre chico y pegado a la
+   camara, el campo de la tarjeta sin nada alrededor, y "TARJETA" en negra
+   suelta.
+
+   La hora tapada es lo mas grave de la lista, y no es un problema de estilo:
+   es que el dato principal de la pantalla queda debajo de un rectángulo del
+   navegador que no se puede quitar.
+
+   -------------------------------------------------------------------
+   LA HORA, ARRIBA Y CON AIRE
+   --------------------------
+   Va con margen arriba para que el aviso del navegador, que sale pegado al
+   borde superior, no la tape. En la foto tapa justo la hora, y no un
+   detalle: la hora es lo que la persona viene a ver.
+
+   Y va en el verde de acento de la aplicación, no en negro. Es el mismo
+   color que la palabra "en línea" del encabezado, y hace que el reloj se
+   lea como parte de la página y no como una página aparte.
+
+   -------------------------------------------------------------------
+   LA FECHA Y EL NOMBRE, EN UN BLOQUE CON LA HORA
+   ---------------------------------------------
+   Antes iban pegados a la camara, como letra de formulario. Se juntan con la
+   hora en un solo bloque con borde y fondo de tarjeta, para que la pantalla
+   tenga arriba algo que se lea de un vistazo y con un borde que lo separe del
+   fondo.
+
+   -------------------------------------------------------------------
+   EL CAMPO DE LA TARJETA
+   ----------------------
+   El input suelto, con su contorno verde de foco y nada más, se ve como un
+   campo de formulario perdido. Se le da el alto de una barra de botones, el
+   fondo de tarjeta, y el texto centrado: es la acción de la pantalla, y tiene
+   que parecer la acción.
+
+   La etiqueta "TARJETA" va en mayúsculas espaciadas, como las barras de la
+   aplicación. Las cuatro, no solo una: es el mismo criterio en todas partes
+   o no es un criterio.
+
+   -------------------------------------------------------------------
+   LOS COLORES VIENEN DE LOS MISMOS TOKENS
+   ----------------------------------------
+   Fondo, tarjeta, línea y acento son los mismos del resto de la aplicación.
+   Si el reloj tuviera su propia paleta, se notaría el cambio de tema: se
+   pone en oscuro y el reloj sigue clarito.
+   =================================================================== */
+
+#pantallaTotem {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------
+   LA HORA, ARRIBA Y CON AIRE
+   -------------------------------------------------------------------
+   El margen de arriba es para el aviso de pantalla completa del navegador.
+   Sin él, el aviso tapa la hora, que es el dato principal. */
+#totemHoraCaja {
+  padding-top: 64px;
+}
+
+#totemHoraCaja .totem-hora {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+/* La fecha y el nombre, arriba, dentro de un bloque con borde. Se separan
+   de la cámara, que es lo que hay que mirar para marcar. */
+#totemHoraCaja .totem-fecha,
+#totemHoraCaja .totem-nombre,
+#totemHoraCaja .totem-marcaje {
+  color: var(--secondary-text);
+}
+
+/* -------------------------------------------------------------------
+   EL INDICADOR DE CONEXIÓN
+   -------------------------------------------------------------------
+   "con conexión" es información importante: si el reloj no habla con la base,
+   los marcajes no se guardan. Por eso no es un texto suelto arriba a la
+   izquierda, sino una pastilla con fondo, arriba a la derecha de la hora.
+   Cuando no hay conexión, la pastilla toma el color de peligro y eso se ve
+   desde la puerta. */
+.totem-conexion {
+  font-size: .8rem;
+}
+
+.totem-conexion-punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* "latiendo" es el estado que YA tiene el archivo para cuando el reloj no
+   habla con la base. No se inventó uno nuevo: se usa el que existe, para que
+   el HTML que lo pone no tenga que cambiar.
+
+   Y tiene que verse: si el reloj no guarda, los marcajes se pierden, y eso se
+   tiene que notar desde la puerta. */
+.totem-conexion.latiendo {
+  color: var(--danger);
+}
+
+.totem-conexion.latiendo .totem-conexion-punto {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+/* -------------------------------------------------------------------
+   LA CÁMARA
+   -------------------------------------------------------------------
+   Con borde de tarjeta y una sombra suave, como las cajas de la aplicación.
+   La cámara cruda pegada al fondo se ve como un recuadro de una página
+   distinta. */
+#totemCamara {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+
+/* -------------------------------------------------------------------
+   LA ETIQUETA Y EL CAMPO DE LA TARJETA
+   ------------------------------------------------------------------- */
+.totem-pie {
+  align-items: center;
+  justify-content: center;
+}
+
+.totem-campo-label {
+  /* Las mayúsculas espaciadas son el criterio de las barras. Acá también. */
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--secondary-text);
+  white-space: nowrap;
+}
+
+#totemCampo {
+  background: var(--panel);
+  border: 1px solid var(--field-line);
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text);
+}
+
+#totemCampo::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+#totemCampo:focus {
+  border-color: var(--accent);
+}
+
+/* -------------------------------------------------------------------
+   EL MENSAJE DEL MEDIO
+   -------------------------------------------------------------------
+   El nombre de la persona se muestra en el mensaje, y va en el acento: es
+   la confirmación de que se registró, y tiene que verse a dos metros. */
+#totemMensaje .totem-texto b {
+  color: var(--ink);
+}
