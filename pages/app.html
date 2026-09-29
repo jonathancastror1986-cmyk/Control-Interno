@@ -2320,7 +2320,11 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
     </div>
     <div class="row">
       <div><label for="ingEspecialidad">Especialidad u oficio</label>
-        <input id="ingEspecialidad" placeholder="Ej. Gasfitería, soldadura"></div>
+        <select id="ingEspecialidad"></select>
+        <small>Decide qué kit recibe y qué charlas le tocan. Si no hay especialidades
+        creadas, se puede escribir a mano: <button class="btn secondary" type="button"
+          style="margin:0;padding:1px 6px;font-size:.7rem" onclick="irACrearEspecialidad()">
+          crear una</button></small></div>
       <div><label for="ingFecha">Fecha de ingreso</label>
         <input type="date" id="ingFecha"></div>
     </div>
@@ -3152,10 +3156,28 @@ async function rechazarIngresoPendiente(){
   await cargarIngresosPendientes();
   renderMisIngresos();
 }
+// La lista del desplegable de especialidad del ingreso.
+//
+// Se copia el patrón de llenarSelectoresEspecialidad(), que ya hace esto mismo
+// para la ficha del trabajador. Misma variable, mismo orden por nombre, y se
+// conserva lo que había para que al volver a abrir no se pierda.
+function llenarEspecialidadIngreso(){
+  const sel=document.getElementById('ingEspecialidad');
+  if(!sel)return;
+  const valor=sel.value;
+  const lista=(typeof especialidades!=='undefined'&&especialidades?especialidades:[])
+    .slice().sort((x,y)=>String(x.nombre||'').localeCompare(String(y.nombre||'')));
+  sel.innerHTML='<option value="">Sin asignar (solo los papeles generales)</option>'
+    +lista.map(e=>'<option value="'+escHtml(e.clave)+'">'+escHtml(e.nombre||e.clave)+'</option>').join('');
+  if(valor&&[...sel.options].some(o=>o.value===valor))sel.value=valor;
+  // Sin lista no hay nada que elegir, y un desplegable vacío parece un error
+  sel.style.display=lista.length?'':'none';
+}
+
 function initView(v){
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
   if(v==='solicitar-cambio'){initSolicitarCambio();initVistaSolicitar();}
-  if(v==='solicitar-ingreso'){limpiarFormularioIngreso();renderMisIngresos();}
+  if(v==='solicitar-ingreso'){llenarEspecialidadIngreso();limpiarFormularioIngreso();renderMisIngresos();}
   if(v==='ingresos-cola'){cargarIngresosPendientes();}
   if(v==='aprobar-cambio'){
     renderSolicitudes();renderMisSolicitudes();renderAvisoSolicitudes();
