@@ -743,3 +743,238 @@ que uno dude de cómo va a salir impreso.
 .idcard-codes{display:flex;align-items:center;gap:2mm;margin-top:1mm}
 .idcard-back h4{margin:0 0 1mm 0;font-size:7pt;color:var(--accent)}
 .idcard-back .sec{margin-bottom:1.5mm}
+
+/* ======================= ESTADOS DEL RELOJ (2026-09-29) ======================= */
+
+/* ===================================================================
+   LOS ESTADOS DE LA PANTALLA DEL RELOJ, CON FONDO
+   ===================================================================
+
+   -------------------------------------------------------------------
+   QUÉ PASABA
+   -------------------------------------------------------------------
+   El recuadro de mensaje cambiaba el COLOR DEL TEXTO, y nada más. Con
+   eso, de lejos no se distingue un marcaje guardado de un aviso: los dos
+   son un texto sobre un fondo claro, y quien está parado en la portería a
+   las seis de la mañana, con medio metro de distancia y sin lentes, no
+   lee la diferencia.
+
+   El color tiene que estar en el FONDO. Es lo que se ve a dos metros, y es
+   lo que distingue un cartel de "podés pasar" de uno de "tenés que ir a
+   hablar con alguien".
+
+   -------------------------------------------------------------------
+   LOS TRES ESTADOS, Y POR QUÉ SON TRES Y NO DOS
+   -------------------------------------------------------------------
+   Verde   marcaje registrado. Se puede pasar.
+   Amarillo hay algo que resolver. No es un error: es una indicación de
+           Prevención, del Asistente Social o del supervisor, que alguien
+           dejó para esa persona.
+   Rojo    algo no se pudo hacer. El token no es de este reloj, el reloj
+           está apagado, la tarjeta está anulada.
+
+   El amarillo es el que faltaba. Es el estado que más se confunde con el
+   verde si no se ve de lejos, y es el que más consecuencias tiene: la
+   persona se va a trabajar con un pendiente sin enterarse.
+
+   -------------------------------------------------------------------
+   LOS COLORES
+   -------------------------------------------------------------------
+   Los mismos tonos que ya usa el resto de la aplicación, aclarados para
+   que el texto encima se lea. Un verde saturado con texto blanco encima
+   no se lee a distancia, y un amarillo muy claro con texto oscuro tampoco
+   se ve de lejos.
+
+   Por eso el texto del aviso va en casi negro sobre amarillo: es la
+   única combinación que se lee a dos metros y a contraluz. */
+
+#pantallaTotem {
+  --totem-fondo-ok:    #E4F3E4;
+  --totem-tinta-ok:    #14401C;
+  --totem-fondo-aviso: #FFE9A8;
+  --totem-tinta-aviso: #4A3200;
+  --totem-fondo-error: #FBDCDC;
+  --totem-tinta-error: #6B1515;
+}
+
+/* -------------------------------------------------------------------
+   EL MARCAJE QUEDÓ
+   ------------------------------------------------------------------- */
+#totemMensaje.totem-ok {
+  background: var(--totem-fondo-ok);
+  color: var(--totem-tinta-ok);
+  border-radius: 14px;
+  padding: 14px 18px;
+  transition: background .2s ease;
+}
+
+#totemMensaje.totem-ok .totem-texto span {
+  color: var(--totem-tinta-ok);
+  opacity: .85;
+}
+
+/* -------------------------------------------------------------------
+   HAY UN AVISO
+   -------------------------------------------------------------------
+   El borde izquierdo es lo que lo distingue de lejos: la banda de color
+   se ve aunque el texto no se lea, y de un vistazo se sabe que hay algo
+   que mirar. */
+#totemMensaje.totem-aviso {
+  background: var(--totem-fondo-aviso);
+  color: var(--totem-tinta-aviso);
+  border-left: 10px solid #C98A00;
+  border-radius: 14px;
+  padding: 14px 18px;
+  transition: background .2s ease;
+}
+
+#totemMensaje.totem-aviso .totem-texto span {
+  color: var(--totem-tinta-aviso);
+  opacity: .9;
+}
+
+/* -------------------------------------------------------------------
+   ALGO NO SE PUDO HACER
+   ------------------------------------------------------------------- */
+#totemMensaje.totem-error {
+  background: var(--totem-fondo-error);
+  color: var(--totem-tinta-error);
+  border-left: 10px solid var(--danger);
+  border-radius: 14px;
+  padding: 14px 18px;
+  transition: background .2s ease;
+}
+
+#totemMensaje.totem-error .totem-texto span {
+  color: var(--totem-tinta-error);
+  opacity: .9;
+}
+
+/* -------------------------------------------------------------------
+   EL BOTÓN DE "VER EL AVISO"
+   -------------------------------------------------------------------
+   Cuando el aviso no se puede leer en el momento —porque la persona ya
+   se fue, o porque llegó a las nueve de la noche— queda un botón para
+   abrirlo después. Es la diferencia entre un aviso que se pierde y uno
+   que llega.
+
+   Con el aviso esperando, el estado de reposo ya no es un estado de
+   reposo: lo dice. */
+#totemVerAviso {
+  display: none;
+  margin-top: 10px;
+  background: var(--totem-fondo-aviso);
+  color: var(--totem-tinta-aviso);
+  border: 3px solid #C98A00;
+  border-radius: 10px;
+  padding: 14px 20px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  min-height: 52px;
+}
+
+#totemVerAviso.visible {
+  display: block;
+}
+
+#totemVerAviso .cuenta {
+  display: inline-block;
+  background: #C98A00;
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 9px;
+  margin-left: 8px;
+  font-size: .85rem;
+}
+
+/* -------------------------------------------------------------------
+   LA VENTANA DEL AVISO
+   -------------------------------------------------------------------
+   Va centrada y con el texto grande, porque se lee a un brazo de
+   distancia. El botón de cerrar es el más grande de todos, que es lo que
+   se toca cuando alguien ya lo leyó. */
+#dlgAviso .card {
+  max-width: 720px;
+}
+
+#dlgAviso h2 {
+  margin: 0 0 4px;
+}
+
+#dlgAvisoQuien {
+  display: block;
+  color: var(--muted);
+  margin-bottom: 14px;
+}
+
+#dlgAvisoTexto {
+  background: var(--totem-fondo-aviso);
+  color: var(--totem-tinta-aviso);
+  border-left: 8px solid #C98A00;
+  border-radius: 10px;
+  padding: 18px 20px;
+  font-size: 1.15rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+#dlgAvisoEnviado {
+  margin-top: 14px;
+  font-size: .92rem;
+  color: var(--secondary-text);
+  line-height: 1.5;
+}
+
+#dlgAviso .row {
+  margin-top: 18px;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+#dlgAviso .btn {
+  min-height: 46px;
+  padding: 12px 18px;
+}
+
+/* -------------------------------------------------------------------
+   LA BOLETA IMPRESA
+   -------------------------------------------------------------------
+   Un aviso que se queda pegado en una pantalla y se borra a los dos
+   minutos no sirve de nada al día siguiente, cuando la persona se
+   acuerda de que le dejaron algo.
+
+   Por eso el aviso se puede imprimir. Sale en un papel de los comunes, con
+   los datos que hacen falta para que sirva: quién lo dejó, qué dice, a
+   qué hora, y qué tiene que hacer.
+
+   Solo se imprime esa parte. La pantalla del reloj no, que a medio metro
+   de una impresora de ticket queda ilegible. */
+#boletaAviso {
+  display: none;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  /* Lo que se imprime se saca del flujo, porque con visibility la página
+     sigue teniendo el alto de la pantalla y sale un papel en blanco con
+     un renglón arriba. */
+  #boletaAviso,
+  #boletaAviso * {
+    visibility: visible;
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  #boletaAviso {
+    font-size: 12pt;
+    line-height: 1.5;
+    color: #000;
+  }
+}

@@ -1611,6 +1611,21 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
   </div>
   <div id="totemMensaje" class="totem-idle"></div>
   <!--
+  EL AVISO QUE QUEDA PARA DESPUES
+
+  El aviso se muestra en el momento del marcaje, y es lo que la persona ve
+  al pasar la tarjeta. Pero eso no alcanza: hay avisos que se le olvidan a
+  los diez minutos, o que la misma persona no lee en la porteria y se los
+  lleva puestos dos dias.
+
+  Por eso el aviso no se borra al terminar los 2,2 segundos: queda en la
+  lista, y hay un boton para abrirlo cuando la persona quiera. El boton
+  aparece solo cuando hay algo pendiente, con la cantidad, para que en la
+  porteria se vea que hay algo sin tener que abrir nada.
+  -->
+  <button type="button" id="totemVerAviso" onclick="abrirAvisoTotem()"></button>
+  <!-- Lo que se imprime. Va escondido y solo aparece en la impresora. -->
+  <div id="boletaAviso"></div>  <!--
   El token del reloj, en el propio tótem. Aparece SOLO cuando el token
   que hay instalado no es el de este reloj, y se esconde después de
   guardar bien.
@@ -1642,6 +1657,43 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
       inputmode="none" placeholder="Presenta la tarjeta o escribe el código y presiona Enter">
   </div>
 </div>
+
+<!--
+LA VENTANA DEL AVISO
+===================
+Tres cosas que se piden de un aviso, y por que estan separadas:
+
+1. QUE DICE, en grande. Es lo que la persona tiene que entender, y tiene
+   que poder leerlo a un brazo de distancia sin acercarse a la pantalla.
+
+2. QUIEN LO DEJO. Un aviso sin autor es un aviso que nadie acata, porque
+   "alguien" no es una razon para hacer nada. Ademas, en una obra, saber
+   quien lo dejo es la mitad del seguimiento: al dia siguiente se le puede
+   preguntar a la misma persona.
+
+3. QUE SE MANDO POR CORREO. Para que la persona sepa que lo tiene tambien
+   en el correo y lo lea con calma en la casa, sin acordarse de que se lo
+   dejaron en la porteria.
+
+   OJO, Y ESTO ES IMPORTANTE: que ponga "se envio al correo" NO significa
+   que se haya enviado. El envio depende de que haya un proveedor de correo
+   configurado, y mientras no lo haya el aviso queda registrado pero sin
+   enviar. Decirle a la persona que esta en su correo cuando no esta es
+   PEOR que no decirle nada: la persona no lo va a buscar, y el aviso se
+   pierde. Por eso el texto se arma con el estado real del envio.
+-->
+<dialog id="dlgAviso" style="max-width:720px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 id="dlgAvisoTitulo">Aviso</h2>
+    <span id="dlgAvisoQuien"></span>
+    <div id="dlgAvisoTexto"></div>
+    <div id="dlgAvisoEnviado"></div>
+    <div class="row">
+      <button type="button" class="btn secondary" onclick="imprimirAvisoTotem()">Imprimir</button>
+      <button type="button" class="btn primary" onclick="cerrarAvisoTotem()">Entendido</button>
+    </div>
+  </div>
+</dialog>
 
 <!--
 CONFIGURAR UN RELOJ
@@ -3159,7 +3211,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION='2026-09-29-e';
+const APP_VERSION = '2026-09-29-f';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -12702,6 +12754,12 @@ function pintarTotemInicial(){
   const cajaMarcada=document.getElementById('totemHoraMarcada');
   if(cajaMarcada){cajaMarcada.textContent='';cajaMarcada.className='totem-marcaje';}
   const t=document.getElementById('totemMensaje');
+  // Se devuelve el recuadro al estado de reposo, CON SU CLASE. Antes no
+  // hacia falta porque el reposo era lo unico que habia; ahora hay un
+  // estado mas, el amarillo del aviso, y sin esto el "presenta tu
+  // tarjeta" se queda pintado encima del amarillo de un aviso ya
+  // cerrado, que se lee como una contradiccion.
+  t.className='totem-idle';
   t.innerHTML='<div class="totem-idle">'
     +'<div class="totem-idle-icono">▮</div>'
     +'<div class="totem-idle-texto">'
@@ -12712,6 +12770,12 @@ function pintarTotemInicial(){
       ?' frente a la cámara'
       :' o pásala por el lector')
     +'</div></div>';
+  // El boton de avisos se limpia al entrar. Si quedara el de la persona
+  // anterior, en la porteria se veria "1 aviso" y no seria de nadie: el
+  // aviso de uno no es del que marco despues.
+  const botonAviso=document.getElementById('totemVerAviso');
+  if(botonAviso){botonAviso.classList.remove('visible');botonAviso.textContent='';}
+  avisosDelReloj=[];
   const caja=document.getElementById('totemCodigoLeido');
   caja.textContent='';
   const barraCentro=document.getElementById('totemCentroActual');
@@ -12818,6 +12882,17 @@ async function registrarDesdeTotem(codigo){
     mostrarTotem('duplicado',d.trabajador_nombre,
       'Ya quedó registrada a las '+escHtml(d.marca_hora)+'.');
   }
+  // ------------------------------------------------------------------
+  // LOS AVISOS, DESPUES DE MARCAR
+  // ------------------------------------------------------------------
+  // Va despues del if/else a proposito. Si se dejara antes, un marcaje
+  // que fallo igual abriria la ventana de avisos, y la persona leeria
+  // un aviso sobre una marca que no existe: es peor que no avisar.
+  //
+  // Tampoco se espera: la marca ya esta guardada y la pantalla tiene que
+  // mostrar el "entrada registrada" ya. La revision del aviso viene
+  // atras y pisa el color del recuadro, no el mensaje.
+  revisarAvisosDelTrabajador(d.trabajador_code);
 }
 // El token se guarda en el navegador del tótem, no en el HTML. Por eso la
 // pantalla puede vivir en un archivo solo y el token se configura una vez
@@ -13252,6 +13327,218 @@ function explicarTokenInvalido(motivo,code){
       return 'El token no corresponde a este reloj.';
   }
 }
+// ------------------------------------------------------------------
+// LOS AVISOS EN LA PANTALLA DEL RELOJ
+// ------------------------------------------------------------------
+// Un aviso es una indicacion que le dejo alguien a una persona: que se
+// presente en Prevencion, que falta un documento, que la manden a la hora.
+//
+// Lo que ya existe y se usa aca: la tabla avisos_ingreso, de la 023. Trae
+// lo que hace falta y no hay que inventar nada:
+//
+//   indicacion         que dice
+//   enviado_por_nombre quien lo dejo
+//   estado             enviado | confirmado | rechazado
+//
+//
+// LOS TRES ESTADOS DEL RECUADRO
+// -----------------------------
+//   verde     marco y no tiene nada pendiente
+//   amarillo  marco y TIENE un aviso sin confirmar
+//   rojo      no se pudo marcar
+//
+// El amarillo va en el FONDO, no solo en el color de la letra, porque a
+// dos metros de la porteria no se lee la diferencia entre dos textos
+// oscuros. El fondo se ve igual.
+//
+//
+// LO QUE NO SE DICE, Y POR QUE
+// ---------------------------
+// La ventana del aviso no dice "se envio a su correo" a secas. No hay
+// proveedor de correo configurado, asi que el aviso esta REGISTRADO pero
+// no esta ENVIADO, y si la pantalla le dice a la persona que lo tiene en
+// el correo, la persona no lo va a buscar y el aviso se pierde.
+//
+// El texto se arma con el estado real: si nadie lo confirmo, dice que
+// esta pendiente; si ya lo confirmo, dice cuando. Cuando haya proveedor,
+// el mismo texto dira que si esta en el correo, y no habria que tocarlo.
+//
+//
+// CUANDO SE ABRE LA VENTANA, Y CUANDO NO
+// --------------------------------------
+// En el momento del marcaje, si. La persona esta parada ahi, es el mejor
+// momento posible para que se entere, y si no se le dice ahora, no se le
+// dice nunca: se va a trabajar y se olvida.
+//
+// Despues, no. A las nueve de la noche no se le abre una ventana a
+// nadie encima: se le deja un boton con la cantidad, y lo abre cuando
+// quiera. Por eso el boton esta siempre ahi mientras haya algo pendiente.
+let avisosDelReloj=[];
+
+async function revisarAvisosDelTrabajador(code){
+  if(!code)return;
+  try{
+    const {data,error}=await supabaseClient
+      .from('avisos_ingreso')
+      .select('id,code,fecha,tipo,indicacion,hora_reloj,origen_registro,enviado_por_nombre,estado,confirmado_por_nombre,confirmado_at,comentario,created_at')
+      .eq('code',code)
+      .eq('estado','enviado')
+      .order('created_at',{ascending:false})
+      .limit(10);
+    if(error)return;
+    avisosDelReloj=Array.isArray(data)?data:[];
+  }catch(error){
+    // Si no se pueden leer los avisos, el marcaje ya se guardo. No se
+    // interrumpe la pantalla por un aviso que no se pudo mostrar: lo
+    // que no se puede ver es molesto, pero romper el marcaje es peor,
+    // porque la persona se va a casa sin que conste que estuvo.
+    avisosDelReloj=[];
+  }
+  pintarAvisosEnTotem(true);
+}
+
+function pintarAvisosEnTotem(enElMarcaje){
+  const banda=document.getElementById('totemMensaje');
+  const boton=document.getElementById('totemVerAviso');
+  if(!banda||!boton)return;
+  const hay=avisosDelReloj.length>0;
+
+  // El boton: solo si hay algo, y con la cantidad. En la porteria tiene
+  // que verse que hay algo pendiente sin abrir nada.
+  if(hay){
+    boton.classList.add('visible');
+    boton.innerHTML='Aviso'+(hay>1?'s':'')+' por leer<span class="cuenta">'+hay+'</span>';
+  }else{
+    boton.classList.remove('visible');
+    boton.textContent='';
+  }
+
+  if(!hay){
+    // Sin avisos, el recuadro vuelve a su color. Solo si esta en estado
+    // de aviso: si se acaba de marcar bien, el verde no se toca.
+    if(banda.classList.contains('totem-aviso'))pintarTotemInicial();
+    return;
+  }
+
+  // Con avisos, el fondo pasa a amarillo. El texto se arma aparte para
+  // que el nombre del trabajador no se pierda.
+  const a=avisosDelReloj[0];
+  const quien=a.enviado_por_nombre?escHtml(a.enviado_por_nombre):'Alguien del equipo';
+  const extra=hay>1?(' y '+(hay-1)+' aviso'+(hay>2?'s':'')+' más'):'';
+  banda.className='totem-aviso';
+  banda.innerHTML='<div class="totem-icono">!</div><div class="totem-texto">'
+    +'<b>Tienes '+hay+' aviso'+(hay>1?'s':'')+'</b>'
+    +'<span>'+quien+' te dejó una indicación'+extra+'. Léela antes de irte.</span></div>';
+
+  // La ventana solo en el momento del marcaje. Despues queda el boton.
+  if(enElMarcaje)abrirAvisoTotem();
+}
+
+function abrirAvisoTotem(){
+  const d=document.getElementById('dlgAviso');
+  if(!d||!avisosDelReloj.length)return;
+  const a=avisosDelReloj[0];
+  const extra=avisosDelReloj.length>1
+    ?'<p style="margin:12px 0 0;color:var(--muted)">Hay '+avisosDelReloj.length
+     +' avisos. Este es el primero; los demas salen al cerrar.</p>'
+    :'';
+  document.getElementById('dlgAvisoTitulo').textContent=hayTituloDeAviso(a);
+  document.getElementById('dlgAvisoQuien').textContent='Lo dejó '
+    +(a.enviado_por_nombre||'alguien del equipo')+' · '+quienPusoElAviso(a);
+  document.getElementById('dlgAvisoTexto').textContent=a.indicacion||'(sin texto)';
+  document.getElementById('dlgAvisoEnviado').textContent=estadoDeEnvioDe(a)+extra;
+  if(d.showModal)d.showModal();
+}
+
+// Que el titulo diga de que es el aviso. "Aviso" a secas no sirve para
+// decidir si es urgente: "te falta un documento" y "presentate al
+// examen" se atienden distinto, y el titulo es lo primero que se lee.
+function hayTituloDeAviso(a){
+  if(!a)return'Aviso';
+  if(a.tipo==='no_marco')return'No marcaste el turno anterior';
+  if(a.tipo==='entrada_tarde')return'Entraste tarde';
+  if(a.tipo==='salida_temprana')return'Saliste antes de la hora';
+  return'Aviso';
+}
+
+// Quien lo puso, en palabras de la porteria. La hora del reloj, que es la
+// que el trabajador vio al marcar, y no la del servidor, que puede
+// estar corrida.
+function quienPusoElAviso(a){
+  const f=a.fecha?fechaLegible(a.fecha):'';
+  const h=a.hora_reloj?(' a las '+('' + a.hora_reloj).slice(0,5)):'';
+  return (f+h)||'sin fecha';
+}
+
+// EL ESTADO REAL DEL AVISO, DICHO COMO ES
+//
+// Esto es lo mas importante de la ventana. Alguien tiene que poder leer
+// aqui, sin adivinar, si esto ya se mando o no.
+//
+//   con correo configurado  "Tambien esta en tu correo."
+//   sin correo configurado  "Queda registrado en el sistema, pero todavia
+//                            NO se mando a ningun correo. Si no lo acatas
+//                            aqui, avisale a tu supervisor."
+//
+// Decirle a la persona que esta en su correo cuando no esta hace que no
+// lo busque, y el aviso se pierde sin que nadie se entere.
+function estadoDeEnvioDe(a){
+  if(a.estado==='confirmado'){
+    const quien=a.confirmado_por_nombre?(' por '+a.confirmado_por_nombre):'';
+    const cuando=a.confirmado_at?(' el '+fechaLegible(a.confirmado_at)):'';
+    return 'Ya lo confirmaste'+quien+cuando
+      +(a.comentario?('. Dijiste: "'+a.comentario+'"'):'.')
+      +' Si creés que ya no corresponde, pedile a tu supervisor que lo borre.';
+  }
+  // El estado "enviado" en esta tabla quiere decir "el aviso existe y
+  // nadie lo ha confirmado todavia". No quiere decir que esta en el
+  // correo del trabajador, y por eso no se escribe que si.
+  return 'Esto quedo registrado y nadie lo ha confirmado todavia. '
+    +'NO esta en ningun correo todavia: no hay correo configurado en el sistema. '
+    +'Si no lo podes resolver aca, decile a tu supervisor antes de irte.';
+}
+
+function cerrarAvisoTotem(){
+  const d=document.getElementById('dlgAviso');
+  if(d&&d.open)d.close();
+  // Si quedaban avisos, se pasa al siguiente. Uno por uno: si abrirlos
+  // todos juntos, el ultimo no se lee.
+  if(avisosDelReloj.length){
+    avisosDelReloj.shift();
+    setTimeout(()=>{
+      pintarAvisosEnTotem(false);
+      if(avisosDelReloj.length)abrirAvisoTotem();
+    },200);
+  }
+}
+
+// LA BOLETA IMPRIMIDA
+// -------------------
+// Un aviso pegado en una pantalla y borrado a los dos minutos no sirve de
+// nada al dia siguiente, cuando la persona se acuerda de que le dejaron
+// algo. Con la boleta queda en un papel: en la boletera, en el casillero,
+// o en la mano.
+//
+// Se imprime SOLO esa parte. La pantalla del reloj no: a medio metro de
+// una impresora de ticket queda ilegible.
+function imprimirAvisoTotem(){
+  const a=avisosDelReloj[0];
+  if(!a)return;
+  const reloj=totemActual?totemActual.nombre:'';
+  const caja=document.getElementById('boletaAviso');
+  caja.innerHTML='<h1>AVISO</h1>'
+    +'<p><strong>'+escHtml(hayTituloDeAviso(a))+'</strong></p>'
+    +'<p>'+escHtml(a.indicacion||'')+'</p>'
+    +'<hr>'
+    +'<p>Dejo el aviso: '+escHtml(a.enviado_por_nombre||'alguien del equipo')+'<br>'
+    +'Cuando: '+escHtml(quienPusoElAviso(a))+'<br>'
+    +'Reloj: '+escHtml(reloj)+'<br>'
+    +'Estado: '+escHtml(a.estado==='confirmado'?'confirmado por la persona':'pendiente, sin confirmar')+'</p>'
+    +'<p style="font-size:9pt">Impreso el '+escHtml(new Date().toLocaleString('es-CL'))+'.</p>';
+  window.print();
+  caja.innerHTML='';
+}
+
 function mostrarTotem(clase,titulo,detalle){
   const caja=document.getElementById('totemMensaje');
   caja.className='totem-'+clase;
