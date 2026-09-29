@@ -113,6 +113,38 @@ comment on column public.porteria_grupos.revision_vehiculo is
   'Que se pidio revision del vehiculo. NO frena la entrada: la entrada se registra igual, y el pedido queda pendiente. Si la revision frenara el ingreso, la porteria seria un filtro de acceso, que es otra cosa con sus propias reglas.';
 
 -- ------------------------------------------------------------------
+-- 1b) QUE ESTE LA 041 APLICADA
+-- ------------------------------------------------------------------
+-- La 042 le agrega una columna a porteria_registros, que es de la 041.
+-- Con un "alter table" pelado, el error es 42P01 y no dice de nada que
+-- lo que falta es la migración anterior: se lee "relation does not exist"
+-- y no se sabe qué correr.
+--
+-- Acá se comprueba primero, y el error dice exactamente qué hacer.
+do $$
+begin
+  if to_regclass('public.porteria_registros') is null then
+    raise exception 'FALTA LA MIGRACION 041' using errcode = 'undefined_table',
+      hint = 'Corré primero 041_registro_porteria_personal.sql y después esta. La 042 le agrega la columna grupo_id a porteria_registros, que es de la 041.';
+  end if;
+end $$;
+
+-- ------------------------------------------------------------------
+-- 1c) EL RLS, QUE FALTABA
+-- ------------------------------------------------------------------
+-- Esta tabla tiene nombre de quien maneja, patente, y de qué empresa es
+-- el vehículo. Sin RLS, la clave anónima —que va incrustada en el HTML de
+-- la aplicación y se lee abriendo las herramientas del navegador—
+-- alcanzaba todo eso sin entrar.
+--
+-- El patrón es el de la 040: RLS encendido y sin políticas, para que el
+-- único acceso sean las funciones, que son "security definer" y revisan el
+-- permiso adentro. Y una función de lectura, porque con RLS sin políticas
+-- la aplicación no tiene cómo ver nada, y abrir el panel de Supabase para
+-- mirar no sirve en una portería.
+alter table public.porteria_grupos enable row level security;
+
+-- ------------------------------------------------------------------
 -- 2) LA UNION CON LOS REGISTROS DE CADA PERSONA
 -- ------------------------------------------------------------------
 alter table public.porteria_registros
@@ -360,6 +392,65 @@ comment on function public.salir_grupo(uuid,text[],time) is
   'Sale el grupo. Sin lista salen todos los que quedaron con la placa; con lista salen solo esos, y los demas se quedan adentro. Es el caso del que se queda a trabajar más.';
 
 -- ------------------------------------------------------------------
+-- 4b) LEER LOS GRUPOS
+-- ------------------------------------------------------------------
+-- Con el RLS encendido y sin políticas, la aplicación no tiene cómo ver
+-- nada. Esta función es la puerta de lectura, y revisa el permiso igual
+-- que las de escritura.
+--
+-- Devuelve el grupo con la lista de quien viene, porque el supervisor
+-- necesita ver a QUIÉN TIENE QUE CONFIRMAR antes de confirmar a nadie.
+create or replace function public.grupos_del_dia(p_fecha date default current_date)
+returns table (
+  grupo_id     uuid,
+  hora         time,
+  patente      text,
+  tipo_vehiculo text,
+  empresa_veh  text,
+  conductor    text,
+  esperados    int,
+  confirmados  int,
+  revision     boolean,
+  motivo_rev   text,
+  estado       text,
+  nota         text,
+  miembros     jsonb
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  -- La comprobacion del permiso va en el WHERE y no con un "if": esta
+  -- funcion es "language sql", y el "if ... then ... end if" es sintaxis de
+  -- PL/pgSQL. Con SQL alcanza con decir que solo traiga filas si tiene el
+  -- permiso, y si no tiene, simplemente no entra ninguna.
+  --
+  -- Y a proposito devuelve una lista VACIA en vez de un error: quien abre
+  -- la pantalla sin permiso ve que no hay grupos, que es la respuesta
+  -- correcta, y no un cartel de error que lo confunda con que la base se
+  -- cayó.
+  select g.id, g.hora, g.patente, g.tipo_vehiculo, g.empresa_vehiculo,
+         (select w.name from public.trabajadores w where w.code = g.conductor_code),
+         g.esperados, g.confirmados, g.revision_vehiculo, g.motivo_revision,
+         g.estado, g.nota,
+         coalesce((
+           select jsonb_agg(jsonb_build_object('code', r.code, 'nombre', w.name))
+             from public.porteria_registros r
+             join public.trabajadores w on w.code = r.code
+            where r.grupo_id = g.id and r.fecha = p_fecha and r.tipo = 'entrada'
+         ), '[]'::jsonb)
+    from public.porteria_grupos g
+   where g.fecha = p_fecha
+     and (public.tiene_permiso('porteria.registro') or public.es_admin())
+   order by g.hora desc
+     , g.patente;
+$$;
+
+comment on function public.grupos_del_dia(date) is
+  'Los grupos del día, con la lista de quién viene. El supervisor necesita ver a quién tiene que confirmar ANTES de confirmar a nadie.';
+
+-- ------------------------------------------------------------------
 -- 5) LO QUE HAY QUE MIRAR EN LA PUERTA
 -- ------------------------------------------------------------------
 create or replace function public.estado_porteria(p_fecha date default current_date)
@@ -397,6 +488,7 @@ comment on function public.estado_porteria(date) is
 -- ------------------------------------------------------------------
 --   drop table if exists public.porteria_grupos;
 --   alter table public.porteria_registros drop column if exists grupo_id;
+--   drop function if exists public.grupos_del_dia(date);
 --   drop function if exists public.estado_porteria(date);
 --   drop function if exists public.salir_grupo(uuid,text[],time);
 --   drop function if exists public.confirmar_grupo(uuid,text[],time,boolean);
