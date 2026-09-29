@@ -81,7 +81,7 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 
 body{margin:0;background:var(--bg);color:var(--text);font-family:'Montserrat',system-ui,sans-serif;min-height:100vh}
 
-h1,h2,h3{font-family:'Questrial','Segoe UI',system-ui,sans-serif;font-weight:400;margin:.2em 0;color:var(--text)}
+h1,h2,h3{font-family:'Questrial','Segoe UI',system-ui,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.04em;margin:.2em 0;color:var(--text)}
 
 header{display:flex;align-items:center;gap:16px;padding:14px 24px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--accent2);z-index:5}
 
@@ -3586,4 +3586,82 @@ button[role="tab"][aria-selected="true"] .ico {
 }
 
 .attendance-panel > h2{
-  font-family:'Montserrat',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.05em;font-weight:600;font-size:1.05rem;margin:0 0 12px;}
+  font-family:'Montserrat',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.05em;font-weight:600;font-size:1.05rem;margin:0 0 12px;}/* ======================= EL COLOR Y LA ENTRADA DEL TITULO DEL ENCABEZADO (2026-09-29) ======================= *//* ===================================================================
+   EL COLOR Y LA ENTRADA DEL TITULO DEL ENCABEZADO (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDE
+   -----------
+   Que el nombre de la sección, en el encabezado, tome el color de esa
+   sección, y que entre con una animación que no sea lenta.
+
+   -------------------------------------------------------------------
+   DE DÓNDE SACA EL COLOR
+   -----------------------
+   El encabezado no está dentro de la barra del menú, así que no hereda el
+   color de la sección. Y no se le escribe el color a mano, porque entonces el
+   nombre del encabezado y el icono del botón de arriba dejarían de ser
+   claramente la misma sección.
+
+   El encabezado lleva el mismo data-group que el botón de arriba y la barra
+   del submenú. Con eso, las reglas que ya existen dan el color solas y no hay
+   una tercera lista de colores que mantener.
+
+   El tono es el claro y no el oscuro, porque el encabezado es oscuro siempre,
+   en los dos temas. Con el oscuro el nombre se perdería en el fondo.
+
+   -------------------------------------------------------------------
+   LA ANIMACIÓN ES CORTA A PROPÓSITO
+   ---------------------------------
+   0.22 segundos. Más lento y se siente que la pantalla está pensando; más
+   rápido y no se ve. Y como se repite cada vez que se cambia de sección, una
+   larga cansa: son siete secciones y uno las va recorriendo.
+
+   El desplazamiento es de 4 píxeles hacia arriba, no un zoom. Un zoom en un
+   texto de 16 píxeles se ve como un tirón; cuatro píxeles se ven como que el
+   texto llega.
+
+   -------------------------------------------------------------------
+   POR UNA ANIMACIÓN Y NO UNA TRANSICIÓN
+   --------------------------------------
+   Una transición necesita que el MISMO elemento cambie de propiedad. Acá el
+   título se vuelve a escribir entero cada vez que se cambia de sección, así
+   que el elemento es nuevo y no hay nada que transicionar: el color
+   aparecería de golpe.
+
+   Una animación por pasos sí se repite en un elemento nuevo. Por eso es una
+   animación y no una transición.
+
+   La parte suave del título, la que dice para qué sirve la sección, NO se
+   anima: es texto de apoyo y no tiene por qué moverse. Si se moviera junto,
+   la línea de título parecería un bloque, y no son dos cosas distintas.
+
+   -------------------------------------------------------------------
+   CUANDO SE PIDE QUE NO HAYA MOVIMIENTO
+   -------------------------------------
+   Con la animación apagada, el título aparece de inmediato y con su color.
+   Se apaga el movimiento, no el color.
+   =================================================================== */
+
+#tituloSeccion b {
+  color: var(--cat, currentColor);
+  animation: tituloEntra .22s ease-out;
+}
+
+@keyframes tituloEntra {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #tituloSeccion b {
+    animation: none;
+  }
+}

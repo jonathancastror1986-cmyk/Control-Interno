@@ -2939,6 +2939,10 @@ const TITULO_POR_DEFECTO = 'Control de asistencia y portería';
 
 function tituloDeLaSeccion(group){
   const el=document.getElementById('tituloSeccion');
+  // El encabezado recibe el MISMO data-group que el boton de arriba y el
+  // submenu, para sacar el color de las mismas reglas y no de una tercera
+  // lista que un dia se quedaria vieja.
+  el.dataset.group=group;
   if(!el)return;
   const s=SECCIONES_TITULO[group];
   if(!s){
