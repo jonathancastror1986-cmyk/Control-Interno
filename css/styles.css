@@ -4722,3 +4722,130 @@ label[for="empresaSel"] {
   background: var(--fondo-subnav, var(--panel));
   border-bottom: 1px solid var(--fondo-subnav, var(--line));
 }
+
+
+/* ===================================================================
+   LA DISTRIBUCIÓN DEL TÓTEM: TRES COLUMNAS Y UNA BARRA DE NÚMEROS
+   ===================================================================
+   Empresa a la izquierda, lo que marca en el medio, la fecha a la derecha.
+
+   La razón de que sea una grilla de tres y no un bloque centered es que la
+   cámara tiene que quedar SIEMPRE en el mismo lugar. Si el alto del texto de
+   la empresa cambia, una fila de arriba empuja la cámara hacia abajo y la
+   personaapaunta a otra cosa. Con columnas fijas, la cámara no se mueve nunca,
+   porque lo de la izquierda no la puede empujar.
+   =================================================================== */
+
+#pantallaTotem.abierta .totem-distribucion {
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:minmax(200px,1fr) minmax(320px,1.6fr) minmax(180px,1fr);
+  gap:clamp(12px,2vw,28px);
+  align-items:start;
+  padding:clamp(10px,1.6vh,22px) clamp(12px,2vw,32px) 0;
+  width:100%;
+}
+.totem-col{display:flex;flex-direction:column;gap:clamp(6px,1vh,14px);min-width:0}
+.totem-col-izq{align-items:flex-start}
+.totem-col-centro{align-items:center}
+.totem-col-der{align-items:flex-end;text-align:right}
+
+/* La empresa, que antes flotaba con position:absolute y ahora va en su
+   columna. Absolute la dejaba encima de la cámara cuando la cámara crecía. */
+#pantallaTotem.abierta #totemEmpresa {
+  position:static;
+  max-width:100%;
+  text-align:left;
+}
+#pantallaTotem.abierta #totemLogo {
+  max-height:clamp(64px,12vh,150px);
+  max-width:100%;
+  object-fit:contain;
+}
+#pantallaTotem.abierta #totemEmpresaNombre{font-size:clamp(15px,1.7vw,30px)}
+
+/* La fecha, arriba a la derecha. Se lee sin bajar la vista de la cámara. */
+#pantallaTotem.abierta .totem-col-der .totem-fecha {
+  font-size:clamp(14px,1.5vw,26px);
+  color:var(--secondary-text);
+  display:block;
+}
+.totem-centro-actual{
+  font-size:clamp(12px,1.3vw,22px);
+  color:var(--muted);
+  display:block;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+#pantallaTotem.abierta #totemTipoCaja{display:flex;align-items:center;gap:8px}
+.totem-tipo-etiqueta{margin:0;color:var(--secondary-text);font-size:.9em}
+
+/* EL PUNTO DE CONEXIÓN
+   Va arriba de la hora, no en una esquina lejana. Cuando la red se cae en la
+   portería, la marcación sigue saliendo en la base de este aparato y no
+   arriba: eso es lo que el punto tiene que estar diciendo todo el rato, y
+   para eso tiene que estar donde la mirada ya está. */
+#pantallaTotem.abierta #totemConexion{margin:0 0 2px}
+
+/* -------------------------------------------------------------------
+   LA BARRA DE NÚMEROS
+   -------------------------------------------------------------------
+   N° marcajes realizados, N° ausencias justificadas y presentes en la
+   ubicación, N° marcajes pendientes.
+
+   No es un adorno de la portería. En una obra, el "¿cuántos somos?" se
+   contesta mirando, y tener que abrir el sistema para enterarse es lo que
+   hace que la gente responda de memoria y se equivoque.
+
+   Y el que está en rojo es el que obliga a actuar: el pendiente es el único
+   de los tres que significa que hay un marcaje que NO se registró, y eso se
+   tiene que ver desde la puerta.
+   ------------------------------------------------------------------- */
+.totem-contadores{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;
+  margin:auto clamp(12px,2vw,32px) clamp(10px,1.6vh,20px);
+  width:min(100%,1180px);
+  background:var(--line);
+  border:1px solid var(--line);
+  border-radius:12px;
+  overflow:hidden;
+}
+.totem-contador{
+  background:var(--surface,var(--bg));
+  padding:clamp(8px,1.4vh,16px) clamp(10px,1.6vw,20px);
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+.totem-contador-cifra{
+  font-size:clamp(26px,3.6vw,58px);
+  font-weight:700;
+  line-height:1;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+.totem-contador-texto{
+  font-size:clamp(11px,1.05vw,17px);
+  color:var(--secondary-text);
+  line-height:1.3;
+}
+/* El pendiente en rojo, y no en gris: es el único de los tres que es un
+   problema en vez de un dato. */
+.totem-contador-pendiente .totem-contador-cifra{color:var(--danger)}
+.totem-contador-pendiente.sin-pendientes .totem-contador-cifra{color:var(--accent)}
+/* Cuando NO se sabe el número, se dice que no se sabe. Poner 0 sería peor que
+   no poner nada: 0 significa "no marcó nadie", que es un dato, y "no se
+   consultó" no es lo mismo. */
+.totem-contador-cifra.sin-dato{color:var(--muted)}
+
+/* En pantallas angostas la grilla de tres se vuelve de una columna, porque
+   tres columnas en un teléfono de bolsillo dejan cada una de 40 píxeles. */
+@media (max-width:760px){
+  #pantallaTotem.abierta .totem-distribucion{grid-template-columns:1fr;gap:10px}
+  .totem-col-izq,.totem-col-der{align-items:flex-start;text-align:left}
+  .totem-contadores{grid-template-columns:1fr}
+}

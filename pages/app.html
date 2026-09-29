@@ -1682,21 +1682,99 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
   escondía también: el código andaba bien, la prueba pasaba, y en el
   aparato no se veía nunca.
   -->
-  <div id="totemHoraCaja">
-    <div id="totemConexion" class="totem-conexion"><span class="totem-conexion-punto"></span></div>
-    <span class="totem-hora" id="totemHoraActual">--:--:--</span>
-    <span class="totem-fecha" id="totemFechaActual"></span>
-    <span class="totem-nombre" id="totemRelojActual"></span>
-    <span class="totem-marcaje" id="totemHoraMarcada"></span>
-  </div>
-  <div class="totem-barra">
-    <span class="totem-barra-izq" id="totemCentroActual"></span>
-    <span class="totem-barra-der">
-      <label for="totemTipo" class="totem-barra-label">Marca</label>
-      <select id="totemTipo" onchange="cambiarTipoTotem()"></select>
+  <!--
+  LA DISTRIBUCIÓN, EN TRES COLUMNAS
+  ================================
+  Empresa a la izquierda, lo que marca en el medio, la fecha a la derecha, y
+  los tres números abajo.
+
+  No es un acomodo. En la portería la persona llega, apoya la tarjeta y se va:
+  tiene que ver TRES cosas en un segundo sin buscar, y la pantalla está a un
+  brazo de distancia.
+
+    - dónde estoy, para no marcar en el reloj equivocado
+    - que la hora y el centro son los correctos
+    - que el marcaje entró
+
+  Por eso la hora y la fecha están en columnas separadas y no apiladas: la
+  fecha arriba a la derecha se lee sin bajar la vista de la cámara, que es
+  donde tiene que estar la mirada.
+  -->
+  <div class="totem-distribucion">
+    <div class="totem-col totem-col-izq">
+      <div id="totemEmpresa">
+        <img id="totemLogo" alt="">
+        <div id="totemEmpresaNombre">-</div>
+        <div id="totemEmpresaCentro"></div>
+      </div>
+    </div>
+    <div class="totem-col totem-col-centro">
+      <div id="totemConexion" class="totem-conexion"><span class="totem-conexion-punto"></span></div>
+      <div id="totemHoraCaja">
+        <span class="totem-hora" id="totemHoraActual">--:--:--</span>
+        <span class="totem-nombre" id="totemRelojActual"></span>
+        <span class="totem-marcaje" id="totemHoraMarcada"></span>
+      </div>
+      <div id="totemTipoCaja">
+        <span class="totem-tipo-etiqueta">Marca</span>
+        <select id="totemTipo" onchange="cambiarTipoTotem()"></select>
+      </div>
+    </div>
+    <div class="totem-col totem-col-der">
+      <span class="totem-fecha" id="totemFechaActual"></span>
+      <span class="totem-centro-actual" id="totemCentroActual"></span>
       <button type="button" class="totem-salir" onclick="cerrarTotem()">Salir</button>
-    </span>
+    </div>
   </div>
+  <div class="totem-zona" id="totemZonaCamara" style="display:none">
+    <div id="totemCamara"></div>
+  </div>
+  <div id="totemMensaje" class="totem-idle"></div>
+  <!--
+  LA BARRA DE NÚMEROS
+
+  En una obra, "¿cuántos somos?" se contesta mirando. Tener que abrir el
+  sistema para enterarse es lo que hace que la gente responda de memoria y se
+  equivoque, y en una obra equivocarse de cantidad significa mandar a alguien
+  a un lugar donde no es.
+
+  El tercero va en rojo cuando no es cero, porque es el único de los tres que
+  es un problema y no un dato: un marcaje pendiente es un marcaje que NO se
+  registró.
+
+  Y cuando no se sabe el número se escribe "—", no "0". Cero significa "no
+  marcó nadie", que es un hecho; "no se consultó" no es lo mismo, y poner 0
+  cuando no se sabe es mentir con una cifra que la gente se cree.
+  -->
+  <div class="totem-contadores">
+    <div class="totem-contador">
+      <span class="totem-contador-cifra sin-dato" id="totemCifraRealizados">—</span>
+      <span class="totem-contador-texto">N° Marcajes Realizados</span>
+    </div>
+    <div class="totem-contador">
+      <span class="totem-contador-cifra sin-dato" id="totemCifraAusencias">—</span>
+      <span class="totem-contador-texto">N° Ausencia Justificado y total presentes en Ubicación</span>
+    </div>
+    <div class="totem-contador totem-contador-pendiente" id="totemCajaPendientes">
+      <span class="totem-contador-cifra sin-dato" id="totemCifraPendientes">—</span>
+      <span class="totem-contador-texto">N° Marcajes pendientes</span>
+    </div>
+  </div>
+  <!-- La barra vieja se terminó: el centro, el tipo de marca y el botón de
+       salir están ahora en las columnas, cada uno en su lugar. Lo que queda
+       de esto es la Zona Kiosco, que va después porque tiene que tapar
+       todo lo demás. -->
+  <!--
+  La barra vieja (.totem-barra) se fue con sus tres cosas adentro: el centro
+  actual, el selector de tipo de marca y el botón de salir. Los tres están
+  arriba, en las columnas donde corresponde.
+
+  El selector de tipo de marca es el más delicado de los tres. En el kiosco
+  queda escondido a propósito, porque cualquier toque lo cambiaría y alguien
+  podría marcar "salida" sin querer. Por eso está en la columna del medio y
+  no en la barra: cuando se esconde la barra, se esconde con ella, y no hace
+  falta acordarse de esconder otra cosa.
+  -->
   <!-- La zona del kiosco. Transparente y sin ícono: si se le pone un ícono,
        es un botón de salida, y entonces el bloqueo no protege de nada.
        Va al final para que quede por encima de todo lo demás. -->
@@ -1724,15 +1802,15 @@ apretar cambiaría de vista y dejaría el reloj sin marcar.
   con lector USB no se veria, que es justo cuando mas falta hace para
   confirmar en que lugar se esta marcando.
   -->
-  <div id="totemEmpresa">
-    <img id="totemLogo" alt="">
-    <div id="totemEmpresaNombre">-</div>
-    <div id="totemEmpresaCentro"></div>
-  </div>
-  <div class="totem-zona" id="totemZonaCamara" style="display:none">
-    <div id="totemCamara"></div>
-  </div>
-  <div id="totemMensaje" class="totem-idle"></div>
+  <!--
+  ESTOS TRES YA NO ESTÁN AQUÍ: LA EMPRESA, LA CÁMARA Y EL MENSAJE
+  ------------------------------------------------------------------
+  Los moví arriba, dentro de la distribución de tres columnas. Borrarlos de
+  acá es lo que evita que queden dos elementos con el mismo id: si el
+  navegador encuentra dos #totemMensaje, el JavaScript paintinga siempre el
+  primero y el segundo queda invisible, y no se ve ningún error en la
+  consola. Es la falla más difícil de encontrar de las que da este programa.
+  -->
   <!--
   EL AVISO QUE QUEDA PARA DESPUES
 
@@ -14045,6 +14123,7 @@ function pintarTotemInicial(){
   ponerPlaceholderTotem();
   const barraCentro=document.getElementById('totemCentroActual');
   if(barraCentro)barraCentro.textContent=totemActual?centroDe(totemActual):'';
+  pintarTotemContadores();
   document.getElementById('totemRelojActual').textContent=
     (totemActual?totemActual.code+' · ':'')+(totemActual?centroDe(totemActual):'');
 }
@@ -15218,6 +15297,98 @@ function pintarFicha(w){
   if(sel)sel.value=w.code;
 }
 
+
+// ===================================================================
+// LOS TRES NÚMEROS DE LA BARRA
+// ===================================================================
+//
+// Se cuentan sobre lo que YA está cargado en la memoria, y no con una
+// consulta nueva. La razón no es ahorrar: es que la pantalla del reloj se
+// abre en la portería, muchas veces al mismo tiempo, y una consulta por cada
+// marcaje y por cada reloj abierto es exactamente lo que hace que un aparato
+// viejo se ponga lento.
+//
+// CUANDO NO SE SABE, SE ESCRIBE "—"
+// ---------------------------------
+// Si el rango de marcajes que se tiene cargado no incluye el día de hoy, los
+// tres números se quedan en "—". Poner 0 sería peor que no poner nada: 0 dice
+// "no marcó nadie", que es un hecho sobre la obra, y en una portería un 0
+// falso se cree.
+//
+// Y no se inventa el dato yendo a buscarlo: en la portería, esperar una
+// consulta es peor que no tener el número. Se muestra lo que se sabe.
+function pintarTotemContadores(){
+  const cR=document.getElementById('totemCifraRealizados');
+  const cA=document.getElementById('totemCifraAusencias');
+  const cP=document.getElementById('totemCifraPendientes');
+  if(!cR||!cA||!cP)return;
+
+  const sinDato=(el)=>{el.textContent='—';el.classList.add('sin-dato');};
+  sinDato(cR);sinDato(cA);sinDato(cP);
+
+  const lista=typeof marcajes!=='undefined'&&Array.isArray(marcajes)?marcajes:null;
+  if(!lista||!lista.length||!totemActual)return;
+
+  // El día de hoy, en el mismo formato con que vienen los marcajes. Se
+  // comparan los primeros diez caracteres porque algunos vienen con la hora
+  // pegada y otros solo con la fecha.
+  const hoy=new Date();
+  const hoyTxt=hoy.getFullYear()+'-'
+    +String(hoy.getMonth()+1).padStart(2,'0')+'-'
+    +String(hoy.getDate()).padStart(2,'0');
+  const centro=totemActual.centro_costo_id!=null?String(totemActual.centro_costo_id):'';
+
+  const delDia=lista.filter(m=>{
+    const f=String(m.fecha||'').slice(0,10);
+    if(f!==hoyTxt)return false;
+    // Sin centro en el reloj se cuentan todos; con centro, solo los de ese.
+    if(!centro)return true;
+    if(m.centro_costo_id==null)return false;
+    return String(m.centro_costo_id)===centro;
+  });
+  if(!delDia.length)return;
+
+  // REALIZADOS: los que entraron de verdad, sin los que quedaron anulados o
+  // rechazados. Un marcaje rechazado cuenta como marcaje: alguien lo pasó.
+  const realizados=delDia.filter(m=>m.estado!=='anulado'&&m.estado!=='rechazado').length;
+
+  // AUSENCIAS JUSTIFICADAS: las que tienen justification puesta. Se cuenta
+  // por trabajador, no por fila: una persona con tres marcas justificadas es
+  // una ausencia, no tres. Sin eso, el número crece con las veces que la
+  // gente pasa por el reloj y no dice nada.
+  const conJustificacion={};
+  delDia.forEach(m=>{
+    const est=String(m.estado||'');
+    if(est==='justificado'||est==='licencia'||est==='ausencia_justificada'
+       ||(m.justificacion_id!=null)){
+      conJustificacion[String(m.code)]=1;
+    }
+  });
+  const ausencias=Object.keys(conJustificacion).length;
+
+  // PENDIENTES: los que el reloj registró y la base todavía no tiene. Cuando
+  // el reloj está sin conexión esto es justamente lo que se exporta después.
+  //
+  // Y aquí NO se pone 0 cuando no se sabe. Todavía no existe la cola local
+  // del reloj (es lo que falta hacer), así que este número queda en "—" en
+  // vez de mentir con un cero. Un cero en este campo significa "no hay nada
+  // pendiente", y en una portería eso se cree.
+  const cola=typeof totemPendientesLocales!=='undefined'&&Array.isArray(totemPendientesLocales)
+    ?totemPendientesLocales.filter(m=>String(m.fecha||'').slice(0,10)===hoyTxt).length
+    :null;
+
+  const poner=(el,n)=>{el.textContent=String(n);el.classList.remove('sin-dato');};
+  poner(cR,realizados);
+  poner(cA,ausencias);
+  const cajaP=document.getElementById('totemCajaPendientes');
+  if(cola==null){
+    sinDato(cP);
+    if(cajaP)cajaP.classList.remove('sin-pendientes');
+  }else{
+    poner(cP,cola);
+    if(cajaP)cajaP.classList.toggle('sin-pendientes',cola===0);
+  }
+}
 
 function mostrarTotem(clase,titulo,detalle){
   const caja=document.getElementById('totemMensaje');
