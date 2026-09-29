@@ -3286,7 +3286,7 @@ async function checkSupportConnection(){
 // navegador es distinto del de la última publicada, hay que recargar con
 // Ctrl+F5. La versión se lee del propio archivo (una constante) y la
 // publicada, de la etiqueta del último commit.
-const APP_VERSION = '2026-09-29-j';
+const APP_VERSION = '2026-09-29-k';
 async function mostrarVersionDeLaApp(){
   const el=document.getElementById('soporteVersion');
   if(!el)return;
@@ -5266,7 +5266,70 @@ function renderAvisosDia(){
     </div>`;
   }).join('');
 }
-function renderDiaria(){
+// LA SITUACION, Y SU COLOR
+//
+// Todo el color sale de aca, en un solo lugar. Si se decidiera en cada
+// parte de la pantalla, cada parte tendria su propia idea de que es
+// "tarde", y el mismo trabajador saldria de dos colores segun donde se mire.
+//
+// Los cuatro primeros no dependen de ninguna migracion: salen de los
+// marcajes del dia. Los del medio vienen del motivo del registro de la
+// porteria, que es la 041, y si esa no esta, nunca entran.
+//
+//   sin marcar                rojo      no hay marcaje de entrada
+//   accidente o licencia      azul      hay que avisar a donde corresponda
+//   permiso                   amarillo  la porteria dijo que tiene permiso
+//   tarde                     amarillo  entro despues de la hora
+//   sin salida                amarillo  entro y todavia no salio
+//   presente o completo       verde     esta bien
+//
+// EL ORDEN IMPORTA
+// ---------------
+// La falta le gana a todo. Si no entro, el color verde o amarillo seria
+// mentira: no se puede estar "presente" sin haber entrado.
+//
+// Y el motivo de la porteria le gana a "tarde" y a "sin salida", porque es
+// una explicacion mejor: si el portero dijo que es un accidente, "tarde"
+// es una forma de tapar lo que really paso.
+// El motivo de la portería de HOY para cada persona. La fila lo usa, pero no
+// existía: sin esto, la columna de la situación se pinta siempre con los dos
+// colores viejos.
+//
+// No se rompe si la 041 no está aplicada. La consulta falla, el catch la
+// traga, y el mapa queda vacío. Es la diferencia entre degradar y romper: si
+// la pantalla no abriera porque falta una tabla, el supervisor no podría
+// marcar asistencia, y el peor lugar para descubrirlo es en la portería, con
+// gente esperando.
+let motivosPuerta={};
+async function motivosDePuerta(){
+  const mapa={};
+  try{
+    const r=await window.supabaseClient.rpc('motivos_porteria_hoy');
+    const filas=Array.isArray(r.data)?r.data:(r.data||[]);
+    filas.forEach(f=>{ if(f&&f.code)mapa[f.code]=f.motivo; });
+  }catch(error){
+    // Sin registro de portería todavía. No es un error.
+  }
+  return mapa;
+}
+
+function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta){
+  if(!ent) return {clase:'dia-rojo', texto:'Sin marcar'};
+  if(motivoPuerta==='accidente'||motivoPuerta==='licencia')
+    return {clase:'dia-azul', texto: motivoPuerta==='accidente'?'Accidente':'Licencia'};
+  if(motivoPuerta==='permiso') return {clase:'dia-amarillo', texto:'Permiso'};
+  if(tarde) return {clase:'dia-amarillo', texto:'Presente, tarde'};
+  if(abierto) return {clase:'dia-amarillo', texto:'Presente, sin salida'};
+  return {clase:'dia-verde', texto: sal?'Completo':'Presente'};
+}
+
+
+async function renderDiaria(){
+  // Los motivos de la portería se piden antes de pintar. Se espera por ellos
+  // porque si no, la primera vez que se abre la tabla sale sin los colores
+  // de permiso, accidente y licencia, y alguien puede leer que ese no tiene
+  // permiso cuando sí lo tiene.
+  motivosPuerta=await motivosDePuerta();
   const list=document.getElementById('diariaLista');
   if(!list)return;
   const selSup=document.getElementById('supDiariaSup');
@@ -5287,37 +5350,57 @@ function renderDiaria(){
     const abiertas=diasSinSalida(w.code);
     const social=w.alerta_social?'social ':'';
     const prev=w.alerta_prevencion?'prevencion ':'';
-    return `<div class="mkFila${ent?'':' mkAusente'}" data-code="${escHtml(w.code)}">
-      <div class="mkNombre">
+// Las etiquetas de social y de prevención, calculadas antes del template.
+//
+// Adentro del HTML quedaban tres niveles de comillas pegados, y eso no se
+// puede mantener: en la primera corrección hay que volver a contar las
+// comillas de a mano, y es donde se rompe.
+let etiquetasTags='';
+if(social||prev){
+  etiquetasTags='<span class="mkTags">'
+    +(social?'<em class="tagSocial">Asist. social</em> ':'')
+    +(prev?'<em class="tagPrev">Prevención</em>':'')
+    +'</span>';
+}
+
+    const sit=situacionDiaria(ent, sal, tarde, abiertas.length>0, motivoPuerta);
+    return `<tr class="diaFila" data-code="${escHtml(w.code)}">
+      <td class="diaCelda diaCeldaNombre">
         <b>${escHtml(codigoMostrar(w.code))}</b> ${escHtml(w.name)}
         <small>${escHtml(w.spec||'')}</small>
-        ${(social||prev)?`<span class="mkTags">${social?'<em class="tagSocial">Asist. social</em>':''}${prev?'<em class="tagPrev">Prevención</em>':''}</span>`:''}
-      </div>
-      <div class="mkEstado">
-        ${ent
-          ? `<span class="mkPill ok">${sal?'Completo':'Presente'}</span>
-             <small>${ent.hora}${sal?' · sale '+sal.hora:''}${tarde?' · <b class="late">tarde</b>':''}</small>`
-          : `<span class="mkPill no">Sin marcar</span>`}
-        ${abiertas.length?`<small class="late">⏳ salida pendiente del ${abiertas.map(m=>fechaLegible(m.fecha)||m.fecha).join(', ')}</small>`:''}
-      </div>
-      <div class="mkAvisosPend">
-        ${pendientes.length?`<span class="mkPill warn" title="Ver avisos">${pendientes.length} aviso(s)</span>`:''}
-      </div>
-      <div class="mkAcciones">
-        <button class="btn secondary" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
-          onclick="marcarManual('${escHtml(w.code)}','${ent?'salida':'entrada'}')">
-          ${ent?'Marcar salida':'Marcar entrada'}</button>
-        ${ent?'':`<button class="btn" type="button" style="margin:0;padding:5px 9px;font-size:.7rem"
-          onclick="marcarYAvisar('${escHtml(w.code)}','entrada')" title="Marca y deja la indicación para que Administración la confirme">
-          Marcar y avisar</button>`}
-      </div>
-    </div>`;
+        ${etiquetasTags}
+      </td>
+      <td class="diaCelda diaCeldaHora">${ent?escHtml(ent.hora):''}</td>
+      <td class="diaCelda diaCeldaHora">${sal?escHtml(sal.hora):(ent?'<span class="diaVacia">&mdash;</span>':'')}</td>
+      <td class="diaCelda diaCeldaSit">
+        <span class="diaPill ${sit.clase}">${escHtml(sit.texto)}</span>
+        ${abiertas.length?'<small class="diaVacia">salida pendiente del '+escHtml(abiertas.map(m=>fechaLegible(m.fecha)||m.fecha).join(', '))+'</small>':''}
+      </td>
+      <td class="diaCelda diaCeldaAvisos">
+        ${pendientes.length?'<span class="mkPill warn">'+pendientes.length+' aviso'+(pendientes.length>1?'s':'')+'</span>':''}
+      </td>
+      <td class="diaCelda diaCeldaAcciones">
+        <button class="btn secondary" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"
+          onclick="marcarManual('${escHtml(w.code)}','${ent?'salida':'entrada'}')">${ent?'Marcar salida':'Marcar entrada'}</button>
+        ${ent?'':'<button class="btn" type="button" style="margin:0 0 0 4px;padding:4px 8px;font-size:.7rem;white-space:nowrap" onclick="marcarYAvisar(\''+escHtml(w.code)+'\',\'entrada\')" title="Marca y deja la indicación para que Administración la confirme">Marcar y avisar</button>'}
+      </td>
+    </tr>`;
+
   }).join('');
 
   const presentes=equipo.filter(w=>marcajeDe(w.code,'entrada')).length;
   const completos=equipo.filter(w=>marcajeDe(w.code,'entrada')&&marcajeDe(w.code,'salida')).length;
   const conAviso=avisosMarcaje.filter(a=>!a.visto).length;
-  list.innerHTML=filas;
+  // La tabla: con encabezado pegado, y una celda por campo. El encabezado
+  // va con "sticky" para que los titulos se queden arriba al bajar, que con
+  // cuarenta personas es la diferencia entre saber que columna es cual y
+  // tener que subir a recordarlo.
+  list.innerHTML='<div class="diaTablaCaja"><table class="diaTabla">'
+    +'<thead><tr><th>Trabajador</th><th class="diaThHora">Entrada</th>'
+    +'<th class="diaThHora">Salida</th><th>Situación</th>'
+    +'<th class="diaThAvisos">Avisos</th>'
+    +'<th class="diaThAcciones">Acciones</th></tr></thead>'
+    +'<tbody>'+filas+'</tbody></table></div>';
   renderAvisosDia();
   const resumen=document.getElementById('diariaResumen');
   if(resumen){

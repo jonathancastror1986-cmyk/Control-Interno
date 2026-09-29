@@ -2788,3 +2788,227 @@ que uno dude de cómo va a salir impreso.
     font-size: .84rem;
   }
 }
+/* ======================= LA ASISTENCIA DIARIA EN TABLA (2026-09-29) ======================= *//* ===================================================================
+   LA ASISTENCIA DIARIA, EN TABLA
+   ===================================================================
+
+   QUE SE PIDE
+   -----------
+   Que cada campo tenga su celda con su tamaño, y que el color de la
+   situación sea: presente verde, falta rojo, permiso amarillo, y
+   accidente o licencia azul.
+
+   -------------------------------------------------------------------
+   EL COLOR NO SE PONE EN LA CELDA, SE PONE EN UNA ETIQUETA DENTRO
+   -------------------------------------------------------------------
+   Con el fondo de toda la celda pintado, la pantalla se vuelve una mancha
+   de color y los números dejan de leerse. Con la etiqueta, el color se ve
+   sin tapar el dato.
+
+   Es la misma razón por la que antes se puso el color solo en la letra y no
+   en el fondo: el color tiene queHermoso, no tapar.
+
+   Y los colores son del mismo tono suave que usa el resto de la
+   aplicación, con el texto oscuro encima. Un fondo saturado con letra
+   blanca no se lee a dos metros, que es como se mira en la portería.
+
+   -------------------------------------------------------------------
+   LOS SEIS COLORES, Y DE DÓNDE SALE CADA UNO
+   -------------------------------------------------------------------
+   Todos salen de situacionDiaria(), en un solo lugar. Si el color se
+   decidiera en cada parte, cada parte tendría su propia idea de qué es
+   "tarde", y el mismo trabajador saldría de dos colores según dónde se
+   mire.
+
+     sin marcar                rojo      no hay marcaje de entrada
+     accidente o licencia      azul      hay que avisar
+     permiso                   amarillo  la portería dijo que tiene permiso
+     tarde                     amarillo  entró después de la hora
+     sin salida                amarillo  entró y todavía no salió
+     presente o completo       verde     está bien
+
+   -------------------------------------------------------------------
+   LA TABLA SE DESPLAZA, NO SE REACOMODA
+   -------------------------------------------------------------------
+   En una pantalla angosta, reacomodar las celdas parte los botones. Y un
+   botón partido —"Marcar y / avisar"— es el peor resultado posible: uno no
+   sabe que se podía apretar ahí, y a veces no se puede.
+
+   Es preferible que la tabla se desplace a que los botones se corten.
+
+   -------------------------------------------------------------------
+   EL ENCABEZADO PEGADO
+   -------------------------------------------------------------------
+   Con "sticky", los títulos de las columnas quedan arriba al bajar. Sin
+   eso, con cuarenta personas, hay que subir a recordar qué columna era
+   cuál. */
+
+.diaTablaCaja {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.diaTabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+}
+
+.diaTabla th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-bottom: 2px solid var(--line);
+  text-align: left;
+  padding: 9px 10px;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--secondary-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.diaTabla td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.diaTabla tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.diaTabla tbody tr:hover {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+/* -------------------------------------------------------------------
+   CADA CELDA CON SU TAMAÑO
+   -------------------------------------------------------------------
+   Los anchos minimos son lo que hace que las columnas caigan siempre en el
+   mismo lugar, y que el encabezado calce con las filas. Sin ellos, cada
+   fila mide distinto y la tabla se lee como un revoltijo.
+   ------------------------------------------------------------------- */
+.diaCeldaNombre {
+  min-width: 230px;
+}
+
+/* Las horas son cortas y se comparan de un vistazo: narrow. */
+.diaCeldaHora {
+  min-width: 78px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.diaCeldaSit {
+  min-width: 150px;
+}
+
+.diaCeldaAvisos {
+  min-width: 86px;
+  text-align: center;
+}
+
+/* Los dos botones en linea, que es de donde sale el espacio. */
+.diaCeldaAcciones {
+  min-width: 230px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.diaCeldaAcciones .btn {
+  display: inline-block;
+}
+
+.diaCeldaNombre b {
+  margin-right: 4px;
+}
+
+.diaCeldaNombre small {
+  display: block;
+  font-size: .74rem;
+  color: var(--muted);
+  line-height: 1.25;
+}
+
+/* El aviso de salida pendiente baja a su propia linea. Al lado de la
+   pastilla se partia en dos y esa fila media mas que las demas: con la
+   tabla, la fila corta es parte del contrato. */
+.diaCeldaSit small {
+  display: block;
+  margin-top: 3px;
+}
+
+.diaTablaCaja + .diaTablaCaja {
+  margin-top: 0;
+}
+.diaVacia {
+  color: var(--muted);
+  font-size: .78rem;
+}
+
+/* -------------------------------------------------------------------
+   LA ETIQUETA DE LA SITUACIÓN
+   -------------------------------------------------------------------
+   Fondo suave, texto oscuro, borde del mismo tono. El color se ve sin
+   tapar el dato, que es lo que se necesita en una pantalla que se mira
+   de lejos.
+   ------------------------------------------------------------------- */
+.diaPill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: .74rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.diaPill.dia-verde {
+  background: #E4F3E4;
+  color: #14401C;
+  border-color: #9CCFA3;
+}
+
+.diaPill.dia-rojo {
+  background: #FBDCDC;
+  color: #6B1515;
+  border-color: #E9A3A3;
+}
+
+.diaPill.dia-amarillo {
+  background: #FFE9A8;
+  color: #4A3200;
+  border-color: #E0BC4A;
+}
+
+.diaPill.dia-azul {
+  background: #D9E8F7;
+  color: #10375A;
+  border-color: #8FB8DC;
+}
+
+/* -------------------------------------------------------------------
+   EN PANTALLA ANGOSTA
+   -------------------------------------------------------------------
+   Solo se ajustan los anchos minimos. La tabla no se reacomoda: se
+   desplaza.
+   ------------------------------------------------------------------- */
+@media (max-width: 860px) {
+  .diaCeldaNombre {
+    min-width: 180px;
+  }
+
+  .diaCeldaAcciones {
+    min-width: 200px;
+  }
+
+  .diaTabla {
+    font-size: .84rem;
+  }
+}
