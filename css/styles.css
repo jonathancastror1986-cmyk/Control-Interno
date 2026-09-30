@@ -6290,6 +6290,17 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
 
 .marca-jc-letras{
   display:block;
+  /* Y el DIBUJO de las letras, que en reposo está a un 70% de la caja y con el
+     puntero al 100%. Como la caja no cambia de tamaño —eso no se toca, es lo que
+     mantiene el bloque quieto— lo que se achica es la máscara de adentro.
+
+     Y con "mask-size" y no con un "transform": un "transform" achicaría el
+     dibujo pero no la caja, y las letras quedarían pegadas a la izquierda en vez
+     de centradas. Con "mask-size:auto 70%" el dibujo se centra dentro de la caja y
+     se ve más chico en el medio, que es lo que se ve en el dibujo.
+
+     Y el 70% y no más chico porque la línea de "JC-SOLUTIONS.CL" es la que se
+     lee, y con menos de 70% hay que pasar el puntero para poder leerla. */
   position:absolute;
   left:0;
   top:0;
@@ -6305,14 +6316,46 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
           mask-repeat:no-repeat;
   -webkit-mask-position:center;
           mask-position:center;
-  -webkit-mask-size:contain;
-          mask-size:contain;
+  -webkit-mask-size:auto 70%;
+          mask-size:auto 70%;
+  transition:transform .3s cubic-bezier(.25,.46,.45,.94),
+             -webkit-mask-size .3s cubic-bezier(.25,.46,.45,.94),
+             mask-size .3s cubic-bezier(.25,.46,.45,.94);
 }
 
+/* -------------------------------------------------------------------
+   LO DE AL LADO SE ACHICA EN REPOSO, PARA QUE EL LOGO SE VAYA DESTACANDO
+   -------------------------------------------------------------------
+   En reposo el nombre de la sección y las letras del logo están un poco más
+   chicos. Con el puntero por encima crecen a su tamaño y el nombre queda al centro.
+
+   Es al revés de como se suele hacer, que es poner el estado bueno en reposo y
+   animar cuando lo tocas. Acá el logo es lo que manda: la marca mide 58 x 39 en los
+   dos estados, y lo que se achica es lo de al lado.
+
+   Y destacar una cosa no es agrandarla, es achicar lo de al lado. Por eso la marca
+   no cambia de tamaño en ningún momento: lo que crece cuando el puntero pasa es
+   todo lo que estaba al lado.
+
+   EL 0,8 Y POR QUÉ NO MÁS
+   ----------------------------
+   En reposo el nombre mide 22 de alto, y con el puntero tiene que medir unos 26. Y
+   22 / 26 da 0,85. Con 0,8 el salto es discreto y se lee como "se agranda" y no
+   como "cambió de letra". Con 0,6 se vería otro texto.
+
+   Y el "font-size" y no un "transform: scale" del título: el nombre es texto, y
+   un "scale" lo deja borroso y lo descentra de su propia caja. El "font-size" lo
+   vuelve a maquetar de verdad, que es lo que se ve bien.
+
+   Y con ":has()" y no con ":hover" a secas, porque el título es hijo del bloque: si
+   el puntero está encima del título también cambiaría, y el puntero tiene que
+   estar sobre el logo o sobre las letras. */
 #tituloSeccion{
   align-self:center;
+  font-size:.8em;
   transform:translateY(11px);
-  transition:transform .3s cubic-bezier(.25,.46,.45,.94);
+  transition:transform .3s cubic-bezier(.25,.46,.45,.94),
+             font-size .3s cubic-bezier(.25,.46,.45,.94);
   min-width:0;
 }
 
@@ -6334,12 +6377,23 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
 
      Con 42, que son 39 más 3, las letras quedaban 5 píxeles más arriba, encima
      del relleno del enlace. Y 5 era la cuenta hecha sin el relleno, que está en
-     otra regla y a otra distancia: por eso el número se mide. */
+     otra regla y a otra distancia: por eso el número se mide.
+
+     Y con el puntero, además de bajar, el DIBUJO crece del 70% al 100%. Porque lo
+     de al lado se achica en reposo para que la marca se destaque, y con el puntero
+     vuelve a su tamaño. */
   transform:translate(0, 47px);
+  -webkit-mask-size:auto 100%;
+          mask-size:auto 100%;
 }
 .marca-bloque:has(.marca-jc:hover) #tituloSeccion,
 .marca-bloque:has(.marca-jc:focus-visible) #tituloSeccion,
 .marca-bloque:has(.marca-jc-letras:hover) #tituloSeccion{
+  /* Y con el puntero el nombre vuelve a su tamaño Y se centra. El "font-size" va
+     acá, junto al "transform", porque los dos son el mismo cambio: el nombre crece
+     y baja a la altura del medio del bloque. Si estuvieran en reglas distintas
+     sería más difícil de leer y se podría olvidar uno. */
+  font-size:1em;
   transform:translateY(0);
 }
 
