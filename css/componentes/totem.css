@@ -1,0 +1,1967 @@
+/* ref: totem-01 - La capa del tótem: barra, reloj, cámara, contadores y salida */
+/* ------------------------------------------------------------------
+
+LA PANTALLA DEL TÓTEM
+
+------------------------------------------------------------------
+
+Pensada para un cartel fijo de 10 a 15 pulgadas a la altura de los ojos.
+
+Por eso es "grande" y no "lleno de cosas": la persona está parada, mira de
+
+reojo, y tiene dos segundos para entender si su marca entró.
+
+
+Lo que NO está acá a propósito: el menú de la aplicación, los botones de
+
+la attendance normal, y los textos de ayuda largos. Un tótem con menú es un
+
+tótem donde alguien apretó algo que no debía.
+
+------------------------------------------------------------------ */
+
+#pantallaTotem{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;
+
+  background:var(--bg);color:var(--ink);font-size:clamp(16px,1.6vw,22px)}
+
+#pantallaTotem.abierta{display:flex}
+
+/* La hora ocupa la franja de arriba, centrada. El contenido arranca
+
+   más abajo para que no quede debajo: con la hora encima de la cámara, la
+
+   gente no ve a quién está fotografiando. */
+
+#pantallaTotem{padding-top:118px}
+
+.modo-kiosco #pantallaTotem{padding-top:150px}
+
+/* El cuerpo entra en modo tótem para que la navegación de atrás no quede
+
+   como fondo visible si algo se dibuja mal. */
+
+body.modoTotem{overflow:hidden}
+
+.totem-barra{display:flex;justify-content:space-between;align-items:center;gap:12px;
+
+  padding:10px 18px;background:var(--surface);border-bottom:1px solid var(--line);
+
+  font-size:.8em;color:var(--secondary-text);flex:0 0 auto}
+
+.totem-barra-der{display:flex;align-items:center;gap:10px}
+
+.totem-barra-label{margin:0}
+
+.totem-salir{background:var(--secondary);color:var(--ink);border:1px solid var(--line);
+
+  border-radius:8px;padding:6px 14px;cursor:pointer;font:inherit;font-size:1em}
+
+.totem-salir:hover{background:var(--secondary-text)}
+
+.totem-zona{flex:0 0 auto;display:flex;justify-content:center;padding:10px}
+
+#totemCamara{width:min(46vh,420px);border-radius:12px;overflow:hidden}
+
+#totemCamara video{width:100%!important;display:block}
+
+.totem-zona-central{flex:1 1 auto;display:flex;align-items:center;justify-content:center;padding:2vh 4vw;min-height:0}
+
+/* El mensaje es lo único grande de la pantalla. Cada estado tiene su
+
+   color y su forma, y el color no es lo único: un cartel rojo y verde se
+
+   distinguen igual para quien no distingue los colores. */
+
+#totemMensaje{display:flex;align-items:center;justify-content:center;gap:clamp(16px,3vw,40px);
+
+  text-align:center;max-width:1000px}
+
+#totemMensaje .totem-icono{font-size:clamp(56px,10vw,120px);line-height:1;flex:0 0 auto}
+
+#totemMensaje .totem-texto b{font-size:clamp(28px,4.4vw,54px);display:block;line-height:1.15}
+
+#totemMensaje .totem-texto span{font-size:clamp(16px,2.1vw,28px);color:var(--secondary-text);display:block;margin-top:.4em}
+
+#totemMensaje.totem-ok{color:var(--accent)}
+
+#totemMensaje.totem-ya_marcado,#totemMensaje.totem-duplicado{color:var(--warn-ink)}
+
+#totemMensaje.totem-error{color:var(--danger)}
+
+#totemMensaje.totem-idle{color:var(--secondary-text)}
+
+#totemMensaje .totem-idle-icono{font-size:clamp(40px,7vw,84px);opacity:.35;flex:0 0 auto}
+
+#totemMensaje .totem-idle-texto b{font-size:clamp(22px,3vw,40px);color:var(--ink);display:block}
+
+#totemMensaje .totem-idle-texto span{font-size:clamp(16px,2.1vw,28px);display:block;margin-top:.2em}
+
+.totem-pie{flex:0 0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+
+  padding:12px 18px;background:var(--surface);border-top:1px solid var(--line)}
+
+.totem-campo-label{font-size:.8em;color:var(--secondary-text);margin:0}
+
+/* El campo tiene que ser visible y grande aunque el foco esté en otro
+
+   lado: si queda transparente, en un cartel de la portería parece que no
+
+   hay campo y nadie entiende por qué no hay que tocar nada. */
+
+#totemCampo{flex:1 1 320px;min-height:56px;font-size:1.1em;padding:10px 14px;
+
+  background:var(--bg);color:var(--ink);border:2px solid var(--line);border-radius:10px;
+
+  opacity:1}
+
+#totemCampo:focus{outline:3px solid var(--accent);outline-offset:1px}
+
+#totemCampo::placeholder{color:var(--muted);font-size:.85em}
+
+.totem-pill{font-size:.75em;padding:4px 10px;border-radius:999px;border:1px solid var(--line);
+
+  color:var(--secondary-text);min-width:9em;text-align:center}
+
+.totem-pill-ok{color:var(--accent);border-color:var(--accent)}
+
+.totem-pill-ya_marcado,.totem-pill-duplicado{color:var(--warn-ink);border-color:var(--warn)}
+
+.totem-pill-error{color:var(--danger);border-color:var(--danger)}
+
+/* ------------------------------------------------------------------
+
+EL PAPEL QUE SE IMPRIME
+
+------------------------------------------------------------------
+
+A4 a 96 dpi son 794 px de ancho. Se usa eso como unidad de toda la hoja
+
+para que lo que se ve en el editor y lo que sale en el PDF sean el mismo
+
+documento, y no "parecido".
+
+
+El fondo es blanco SIEMPRE, incluso en modo oscuro. Un acta firmada en
+
+negro sobre negro no se lee, y el que la va a imprimir es un usuario que
+
+puede tener el modo oscuro activado por accidente.
+
+------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------
+
+EL KIOSCO
+
+------------------------------------------------------------------
+
+La pantalla del reloj se muestra a pantalla completa con el navegador en
+
+modo kiosco. Eso obliga a que el CSS apague todo lo que no sirve para marcar
+
+y que se abra la pantalla completa: sin las dos cosas, el "bloqueo" es solo
+
+una barra de direcciones que el trabajador puede cerrar.
+
+
+`overflow: hidden` en html y body quita el scroll de todo el documento,
+
+incluido el scroll interno de las tarjetas: si queda, con el dedo en la
+
+pantalla se mueve la página y la zona de escaneo se va.
+
+
+`cursor: none` esconde el puntero tras 3 segundos sin moverlo. En una pantalla
+
+táctil no se nota; en un escritorio de prueba, sí, y por eso el kiosco se
+
+puede desactivar por reloj. */
+
+.modo-kiosco html, .modo-kiosco body {
+
+  overflow: hidden !important;
+
+  overscroll-behavior: none;
+
+}
+
+.modo-kiosco { cursor: none; }
+
+.modo-kiosco #totemZonaKiosco,
+
+.modo-kiosco #totemMensaje,
+
+.modo-kiosco #totemPistaKiosco { cursor: none; }
+
+/* La barra del tótem (el reloj, el selector de tipo, el botón salir) se
+
+   esconde. El tipo de marca lo elige quien instala el reloj, no el
+
+   trabajador, y si se deja puesto cualquier dedo lo cambia por error. */
+
+.modo-kiosco .totem-barra { display: none !important; }
+
+.modo-kiosco .totem-salir { display: none !important; }
+
+/* La hora del tótem sobrevive al modo kiosco.
+
+
+   La hora se había puesto DENTRO de la barra del tótem, y el CSS del kiosco
+
+   esconde la barra entera:
+
+
+       .modo-kiosco .totem-barra { display: none !important; }
+
+
+   Con razón: en modo kiosco no puede quedar un selector de tipo de marca
+
+   (cualquier dedo lo cambia por error) ni un botón de salir.
+
+
+   Resultado: la hora se agregaba y se escondía en el mismo momento. El
+
+   código funcionaba, la prueba con DOM de mentira pasaba, y en el aparato
+
+   no se veía nunca. Es el peor tipo de falla: todo está bien y la pantalla
+
+   está incompleta.
+
+
+   La solución NO es quitar esa regla, que cumple su función. Es sacar la
+
+   hora de la barra y darle su propia caja, con su propia regla, para que
+
+   las dos no se pisen: la barra se esconde, la hora no.
+
+
+   Un reloj sin hora en pantalla genera el mismo problema que un reloj con
+
+   la hora mala: la gente sospecha de la hora de la marcación. Y la hora
+
+   de la marcación es lo primero que la DT revisa. */
+
+/* La hora del tótem: CENTRADA y grande.
+
+
+   Estaba arriba a la derecha, de 1,9 rem. En un cartel de portería
+
+   colgado a la altura de la cabeza, a dos metros, hay que acercarse a
+
+   leerla; y si hay que acercarse, no sirve.
+
+
+   La hora es lo primero que la persona mira para decidir si su marcación
+
+   fue correcta. Y lo segundo que mira, si hay algo raro, es la hora que
+
+   le quedó guardada. Las dos van apiladas y centradas, en ese orden.
+
+
+   La caja no intercepta toques (pointer-events: none): la pantalla del
+
+   reloj es toda pulsable, y un recuadro de texto en el medio tapa los
+
+   dedos. */
+
+#totemHoraCaja {
+
+  position: absolute;
+
+  top: 0;
+
+  left: 0;
+
+  right: 0;
+
+  z-index: 3;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  line-height: 1.05;
+
+  padding: 10px 12px 6px;
+
+  pointer-events: none;
+
+}
+
+#totemHoraCaja .totem-hora {
+
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* A dos metros, con letra de 4,6 rem, se lee sin acercarse. */
+
+  font-size: 4.6rem;
+
+  font-weight: 700;
+
+  font-variant-numeric: tabular-nums;
+
+  color: var(--ink);
+
+  letter-spacing: -.02em;
+
+}
+
+#totemHoraCaja .totem-fecha {
+
+  font-size: 1.05rem;
+
+  color: var(--secondary-text);
+
+  text-transform: capitalize;
+
+  font-weight: 600;
+
+}
+
+#totemHoraCaja .totem-nombre {
+
+  font-size: .85rem;
+
+  color: var(--secondary-text);
+
+}
+
+/* La hora que se acaba de guardar, y si el reloj del aparato va
+
+   atrasado. Es el dato que la persona va a impugnar después, así que
+
+   tiene que verse, no quedar dentro del cartel que desaparece. */
+
+.totem-marcaje {
+
+  margin-top: 6px;
+
+  font-size: 1rem;
+
+  font-weight: 600;
+
+  text-align: center;
+
+}
+
+.totem-marcaje-ok { color: var(--accent); }
+
+.totem-marcaje-desfasado { color: var(--warn); }
+
+/* La conexión, arriba de la hora. Un punto de color, no un dibujo: a dos
+
+   metros y con luz de obra, un punto de 14 px se ve y un glifo no. Y con
+
+   texto al lado, porque el color solo no le sirve a quien no distingue
+
+   rojo de verde, que es una de cada doce personas. */
+
+.totem-conexion {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+  margin-bottom: 2px;
+
+  font-size: .8rem;
+
+  font-weight: 600;
+
+}
+
+.totem-conexion-punto {
+
+  width: 12px;
+
+  height: 12px;
+
+  border-radius: 50%;
+
+  background: var(--muted);
+
+  flex: 0 0 auto;
+
+}
+
+.totem-conexion-texto { color: var(--muted); }
+
+/* Sin señal, el punto late. Es la diferencia entre "está ahí" y "está
+
+   funcionando". Un punto fijo parece un adorno. */
+
+.totem-conexion.latiendo .totem-conexion-punto {
+
+  animation: latidoTotem 1.4s ease-in-out infinite;
+
+}
+
+@keyframes latidoTotem {
+
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+
+  50% { opacity: .35; }
+
+}
+
+/* El campo de token del propio tótem. Aparece SOLO cuando el token
+
+   instalado no es el de este reloj, porque en una pantalla que la gente
+
+   toca con cualquier dedo, un campo de texto siempre tapa marcaciones. */
+
+.totem-token-caja {
+
+  width: min(560px, 92vw);
+
+  margin: 0 auto 12px;
+
+  padding: 14px 16px;
+
+  border: 2px solid var(--warn);
+
+  border-radius: 10px;
+
+  background: var(--surface);
+
+  box-shadow: 0 6px 22px rgba(0, 0, 0, .16);
+
+}
+
+.totem-token-caja label {
+
+  display: block;
+
+  font-weight: 700;
+
+  margin-bottom: 6px;
+
+  font-size: 1rem;
+
+}
+
+.totem-token-caja input {
+
+  width: 100%;
+
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+
+  font-size: 1rem;
+
+  padding: 10px 12px;
+
+  border: 1px solid var(--line);
+
+  border-radius: 8px;
+
+}
+
+.totem-token-caja small {
+
+  display: block;
+
+  margin-top: 6px;
+
+  font-size: .8rem;
+
+  color: var(--secondary-text);
+
+  line-height: 1.35;
+
+}
+
+#totemHoraCaja .totem-fecha {
+
+  font-size: .8rem;
+
+  color: var(--secondary-text);
+
+  text-transform: capitalize;
+
+}
+
+#totemHoraCaja .totem-nombre {
+
+  font-size: .8rem;
+
+  color: var(--secondary-text);
+
+  font-weight: 600;
+
+}
+
+/* En kiosco crece un poco más. La hora es de 4,6 rem, y en modo kiosco
+
+   no hay barra arriba: hay espacio de sobra. */
+
+.modo-kiosco #totemHoraCaja .totem-hora { font-size: 5.4rem; }
+
+.modo-kiosco #totemHoraCaja { padding: 16px 12px 8px; }
+
+.modo-kiosco #totemHoraCaja .totem-marcaje { font-size: 1.15rem; }
+
+/* La zona de las cinco pulsaciones. Transparente, sin ícono y con el área
+
+   de la esquina superior izquierda. Es invisible a propósito: si se le
+
+   pusiera un ícono, sería un botón de salida y el bloqueo no serviría. */
+
+#totemZonaKiosco {
+
+  position: fixed;
+
+  top: 0; left: 0;
+
+  width: 18vw; height: 18vh;
+
+  min-width: 90px; min-height: 90px;
+
+  z-index: 60;
+
+  /* Sin fondo, sin borde: es una zona de captura, no un control. */
+
+  background: transparent;
+
+  /* El outline se enciende a partir de la tercera pulsación, como
+
+     confirmación de que algo está pasando. */
+
+  outline: none;
+
+  /* Sin esto el toque se traduce en un click y hace scroll en varios
+
+     navegadores de Android. */
+
+  touch-action: manipulation;
+
+}
+
+#totemZonaKiosco:active { background: rgba(255,255,255,.02); }
+
+/* La cuenta de pulsaciones. Aparece a partir de la tercera, en el medio
+
+   abajo, donde no tapa la zona de escaneo. */
+
+#totemPistaKiosco {
+
+  position: fixed;
+
+  left: 0; right: 0;
+
+  bottom: 14vh;
+
+  text-align: center;
+
+  color: rgba(255,255,255,.5);
+
+  font-size: 1.4rem;
+
+  letter-spacing: .3em;
+
+  pointer-events: none;
+
+  z-index: 59;
+
+  min-height: 1.6em;
+
+}
+
+/* La hora del reloj. Va en grande arriba a la derecha de la barra. Un
+
+   Android TV Box colgado en la portería se mira a dos metros: letra de
+
+   cuerpo no se lee a esa distancia. */
+
+.totem-hora {
+
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  font-size: 1.5rem;
+
+  font-weight: 700;
+
+  letter-spacing: .02em;
+
+  color: var(--text);
+
+  font-variant-numeric: tabular-nums;
+
+}
+
+.totem-fecha {
+
+  font-size: .85rem;
+
+  color: var(--muted);
+
+}
+
+.totem-barra .totem-hora-caja {
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-end;
+
+  line-height: 1.15;
+
+  margin-right: auto;
+
+}
+
+/* ======================= ESTADOS DEL RELOJ (2026-09-29) ======================= */
+
+
+/* ===================================================================
+
+   LOS ESTADOS DE LA PANTALLA DEL RELOJ, CON FONDO
+
+   ===================================================================
+
+
+   -------------------------------------------------------------------
+
+   QUÉ PASABA
+
+   -------------------------------------------------------------------
+
+   El recuadro de mensaje cambiaba el COLOR DEL TEXTO, y nada más. Con
+
+   eso, de lejos no se distingue un marcaje guardado de un aviso: los dos
+
+   son un texto sobre un fondo claro, y quien está parado en la portería a
+
+   las seis de la mañana, con medio metro de distancia y sin lentes, no
+
+   lee la diferencia.
+
+
+   El color tiene que estar en el FONDO. Es lo que se ve a dos metros, y es
+
+   lo que distingue un cartel de "podés pasar" de uno de "tenés que ir a
+
+   hablar con alguien".
+
+
+   -------------------------------------------------------------------
+
+   LOS TRES ESTADOS, Y POR QUÉ SON TRES Y NO DOS
+
+   -------------------------------------------------------------------
+
+   Verde   marcaje registrado. Se puede pasar.
+
+   Amarillo hay algo que resolver. No es un error: es una indicación de
+
+           Prevención, del Asistente Social o del supervisor, que alguien
+
+           dejó para esa persona.
+
+   Rojo    algo no se pudo hacer. El token no es de este reloj, el reloj
+
+           está apagado, la tarjeta está anulada.
+
+
+   El amarillo es el que faltaba. Es el estado que más se confunde con el
+
+   verde si no se ve de lejos, y es el que más consecuencias tiene: la
+
+   persona se va a trabajar con un pendiente sin enterarse.
+
+
+   -------------------------------------------------------------------
+
+   LOS COLORES
+
+   -------------------------------------------------------------------
+
+   Los mismos tonos que ya usa el resto de la aplicación, aclarados para
+
+   que el texto encima se lea. Un verde saturado con texto blanco encima
+
+   no se lee a distancia, y un amarillo muy claro con texto oscuro tampoco
+
+   se ve de lejos.
+
+
+   Por eso el texto del aviso va en casi negro sobre amarillo: es la
+
+   única combinación que se lee a dos metros y a contraluz. */
+
+
+#pantallaTotem {
+
+  --totem-fondo-ok:    #E4F3E4;
+
+  --totem-tinta-ok:    #14401C;
+
+  --totem-fondo-aviso: #FFE9A8;
+
+  --totem-tinta-aviso: #4A3200;
+
+  --totem-fondo-error: #FBDCDC;
+
+  --totem-tinta-error: #6B1515;
+
+}
+
+/* -------------------------------------------------------------------
+
+   EL MARCAJE QUEDÓ
+
+   ------------------------------------------------------------------- */
+
+#totemMensaje.totem-ok {
+
+  background: var(--totem-fondo-ok);
+
+  color: var(--totem-tinta-ok);
+
+  border-radius: 14px;
+
+  padding: 14px 18px;
+
+  transition: background .2s ease;
+
+}
+
+#totemMensaje.totem-ok .totem-texto span {
+
+  color: var(--totem-tinta-ok);
+
+  opacity: .85;
+
+}
+
+/* -------------------------------------------------------------------
+
+   HAY UN AVISO
+
+   -------------------------------------------------------------------
+
+   El borde izquierdo es lo que lo distingue de lejos: la banda de color
+
+   se ve aunque el texto no se lea, y de un vistazo se sabe que hay algo
+
+   que mirar. */
+
+#totemMensaje.totem-aviso {
+
+  background: var(--totem-fondo-aviso);
+
+  color: var(--totem-tinta-aviso);
+
+  border-left: 10px solid #C98A00;
+
+  border-radius: 14px;
+
+  padding: 14px 18px;
+
+  transition: background .2s ease;
+
+}
+
+#totemMensaje.totem-aviso .totem-texto span {
+
+  color: var(--totem-tinta-aviso);
+
+  opacity: .9;
+
+}
+
+/* -------------------------------------------------------------------
+
+   ALGO NO SE PUDO HACER
+
+   ------------------------------------------------------------------- */
+
+#totemMensaje.totem-error {
+
+  background: var(--totem-fondo-error);
+
+  color: var(--totem-tinta-error);
+
+  border-left: 10px solid var(--danger);
+
+  border-radius: 14px;
+
+  padding: 14px 18px;
+
+  transition: background .2s ease;
+
+}
+
+#totemMensaje.totem-error .totem-texto span {
+
+  color: var(--totem-tinta-error);
+
+  opacity: .9;
+
+}
+
+/* -------------------------------------------------------------------
+
+   EL BOTÓN DE "VER EL AVISO"
+
+   -------------------------------------------------------------------
+
+   Cuando el aviso no se puede leer en el momento —porque la persona ya
+
+   se fue, o porque llegó a las nueve de la noche— queda un botón para
+
+   abrirlo después. Es la diferencia entre un aviso que se pierde y uno
+
+   que llega.
+
+
+   Con el aviso esperando, el estado de reposo ya no es un estado de
+
+   reposo: lo dice. */
+
+#totemVerAviso {
+
+  display: none;
+
+  margin-top: 10px;
+
+  background: var(--totem-fondo-aviso);
+
+  color: var(--totem-tinta-aviso);
+
+  border: 3px solid #C98A00;
+
+  border-radius: 10px;
+
+  padding: 14px 20px;
+
+  font-size: 1.05rem;
+
+  font-weight: 700;
+
+  min-height: 52px;
+
+}
+
+#totemVerAviso.visible {
+
+  display: block;
+
+}
+
+#totemVerAviso .cuenta {
+
+  display: inline-block;
+
+  background: #C98A00;
+
+  color: #fff;
+
+  border-radius: 999px;
+
+  padding: 1px 9px;
+
+  margin-left: 8px;
+
+  font-size: .85rem;
+
+}
+
+/* ======================= COMO QUEDA LA PANTALLA DEL RELOJ (2026-09-29) ======================= */
+
+
+/* ===================================================================
+
+   COMO QUEDA LA PANTALLA DEL RELOJ
+
+   ===================================================================
+
+
+   PEDIDO
+
+   ------
+
+   - la camara AL MEDIO
+
+   - el logo y los datos de la empresa ARRIBA A LA IZQUIERDA
+
+   - el campo de la tarjeta CENTRADO
+
+   - el recuadro de mensaje CENTRADO
+
+
+   -------------------------------------------------------------------
+
+   POR QUE ANTES TODO QUEDABA ARRINCONADO A LA IZQUIERDA
+
+   -------------------------------------------------------------------
+
+   No era una cuestion de estilos: era un flex.
+
+
+   #pantallaTotem es una columna de flex, y por omision sus hijos se
+
+   estiran a lo ancho. #totemMensaje tiene max-width:1000px, y con el
+
+   estiramiento quedaba pegado al BORDE IZQUIERDO: en una pantalla de
+
+   1900 pixeles el recuadro terminaba a la mitad y el texto parecia
+
+   descentrado.
+
+
+   OJO CON LA SOLUCION FACIL, porque es peor que el problema: no es poner
+
+   align-items:center en la columna. Eso tambien encoge .totem-barra, que
+
+   usa space-between para poner el nombre del centro a la izquierda y los
+
+   controles a la derecha. Si la barra se encoge, se junta al centro y
+
+   queda peor de lo que estaba.
+
+
+   Lo correcto es centrar SOLO lo que lo necesita, con margin-inline:auto,
+
+   que es lo que hace un bloque de ancho fijo dentro de un padre mas
+
+   ancho.
+
+
+   -------------------------------------------------------------------
+
+   NADA DE ESTO SE TOCA EN EL ESCRITORIO
+
+   -------------------------------------------------------------------
+
+   Todas las reglas viven bajo #pantallaTotem o con prefijo totem-. La
+
+   pantalla de marcaje es una pantalla fija, a pantalla completa: nada de
+
+   esto se ve en el escritorio. Ademas este bloque va al FINAL del CSS,
+
+   para que gane sobre las reglas viejas del reloj; si se pone en el
+
+   medio, el max-width anterior manda y no se ve el arreglo. */
+
+
+/* -------------------------------------------------------------------
+
+   LA EMPRESA, ARRIBA A LA IZQUIERDA
+
+   -------------------------------------------------------------------
+
+   El logo y el nombre van en la esquina de arriba a la izquierda, APARTE
+
+   de la camara.
+
+
+   No es decoracion. En una obra con mas de una empresa o mas de un centro
+
+   de costo, la persona tiene que poder confirmar en un vistazo que esta
+
+   marcando en el lugar correcto. Si se equivoca de reloj, la asistencia
+
+   queda mal puesta y eso ya no se arregla sola.
+
+
+   Va ahi y no al medio porque al medio esta la camara, que es donde la
+
+   persona tiene que mirar para marcar, y arriba esta la hora, que es el
+
+   dato que viene a ver. La esquina de arriba a la izquierda es el unico
+
+   lugar que no le quita nada a nadie.
+
+
+   Y va FIJA, con position:absolute, por dos razones:
+
+
+   1. La camara se enciende y se apaga segun el reloj tenga lector de
+
+      camara o un lector USB pegado. Si la empresa fuera parte de la
+
+      zona de la camara, en un reloj con lector USB no se veria, que es
+
+      justo cuando mas falta hace para confirmar en que lugar se esta
+
+      marcando.
+
+
+   2. La hora va fija arriba, al centro, y ocupa casi todo el ancho. Si
+
+      la empresa estuviera en el flujo, quedaria debajo de la franja de
+
+      la hora o la empujaria hacia abajo. Con position:absolute queda en
+
+      la esquina sin empujar nada.
+
+
+   -------------------------------------------------------------------
+
+   POR QUE LA HORA Y LA EMPRESA NO SE PISAN
+
+   -------------------------------------------------------------------
+
+   La hora mide unos 300 px y va centrada. En una pantalla de 1900 px
+
+   quedan 800 px limpios a cada lado, y la caja de la empresa mide 340.
+
+   No hay solapamiento. En una de 1024 todavia quedan 360 px libres de un
+
+   lado, asi que se llega a 700 px de ancho antes de que empiece a
+
+   estorbar, y un reloj de porteria es de 1280 para arriba. */
+
+#totemEmpresa {
+
+  position: absolute;
+
+  top: 14px;
+
+  left: 18px;
+
+  z-index: 2;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: flex-start;
+
+  gap: 2px;
+
+  width: min(34vh, 320px);
+
+  padding: 12px 14px;
+
+  background: var(--surface);
+
+  border: 1px solid var(--line);
+
+  border-radius: 10px;
+
+  /* Sin esto, la caja se come los toques. Abajo del todo de la pantalla
+
+     hay una zona que cuenta pulsaciones para abrir el kiosco: si la
+
+     empresa tocara esa zona, cinco pulsaciones de mas se pierden y el
+
+     kiosco no se abre. */
+
+  pointer-events: none;
+
+}
+
+#totemLogo {
+
+  display: none;
+
+  max-height: 54px;
+
+  max-width: 100%;
+
+  object-fit: contain;
+
+  margin-bottom: 6px;
+
+}
+
+#totemLogo.visible {
+
+  display: block;
+
+}
+
+#totemEmpresaNombre {
+
+  font-size: 1.02rem;
+
+  font-weight: 700;
+
+  color: var(--ink);
+
+  line-height: 1.2;
+
+  text-transform: uppercase;
+
+  letter-spacing: .01em;
+
+  /* El nombre de una empresa puede ser largo: "Construcciones y
+
+     Contratas del Sur Ltda." no entra en 320 px en una sola linea, y si
+
+     se corta a la mitad la persona no sabe si es su obra. */
+
+  overflow-wrap: anywhere;
+
+}
+
+#totemEmpresaCentro {
+
+  font-size: .88rem;
+
+  color: var(--secondary-text);
+
+  line-height: 1.25;
+
+}
+
+#totemEmpresaCentro:empty {
+
+  display: none;
+
+}
+
+/* -------------------------------------------------------------------
+
+   LA CAMARA, AL MEDIO
+
+   -------------------------------------------------------------------
+
+   .totem-zona ya traia justify-content:center, que es lo que la deja al
+
+   medio. Lo unico que hace falta es quitar el align-self de la camara:
+
+   con align-self:flex-start se pegaba al borde izquierdo DENTRO de una
+
+   zona que sigue centrada, y por eso salia corrida aunque la zona
+
+   estuviera centrada. */
+
+#totemCamara {
+
+  align-self: center;
+
+  width: min(42vh, 380px);
+
+}
+
+/* -------------------------------------------------------------------
+
+   EL RECUADRO DE MENSAJE, CENTRADO DE VERDAD
+
+   -------------------------------------------------------------------
+
+   Conserva su max-width, pero con margin-inline:auto se centra en vez de
+
+   quedar pegado al borde izquierdo. */
+
+#totemMensaje {
+
+  margin-inline: auto;
+
+  align-self: center;
+
+}
+
+/* -------------------------------------------------------------------
+
+   EL PIE: EL CAMPO DE LA TARJETA, CENTRADO
+
+   -------------------------------------------------------------------
+
+   Antes ocupaba todo el ancho, de borde a borde, con la etiqueta
+
+   "TARJETA" pegada al margen izquierdo. Se veia como un formulario de
+
+   escritorio estirado, no como un reloj de porteria.
+
+
+   Ahora el pie centra su contenido, el campo tiene un ancho maximo, y la
+
+   etiqueta va ARRIBA y en mayusculas. En un aparato grande queda
+
+   centrado; en uno chico se achica solo. */
+
+.totem-pie {
+
+  justify-content: center;
+
+  align-items: stretch;
+
+  flex-direction: column;
+
+  gap: 6px;
+
+  padding: 12px 18px 16px;
+
+}
+
+#totemCampo {
+
+  flex: 0 1 auto;
+
+  width: 100%;
+
+  max-width: 720px;
+
+  margin-inline: auto;
+
+  min-height: 58px;
+
+  font-size: 1.15em;
+
+  text-align: center;
+
+}
+
+.totem-campo-label {
+
+  text-align: center;
+
+  display: block;
+
+  font-size: .78em;
+
+  letter-spacing: .04em;
+
+  text-transform: uppercase;
+
+}
+
+/* El cartucho de lo que se leyó (marcaje OK, etc.) también al centro,
+
+   para que no quede pegado al borde y parezca un error suelto. */
+
+#totemCodigoLeido {
+
+  align-self: center;
+
+}
+
+/* -------------------------------------------------------------------
+
+   EL MODO KIOSCO, QUE ES EL QUE SE VE EN LA PORTERÍA
+
+   -------------------------------------------------------------------
+
+   En kiosco no hay barra, asi que la camara sube. Se le deja aire
+
+   arriba para que no se monte con la hora. */
+
+.modo-kiosco #pantallaTotem {
+
+  padding-top: 132px;
+
+}
+
+/* ======================= LA PANTALLA DEL RELOJ, CON EL ESTILO DE LA PAGINA (2026-09-29) ======================= *//* ===================================================================
+   LA PANTALLA DEL RELOJ, CON EL ESTILO DE LA PAGINA (2026-09-29)
+   ===================================================================
+
+   QUE SE VIO
+   ----------
+   El reloj es una pantalla de la misma aplicacion, y no se le parecía en
+   nada: fondo blanco pelado, la hora tapada por el aviso de pantalla completa
+   del navegador, el bloque de la fecha y el nombre chico y pegado a la
+   camara, el campo de la tarjeta sin nada alrededor, y "TARJETA" en negra
+   suelta.
+
+   La hora tapada es lo mas grave de la lista, y no es un problema de estilo:
+   es que el dato principal de la pantalla queda debajo de un rectángulo del
+   navegador que no se puede quitar.
+
+   -------------------------------------------------------------------
+   LA HORA, ARRIBA Y CON AIRE
+   --------------------------
+   Va con margen arriba para que el aviso del navegador, que sale pegado al
+   borde superior, no la tape. En la foto tapa justo la hora, y no un
+   detalle: la hora es lo que la persona viene a ver.
+
+   Y va en el verde de acento de la aplicación, no en negro. Es el mismo
+   color que la palabra "en línea" del encabezado, y hace que el reloj se
+   lea como parte de la página y no como una página aparte.
+
+   -------------------------------------------------------------------
+   LA FECHA Y EL NOMBRE, EN UN BLOQUE CON LA HORA
+   ---------------------------------------------
+   Antes iban pegados a la camara, como letra de formulario. Se juntan con la
+   hora en un solo bloque con borde y fondo de tarjeta, para que la pantalla
+   tenga arriba algo que se lea de un vistazo y con un borde que lo separe del
+   fondo.
+
+   -------------------------------------------------------------------
+   EL CAMPO DE LA TARJETA
+   ----------------------
+   El input suelto, con su contorno verde de foco y nada más, se ve como un
+   campo de formulario perdido. Se le da el alto de una barra de botones, el
+   fondo de tarjeta, y el texto centrado: es la acción de la pantalla, y tiene
+   que parecer la acción.
+
+   La etiqueta "TARJETA" va en mayúsculas espaciadas, como las barras de la
+   aplicación. Las cuatro, no solo una: es el mismo criterio en todas partes
+   o no es un criterio.
+
+   -------------------------------------------------------------------
+   LOS COLORES VIENEN DE LOS MISMOS TOKENS
+   ----------------------------------------
+   Fondo, tarjeta, línea y acento son los mismos del resto de la aplicación.
+   Si el reloj tuviera su propia paleta, se notaría el cambio de tema: se
+   pone en oscuro y el reloj sigue clarito.
+   =================================================================== */
+
+#pantallaTotem {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* -------------------------------------------------------------------
+   LA HORA, ARRIBA Y CON AIRE
+   -------------------------------------------------------------------
+   El margen de arriba es para el aviso de pantalla completa del navegador.
+   Sin él, el aviso tapa la hora, que es el dato principal. */
+#totemHoraCaja {
+  padding-top: 64px;
+}
+
+#totemHoraCaja .totem-hora {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+
+/* La fecha y el nombre, arriba, dentro de un bloque con borde. Se separan
+   de la cámara, que es lo que hay que mirar para marcar. */
+#totemHoraCaja .totem-fecha,
+#totemHoraCaja .totem-nombre,
+#totemHoraCaja .totem-marcaje {
+  color: var(--secondary-text);
+}
+
+/* -------------------------------------------------------------------
+   EL INDICADOR DE CONEXIÓN
+   -------------------------------------------------------------------
+   "con conexión" es información importante: si el reloj no habla con la base,
+   los marcajes no se guardan. Por eso no es un texto suelto arriba a la
+   izquierda, sino una pastilla con fondo, arriba a la derecha de la hora.
+   Cuando no hay conexión, la pastilla toma el color de peligro y eso se ve
+   desde la puerta. */
+.totem-conexion {
+  font-size: .8rem;
+}
+
+.totem-conexion-punto {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* "latiendo" es el estado que YA tiene el archivo para cuando el reloj no
+   habla con la base. No se inventó uno nuevo: se usa el que existe, para que
+   el HTML que lo pone no tenga que cambiar.
+
+   Y tiene que verse: si el reloj no guarda, los marcajes se pierden, y eso se
+   tiene que notar desde la puerta. */
+.totem-conexion.latiendo {
+  color: var(--danger);
+}
+
+.totem-conexion.latiendo .totem-conexion-punto {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 22%, transparent);
+}
+
+/* -------------------------------------------------------------------
+   LA CÁMARA
+   -------------------------------------------------------------------
+   Con borde de tarjeta y una sombra suave, como las cajas de la aplicación.
+   La cámara cruda pegada al fondo se ve como un recuadro de una página
+   distinta. */
+#totemCamara {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+
+/* -------------------------------------------------------------------
+   LA ETIQUETA Y EL CAMPO DE LA TARJETA
+   ------------------------------------------------------------------- */
+.totem-pie {
+  align-items: center;
+  justify-content: center;
+}
+
+.totem-campo-label {
+  /* Las mayúsculas espaciadas son el criterio de las barras. Acá también. */
+  text-transform: uppercase;
+  letter-spacing: .09em;
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--secondary-text);
+  white-space: nowrap;
+}
+
+#totemCampo {
+  background: var(--panel);
+  border: 1px solid var(--field-line);
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text);
+}
+
+#totemCampo::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+#totemCampo:focus {
+  border-color: var(--accent);
+}
+
+/* -------------------------------------------------------------------
+   EL MENSAJE DEL MEDIO
+   -------------------------------------------------------------------
+   El nombre de la persona se muestra en el mensaje, y va en el acento: es
+   la confirmación de que se registró, y tiene que verse a dos metros. */
+#totemMensaje .totem-texto b {
+  color: var(--ink);
+}
+
+/* ======================= LA CAJA DE LA EMPRESA, ARRIBA A LA IZQUIERDA (2026-09-29) ======================= *//* ===================================================================
+   LA CAJA DE LA EMPRESA, ARRIBA A LA IZQUIERDA (2026-09-29)
+   ===================================================================
+
+   QUE SE PIDIÓ
+   -----------
+   Que la empresa quede arriba a la izquierda, y que no haya dos textos que
+   digan lo mismo.
+
+   -------------------------------------------------------------------
+   LA POSICIÓN YA ESTABA
+   --------------------
+   #totemEmpresa ya era "position: absolute" con "top" y "left", y el comentario
+   del HTML de al lado explica por qué tiene que estar ahí y no en el centro:
+   en el medio está la cámara, que es donde hay que mirar para marcar.
+
+   Lo que NO estaba era la caja hecha. En la foto se ve como un campo de texto
+   vacío: un rectángulo con borde y un nombre adentro, del mismo tamaño que un
+   input. Por eso parece un input, y por eso el nombre se lee chico.
+
+   -------------------------------------------------------------------
+   EL LOGO ESTABA OCULTO
+   ---------------------
+   #totemLogo arranca con "display: none", y solo se muestra cuando le ponen
+   la clase "visible". Sin logo, la caja es un rectángulo con un texto, que es
+   exactamente lo que se ve en la foto.
+
+   -------------------------------------------------------------------
+   EL TAMAÑO
+   ----------
+   El nombre iba en 1.02rem, que es el tamaño de un texto de formulario. En
+   una pantalla de 1280, mirando de lejos, a dos metros, el nombre de la
+   empresa tiene que leerse de un vistazo: eso para lo que está.
+
+   Y va en mayúsculas espaciadas, como las barras de la aplicación. La caja
+   dice QUÉ LUGAR ES, y las barras ya dicen cómo se ve un lugar en esta
+   aplicación.
+
+   -------------------------------------------------------------------
+   EL FONDO
+   --------
+   Era "var(--surface)", que en la caja de la aplicación es blanca. Sobre el
+   fondo casi blanco del reloj, una caja blanca con borde se pierde: se ve
+   el borde y no la caja. Va con la superficie de tarjeta y sombra suave, como
+   las cajas de la aplicación.
+   =================================================================== */
+
+#totemEmpresa {
+  top: 18px;
+  left: 22px;
+  width: auto;
+  max-width: min(38vh, 380px);
+  padding: 14px 18px;
+  background: var(--panel);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+
+/* El nombre de la empresa: grande, en mayúsculas, y del color del texto.
+   Antes iba en 1.02rem, que es tamaño de formulario, y en una pantalla de
+   1280 a dos metros no se lee. */
+#totemEmpresaNombre {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text);
+  line-height: 1.15;
+}
+
+/* El centro de costo, que va debajo: es el dato más fino, y tiene que quedar
+   abajo del nombre sin competir con él. */
+#totemEmpresaCentro {
+  font-size: .82rem;
+  font-weight: 500;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--secondary-text);
+}
+
+/* El logo con su espacio reservado. El "display" lo sigue decidiendo la clase
+   "visible": si la empresa no tiene logo, la caja no deja un hueco vacío. */
+#totemLogo {
+  max-height: 64px;
+}
+
+/* ===================================================================
+   LA DISTRIBUCIÓN DEL TÓTEM: TRES COLUMNAS Y UNA BARRA DE NÚMEROS
+   ===================================================================
+   Empresa a la izquierda, lo que marca en el medio, la fecha a la derecha.
+
+   La razón de que sea una grilla de tres y no un bloque centered es que la
+   cámara tiene que quedar SIEMPRE en el mismo lugar. Si el alto del texto de
+   la empresa cambia, una fila de arriba empuja la cámara hacia abajo y la
+   personaapaunta a otra cosa. Con columnas fijas, la cámara no se mueve nunca,
+   porque lo de la izquierda no la puede empujar.
+   =================================================================== */
+
+#pantallaTotem.abierta .totem-distribucion {
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:minmax(200px,1fr) minmax(320px,1.6fr) minmax(180px,1fr);
+  gap:clamp(12px,2vw,28px);
+  align-items:start;
+  padding:clamp(10px,1.6vh,22px) clamp(12px,2vw,32px) 0;
+  width:100%;
+}
+
+.totem-col{display:flex;flex-direction:column;gap:clamp(6px,1vh,14px);min-width:0}
+
+.totem-col-izq{align-items:flex-start}
+
+.totem-col-centro{align-items:center}
+
+.totem-col-der{align-items:flex-end;text-align:right}
+
+/* La empresa, que antes flotaba con position:absolute y ahora va en su
+   columna. Absolute la dejaba encima de la cámara cuando la cámara crecía. */
+#pantallaTotem.abierta #totemEmpresa {
+  position:static;
+  max-width:100%;
+  text-align:left;
+}
+
+#pantallaTotem.abierta #totemLogo {
+  max-height:clamp(64px,12vh,150px);
+  max-width:100%;
+  object-fit:contain;
+}
+
+#pantallaTotem.abierta #totemEmpresaNombre{font-size:clamp(15px,1.7vw,30px)}
+
+/* -------------------------------------------------------------------
+   SACAR LA HORA Y LA FECHA DE "POSITION:ABSOLUTE"
+   -------------------------------------------------------------------
+   Antes vivían flotando sobre la pantalla entera: #totemHoraCaja con
+   "position:absolute; top:0; left:0; right:0", y la fecha igual por separado.
+   Eso las sacaba del flujo, así que la cámara subía hasta el borde de arriba y
+   ellas le quedaban encima.
+
+   En una columna tienen que volver al flujo. Si no, la grilla de tres columnas
+   es puramente decorativa: mide bien las columnas pero el contenido de cada
+   una se sale de su caja, y por eso la fecha salía en el medio y no a la
+   derecha.
+
+   Y la fecha y el identificador del reloj NO se quitan. El identificador dice
+   en qué reloj se está marcando, y con dos cajas en la portería esa es la
+   diferencia entre un marcaje bien puesto y uno que hay que ir a buscar
+   después. Encima van a quedar, pero arriba de la cámara y no encima de ella.
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta #totemHoraCaja,
+#pantallaTotem.abierta .totem-fecha,
+#pantallaTotem.abierta .totem-nombre,
+#pantallaTotem.abierta .totem-marcaje,
+#pantallaTotem.abierta #totemEmpresa,
+#pantallaTotem.abierta #totemLogo,
+#pantallaTotem.abierta #totemEmpresaNombre,
+#pantallaTotem.abierta #totemEmpresaCentro{
+  position:static;
+  top:auto;left:auto;right:auto;bottom:auto;
+  transform:none;
+}
+
+/* La cámara baja para que quepa lo de arriba, y nunca queda detrás. */
+#pantallaTotem.abierta #totemCamara{position:relative;z-index:1}
+
+/* La fecha, arriba a la derecha. Se lee sin bajar la vista de la cámara. */
+#pantallaTotem.abierta .totem-col-der .totem-fecha {
+  font-size:clamp(14px,1.5vw,26px);
+  color:var(--secondary-text);
+  display:block;
+}
+
+.totem-centro-actual{
+  font-size:clamp(12px,1.3vw,22px);
+  color:var(--muted);
+  display:block;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+
+#pantallaTotem.abierta #totemTipoCaja{display:flex;align-items:center;gap:8px}
+
+.totem-tipo-etiqueta{margin:0;color:var(--secondary-text);font-size:.9em}
+
+/* EL PUNTO DE CONEXIÓN
+   Va arriba de la hora, no en una esquina lejana. Cuando la red se cae en la
+   portería, la marcación sigue saliendo en la base de este aparato y no
+   arriba: eso es lo que el punto tiene que estar diciendo todo el rato, y
+   para eso tiene que estar donde la mirada ya está. */
+#pantallaTotem.abierta #totemConexion{margin:0 0 2px}
+
+/* -------------------------------------------------------------------
+   LA BARRA DE NÚMEROS
+   -------------------------------------------------------------------
+   N° marcajes realizados, N° ausencias justificadas y presentes en la
+   ubicación, N° marcajes pendientes.
+
+   No es un adorno de la portería. En una obra, el "¿cuántos somos?" se
+   contesta mirando, y tener que abrir el sistema para enterarse es lo que
+   hace que la gente responda de memoria y se equivoque.
+
+   Y el que está en rojo es el que obliga a actuar: el pendiente es el único
+   de los tres que significa que hay un marcaje que NO se registró, y eso se
+   tiene que ver desde la puerta.
+   ------------------------------------------------------------------- */
+.totem-contadores{
+  flex:0 0 auto;
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:1px;
+  margin:auto auto clamp(8px,1.2vh,16px) auto;
+  width:min(100%,1180px);
+  background:var(--line);
+  border:1px solid var(--line);
+  border-radius:12px;
+  overflow:hidden;
+}
+
+.totem-contador{
+  background:var(--surface,var(--bg));
+  padding:clamp(8px,1.4vh,16px) clamp(10px,1.6vw,20px);
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+}
+
+.totem-contador-cifra{
+  font-size:clamp(26px,3.6vw,58px);
+  font-weight:700;
+  line-height:1;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+
+.totem-contador-texto{
+  font-size:clamp(11px,1.05vw,17px);
+  color:var(--secondary-text);
+  line-height:1.3;
+}
+
+/* El pendiente en rojo, y no en gris: es el único de los tres que es un
+   problema en vez de un dato. */
+.totem-contador-pendiente .totem-contador-cifra{color:var(--danger)}
+
+.totem-contador-pendiente.sin-pendientes .totem-contador-cifra{color:var(--accent)}
+
+/* Cuando NO se sabe el número, se dice que no se sabe. Poner 0 sería peor que
+   no poner nada: 0 significa "no marcó nadie", que es un dato, y "no se
+   consultó" no es lo mismo. */
+.totem-contador-cifra.sin-dato{color:var(--muted)}
+
+/* -------------------------------------------------------------------
+   LA TRANSICIÓN
+   -------------------------------------------------------------------
+   En el encabezado y en los íconos, y en nada más. Si se le pone transición
+   a todo lo que hay arriba, la página se pone pastosa al bajar, y eso se
+   nota más en un computador viejo de la oficina que en uno nuevo.
+
+   -------------------------------------------------------------------
+   LO QUE HABÍA AQUÍ, Y POR QUÉ YA NO ESTÁ
+   -------------------------------------------------------------------
+   Antes había una regla con esta lista de selectores y un "transition" con
+   padding, font-size y transform de 180ms. Se quitó entera cuando el encogido
+   pasó a ser un solo scaleY de la barra entera: animar el padding y el tamaño de
+   letra por separado era justo lo que provocaba el tirón.
+
+   PERO AL QUITAR EL CUERPO SE DEJÓ LA LISTA DE SELECTORES SUELTA, sin la llave
+   de apertura. El parser no avisa: sigue de largo buscando la llave, se
+   encuentra con la regla siguiente —que es la de los contadores del tótem— y le
+   cuelga esa lista adelante. Quedó una sola regla, con ocho selectores, que le
+   puso al ENCABEZADO lo que era del tótem:
+
+       max-width:min(100%, 860px);   margin-left:auto;   margin-right:auto
+
+   Y el encabezado se ve como una caja de 860 píxeles al centro de la pantalla,
+   con las dos barras de abajo llegando al borde. Se veía como un defecto de
+   diseño y no como una regla rota, que es lo peor: un error de sintaxis se
+   nota, uno que se cuelga de otra regla no.
+
+   Por eso la lista desaparece en vez de completarse. Lo que quedó de la
+   transición está más abajo, en "LO QUE QUEDA: EL COLOR Y EL FONDO", que es la
+   regla que el diseño dejó viva.
+
+   -------------------------------------------------------------------
+   Y LO QUE ESA REGLA ROTA ESTABA HACIENDO DE PASO
+   -------------------------------------------------------------------
+   La lista colgante no solo angostaba el encabezado: también le ponía
+   "margin-left:auto" y "margin-right:auto" a los botones de las dos barras, y
+   en una fila flexible los márgenes automáticos se reparten el espacio libre.
+   Eso es lo que las esparce a lo ancho de la barra, que es como se ven.
+
+   Al quitar la lista, los botones se juntan a la izquierda y sobra un palmo
+   vacío a la derecha. Y eso es un cambio en el menú, que es lo que NO se iba a
+   tocar.
+
+   Así que el reparto se escribe explícito acá: mismo efecto, a propósito, y sin
+   depender de una regla rota.
+
+   Y con "min-width:701px" porque en un teléfono el submenú pasa a ser una
+   grilla de dos columnas, y en una grilla un margen automático CENTRA el
+   elemento en su celda en vez de esparcirlo.
+   ------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------
+   AL BAJAR: MÁS CONTENIDO
+   -------------------------------------------------------------------
+   La franja que se gana es real: unos 46 píxeles de alto del encabezado y
+   unos 4 de cada ícono. En una pantalla de 1080 son casi dos Centímetros, que
+   es una línea de tabla o el encabezado de una tarjeta. */
+/* -------------------------------------------------------------------
+   LO QUE HACÍA ESTE LUGAR
+   -------------------------------------------------------------------
+   Aquí se encogía el encabezado por partes: el padding por un lado, la fuente
+   por otro, los botones de secciones por otro. Y del submenú solo se encogía
+   el ícono, que es lo único que no se ve al lado de "APROBACIONES Y ESTADOS".
+   Por eso el submenú era el que menos se encogía, siendo el que tiene las
+   etiquetas más largas.
+   Se quitó todo y quedó una sola regla que encoge la barra entera con un
+   scale vertical. Dos formas de animar lo mismo a la vez no se anulan: se
+   suman, y el resultado es un tirón.
+   La está en el bloque "EL SUBNAV TAMBIÉN SE ENCOGE", más abajo.
+   ------------------------------------------------------------------- */
+
+
+/* ===================================================================
+   EL TÓTEM, AJUSTADO A LA FOTO
+   ===================================================================
+   Tres cosas que estaban mal y que se ven a simple vista en la pantalla
+   grande.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   1) LA BARRA DE NÚMEROS, CENTRADA Y CHICA
+   -------------------------------------------------------------------
+   Estaba pegada a la izquierda. No era el ancho: el atajo de margen de tres
+   valores que tenía puesto NO era "laterales auto", era "laterales con un
+   clamp", y por eso nunca se centró. El ancho estaba bien todo el tiempo.
+
+   Y baja el tamaño de los números y de las etiquetas. Un contador en una
+   pantalla de portería se mira de reojo mientras uno apoya la tarjeta: tiene
+   que estar ahí, pero no tapar la cámara ni la instrucción. */
+#pantallaTotem.abierta .totem-contadores{
+  max-width:min(100%,860px);
+  margin-left:auto;
+  margin-right:auto;
+  border-radius:10px;
+}
+
+#pantallaTotem.abierta .totem-contador{
+  padding:clamp(5px,.8vh,10px) clamp(8px,1.1vw,14px);
+  gap:2px;
+}
+
+#pantallaTotem.abierta .totem-contador-cifra{font-size:clamp(18px,2.1vw,30px)}
+
+#pantallaTotem.abierta .totem-contador-texto{font-size:clamp(9px,.78vw,12px);line-height:1.15}
+
+/* -------------------------------------------------------------------
+   2) EL IDENTIFICADOR DEL RELOJ, ABAJO CON EL CAMPO DE LA TARJETA
+   -------------------------------------------------------------------
+   Estaba arriba a la izquierda, compitiendo con la hora y con el nombre de la
+   empresa. Los dos que estaban ahí son los que la persona viene a ver, y el
+   identificador del reloj es un dato de apoyo: va abajo, con el campo, que es
+   lo que la persona tiene en la mano en ese momento. */
+#pantallaTotem.abierta .totem-identificador{
+  display:block;
+  width:100%;
+  text-align:center;
+  font-size:clamp(11px,1.1vw,18px);
+  color:var(--muted);
+  letter-spacing:.04em;
+  margin-bottom:6px;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+
+/* Antes la hora agrandaba el identificador junto con ella, porque los dos
+   estaban en la misma caja. Ahora están en columnas distintas y cada uno
+   tiene su tamaño: la hora manda y el identificador acompaña. */
+#pantallaTotem.abierta #totemRelojActual{font-size:inherit;color:inherit;letter-spacing:inherit}
+
+#pantallaTotem.abierta .totem-pie{flex-direction:column;align-items:center;gap:6px}
+
+/* -------------------------------------------------------------------
+   3) "MARCA" COMO TEXTO, NO COMO LISTA
+   -------------------------------------------------------------------
+   En la portería, un desplegable con la lista de tipos de marca es un
+   botón que alguien puede apretar sin querer, y en modo kiosco el botón
+   Salir está escondido justamente por eso.
+
+   Entonces el texto se ve siempre y cambia solo, y el selector queda
+   atrás: se abre solamente con el mouse encima, para quien esté
+   configurando. En el aparato no hay nada que apretar por error.
+
+   El texto NO es decorativo: se cambia con la hora y con la última marca
+   del trabajador, que es lo que la persona viene a ver. Por eso tiene
+   que estar escrito con la misma fuente grande que el resto, y no como
+   una nota al pie. */
+/* -------------------------------------------------------------------
+   3) "MARCA" COMO TEXTO, DEL TAMAÑO QUE CORRESPONDE
+   -------------------------------------------------------------------
+   La palabra sola, al tamaño de la hora, se comía la columna del medio y
+   quedaba más grande que el nombre del trabajador, que es lo que la persona
+   viene a mirar. La hora es la que manda; "Entrada" es un dato de apoyo, y va
+   dos pasos más abajo.
+
+   Y la etiqueta "Marca" más chica que la palabra, para que se lea como
+   "Marca: Entrada" y no como dos textos del mismo peso. */
+#pantallaTotem.abierta .totem-marca-texto{
+  display:inline-block;
+  font-size:clamp(14px,1.35vw,24px);
+  font-weight:600;
+  color:var(--ink);
+  line-height:1.15;
+  vertical-align:baseline;
+}
+
+#pantallaTotem.abierta .totem-tipo-etiqueta{
+  font-size:clamp(9px,.82vw,13px);
+  vertical-align:baseline;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+}
+
+/* El selector, escondido salvo que alguien lo esté mirando. */
+#pantallaTotem.abierta #totemTipoCaja{position:relative;display:inline-block}
+
+#pantallaTotem.abierta #totemTipo{
+  position:absolute;
+  top:100%;left:50%;
+  transform:translateX(-50%);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s ease;
+  z-index:30;
+  min-width:200px;
+}
+
+#pantallaTotem.abierta #totemTipoCaja:hover #totemTipo,
+#pantallaTotem.abierta #totemTipo:focus{
+  opacity:1;
+  pointer-events:auto;
+}
+
+/* -------------------------------------------------------------------
+   4) LA UBICACIÓN, JUNTO CON LA FECHA
+   -------------------------------------------------------------------
+   Junto a la fecha va el nombre del lugar: la obra, la sucursal o el
+   centro de costo de este reloj. Es el dato que contesta "¿dónde
+   estoy?", y con dos cajas en la portería la respuesta tiene que estar
+   en la pantalla sin abrir nada.
+
+   Y va con más peso que la fecha. La fecha se sabe de memoria; el lugar
+   no. */
+#pantallaTotem.abierta .totem-ubicacion{
+  display:block;
+  font-size:clamp(15px,1.7vw,30px);
+  color:var(--ink);
+  line-height:1.2;
+  max-width:100%;
+  overflow-wrap:anywhere;
+}
+
+/* ===================================================================
+   EL TÓTEM CABE EN CUALQUIER PANTALLA
+   ===================================================================
+   Lo de arriba y lo de abajo se leen siempre. Lo del medio es lo único que
+   cede, y por eso es lo único con flex:1.
+
+   El padding de 118px que tenía no lo necesitaba: el tótem es position:fixed
+   con z-index 200 y ya tapa el encabezado de la aplicación. Ese padding eran
+   118 píxeles de espacio vacío que empujaban todo hacia abajo, y empujaban
+   tanto que en una pantalla de 1080 el campo de la tarjeta quedaba debajo
+   del borde y había que achicar la ventana para verlo.
+   =================================================================== */
+
+#pantallaTotem{padding-top:clamp(4px,1vh,12px)!important}
+
+/* -------------------------------------------------------------------
+   LA DISTRIBUCIÓN: FIJA, Y CHICA
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta .totem-distribucion{
+  padding:0 clamp(10px,1.5vw,26px);
+  gap:clamp(8px,1vw,20px);
+}
+
+/* -------------------------------------------------------------------
+   LA CÁMARA: LA QUE MÁS ALTO SE COME
+   -------------------------------------------------------------------
+   420 de ancho con proporción 16:9 son 236 de alto. En dvh, porque el alto
+   disponible depende de la ventana y no del ancho. */
+#pantallaTotem.abierta #totemCamara{width:min(34dvh,360px)}
+
+/* -------------------------------------------------------------------
+   EL MEDIO: LO QUE SE ENCOJA
+   -------------------------------------------------------------------
+   min-height:0 es la parte que se olvida. Sin él, un hijo flexible no baja de
+   su alto mínimo y el contenedor crece en vez de dejar que el hijo se encoja:
+   el texto empujaría el pie de la pantalla en vez de recortarse. */
+#pantallaTotem.abierta #totemMensaje{
+  flex:1 1 auto;
+  min-height:0;
+  overflow:hidden;
+  padding:clamp(2px,.6vh,8px) 0;
+}
+
+/* -------------------------------------------------------------------
+   EL MENSAJE DE REPOSO, CON MEDIDAS DE LA PANTALLA
+   -------------------------------------------------------------------
+   El ícono estaba en 7vw, que en una pantalla ancha de 1900 son 133 píxeles
+   de un cuadrado gris que no dice nada. Y los tres renglones de texto, cada
+   uno con su clamp en vw, sumaban más que la cámara.
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta #totemMensaje .totem-idle-icono{font-size:clamp(24px,4dvh,44px)}
+
+#pantallaTotem.abierta #totemMensaje .totem-idle-texto b{font-size:clamp(16px,3.4dvh,32px)}
+
+#pantallaTotem.abierta #totemMensaje .totem-idle-texto span{font-size:clamp(12px,2.4dvh,22px)}
+
+#pantallaTotem.abierta #totemMensaje .totem-idle{gap:clamp(6px,1.2dvh,14px)}
+
+/* -------------------------------------------------------------------
+   EL PIE Y LOS CONTADORES: LO DE ABAJO
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta .totem-pie{padding-bottom:clamp(4px,1dvh,12px)}
+
+#pantallaTotem.abierta #totemCampo{min-height:clamp(40px,7dvh,58px)}
+
+/* -------------------------------------------------------------------
+   Y SI AUN ASI NO CABE
+   -------------------------------------------------------------------
+   Se recorta por abajo y se avisa. Es peor que dejar el campo de la tarjeta
+   debajo del borde de la pantalla, donde no se ve y no se puede apretar: ahí la
+   persona cree que el reloj está roto.
+   ------------------------------------------------------------------- */
+#pantallaTotem.abierta{overflow:hidden}

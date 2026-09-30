@@ -42,10 +42,11 @@ MODULOS
   _vistas.css   Un bloque por grupo de menú, con lo que ese grupo puede cambiar por su
                 cuenta. Hoy los seis están vacíos, y lo correcto es que estén vacíos:
                 el ancho sale de "--ancho-maximo", que está en ":root".
-  componentes/  Un archivo por módulo que se usa en una sola pantalla. Hoy hay uno,
-                "porteria.css". Los componentes COMPARTIDOS —tarjeta, botón, campo,
-                tabla— se quedan en "styles.css", porque usarlos en dos pantallas es lo
-                más común: de las 29 reglas que tocan la portería, 28 son compartidas.
+  componentes/  Un archivo por módulo. El nombre dice a quién le afecta cambiarlo.
+                Hoy hay dos: "porteria.css" (una regla) y "totem.css" (154 reglas).
+                Los COMPARTIDOS —tarjeta, botón, campo, tabla— se quedan en "styles.css",
+                porque usarlos en varias pantallas es lo más común: de las 29 reglas que
+                tocan la portería, 28 son compartidas.
 
   Y en "js/componentes/", los módulos de JavaScript, con la misma regla: un archivo por
   módulo, y el nombre dice a quién le afecta cambiarlo. Hoy hay uno, "escaner.js", que
@@ -976,3 +977,117 @@ MODULOS
   - En el archivo: contra el commit anterior se fueron 36 funciones y no llegó ninguna.
     Si el trabajo se lleva dos de más, la lista muestra dos.
   - "node --check" sobre el archivo nuevo, y la suite entera en verde.
+
+
+------------------------------------------------------------------------------
+[totem-01]  La capa del tótem: barra, reloj, cámara, contadores y salida
+------------------------------------------------------------------------------
+
+  Archivo: css/componentes/totem.css
+
+  154 reglas, unas 1.968 líneas, que estaban en "css/styles.css". El primer módulo
+  de tamaño real: "porteria.css" tenía una regla y no probaba nada.
+
+  ------------------------------------------------------------------
+  POR QUÉ EL TÓTEM Y NO UNA PANTALLA
+  ------------------------------------------------------------------
+  Porque el tótem no es una pantalla del menú. Es una CAPA que se abre encima de todo,
+  en "#pantallaTotem": barra, reloj, cámara, contadores, campo y salida. Se abre desde
+  varias pantallas.
+
+  Y por eso no compite con ninguna vista: no pertenece a ninguna. Y son 154 reglas que
+  se pueden mover enteras.
+
+  ------------------------------------------------------------------
+  LA REGLA QUE NO SE MOVIÓ, Y POR QUÉ
+  ------------------------------------------------------------------
+  El filtro por nombre "totem" o "kiosco" encontraba 154 reglas. Una de ellas es esta:
+
+      #scanCode, #totemCampo, #totemTokenCampo, #tokenValor, #tokenInstalarCampo,
+      #workerSearch{ ... }
+
+  Menciona "#totemCampo", que es del tótem. Pero estiliza también cuatro campos que NO
+  son del tótem. En el navegador se contó: matchea 6 elementos de la página, y solo 2
+  están dentro de "#pantallaTotem".
+
+  Con un filtro por nombre, esa regla se iba con las otras 153 y cuatro campos de
+  formulario perdían el estilo.
+
+  Resultó que ni siquiera estaba en "styles.css": está en "css/movil.css", en la línea
+  518, dentro del "max-width:860px". Ese archivo no se toca. Y "totem.css" se enlaza
+  ANTES de "movil.css", así que las reglas de móvil siguen ganando en pantallas chicas.
+
+  ------------------------------------------------------------------
+  CÓMO SE SACARON, Y POR QUÉ POR POSICIONES Y NO POR RENGONES
+  ------------------------------------------------------------------
+  Por POSICIONES en el texto, no por números de renglón. Si se sacan por renglón hay que
+  contar bien cuántos ocupa cada regla, y si el conteo se corre en uno, el archivo pierde
+  la regla siguiente sin avisar.
+
+  Con posiciones: se corta el texto entre dos lugares, y todo lo demás queda tal cual.
+
+  Y el rango EMPIEZA después de los espacios. Porque la posición de arranque es justo
+  después de la llave de cierre de la regla anterior, y ahí hay un salto de línea. La
+  primera versión se lo llevaba, y quedó esto:
+
+      #subNav .nav-dropdown-nested{z-index:40}/* ============
+
+  El comentario, que estaba en el renglón siguiente, quedó en el mismo. Y una
+  comprobación que busca "selector terminado en coma con un comentario entre medio"
+  dijo rojo.
+
+  Ese rojo era un aviso LEGÍTIMO. No era un falso positivo: el archivo había quedado
+  peor, y se vio.
+
+  ------------------------------------------------------------------
+  EL ERROR DEL SELECTOR QUE SE COMÍA EL COMENTARIO
+  ------------------------------------------------------------------
+  Entre una regla y la siguiente hay comentarios, y el selector guardado empezaba con
+  el comentario de la regla anterior.
+
+  Entonces un bloque de comentario pasó por ser una regla, y la cuenta salió en 154 en
+  vez de 153. Y el error siguiente vino de ahí: una regla se comió el espacio en blanco
+  del comentario, y los rangos se pisaron.
+
+  Y lo grave: el TOTAL de reglas era el correcto, 622. El número estaba bien y el
+  contenido estaba mal. Esa es la peor combinación, porque un inventario con el total
+  correcto parece confiable.
+
+  ------------------------------------------------------------------
+  CÓMO SE COMPROBÓ
+  ------------------------------------------------------------------
+  - En el navegador, antes de tocar nada: se fotografiaron los 50 elementos de
+    "#pantallaTotem" con 40 propiedades calculadas cada uno, 35.820 caracteres.
+  - Después de mover: 12 valores numéricos cambiaron, y los 12 se explican por el
+    ancho del iframe, que tenía barra de desplazamiento en una de las dos mediciones.
+    Cero sin explicar, y solo "width", "grid-template-columns" y "margin": que es
+    exactamente lo que mueve un cambio de ancho de ventana, y no lo que mueve un
+    cambio de CSS.
+  - En el archivo: "styles.css" tenía 622 reglas, ahora tiene 468, y el tótem tiene
+    154. La suma da 622. No se perdió ni se inventó ninguna.
+  - Ninguna de las dos tiene la misma regla.
+  - "ver-colgantes" en verde, que fue el que cazó el salto de línea pegado.
+  - Suite completa en verde.
+
+  ------------------------------------------------------------------
+  LO QUE SE TUVO QUE ARREGLAR EN LAS COMPROBACIONES
+  ------------------------------------------------------------------
+  "test-totem2.js" buscaba las reglas del tótem en "styles.css", y dio 17 rojos. El rojo
+  era correcto: el guion miraba el lugar equivocado.
+
+  Ahora lee TODA la cascada, en el orden de los "<link>", y borra los comentarios del
+  HTML antes de buscarlos. Porque el enlace a "whatsapp.css" está dentro de un comentario
+  de HTML, a propósito, y una expresión regular lo cuenta igual: se leía un archivo que
+  el navegador nunca carga.
+
+  Y la regla general que queda: un guion que comprueba el CSS tiene que leer toda la
+  cascada, no un archivo. Porque el CSS ya no vive en un archivo, y uno que mire uno
+  solo va a fallar cada vez que se modularice algo.
+
+  Y en "saca-porteria.js" y "saca-escaner.js", la comparación contra el commit pasó a
+  ser INFORMATIVA. Porque solo sirve la primera vez: una vez commiteado, el diff da cero
+  y el guion pedía el número de reglas movidas, y se ponía rojo en el estado correcto.
+
+  Lo que hay que comprobar es el ESTADO: que la regla esté en su archivo, que no esté
+  en el grande, y que el balance de reglas del archivo grande cuadre. Y eso no depende
+  de contra qué commit se mire.
