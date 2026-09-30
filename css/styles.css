@@ -5201,9 +5201,31 @@ header{z-index:30}
    no en las filas: puestos en cada fila se ve un redondeo en los costados de la
    fila del medio, y tres sombras sumadas dan tres franjas grises entre medio.
 
-   Y el fondo del panel: el aire entre filas tiene que ser del color del bloque.
-   Con el fondo de la página en el medio se lee un corte, y se ven tres tarjetas
-   pegadas en vez de un encabezado. */
+   -------------------------------------------------------------------
+   LAS TRES FILAS CON EL COLOR DE LA SECCIÓN
+   -------------------------------------------
+
+   Esto se hizo mal la primera vez y quedó peor que lo que había antes.
+
+   Se le puso a las dos filas de menú el fondo del panel —blanco— para que se
+   leyeran como una pieza. El motivo era bueno. La elección del color no: el
+   TEXTO de los botones es "--cat", el tono claro de la sección, que en Portería es
+   un casi blanco. Casi blanco sobre blanco.
+
+   Los siete botones quedaron con letras de un gris clarísimo sobre un fondo
+   blanco, que es la definición de ilegible. Y no se notó en la medición: los
+   tamaños y las posiciones estaban bien, solo los colores, y un número de
+   píxeles no se da cuenta de un color que no se lee.
+
+   El color del bloque no es el del panel: es el de la sección. Las tres filas van
+   con "--fondo-seccion", y lo que las separa son filetes claros: blanco al 14%
+   sobre un fondo oscuro se ve como una línea fina, sin gastarse un hueco ni
+   cambiar el color de nada.
+
+   Y el filete no puede ser "var(--line)", que es un gris claro pensado para
+   bordes sobre blanco: sobre el color oscuro de la sección casi no se distingue
+   y las filas se leerían pegadas.
+   ------------------------------------------------------------------- */
 #barrasSuperiores header,
 #barrasSuperiores #mainNav,
 #barrasSuperiores #subNav{
@@ -5211,35 +5233,24 @@ header{z-index:30}
   border-radius:0;
   box-shadow:none;
   border:0;
-  border-bottom:1px solid var(--line);
+  background:var(--fondo-seccion, #101a14);
 }
-#barrasSuperiores #subNav{border-bottom:0}
+#barrasSuperiores #mainNav,
+#barrasSuperiores #subNav{
+  border-top:1px solid rgba(255,255,255,.14);
+}
 
 /* El bloque entero, redondeado y con sombra una sola vez */
-#barrasSuperiores>header,
-#barrasSuperiores>#mainNav,
-#barrasSuperiores>#subNav{
-  background:var(--panel);
-}
 #barrasSuperiores{
   border-radius:12px;
   box-shadow:0 2px 5px rgba(0,0,0,.10),0 8px 18px -6px rgba(0,0,0,.14);
-  /* Sin esto, el fondo del panel se transparenta por las esquinas redondeadas y
-     se ve un cuadrado del color de la página en las cuatro puntas. */
+  /* Sin esto, el fondo se transparenta por las esquinas redondeadas y se ve un
+     cuadrado del color de la página en las cuatro puntas. */
   background-clip:padding-box;
   border:1px solid rgba(0,0,0,.06);
   overflow:hidden;
 }
 
-/* -------------------------------------------------------------------
-   LA FILA DE ARRIBA: LA ÚNICA CON COLOR
-   -------------------------------------------------------------------
-   Es la que dice en qué sección se está, y por eso conserva el fondo de la
-   sección. Las dos de abajo van con el panel y los botones, que es lo que las
-   separa de la primera sin gastarse un hueco. */
-#barrasSuperiores header{
-  background:var(--fondo-seccion, #101a14);
-}
 /* El aire de adentro lo hace el padding de cada fila, parejo en las tres */
 #barrasSuperiores header{padding:8px 20px}
 #barrasSuperiores #mainNav{padding:2px 10px}
@@ -6237,4 +6248,148 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   .marca-jc-dibujo{transition:none}
   .marca-jc:hover,
   .marca-jc:focus-visible{--crecer:1}
+}
+
+
+/* ===================================================================
+   EL MENÚ DEL MÓVIL
+   ===================================================================
+   En un teléfono las dos barras se ocultan y aparece un botón que las muestra
+   centradas, como el menú de una aplicación.
+
+   Y en la pantalla grande no hay botón: las barras están siempre a la vista y un
+   botón de menú estorbaría. Por eso todo esto vive en un "max-width" y el
+   botón se esconde arriba con un "min-width".
+   =================================================================== */
+
+/* El botón: existe solo en la pantalla chica */
+.menu-movil-boton{
+  display:none;
+  flex:0 0 auto;
+  align-items:center;
+  justify-content:center;
+  width:38px;
+  height:38px;
+  padding:0;
+  border:1px solid rgba(255,255,255,.32);
+  border-radius:9px;
+  background:transparent;
+  cursor:pointer;
+}
+.menu-movil-boton .ico{width:19px;height:19px;fill:none;stroke:var(--cat,#EBF9FA);stroke-width:2;stroke-linecap:round}
+.menu-movil-boton:active{transform:translateY(1px)}
+.menu-movil-boton:focus-visible{outline:2px solid var(--cat,#EBF9FA);outline-offset:2px}
+
+@media (max-width:700px){
+  .menu-movil-boton{display:inline-flex}
+
+  /* -----------------------------------------------------------------
+     CERRADAS
+     -----------------------------------------------------------------
+     Lo primero que se oculta es el SUBMENÚ, que es el que se mira menos. Si se
+     dejaran las dos barras se seguirían viendo unos 160 de los 700 píxeles del
+     teléfono, y con el logo grande el encabezado solo ya se come 67. */
+  #barrasSuperiores #subNav,
+  #barrasSuperiores #mainNav{display:none}
+
+  /* -----------------------------------------------------------------
+     ABIERTAS
+     -----------------------------------------------------------------
+     Una columna, centrada, con los textos al centro. Y el ícono pegado al texto:
+     el ojo baja por la columna sin buscar de dónde sale cada línea. */
+  body.menu-movil-abierto #barrasSuperiores #mainNav,
+  body.menu-movil-abierto #barrasSuperiores #subNav{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:4px;
+    padding:6px 8px;
+  }
+  body.menu-movil-abierto #barrasSuperiores #mainNav button,
+  body.menu-movil-abierto #barrasSuperiores #subNav button,
+  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown-trigger{
+    width:100%;
+    justify-content:center;
+    text-align:center;
+    padding:11px 12px;
+    font-size:.78rem;
+    white-space:nowrap;
+  }
+  body.menu-movil-abierto #barrasSuperiores #mainNav button .ico,
+  body.menu-movil-abierto #barrasSuperiores #subNav .ico{
+    /* El ícono va pegado al texto, no al borde de la fila. Con la fila centrada,
+       un ícono al borde deja el ícono de un lado y la palabra en el medio, que
+       se ve como dos cosas. */
+    margin-right:8px;
+    flex:0 0 auto;
+  }
+
+  /* -----------------------------------------------------------------
+     EL SUBMENÚ, QUE ANTES IBA EN DOS COLUMNAS
+     -----------------------------------------------------------------
+     Ahora está escondido la mayor parte del tiempo, así que cuando se abre puede
+     bajar entero. Y una columna de una palabra por fila se lee mucho mejor en un
+     teléfono que dos columnas apretadas de dos palabras. */
+  body.menu-movil-abierto #barrasSuperiores #subNav{
+    display:flex;
+    flex-direction:column;
+    grid-template-columns:none;
+    justify-items:stretch;
+  }
+  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown,
+  body.menu-movil-abierto #barrasSuperiores #subNav>button{
+    width:100%;
+  }
+
+  /* -----------------------------------------------------------------
+     EL MENÚ DEL DESPLEGABLE
+     -----------------------------------------------------------------
+     Va posicionado y sale hacia abajo. En una columna angosta se sale de la
+     pantalla, así que pasa a ocupar el ancho de la columna y a empujar a los de
+     abajo. Ponerlo en el flujo y no posicionado es lo que hace que se lea entero
+     y que apretar un botón no requiera dos aciertos. */
+  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown-menu{
+    position:static;
+    min-width:0;
+    width:100%;
+    display:flex;
+  }
+  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown-children button{
+    padding-left:14px;
+  }
+
+  /* Y la flechita del desplegable apunta hacia abajo, que es hacia donde se abre */
+  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown-trigger:after{
+    content:'\25BE';
+  }
+
+  /* -----------------------------------------------------------------
+     EL ENCABEZADO, CON EL BOTÓN AL LADO
+     -----------------------------------------------------------------
+     El botón va antes del logo, así que el logo se corre un poco a la derecha. En
+     un teléfono de 390 eso es lo que hay. */
+  #barrasSuperiores header{
+    flex-wrap:wrap;
+    row-gap:8px;
+    column-gap:8px;
+  }
+}
+
+/* -------------------------------------------------------------------
+   CUANDO SE ABRE, NO HAY QUE COMPONER LAS BARRAS
+   -------------------------------------------------------------------
+   El archivo encoge las barras con "scaleY(.72)" al bajar la página. Con el menú
+   abierto eso aplasta el menú entero, y un menú aplastado se lee mal.
+
+   Con el menú abierto la animación se apaga y las barras quedan enteras. No es un
+   detalle: el menú se abre arriba de todo, y si la barra de arriba se comprime
+   mientras el dedo todavía está bajando, el botón se le va de debajo.
+   ------------------------------------------------------------------- */
+@media (max-width:700px){
+  body.menu-movil-abierto #barrasSuperiores header,
+  body.menu-movil-abierto #mainNav,
+  body.menu-movil-abierto #subNav{
+    transform:none;
+    transition:none;
+  }
 }

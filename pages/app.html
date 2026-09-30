@@ -498,7 +498,7 @@ Un solo elemento pegajoso en vez de tres medidos es la diferencia entre que
 funcione siempre y que funcione hasta que alguien cambia una fuente.
 -->
 <div id="barrasSuperiores">
-<header><a class="marca-jc" href="#v-nuevo-trabajador" onclick="irAlInicio(event)" title="JC Solutions — ir a la pantalla principal" aria-label="JC Solutions, ir a la pantalla principal"><span class="marca-jc-dibujo" aria-hidden="true"></span></a><h1 id="tituloSeccion">Control de Asistencia y Portería</h1><div class="header-actions"><button type="button" class="btn secondary theme-toggle" data-theme-toggle></button><div class="row" style="margin:0 0 0 12px;align-items:center;flex-wrap:nowrap">
+<header><button type="button" id="btnMenuMovil" class="menu-movil-boton" onclick="alternarMenuMovil()" aria-label="Abrir el menú" aria-expanded="false" aria-controls="mainNav"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg></button><a class="marca-jc" href="#v-nuevo-trabajador" onclick="irAlInicio(event)" title="JC Solutions — ir a la pantalla principal" aria-label="JC Solutions, ir a la pantalla principal"><span class="marca-jc-dibujo" aria-hidden="true"></span></a><h1 id="tituloSeccion">Control de Asistencia y Portería</h1><div class="header-actions"><button type="button" class="btn secondary theme-toggle" data-theme-toggle></button><div class="row" style="margin:0 0 0 12px;align-items:center;flex-wrap:nowrap">
         <label for="empresaSel" style="margin:0;white-space:nowrap">Empresa</label>
         <select id="empresaSel" onchange="cambiarEmpresa(this.value)" style="width:auto;min-width:170px"></select>
       </div>
@@ -3702,6 +3702,9 @@ function showAttendancePanel(name){
   if(name==='marcaje'&&typeof prepararMarcajeManual==='function')prepararMarcajeManual();
 }
 function showView(v){
+  // El menú del móvil se cierra al elegir algo. Si quedara abierto taparía la
+  // vista que se acaba de abrir, y sería peor que no haberlo abierto.
+  if(typeof cerrarMenuMovil==='function')cerrarMenuMovil();
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
   // no abrir una vista para la que no hay permiso
   const seccion=document.getElementById('v-'+v);
@@ -18456,6 +18459,44 @@ function irAlInicio(ev){
   if(typeof showView==='function')showView('nuevo-trabajador');
   window.scrollTo(0,0);
 }
+
+// -------------------------------------------------------------------
+// EL MENÚ DEL MÓVIL
+// -------------------------------------------------------------------
+// Un botón abre y cierra las dos barras. En la pantalla grande no existe:
+// ahí las barras están siempre a la vista y el botón estorbaría.
+//
+// Se usa una clase en el body y no un estilo directo, porque el estado tiene
+// que poder leer el CSS: el botón cambia de ícono y las barras cambian de
+// alto, y las dos cosas salen del mismo lado.
+//
+// Y aria-expanded es lo que le dice a un lector de pantalla si el menú está
+// abierto. Sin eso, el botón dice lo mismo abierto que cerrado.
+function alternarMenuMovil(){
+  const abierto=document.body.classList.toggle('menu-movil-abierto');
+  const b=document.getElementById('btnMenuMovil');
+  if(b){
+    b.setAttribute('aria-expanded',abierto?'true':'false');
+    b.setAttribute('aria-label',abierto?'Cerrar el menú':'Abrir el menú');
+  }
+}
+
+// Para cerrar sin pasar por el botón: cambiar de vista, o apretar Escape.
+function cerrarMenuMovil(){
+  if(!document.body.classList.contains('menu-movil-abierto'))return;
+  document.body.classList.remove('menu-movil-abierto');
+  const b=document.getElementById('btnMenuMovil');
+  if(b){
+    b.setAttribute('aria-expanded','false');
+    b.setAttribute('aria-label','Abrir el menú');
+  }
+}
+
+// Escape cierra el menú, como cierra cualquier ventana abierta.
+addEventListener('keydown',function(ev){
+  if(ev.key!=='Escape')return;
+  cerrarMenuMovil();
+});
 
 function conectarAyudas(){
   if(conectarAyudas.hecho)return;
