@@ -32,6 +32,11 @@ UNA ADVERTENCIA QUE YA SE PAGÓ
   Y reemplazar un comentario largo por una línea NO puede cambiar nada. Se comprueba
   comparando el CSS con comentarios y sin comentarios, carácter por carácter.
 
+HERRAMIENTAS
+------------
+  tools/huella.js   El guardián de la cascada. Se guarda una línea base antes de tocar el
+                    CSS, y en cada recarga dice si algo se movió. Ver [guardian-01].
+
 MODULOS
 -------
   _tokens.css   La paleta. Solo variables, en cuatro bloques: ":root", el del sistema
@@ -1091,3 +1096,88 @@ MODULOS
   Lo que hay que comprobar es el ESTADO: que la regla esté en su archivo, que no esté
   en el grande, y que el balance de reglas del archivo grande cuadre. Y eso no depende
   de contra qué commit se mire.
+
+
+------------------------------------------------------------------------------
+[guardian-01]  La huella que comprueba que partir el CSS no movió nada
+------------------------------------------------------------------------------
+
+  Archivo: tools/huella.js
+
+  ------------------------------------------------------------------
+  PARA QUÉ ESTÁ
+  ------------------------------------------------------------------
+  Porque partir un archivo de CSS por componente cambia el ORDEN de la cascada, y eso
+  no da ningún error: la página se ve "un poco distinta" y no se sabe por qué.
+
+  Con el tótem hubo que comparar a mano: una foto antes, otra después, y buscar la
+  primera diferencia en casi 400.000 caracteres. Con el menú, lo mismo, y el cambio se
+  encontró después de un rato y revisando.
+
+  Esto lo hace solo, en cada recarga, y dice QUÉ cambió.
+
+  ------------------------------------------------------------------
+  CÓMO SE USA
+  ------------------------------------------------------------------
+  En la consola del navegador, con la página de pruebas abierta ("pages/prueba-totem-
+  contadores.html", que es una copia sin sesión):
+
+      // UNA VEZ, antes de tocar el CSS:
+      var s=document.createElement("script");
+      s.src="../tools/huella.js";
+      s.onload=function(){ window.__huella.guardar(); };
+      document.head.appendChild(s);
+
+      // DESPUÉS de cada cambio, en cada recarga:
+      window.__huella.comprobar();
+
+  Y si dice que algo cambió, con "__huella.explicar()" se pide la línea completa de los
+  elementos señalados.
+
+  ------------------------------------------------------------------
+  POR QUÉ GUARDA LA LÍNEA BASE EN localStorage Y NO EN UN ARCHIVO
+  ------------------------------------------------------------------
+  Porque el resumen son 2.164 caracteres, y pasarlos de la página a un archivo es un
+  paso frágil. Con "localStorage" no hay paso: la página se guarda su propia línea base y
+  en la recarga siguiente se compara sola.
+
+  Y eso es lo que lo hace guardián de verdad: no hay que acordarse de guardar nada.
+
+  ------------------------------------------------------------------
+  LO QUE COMPARA
+  ------------------------------------------------------------------
+  - Los 175 elementos que se están DIBUJANDO, con 39 propiedades cada uno, más su caja.
+
+    Y solo los que se dibujan a propósito: de los 2.855 del "<body>", 40 de las 41
+    pantallas están en "display:none". La enorme mayoría no se está viendo, y su estilo
+    no es el que ve el usuario.
+
+    Y además el recorrido es por tandas, porque leer las propiedades de un elemento obliga
+    al navegador a recalcular estilos, y con 2.855 elementos se pasaban los 60 segundos.
+
+  - Y aparte, doce zonas nombradas a mano: la cabecera, los dos menús, tarjetas, botones,
+    campos, tablas, diálogos y avisos. Esas se miran por separado porque dicen DÓNDE.
+
+  ------------------------------------------------------------------
+  Y LO QUE ENCONTRÓ EN EL MENÚ
+  ------------------------------------------------------------------
+  Aplicado el movimiento del menú, el guardián dijo:
+
+      *** CAMBIARON 150 ELEMENTOS DE LA PAGINA ***
+      *** CAMBIARON 28 ELEMENTOS DE LAS ZONAS NOMBRADAS ***
+
+  Y a mano se habían encontrado 33.
+
+  La diferencia no es que el guardián exagerara: es que la cuenta a mano miraba los
+  elementos de la cabecera y del menú, y el guardián mira la página entera. El menú crecía
+  1,8 píxeles, y eso mueve TODO lo que está debajo.
+
+  Que es un argumento más fuerte para no moverlo: no son 33 elementos, es media página.
+
+  ------------------------------------------------------------------
+  Y QUE ESTÁ PROBADO EN LOS DOS SENTIDOS
+  ------------------------------------------------------------------
+  Con el menú movido dio rojo. Revertido, dio verde: "NADA CAMBIO".
+
+  Y eso importa, porque un guardián que nunca se ha visto en rojo no es un guardián: es un
+  texto que dice "ok".
