@@ -13683,6 +13683,54 @@ let centrosCosto=[];
 let relojCargado=false;
 let relojError='';
 let totemActual=null;
+
+// -------------------------------------------------------------------
+// LOS MARCAJES DE HOY, PARA EL TÓTEM
+// -------------------------------------------------------------------
+// Aparte de la variable "marcajes" de la planilla, y POR PROPOSITO, no por
+// descuido:
+//
+// La "marcajes" la llena "loadMarcajesDia()", que es la que corre al abrir la
+// PESTAÑA de la planilla del día, y pide 60 días. El tótem no puede pedir 60 días
+// en una portería para pintar un número que es de HOY. Y si compartieran variable,
+// abrir la planilla pisaría lo del tótem con 60 días y abrir el tótem la dejaría
+// con un día: cada pantalla con lo suyo.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ ANTES NO SALÍAN, Y POR QUÉ NO SE PREGUNTABA NADA
+// -------------------------------------------------------------------
+// Antes los tres números se contaban sobre "marcajes", que solo se llena al abrir
+// la pestaña de la planilla. El tótem es otra pantalla: se abre con "abrirTotem()",
+// y esa función no cargaba marcajes.
+//
+// O sea que los números salían solo si alguien, ANTES de ir a la portería, había
+// abierto la planilla del día. En un aparato de la portería eso no pasa nunca.
+//
+// El código viejo lo decía sin ver la consecuencia: "se cuentan sobre lo que YA
+// está cargado en la memoria, y no con una consulta nueva. La razón no es ahorrar:
+// es que la pantalla del reloj se abre en la portería, muchas veces al mismo
+// tiempo, y una consulta por cada marcaje y por cada reloj abierto es exactamente
+// lo que hace que un aparato viejo se ponga lento."
+//
+// Lo que dice es cierto: una consulta POR MARCAJE es Mala idea en un aparato viejo.
+// Lo que no decía es que "lo que ya está cargado" en la portería es NADA. De ahí
+// salía el "—". La diferencia ahora es que hay UNA consulta al abrir, y ninguna
+// por marcaje.
+//
+// -------------------------------------------------------------------
+// POR QUÉ HAY TRES, Y POR QUÉ UNA ES UNA BANDERA
+// -------------------------------------------------------------------
+// "totemMarcajesCargados" separa "todavía no se preguntó" de "se preguntó y no hay
+// nada". Sin esa bandera, "—" puede querer decir dos cosas muy distintas —que la
+// consulta no ha vuelto, o que en la portería no ha marcado nadie— y la persona que
+// mira la pantalla no puede distinguirlas.
+//
+// Y con la bandera, "se preguntó y no hay nada" se puede pintar como 0, que sí es un
+// hecho. Sin ella no: 0 sobre un "no sé" es una cifra falsa, y en una pantalla de
+// asistencia una cifra falsa se cree.
+let totemMarcajesHoy=[];
+let totemMarcajesCargados=false;
+let totemMarcajesError='';
 let totemTipo='entrada';
 let totemTimer=null;
 let totemEscaner=null;
@@ -14162,6 +14210,16 @@ function abrirTotem(code){
   sel.value=totemTipo;
   ocultarCampoTokenTotem();
   pintarTotemInicial();
+  // Y los tres números se piden UNA vez al abrir. Sin "await": el reloj tiene que
+  // quedar bloqueado de una vez, y el número puede aparecer un instante después. Si
+  // se esperara, la pantalla se quedaría en blanco hasta que la base respondiera, y
+  // en una portería con mala conexión eso es una pantalla muerta.
+  //
+  // Y no se vuelve a preguntar por cada marcaje: cuando marca, el número sube en la
+  // memoria. Esa era la razón por la que antes no se consultaba nada, y sigue
+  // siendo la razón: lo que cambia es que ahora hay UNA consulta al abrir, y antes
+  // no había ninguna.
+  cargarMarcajesTotem();
   if(r.tipo_lector==='camara')arrancarCamaraTotem();
   else detenerCamaraTotem();
   // El kiosco se arma acá y no antes: si la cámara no arrancó, el reloj igual
@@ -14592,6 +14650,11 @@ let marcarPorRelojConHorario=null;
       (d.marca_tipo==='entrada'?'Entrada':d.marca_tipo==='salida'?'Salida'
         :d.marca_tipo==='colacion_entrada'?'Salida a colación':'Vuelta de colación')
       +' registrada a las '+escHtml(d.marca_hora));
+    // Y el contador de "Marcajes Realizados" sube EN LA MEMORIA, sin volver a
+    // preguntar. Solo en el camino de exito: si se sumara en "duplicado" o en
+    // "ya_marcado", el numero subiria sin que haya una marca nueva, que es peor que
+    // mostrarlo atrasado.
+    sumarMarcajeAlTotem(d);
   }else if(d.resultado==='fuera_de_horario'){
     // ------------------------------------------------------------------
     // EL REYLO ESTÁ CERRADO
@@ -15707,17 +15770,121 @@ function pintarFicha(w){
 //
 // Y no se inventa el dato yendo a buscarlo: en la portería, esperar una
 // consulta es peor que no tener el número. Se muestra lo que se sabe.
+// -------------------------------------------------------------------
+// CARGAR LOS MARCAJES DE HOY, UNA VEZ AL ABRIR EL TÓTEM
+// -------------------------------------------------------------------
+// Y UNA SOLA VEZ, no una por marcaje. Esa era la razón por la que el código viejo
+// no consultaba nada: la pantalla se abre en la portería, muchas veces al mismo
+// tiempo, y un aparato viejo se pone lento si cada marcaje va a la base.
+//
+// La diferencia es que antes no se consultaba NUNCA, y "nunca" en la portería es
+// "nunca": no hay nadie abriendo la planilla del día en un aparato de la portería.
+// Una consulta al abrir, y después el número vive en la memoria.
+//
+// Y si falla, se guarda el motivo y se sigue: el reloj tiene que poder MARCAR
+// aunque los contadores no se pinten. Un contador que bloquea el marcaje es peor que
+// un contador en "—".
+async function cargarMarcajesTotem(){
+  if(!window.supabaseClient)return;
+  totemMarcajesError='';
+  try{
+    const r=await window.supabaseClient
+      .from('marcajes')
+      .select('code,fecha,estado,justificacion_id,centro_costo_id')
+      .eq('fecha',fechaLocalISO(new Date()))
+      .limit(5000);
+    if(r.error){
+      totemMarcajesCargados=false;
+      totemMarcajesError=r.error.message||'sin detalle';
+      pintarTotemContadores();
+      return;
+    }
+    // Y SOLO se acepta si el reloj sigue abierto: si alguien cerró el tótem
+    // mientras cargaba, el resultado ya no le sirve a nadie y pintar un número en
+    // una pantalla cerrada es trabajo perdido.
+    if(!totemActual)return;
+    totemMarcajesHoy=r.data||[];
+    totemMarcajesCargados=true;
+    pintarTotemContadores();
+  }catch(e){
+    totemMarcajesCargados=false;
+    totemMarcajesError=(e&&e.message)||'sin detalle';
+    pintarTotemContadores();
+  }
+}
+
+// -------------------------------------------------------------------
+// Y SUMAR UN MARCAJE SIN VOLVER A CONSULTAR
+// -------------------------------------------------------------------
+// El contador sube en la memoria y se repinta: una consulta por cada marcaje es
+// justo lo que hace lento un aparato viejo, y aquí no hace falta porque ya sabemos
+// lo que pasó.
+function sumarMarcajeAlTotem(d){
+  if(!d)return;
+  totemMarcajesHoy.push({
+    code:d.code,
+    fecha:String(d.fecha||fechaLocalISO(new Date())).slice(0,10),
+    estado:d.estado||'',
+    justificacion_id:d.justificacion_id!=null?d.justificacion_id:null,
+    centro_costo_id:d.centro_costo_id!=null?d.centro_costo_id:null
+  });
+  // Y se marca como cargados: si el contador ya venía de la base, sigue siendo
+  // cierto que lo que hay en memoria es lo que hay en la base, más este.
+  totemMarcajesCargados=true;
+  pintarTotemContadores();
+}
+
 function pintarTotemContadores(){
   const cR=document.getElementById('totemCifraRealizados');
   const cA=document.getElementById('totemCifraAusencias');
   const cP=document.getElementById('totemCifraPendientes');
   if(!cR||!cA||!cP)return;
 
-  const sinDato=(el)=>{el.textContent='—';el.classList.add('sin-dato');};
+  const sinDato=(el)=>{el.textContent='—';el.classList.add('sin-dato');};
+  // -------------------------------------------------------------------
+  // Y POR QUÉ ESTA LÍNEA, Y POR QUÉ SE USÓ ANTES DE EXISTIR
+  // -------------------------------------------------------------------
+  // Porque "se preguntó y no hay nada" NO es lo mismo que "no se preguntó". Con la
+  // lista cargada y vacía, la respuesta honesta es 0: no ha marcado nadie, y eso es
+  // un hecho sobre la portería.
+  //
+  // Antes esta rama era un "return" que dejaba el "—" ahí, y ese "—" decía "no se
+  // consultó" cuando sí se había consultado. Es el mismo error del que avisa el
+  // comentario de más arriba, en otro sitio.
+  //
+  // Y sale un 0 DE VERDAD: sin la clase "sin-dato", que es la que pinta en el color
+  // de los datos que no se saben. Un 0 que no se sabe y un 0 que es cero se ven
+  // distintos a propósito: el que no se sabe es un dato que falta, no una cifra.
+  //
+  // -------------------------------------------------------------------
+  // Y POR QUÉ SE USÓ ANTES DE EXISTIR
+  // ---------------------------------
+  // Porque en la primera pasada se escribió el "if(!lista.length){ ponerCero(cR);
+  // ponerCero(cA); }" y se pasó a la otra cosa sin mirar de dónde salía el nombre.
+  //
+  // Y no lo detectó casi nada. Una función llamada y no definida es sintaxis
+  // VÁLIDA, así que la comprobación de sintaxis del guion entero pasaba; y las
+  // comprobaciones de contenido preguntan "¿existe la llamada?", que sí existía.
+  //
+  // En el navegador botaba en la primera línea de esa rama, y esa rama es
+  // justamente la PRIMERA de la mañana: el reloj abre antes que la obra. O sea que
+  // el arreglo, en el caso para el que se hizo, no arreglaba nada.
+  const ponerCero=(el)=>{el.textContent='0';el.classList.remove('sin-dato');};
   sinDato(cR);sinDato(cA);sinDato(cP);
 
-  const lista=typeof marcajes!=='undefined'&&Array.isArray(marcajes)?marcajes:null;
-  if(!lista||!lista.length||!totemActual)return;
+  // Y ahora se cuenta sobre "totemMarcajesHoy", y NO sobre la "marcajes" de la
+  // planilla. Antes se contaba sobre esa, que solo se llena al abrir la pestaña de
+  // la planilla del día: en la portería nunca se abre, y por eso los tres números
+  // estaban en "—".
+  const lista=totemMarcajesCargados?totemMarcajesHoy:null;
+  if(!lista||!totemActual)return;
+  // Con el dato cargado y CERO filas, se pone 0: no ha marcado nadie, y eso es un
+  // hecho. Antes el "return" de la lista vacía dejaba el "—" ahí, que era
+  // mentir sin querer: "—" dice "no se consultó", y sí se consultó.
+  if(!lista.length){
+    ponerCero(cR);ponerCero(cA);
+    return;
+  }
 
   // El día de hoy, en el mismo formato con que vienen los marcajes. Se
   // comparan los primeros diez caracteres porque algunos vienen con la hora
@@ -15758,6 +15925,22 @@ function pintarTotemContadores(){
 
   // PENDIENTES: los que el reloj registró y la base todavía no tiene. Cuando
   // el reloj está sin conexión esto es justamente lo que se exporta después.
+  //
+  // -------------------------------------------------------------------
+  // Y POR QUÉ ESTE SIGUE EN "—", Y POR QUÉ NO SE LE PONE UN CERO
+  // -------------------------------------------------------------------
+  // Porque es la COLA LOCAL DEL RELOJ: los marcajes que el aparato registró y la
+  // base todavía no tiene. Esa cola todavía no existe, y el código lo reconoce con un
+  // "typeof totemPendientesLocales !== 'undefined'", que SIEMPRE da falso.
+  //
+  // Poner 0 ahí sería MENTIR en la portería. El 0 significa "no hay nada pendiente",
+  // que es un hecho sobre la obra; y en una pantalla donde se está viendo la
+  // asistencia, un 0 falso se cree: alguien ve que no hay pendientes y cierra el
+  // tema.
+  //
+  // Con "—" lo que dice es "esto no se sabe", que es lo cierto. Y el día que exista
+  // la cola, este número aparece solo, sin tocar nada de acá: la lista ya se está
+  // contando.
   //
   // Y aquí NO se pone 0 cuando no se sabe. Todavía no existe la cola local
   // del reloj (es lo que falta hacer), así que este número queda en "—" en
