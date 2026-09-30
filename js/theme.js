@@ -27,19 +27,28 @@
      es solo texto— se sigue escribiendo el texto completo, como antes.
      ------------------------------------------------------------------- */
   function etiquetar(boton, theme) {
-    const siguiente = theme === 'dark' ? 'light' : 'dark';
-    const nombre = siguiente === 'dark' ? 'oscuro' : 'claro';
-    const aviso = 'Cambiar a modo ' + nombre;
+    // Lo que DICE el botón, y lo que HACE, son dos cosas distintas y a propósito.
+    //
+    //   lo que se ve         el modo en que se está
+    //   lo que se anuncia     lo que el botón hace
+    //
+    // Lo que se ve tiene que ser el modo en que se está, porque es lo que uno
+    // mira para saber en qué está la pantalla, y porque tiene que coincidir con
+    // el ícono: la luna ES lo oscuro y el sol ES lo claro. Con la palabra diciendo
+    // el destino, la luna quedaba al lado de "Modo claro" y los dos se contradecían.
+    //
+    // Lo que se anuncia tiene que ser lo que el botón hace, porque un lector de
+    // pantalla necesita saber qué pasa al apretarlo. Un botón que se anuncia como
+    // "Modo oscuro" y al apretarlo aclara la pantalla es un botón que miente.
+    const actual = theme === 'dark' ? 'oscuro' : 'claro';
+    const siguiente = theme === 'dark' ? 'claro' : 'oscuro';
+    const aviso = 'Cambiar a modo ' + siguiente;
 
     const etiqueta = boton.querySelector('[data-tema-palabra]');
     if (etiqueta) {
-      // Lo que DICE el botón es a qué se cambia, no en qué se está. "Modo
-      // oscuro" con el ícono de luna es un botón que lleva al tema claro, y ese
-      // texto es el que tiene que decir, porque es lo que lee quien no ve el
-      // ícono.
-      etiqueta.textContent = 'Modo ' + nombre;
+      etiqueta.textContent = 'Modo ' + actual;
     } else {
-      boton.textContent = (theme === 'dark' ? '☀ Modo claro' : '☾ Modo oscuro');
+      boton.textContent = (theme === 'dark' ? '☾ Modo oscuro' : '☀ Modo claro');
     }
 
     boton.setAttribute('aria-label', aviso);

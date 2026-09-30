@@ -1163,10 +1163,10 @@ duplica nada: la base lo sabe y lo cuenta.
 
 <section class="view" id="v-asistencia">
   <div class="attendance-tabs" role="tablist" aria-label="Opciones de asistencia">
-<button type="button" class="active" role="tab" aria-selected="true" data-attendance-tab="tarja">Tarja mensual</button>
-<button type="button" role="tab" aria-selected="false" data-attendance-tab="marcaje">Registrar marcaje</button>
-<button type="button" role="tab" aria-selected="false" data-attendance-tab="justificar">Justificar inasistencia / permiso / licencia</button>
-<button type="button" role="tab" aria-selected="false" data-attendance-tab="excel">Cargar asistencia desde Excel</button>
+<button type="button" class="active" role="tab" aria-selected="true" data-attendance-tab="tarja"><span class="pest-txt">Tarja mensual</span></button>
+<button type="button" role="tab" aria-selected="false" data-attendance-tab="marcaje"><span class="pest-txt">Registrar marcaje</span></button>
+<button type="button" role="tab" aria-selected="false" data-attendance-tab="justificar"><span class="pest-txt">Justificar inasistencia / permiso / licencia</span></button>
+<button type="button" role="tab" aria-selected="false" data-attendance-tab="excel"><span class="pest-txt">Cargar asistencia desde Excel</span></button>
   </div>
   <div class="card attendance-panel active" role="tabpanel" data-attendance-panel="tarja">
     <h2>Tarja mensual</h2>
@@ -3735,6 +3735,25 @@ function applyAttendanceQr(code,purpose){
   }
   renderMatrix();
 }
+/* -------------------------------------------------------------------
+   CUÁNTAS PESTAÑAS TIENE EL SUBMENÚ, PARA SABER SI TOCA REPARTIRLAS
+   -------------------------------------------------------------------
+   Con ocho o menos se reparten el ancho entre todas, que es lo de siempre. Con
+   más de ocho cada una puede ocupar como máximo la octava parte, así que entran
+   ocho por fila y las demás bajan.
+
+   Y el divisor del tope es OCHO, no la cantidad: así el ancho de cada una no
+   cambia cuando se agrega o se saca una pestaña. Si fuera la cantidad, cada vez
+   que el menú cambiara todas cambiarían de ancho y la fila bailaría.
+
+   Cuenta los hijos DIRECTOS, que son las pestañas de primer nivel. Los
+   desplegables también cuentan: cada uno es una pestaña con su flecha. Los
+   hijos de ADENTRO del desplegable no, porque cuelgan hacia abajo. */
+function ajustarPestanasSub(){
+  const sub=document.getElementById('subNav');
+  if(!sub)return;
+  sub.classList.toggle('muchas',sub.children.length>8);
+}
 function showAttendancePanel(name){
   document.querySelectorAll('[data-attendance-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.attendancePanel===name));
   document.querySelectorAll('[data-attendance-tab]').forEach(tab=>{
@@ -3870,11 +3889,11 @@ function showGroup(group){
     }
   }
   sub.innerHTML=items.map(it=>it.options
-    ? `<details class="nav-dropdown"><summary class="nav-dropdown-trigger">${iconoMenu(it.v)}${it.label}</summary><div class="nav-dropdown-menu">${it.options.map(option=>option.children
-      ? `<details class="nav-dropdown-nested"><summary>${option.label}</summary><div class="nav-dropdown-children">${option.children.map(child=>`<button type="button" data-v="${child.v}">${child.label}</button>`).join('')}</div></details>`
-      : `<button type="button" data-v="${option.v}">${iconoMenu(option.v)}${option.label}</button>`
+    ? `<details class="nav-dropdown"><summary class="nav-dropdown-trigger">${iconoMenu(it.v)}<span class="pest-txt">${it.label}</span></summary><div class="nav-dropdown-menu">${it.options.map(option=>option.children
+      ? `<details class="nav-dropdown-nested"><summary><span class="pest-txt">${option.label}</span></summary><div class="nav-dropdown-children">${option.children.map(child=>`<button type="button" data-v="${child.v}">${child.label}</button>`).join('')}</div></details>`
+      : `<button type="button" data-v="${option.v}">${iconoMenu(option.v)}<span class="pest-txt">${option.label}</span></button>`
     ).join('')}</div></details>`
-    : `<button data-v="${it.v}">${iconoMenu(it.v)}${it.label}</button>`
+    : `<button data-v="${it.v}">${iconoMenu(it.v)}<span class="pest-txt">${it.label}</span></button>`
   ).join('');
   sub.querySelectorAll('button[data-v]').forEach(b=>b.addEventListener('click',()=>{
     // Un ítem bloqueado se puede hacer clic a propósito: contesta por qué
@@ -3918,6 +3937,30 @@ function showGroup(group){
       });
     });
   });
+  // Cuántas pestañas hay, para saber si toca repartirlas.
+  //
+  // El reparto solo se hace con más de ocho. Con ocho o menos las pestañas no
+  // se pisan y sobra aire a la derecha: repartirlas ahí las estiraría a todas
+  // por igual, y una de "Avisos del día" quedaría tan ancha como una de
+  // "Relojes". Mucho hueco adentro y nada que leer.
+  //
+  // Y el ancho de cada una es el de la fila dividido en OCHO, no dividido entre
+  // las que hay: así el ancho no cambia cuando se agrega o se saca una pestaña,
+  // y lo que cambia es que la fila de abajo tiene una más. Si se dividiera entre
+  // las que hay, cada vez que el menú cambiara todas las pestañas cambiarían de
+  // ancho, y el menú bailaría al cambiar de sección.
+  //
+  // Se cuentan los hijos DIRECTOS, que son las pestañas de primer nivel. Los
+  // desplegables también cuentan: cada uno es una pestaña con su flecha.
+  // Y el conteo de pestañas, que es lo que decide si la fila se marca con "muchas"
+  // (más de ocho, y entonces el tope de cada una es la octava parte). Acá no hace
+  // falta: las cuatro pestañas de la tarja están escritas en el archivo y no cambian
+  // según quién entre. Por eso NO hay un guion que las cuente, y por eso la clase
+  // "muchas" no se la pone nunca a esta fila. Queda escrita igual, por si algún día
+  // las pestañas pasan a armarse con los permisos de la persona, que es cuando sí
+  // harían falta.
+
+  ajustarPestanasSub();
   ocultarSubNavSinPermiso();
   // abrir la primera vista que la persona sí pueda ver
   const primero=[...sub.querySelectorAll('button[data-v]')].find(b=>b.style.display!=='none');

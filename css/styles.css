@@ -136,7 +136,16 @@ nav button.active{background:none;color:var(--secondary-text);border-color:var(-
 
 #mainNav button.active{border-color:var(--accent)}
 
-#subNav{gap:4px;flex-wrap:wrap;overflow:visible;position:relative;z-index:10;background:var(--panel);border-bottom:1px solid var(--line)}
+#subNav{
+  gap:8px;
+  align-items:stretch;
+  flex-wrap:wrap;
+  overflow:visible;
+  position:relative;
+  z-index:10;
+  background:var(--panel);
+  border-bottom:1px solid var(--line);
+}
 
 #subNav button.active{background:none;color:var(--secondary-text);border-color:var(--accent)}
 
@@ -7094,6 +7103,10 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   margin:0;
   padding:5px 8px;
   border:0;
+  /* Para que la palabra pueda salir flotada al lado. Sin esto, "position:absolute"
+     de la palabra se mediría contra el primer ancestro posicionado, que es el
+     encabezado, y la palabra se iría al otro lado de la página. */
+  position:relative;
   border-radius:7px;
   background:none;
   color:#fff;
@@ -7142,26 +7155,71 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
 :root:not([data-theme="light"]) .tema-luna{display:block}
 
 /* La palabra. Empieza sin ancho, y por eso no empuja a nadie. */
+/* La palabra del modo, AL LADO DEL ÍCONO, Y FLOTADA.
+
+   Flotada porque si estuviera en el flujo, al abrirla el reloj se encogería y el
+   botón se correría, y el puntero se saldría de él. Eso es un bucle: se abre,
+   se corre, se pierde el ":hover", se cierra, y otra vez. Medido con el puntero
+   quieto, el borde izquierdo del botón saltaba 74 píxeles cada 100 milisegundos,
+   que son los 74 del reloj.
+
+   Y flotada sobre el sitio del reloj, para que el botón no cambie de ancho NI UN
+   PÍXIMO. Si nada se mueve, el puntero no puede salirse de nada y el bucle no
+   existe. */
+
 .tema-palabra{
-  max-width:0;
-  padding-left:0;
-  overflow:hidden;
+  position:absolute;
+  left:100%;
+  top:50%;
+  margin-left:11px;   /* el mismo hueco que hay entre el botón y el reloj */
+  transform:translateY(-50%) translateX(-5px);
+  padding:5px 10px;
+  border-radius:7px;
+  /* Fondo opaco, y el del encabezado: "var(--fondo-seccion)".
+
+     Con "rgba(255,255,255,.14)" —que es 14% opaco— se veía el reloj a través
+     de la palabra, y los dos textos quedaban superpuestos. Ese fondo servía
+     para el BOTÓN, que está sobre el encabezado y no tapa nada; la palabra sí
+     tapa algo, y tiene que taparlo de verdad.
+
+     Y al ser el mismo color que hay detrás, el chip se mezcla con el fondo: se
+     ve el texto y no se ve la caja. Que es lo que se pidió: que parezca el
+     texto.
+
+     Y EL CONTRASTE DE ESTA PALABRA NO ES UN CONTRASTE NUEVO: es blanca sobre
+     el mismo fondo y con el mismo color que ya tenía el reloj que tapa. La
+     pregunta "¿esto se lee sobre el fondo de esta sección?" tiene una
+     respuesta mejor que "mirá el color": es el mismo que el del reloj, que ya
+     se midió.
+
+     Mientras el texto sea blanco no hay que volver a medir nada. Si algún día
+     el "--fondo-seccion" se pone más claro, hay que medir los nueve colores
+     de sección otra vez, no solo este. */
+
+  background:var(--fondo-seccion, #101a14);
+  color:#fff;
   white-space:nowrap;
   opacity:0;
-  transition:max-width .24s cubic-bezier(.25,.46,.45,.94),
-             padding-left .24s cubic-bezier(.25,.46,.45,.94),
-             opacity .16s ease;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .2s ease,
+             transform .2s cubic-bezier(.25,.46,.45,.94),
+             visibility .2s;
+}
+
+/* Y al pasar el puntero aparece. Sin "display", para que tenga transición: con
+   "display:none" el texto salta de golpe y se lee como un tirón. */
+.tema-boton:hover .tema-palabra,
+.tema-boton:focus-visible .tema-palabra,
+.tema-boton:focus-within .tema-palabra{
+  opacity:1;
+  visibility:visible;
+  transform:translateY(-50%) translateX(0);
 }
 
 /* Y al pasar el puntero se abre. También con el foco, que es lo mismo para
    quien navega con el teclado. */
-.tema-boton:hover .tema-palabra,
-.tema-boton:focus-visible .tema-palabra,
-.tema-boton:focus-within .tema-palabra{
-  max-width:8rem;
-  padding-left:7px;
-  opacity:1;
-}
+
 
 /* -------------------------------------------------------------------
    LO QUE PIDE LA FILA DEL ENCABEZADO, Y DÓNDE SE PARTE
@@ -7215,6 +7273,15 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   align-items:center;
   /* Lo mismo, un nivel más arriba. */
   min-width:0;
+
+  /* Para que se pueda esconder sin cambiar su ancho.
+
+     Con "width" o con "display" el reloj se movería, el botón se correría con
+     él y el puntero se saldría: el bucle que se midió, con el borde izquierdo
+     del botón saltando 74 píxeles cada 100 milisegundos. Con "opacity" no se
+     recalcula el ancho, así que nada se mueve. */
+
+  transition:opacity .16s ease;
   color:#fff;
   font-family:'Montserrat',system-ui,sans-serif;
   font-size:.68rem;
@@ -7367,10 +7434,28 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
    Y sale por la derecha del ícono, no por la izquierda, porque el ícono no se
    puede mover de sitio: es lo que dice que ese botón es el del tema. */
 
-.tema-boton:hover ~ .reloj .reloj-corto,
-.tema-boton:focus-visible ~ .reloj .reloj-corto,
-.tema-boton:focus-within ~ .reloj .reloj-corto{
-  max-width:0;
+/* Y el reloj YA NO SE ENCOGE cuando el puntero está en el ícono.
+
+   Antes se encogía a cero para dejarle el sitio a la palabra. Y como el grupo
+   está alineado a la derecha, eso movía el botón 74 píxeles y el puntero se
+   salía. Ahora la palabra va flotada encima y el reloj se queda donde está.
+
+   El bloque se borra entero, no se deja vacío: una regla vacía con el nombre
+   viejo confunde a quien lea el archivo después. */
+
+/* Y el reloj se ESCONDE cuando el puntero está en el ícono del tema.
+
+   Antes se ENCOGÍA a cero para dejarle el sitio a la palabra. Y como el grupo
+   está alineado a la derecha, eso movía el botón 74 píxeles y el puntero se
+   salía de él. Medido con el puntero quieto: el borde izquierdo del botón
+   saltaba entre 474 y 548 cada 100 milisegundos, y 74 era lo que mide el
+   reloj.
+
+   Ahora se esconde con "opacity", que no cambia el ancho. El sitio queda, el
+   puntero no se mueve y el bucle no existe. */
+.tema-boton:hover ~ .reloj,
+.tema-boton:focus-visible ~ .reloj,
+.tema-boton:focus-within ~ .reloj{
   opacity:0;
 }
 
@@ -7414,4 +7499,363 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   .clima-reloj{gap:8px}
 
   .reloj{font-size:.62rem}
+}
+
+
+/* ===================================================================
+   LAS PESTAÑAS DE LA TARJA: REPARTIDAS, Y CRECEN AL PASAR EL PUNTERO
+   ===================================================================
+
+   -------------------------------------------------------------------
+   DÓNDE ESTÁN
+   -----------
+   En la pantalla de asistencia, arriba de todo: "div.attendance-tabs" con
+   "button[role=tab]". Y NO son las del submenú del encabezado, que son "nav#subNav"
+   y se arman con el grupo de la sección. Esa confusión ya costó un cambio entero
+   en el sitio equivocado.
+
+   -------------------------------------------------------------------
+   LAS DOS FORMAS DE AJUSTAR, SEGÚN CUÁNTAS HAY
+   ----------------------------------------------
+       ocho o menos     se reparten el ancho entre todas
+       más de ocho      cada una como máximo la octava parte, ocho por fila
+
+   En la foto hay CUATRO y se reparten, así que el reparto no es "solo con más de
+   ocho": es siempre. Lo que es "solo con más de ocho" es el tope, que es lo que
+   hace que con nueve quepan ocho en una fila y el noveno baje.
+
+   Y el hueco es de 8, que es el que se pidió.
+
+   -------------------------------------------------------------------
+   POR QUÉ "flex: 1 1 0" Y NO UN ANCHO FIJO
+   ------------------------------------------
+   Con un ancho fijo, cuatro pestañas con el tope de la octava parte quedarían
+   apretadas a la izquierda y la mitad de la fila vacía. Y la foto no muestra eso.
+
+   Con "flex:1 1 0" las cuatro se reparten lo que hay. Y con nueve, cada una toma
+   una novena parte y no habría tope: todas entrarían en una fila.
+
+   O sea que el reparto igual, y el tope lo pone la regla ".muchas", que solo
+   existe con más de ocho. Ahí el "flex-grow" es cero y el ancho es la octava
+   parte: ocho por fila, y el noveno baja.
+
+   El "min-width:0" es lo que permite que se encojan. Un elemento dentro de una
+   fila que se puede encoger es flexible, y un flexible no baja de su ancho
+   mínimo salvo que se le diga. Sin eso no baja nunca y el tope no sirve.
+
+   -------------------------------------------------------------------
+   EL CRECIMIENTO, Y POR QUÉ CON "max-width"
+   ------------------------------------------
+   El tope es una MEDIDA y entre dos medidas hay interpolación. Hacia "auto" o
+   "max-content" no la hay, y el navegador salta de un estado al otro.
+
+   Y el botón CRECE para hacer sitio, no se encoge. Por eso se levanta el tope y
+   se pone el "flex-grow" en uno, en vez de tocar el "flex-basis", que haría que
+   los botones de al lado se movieran al revés.
+
+   -------------------------------------------------------------------
+   LA PALABRA VA EN UN <span>
+   -----------------------------
+   Para poder recortarla con puntos. "text-overflow:ellipsis" funciona en un
+   bloque con texto, no en un elemento "flex", y el botón es "flex" porque el
+   ícono va al lado de la palabra. Sin una caja propia no hay dónde ponerlos.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   LA FILA
+   ------------------------------------------------------------------- */
+.attendance-tabs{
+  display:flex;
+  gap:8px;
+  align-items:stretch;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+
+/* -------------------------------------------------------------------
+   CADA PESTAÑA
+   -------------------------------------------------------------------
+   "1 1 0" para repartirse el ancho entre todas, "min-width:0" para que puedan
+   encogerse, y el tope de la octava parte como límite.
+
+   El "max-width:100%" del final es para el teléfono: una pestaña larga no puede
+   salirse de la pantalla. */
+.attendance-tabs button[role="tab"]{
+  flex:1 1 0;
+  min-width:0;
+  max-width:100%;
+  display:inline-flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:8px;
+  padding:11px 16px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:var(--panel);
+  color:var(--text);
+  font-family:'Montserrat',system-ui,sans-serif;
+  font-size:.72rem;
+  font-weight:600;
+  letter-spacing:.03em;
+  line-height:1.2;
+  text-align:left;
+  white-space:nowrap;
+  cursor:pointer;
+  /* La base se anima también. Hoy el motor NO la interpola, porque pasa de
+     cero a "auto" y "auto" no es una medida, así que la palabra aparece entera de
+     golpe. La transición está puesta para el día que el navegador sepa, y no estorba
+     mientras no la sepa. */
+  transition:background-color .18s ease,
+             border-color .18s ease,
+             color .15s ease,
+             flex-basis .26s cubic-bezier(.25,.46,.45,.94),
+             max-width .26s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* -------------------------------------------------------------------
+   AL PASAR EL PUNTERO, LA PALABRA CORTA SE LEE ENTERA
+   -------------------------------------------------------------------
+   Esta regla va ANTES de las de "muchas", a propósito. Las de "muchas" son más
+   específicas —cuatro selectores contra tres— y mandan sobre ésta, que es lo que
+   tienen que hacer: con más de ocho pestañas el crecimiento es el otro, con tope y
+   todo. */
+.attendance-tabs button[role="tab"]:hover,
+.attendance-tabs button[role="tab"]:focus-visible{
+  /* La base deja de ser cero y pasa a ser el texto. Con "flex:1 1 0" los otros
+     tienen tamaño base CERO, y el reparto de una línea usa ese tamaño base: cero por
+     lo que sea es cero, y no hay de dónde sacarle el ancho a la que está apuntada.
+
+     MEDIDO, a 1000 de ancho, con los nombres de verdad:
+
+         en reposo     1: 233  2: 232  3: 232 (cortada)  4: 232 (cortada)
+         con el puntero 1: 201  2: 199  3: 330 (COMPLETA) 4: 199 (cortada)
+
+     La larga pasa de 232 a 330 y su palabra, de 175 a 274, que es lo que necesita.
+     Se lee entera. Eso era lo que se pedía.
+
+     Y la CUARTA se acorta de 175 a 142 mientras tanto. No se puede evitar: la fila
+     está llena, las cuatro se reparten el ancho entero sin un píxel de holgura, y
+     darle más a una es sacarle a otra. Se probaron las dos salidas posibles y
+     ninguna funciona: con "flex:1 0 0" las otras no se encogen sino que toman
+     menos crecimiento —201 y 199, lo mismo—, y con "flex-wrap" la fila no baja
+     porque el total sigue entrando. Lo que haría falta es que la fila NECESITARA
+     más ancho del que tiene, y no lo necesita: entra apretada.
+
+     Y la palabra cortada no se pierde: el texto entero está en el archivo, se ve
+     con el puntero encima, y el botón conserva el rótulo accesible completo para
+     quien navega con el teclado, que lee el nombre entero y no la caja. Por eso no
+     hay que "arreglar" esto tapando el texto o poniéndolo en dos renglones: sería
+     perderlo del todo para verlo igual. */
+  flex:0 0 auto;
+  background:var(--surface-hover);
+  border-color:var(--accent);
+}
+
+.attendance-tabs button[role="tab"].active,
+.attendance-tabs button[role="tab"][aria-selected="true"]{
+  background:var(--panel);
+  border-color:var(--accent2);
+  border-width:2px;
+  color:var(--text);
+  font-weight:700;
+}
+
+/* La palabra, que se puede cortar con puntos. */
+.attendance-tabs .pest-txt{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* -------------------------------------------------------------------
+   CON MÁS DE OCHO: EL TOPE DE LA OCTAVA PARTE
+   -------------------------------------------------------------------
+   "muchas" lo pone el guion que cambia de pestaña, que es donde está la cuenta.
+
+   El "flex-grow" pasa a cero porque acá el ancho no se reparte: es la octava
+   parte para cada una, ocho por fila, y el noveno baja. */
+.attendance-tabs.muchas button[role="tab"]{
+  /* Igual que en el submenú, y por el mismo motivo: la base es el texto y el tope
+     es la octava parte. Con la base fija el botón no tenía de dónde crecer. */
+  flex:0 1 auto;
+  max-width:calc((100% - 7 * 8px) / 8);
+}
+
+/* Y al pasar el puntero el tope se levanta, para que la palabra se lea entera.
+   El "flex-grow" vuelve a uno, porque el botón tiene que crecer para hacer
+   sitio, no encogerse. */
+.attendance-tabs.muchas button[role="tab"]:hover,
+.attendance-tabs.muchas button[role="tab"]:focus-visible{
+  flex-grow:1;
+  max-width:40em;
+}
+
+/* ===================================================================
+   LAS PESTAÑAS DEL SUBMENÚ, AL MODELO DE LAS DE LA TARJA
+   ===================================================================
+
+   -------------------------------------------------------------------
+   QUÉ ES ESTO Y QUÉ NO
+   -------------------
+   La fila del submenú del encabezado: "Asistencia diaria", "Conciliar el reloj con
+   la planilla", "Mis avisos de ingreso", "Avisos del día", "Importar mapa". Se ve
+   como las de la tarja: cajas chicas, repartidas de lado a lado, sin barra de
+   desplazamiento, y con la palabra larga completa al pasar el puntero.
+
+   Y la fila de ARRIBA —"PORTERÍA / ADMINISTRACIÓN / BODEGA"—, que es "#mainNav", NO
+   se toca: es oscura, sin cajas, y es otra cosa.
+
+   -------------------------------------------------------------------
+   POR QUÉ LA PALABRA VA EN UN <span>
+   -------------------------------
+   Para poder recortarla con puntos. "text-overflow:ellipsis" funciona en un bloque
+   con texto, no en un elemento "flex", y el botón es "flex" porque el ícono va al
+   lado de la palabra. Sin una caja propia no hay dónde ponerlos.
+
+   -------------------------------------------------------------------
+   LAS DOS FORMAS DE AJUSTAR
+   --------------------------
+       ocho o menos     se reparten el ancho entre todas
+       más de ocho      cada una como máximo la octava parte, ocho por fila
+
+   Con "flex:1 1 0" se reparten lo que hay, que es lo de la foto. Y el tope de la
+   octava parte, en la regla ".muchas", es lo que hace que con nueve quepan ocho
+   en una fila y el noveno baje.
+
+   -------------------------------------------------------------------
+   EL <details> DEL DESPLEGABLE
+   ----------------------------
+   El "flex:1 1 0" va en el "<details>", que es la caja de primer nivel. El
+   "<summary>" de adentro es lo que se ve, y ocupa todo el ancho de su
+   "<details>": por eso lleva "width:100%".
+
+   Y NINGUNO de los dos lleva "overflow:hidden", porque el "<details>" tiene el
+   menú colgado con "position:absolute": con "overflow:hidden" el menú se cortaría a
+   la altura del botón, que es un defecto que ya se corrigió una vez.
+
+   -------------------------------------------------------------------
+   Y LA BARRA DE DESPLAZAMIENTO
+   ---------------------------
+   La fila hereda el "overflow-x:auto" de la regla general "nav". Acá se dice
+   "nowrap" solo con las reglas de los botones, y la barra desaparece porque con
+   las pestañas repartidas no hace falta. Si hiciera falta, la fila baja de línea:
+   es mejor un renglón más que una barra que hay que arrastrar.
+   =================================================================== */
+
+/* -------------------------------------------------------------------
+   CADA PESTAÑA
+   ------------------------------------------------------------------- */
+#subNav > button,
+#subNav > .nav-dropdown{
+  flex:1 1 0;
+  min-width:0;
+  max-width:100%;
+  display:inline-flex;
+  align-items:center;
+}
+
+#subNav > button{
+  gap:7px;
+  padding:9px 13px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--panel);
+  color:var(--text);
+  font-family:'Montserrat',system-ui,sans-serif;
+  font-size:.68rem;
+  font-weight:600;
+  letter-spacing:.03em;
+  line-height:1.2;
+  text-align:left;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background-color .18s ease,
+             border-color .18s ease,
+             color .15s ease,
+             max-width .26s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* El <summary> es lo que se ve, y tiene que ocupar todo el ancho de su
+   "<details>". */
+#subNav > .nav-dropdown > .nav-dropdown-trigger{
+  width:100%;
+  box-sizing:border-box;
+  gap:7px;
+  padding:9px 13px;
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--panel);
+  color:var(--text);
+  font-family:'Montserrat',system-ui,sans-serif;
+  font-size:.68rem;
+  font-weight:600;
+  letter-spacing:.03em;
+  line-height:1.2;
+  text-align:left;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background-color .18s ease,
+             border-color .18s ease,
+             color .15s ease;
+}
+
+#subNav > button:hover,
+#subNav > .nav-dropdown > .nav-dropdown-trigger:hover{
+  background:var(--surface-hover);
+  border-color:var(--cat,var(--accent));
+  color:var(--text);
+}
+
+#subNav > button.active,
+#subNav > .nav-dropdown[open] > .nav-dropdown-trigger{
+  background:var(--surface-hover);
+  border-color:var(--cat,var(--accent));
+  border-width:2px;
+  color:var(--cat,var(--accent));
+  font-weight:700;
+}
+
+/* La palabra, que se puede cortar con puntos. */
+#subNav .pest-txt{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+
+/* -------------------------------------------------------------------
+   CON MÁS DE OCHO
+   -------------------------------------------------------------------
+   El "flex-grow" pasa a cero: el ancho ya no se reparte, es la octava parte para
+   cada una, ocho por fila, y el noveno baja. */
+#subNav.muchas > button,
+#subNav.muchas > .nav-dropdown{
+  /* La BASE es el texto, y el TOPE es la octava parte.
+     Con "flex:0 0 calc(...)" el ancho quedaba FIJO en la octava parte, y subir el
+     "max-width" no hacía nada: el ancho ya estaba. Ni con "flex-grow:1" en el
+     hover funcionaba, porque en una fila llena no hay espacio libre que repartir.
+     Medido: el tope subía de 121 a 435 y el botón se quedaba en 119. */
+  flex:0 1 auto;
+  max-width:calc((100% - 7 * 8px) / 8);
+}
+
+/* Y al pasar el puntero el tope se levanta, para que la palabra se lea entera. El
+   "flex-grow" vuelve a uno, porque el botón tiene que crecer para hacer sitio, no
+   encogerse. */
+#subNav.muchas > button:hover,
+#subNav.muchas > button:focus-visible,
+#subNav.muchas > .nav-dropdown:hover,
+#subNav.muchas > .nav-dropdown:focus-within{
+  flex-grow:1;
+  max-width:40em;
+}
+
+/* Y el "<summary>" tiene que poder soltar su propio tope, que es el del
+   "<details>": si no, el "<details>" crece y el "<summary>" se queda corto. */
+#subNav.muchas > .nav-dropdown > .nav-dropdown-trigger{
+  max-width:100%;
+  transition:background-color .18s ease,
+             border-color .18s ease,
+             color .15s ease;
 }
