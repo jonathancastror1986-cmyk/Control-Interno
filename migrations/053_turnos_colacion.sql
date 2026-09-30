@@ -483,6 +483,67 @@ as $$
    order by t.orden, t.nombre
 $$;
 
+-- ------------------------------------------------------------------
+-- LAS COLACIONES DE UN TURNO, LOS SIETE DÍAS
+-- ------------------------------------------------------------------
+-- Lo que dibuja la rejilla de la pantalla.
+--
+-- p_turno_id es el turno que se quiere mirar. Y hay un valor que no es un turno:
+-- NULL, que quiere decir "la colación que vale para todos los turnos". No es un
+-- dato que falte: es un destino.
+--
+-- Los siete días salen siempre, con la fila vacía si ese día no tiene colación
+-- guardada. La razón es que la pantalla no tiene que adivinar qué días existen:
+-- si la función devolviera solo los guardados, cada lugar que arma la rejilla
+-- tendría que inventar los que faltan, y un día inventado es un día que se
+-- muestra en la columna equivocada.
+--
+-- Y el nombre del día se traduce acá, no en un columna de la base: el día de la
+-- semana no cambia nunca, así que guardarlo sería el mismo dato dos veces.
+create or replace function public.ver_colaciones(
+  p_empresa_id integer,
+  p_turno_id   integer default null
+)
+returns table (
+  dia_semana     smallint,
+  dia_nombre     text,
+  colacion_id    integer,
+  inicio         time,
+  duracion_min   integer,
+  se_descuenta   boolean,
+  origen         text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    d.dia_semana::smallint,
+    case d.dia_semana
+      when 0 then 'Domingo' when 1 then 'Lunes'   when 2 then 'Martes'
+      when 3 then 'Miércoles' when 4 then 'Jueves' when 5 then 'Viernes'
+      else 'Sábado' end,
+    c.id,
+    c.inicio,
+    c.duracion_min,
+    coalesce(c.se_descuenta, true),
+    case when c.id is null then 'sin colación' else 'guardada' end
+  from generate_series(0, 6) as d(dia_semana)
+  left join empresa_colaciones c
+    on c.empresa_id = p_empresa_id
+   and c.dia_semana   = d.dia_semana
+   and c.activo
+   and (
+         (p_turno_id is null     and c.turno_id is null)
+      or (p_turno_id is not null and c.turno_id = p_turno_id)
+       )
+ order by d.dia_semana
+$$;
+
+comment on function public.ver_colaciones(integer,integer) is
+  'Las colaciones de un turno, los siete dias. Los dias sin colacion salen con la fila vacia, no desaparecen.';
+
 -- -------------------------------------------------------------------
 -- DIAGNÓSTICO
 -- -------------------------------------------------------------------
@@ -496,7 +557,8 @@ returns table (
   empresas_con_turnos integer,
   empresas_con_colacion_nueva integer,
   empresas_siguen_con_034   integer,
-  permiso_gestionar boolean
+  permiso_gestionar boolean,
+  fn_ver_colaciones    boolean
 )
 language sql
 security definer
@@ -522,7 +584,9 @@ as $$
       where colacion_inicio is not null
         and not exists (select 1 from empresa_colaciones c
                          where c.empresa_id = empresa.id and c.activo)),
-    exists (select 1 from permisos where clave='turnos.gestionar')
+    exists (select 1 from permisos where clave='turnos.gestionar'),
+    exists (select 1 from pg_proc
+           where proname='ver_colaciones' and pronamespace='public'::regnamespace)
 $$;
 
 grant execute on function public.guardar_turno(integer,text,text,time,time,boolean,integer) to authenticated;
@@ -530,4 +594,5 @@ grant execute on function public.guardar_colacion(integer,smallint[],time,intege
 grant execute on function public.borrar_colacion(integer) to authenticated;
 grant execute on function public.colacion_de(integer,smallint,integer) to authenticated;
 grant execute on function public.ver_turnos(integer) to authenticated;
+grant execute on function public.ver_colaciones(integer,integer) to authenticated;
 grant execute on function public.diagnostico_turnos() to authenticated;

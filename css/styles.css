@@ -5765,11 +5765,26 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
 .marca-jc{
   display:block;
   flex:0 0 auto;
-  /* La proporción del emblema es 1044 x 691, o sea 1.511. Las dos medidas de
-     abajo andan en 1.5, que es lo más cerca que se llega con números enteros
-     sin que se note. */
-  width:45px;
-  height:30px;
+  /* El logo COMPLETO, no solo el emblema: el microchip con la J y la C más los
+     tres renglones de texto. La proporción es 1649 x 1145, o sea 1.440. Las dos
+     medidas de abajo andan en 1.44, lo más cerca que se llega con números
+     enteros.
+
+     EL TAMAÑO, Y POR QUÉ ES ESTE
+     -----------------------------
+     Con el logo entero, los tres renglones de texto son el 12%, el 7% y el 6%
+     del alto. A 44 de alto dan 5,3 y 2,6 píxeles: no se leen.
+
+     Y no hay manera de que se lean sin un encabezado de 137 píxeles de alto, que
+     es más de la mitad de un teléfono. Así que el texto del logo, a este tamaño,
+     es una forma, no una palabra: se reconoce el emblema y se sabe que hay un
+     nombre abajo. Es como se ve en cualquier aplicación con logo entero.
+
+     Si alguna vez hay que leerlo, el número está acá: alto del logo en píxeles =
+     (alto de la letra que se quiera leer) / 0.073. Para leerla a 10 píxeles
+     hacen falta 137. */
+  width:63px;
+  height:44px;
   /* El color sale de la sección. Es la misma variable que usa el nombre de la
      sección y el ícono del botón de arriba, y por eso el logo, el título y el
      ícono son claramente la misma sección y no tres cosas parecidas.
@@ -5779,8 +5794,14 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
   /* La máscara usa la transparencia del dibujo, no su color. El archivo puede
      decir currentColor sin que estorbe, porque de la máscara solo se lee la
      forma. */
-  -webkit-mask:url("../img/logo-jc.svg") no-repeat 50% 50%/contain;
-          mask:url("../img/logo-jc.svg") no-repeat 50% 50%/contain;
+  -webkit-mask-image:url("../img/logo-jc.svg");
+          mask-image:url("../img/logo-jc.svg");
+  -webkit-mask-repeat:no-repeat;
+          mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+          mask-position:center;
+  -webkit-mask-size:contain;
+          mask-size:contain;
   transition:width .34s cubic-bezier(.25,.46,.45,.94),
              height .34s cubic-bezier(.25,.46,.45,.94),
              transform .34s cubic-bezier(.25,.46,.45,.94);
@@ -5792,15 +5813,15 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    El encabezado baja con scaleY(.72) al pasar los 40 píxeles. Un logo
    dentro sale aplastado, así que hay que devolverle la escala.
 
-   Y la caja se achica en la misma proporción que la barra (45x30 -> 33x22, las
+   Y la caja se achica en la misma proporción que la barra (63x44 -> 46x32, las
    dos por 0.73) para que el logo se vea más chico y no solo menos aplastado.
 
    Si se saca el transform, el logo se ve chueco. Si se saca el width/height, el
    logo deja de encogerse. Las dos cosas hacen falta.
    ------------------------------------------------------------------- */
 body.nav-compacto .marca-jc{
-  width:33px;
-  height:22px;
+  width:46px;
+  height:32px;
   /* 1 / 0.72. El padre pone 0.72 y este pone 1.3889, y da 1. */
   transform:scaleY(1.3889);
   transform-origin:center;
@@ -5810,16 +5831,212 @@ body.nav-compacto .marca-jc{
    UNA PANTALLA CHICA
    -------------------------------------------------------------------
    En un teléfono el encabezado ya tiene el nombre de la sección, el selector de
-   empresa y el botón de cerrar sesión. Con el logo de 45 píxeles más no entra
-   nada, y lo que se esconde es el selector de empresa, que es lo que más hace
-   falta.
+   empresa y el botón de cerrar sesión. Con el logo de 63 píxeles más, lo que
+   queda fuera de la pantalla es el botón de cerrar sesión entero: medido, quedaba
+   en el pixel 506 de una pantalla de 356. O sea que no se veía ni se podía apretar.
 
-   El logo se achica antes que desaparecer: en 28 de alto todavía se reconoce la
-   J y la C, que es lo que tiene que reconocerse.
+   El logo baja a 52 de ancho. Sigue siendo el emblema completo con su nombre
+   abajo, que es lo que se reconoce; no cabe más.
    ------------------------------------------------------------------- */
-@media (max-width:640px){
-  .marca-jc{width:34px;height:23px}
-  body.nav-compacto .marca-jc{width:25px;height:17px;transform:scaleY(1.3889)}
+@media (max-width:700px){
+  .marca-jc{width:52px;height:36px}
+  body.nav-compacto .marca-jc{width:38px;height:26px;transform:scaleY(1.3889)}
+}
+
+/* ===================================================================
+   EL SUBMENÚ EN UN TELÉFONO
+   ===================================================================
+   En la pantalla grande el submenú es una fila y entra. En un teléfono no
+   entra, y lo que hacía era partirse solo: el primer elemento en una fila, el
+   segundo y el tercero en la de abajo, con un hueco entre medio porque el flex
+   los acomoda como puede.
+
+   Medido: 93 píxeles de alto y un hueco de 48 píxeles entre el primer elemento y
+   el segundo. Eso es un tercio de la barra del teléfono en un espacio vacío.
+
+   -------------------------------------------------------------------
+   POR QUÉ DOS COLUMNAS Y NO UNA FILA QUE SE DESPLAZA
+   ----------------------------------------------------
+
+   Una fila que se desplaza de lado es lo más natural, pero el menú del
+   desplegable va posicionado (position:absolute) y sale POR DEBAJO de la barra.
+   Un contenedor que se desplaza en horizontal tiene que recortar en vertical
+   también, porque no existe "desplazarse en X y dejar pasar en Y": en cuanto un
+   eje se desplaza, el otro se vuelve a recortar. Con una fila desplazable el
+   menú del desplegable se cortaría a la mitad, y un menú cortado es peor que un
+   menú abajo de todo.
+
+   Con dos columnas no hay desplazamiento, el menú sale por encima de la página
+   como siempre, y además los elementos quedan alineados en una grilla en vez de
+   sueltos.
+
+   Y el ancho mínimo del menú baja a 210 en vez de 240, porque a 240 no entraban
+   dos columnas en 356 píxeles.
+   =================================================================== */
+@media (max-width:700px){
+  #subNav{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:4px;
+    /* Los dos tipos de elemento tienen que ocupar la celda entera, o las dos
+       filas quedan desalineadas: la primera en una columna y la segunda
+       empezada más a la derecha, que se ve como si la grilla estuviera mala. */
+    justify-items:stretch;
+  }
+  #subNav .nav-dropdown,
+  #subNav>button{
+    min-width:0;
+    width:100%;
+  }
+  #subNav .nav-dropdown-trigger,
+  #subNav>button{
+    padding:12px 10px;
+    font-size:.7rem;
+  }
+  /* El texto largo se corta con puntos suspensivos en vez de romper la grilla */
+  #subNav .nav-dropdown-trigger{
+    white-space:nowrap;
+    overflow:hidden;
+  }
+  #subNav .nav-dropdown-trigger>span,
+  #subNav>button>span{
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  #subNav .nav-dropdown-menu{min-width:210px}
+}
+
+/* -------------------------------------------------------------------
+   LA BARRA DE SECCIONES SE DESPLAZA, Y HAY QUE SÍ SABERLO
+   -------------------------------------------------------------------
+   Siete secciones no entran en 390 píxeles: la barra se desplaza de lado. Eso
+   funciona, porque el dedo la mueve. Lo que no funcionaba era que no se veía:
+   la barra parecía cortada, y una barra cortada parece rota, no desplazable.
+
+   El desvanecido del borde derecho es lo que lo dice. Se hace con una máscara,
+   sin una sola línea de JavaScript y sin sensor: el degradado está fijo en el
+   borde de la caja, no dentro del contenido, así que no se mueve con el
+   desplazamiento.
+
+   Y solo en un teléfono: en una pantalla grande la barra se ve entera y un
+   desvanecido al final sería un defecto, no una pista.
+   ------------------------------------------------------------------- */
+@media (max-width:700px){
+  #mainNav{
+    -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 30px),transparent);
+            mask-image:linear-gradient(to right,#000 calc(100% - 30px),transparent);
+  }
+}
+
+/* -------------------------------------------------------------------
+   UN ELEMENTO SOLO
+   -------------------------------------------------------------------
+   Con un solo elemento en el submenú, una grilla de dos columnas lo dejaría
+   en la mitad izquierda con la mitad derecha vacía. Con una sola cosa, la grilla
+   tiene que ser de una columna.
+   ------------------------------------------------------------------- */
+@media (max-width:700px){
+  #subNav:only-child{grid-template-columns:1fr}
+}
+
+/* ===================================================================
+   EL ENCABEZADO EN UN TELÉFONO
+   ===================================================================
+   Lo que había no cabía. Medido en una pantalla de 356 píxeles:
+
+     el encabezado        344 x 90      (casi media pantalla de barra)
+     el titulo             73 x 64      (estrujado a 73 de ancho, cuatro renglones)
+     el selector de empresa  x 42        el borde derecho en 413
+     cerrar sesión         x 54         el borde derecho en 506, fuera de la pantalla
+
+   Y el submenú, 93 píxeles de alto, con un hueco entre el primer elemento y los
+   otros dos porque el flex los parte como puede.
+
+   -------------------------------------------------------------------
+   POR QUÉ DOS FILAS Y NO UNA
+   --------------------------
+
+   Todo en una fila son cinco cosas compitiendo: el logo, el nombre de la
+   sección, la etiqueta "Empresa", el selector y el botón de cerrar sesión. En 356
+   píxeles no entran ni de sobra, y cuando algo no entra no se achica: se sale de
+   la pantalla. Lo que se salió fue el botón de cerrar sesión, que es lo
+   imposible: un botón que no se ve no existe.
+
+   En dos filas cada cosa tiene su lugar. La primera es lo que identifica (logo
+   y nombre de la sección) más lo que se usa poco (el botón). La segunda es lo
+   que se usa todo el rato (el selector de empresa), y por eso va a lo ancho.
+
+   El selector NO se esconde. Es la empresa en la que se está trabajando, y sin
+   él uno puede marcar la asistencia de la obra equivocada sin darse cuenta. La
+   etiqueta "Empresa" sí se esconde: el selector ya se ve cuál es.
+   =================================================================== */
+@media (max-width:700px){
+  header{
+    flex-wrap:wrap;
+    row-gap:8px;
+    column-gap:10px;
+  }
+  /* El nombre de la sección, en una línea, con puntos suspensivos si no entra.
+     min-width:0 es lo que le permite encogerse: sin eso un elemento con texto
+     no baja de su ancho mínimo, que es justo lo que lo empujaba. */
+  header h1{
+    flex:1 1 0;
+    min-width:0;
+    font-size:.92rem;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  /* Los botones al final de la primera fila */
+  header>button{order:4;flex:0 0 auto}
+  /* Y el selector de empresa, solo y a lo ancho en la segunda fila */
+  .header-actions{
+    order:5;
+    flex:1 0 100%;
+    min-width:0;
+  }
+  .header-actions label{display:none}
+  .header-actions select{width:100%!important;min-width:0}
+}
+
+/* -------------------------------------------------------------------
+   UN TELÉFONO MÁS ANGOSTO
+   -------------------------------------------------------------------
+   En 400 píxeles o menos, el nombre de la sección y el selector ya no caben ni
+   en dos filas sin que el logo quede aplastado. El nombre de la sección está
+   además escrito en el botón del menú que está activo, o sea que no se pierde
+   información: solo deja de estar en dos lugares a la vez.
+
+   Y no se borra del documento: queda oculto para la vista, que es distinto de
+   estarlo para el lector de pantalla. Un lector de pantalla todavía anuncia en
+   qué sección se está, y eso es lo que importa.
+   ------------------------------------------------------------------- */
+@media (max-width:430px){
+  header h1{
+    position:absolute;
+    width:1px;
+    height:1px;
+    padding:0;
+    margin:-1px;
+    overflow:hidden;
+    clip-path:inset(50%);
+    white-space:nowrap;
+  }
+  /* Con el nombre de la sección escondido, el selector de empresa vuelve a la
+     primera fila y el encabezado pasa de 113 a menos de 70 píxeles.
+
+     Lo que se sacrifica es el ancho del selector: queda con lo que sobra después
+     del logo y de los dos botones. El texto de una empresa larga se corta, y eso
+     es lo que hace cualquier selector en un teléfono: al apretarlo se abre la
+     lista completa, que es donde se lee el nombre entero.
+
+     Y min-width:0 es lo que impide que el selector empuje a los demás fuera de la
+     pantalla, que es exactamente lo que pasaba antes. */
+  .header-actions{order:3;flex:1 1 0}
+  .header-actions select{min-width:0}
+  header{padding:10px 12px;row-gap:6px}
+  .marca-jc{width:46px;height:32px}
+  body.nav-compacto .marca-jc{width:34px;height:24px;transform:scaleY(1.3889)}
 }
 
 /* -------------------------------------------------------------------
