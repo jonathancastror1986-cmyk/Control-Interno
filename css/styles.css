@@ -6552,3 +6552,91 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   }
 }
 
+
+/* ===================================================================
+   LA LISTA DE ELEMENTOS ENTREGADOS
+   ===================================================================
+   El botón de escanear era uno en cada fila, ancho completo de la celda y
+   debajo del desplegable. Con eso la primera columna medía el doble que las
+   otras cuatro, y los cinco campos de la fila no quedaban alineados: los otros
+   cuatro se quedaban flotando en el medio de una celda alta.
+
+   Ahora el botón es uno, al lado del título, con el ícono de información que ya
+   usa la página. Y el título es chiquito, como los subtítulos de una tarjeta, y
+   no la letra grande de una etiqueta de campo: esto es el nombre de un grupo de
+   campos, no el nombre de un campo.
+   =================================================================== */
+
+/* El título y el botón, en una línea: título a la izquierda, botón a la
+   derecha. Es la misma forma de las tarjetas de arriba. */
+.eppItemsCabecera{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:10px;
+}
+
+/* Chiquito y con mayúsculas, como los títulos de sección del resto de la
+   página. Con el ícono de información al lado, que se ancla con el
+   "vertical-align" que ya trae ".ayuda". */
+.eppItemsTitulo{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  font-size:.7rem;
+  font-weight:600;
+  letter-spacing:.09em;
+  text-transform:uppercase;
+  color:var(--muted);
+}
+
+/* El botón: chico y de una línea, pegado al ícono. Ya no es ancho completo de
+   una celda, porque no vive en una celda. */
+.eppScanBtn{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 11px;
+  font-size:.7rem;
+  font-weight:600;
+  white-space:nowrap;
+}
+.eppScanBtn .ico{
+  width:15px;
+  height:15px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+/* -------------------------------------------------------------------
+   LOS CINCO CAMPOS DE LA FILA, TODOS DEL MISMO ALTO
+   -------------------------------------------------------------------
+   Medido con el botón de escanear ya fuera de la fila: los cinco campos
+   arrancaban en la misma línea, pero medían 35 / 33 / 35 / 33 / 31.
+
+   Tres tipos de control, tres alturas. Cada uno trae su propia métrica —el
+   desplegable dibuja el suyo nativo, el campo de texto usa el relleno de la
+   página, y el botón tiene el suyo— y en una grilla de cinco columnas eso se ve
+   como una sierra en vez de una línea.
+
+   Un alto fijo en los controles de ESTA tabla, y no andar moviendo el relleno
+   de cada uno: subir el relleno depende de la fuente que esté cargada y del
+   tamaño de letra del sistema, y mañana en otra pantalla las tres vuelven a
+   diferir por una razón que no se ve. La regla es de la tabla, no del control.
+
+   Y solo en pantalla ancha: abajo de 760 los campos se apilan en dos columnas y
+   el alto no se ve, pero sí se siente que el dedo tiene que llegar. Ahí manda el
+   relleno del archivo, que es más generoso.
+   ------------------------------------------------------------------- */
+@media (min-width:761px){
+  .eppItemRow select,
+  .eppItemRow input,
+  .eppItemRow .btn{
+    height:38px;
+  }
+}

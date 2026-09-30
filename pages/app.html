@@ -207,7 +207,7 @@ small{color:var(--muted)}
 .kitItemPill.no{color:var(--danger);border-color:var(--danger)}
 /* ---- entrega de EPP: ítems + firma ---- */
 .eppItems{border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:10px}
-.eppItemRow{display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(120px,1.2fr) minmax(90px,.7fr) minmax(80px,.5fr) auto;align-items:center;gap:8px;padding:8px;border-bottom:1px solid var(--line);background:var(--panel)}
+.eppItemRow{display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(120px,1.2fr) minmax(90px,.7fr) minmax(80px,.5fr) auto;align-items:start;gap:8px;padding:8px;border-bottom:1px solid var(--line);background:var(--panel)}
 .eppItemRow:last-child{border-bottom:0}
 .eppItemRow.eppItemHead{background:var(--panel);font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase}
 .eppItemRow select,.eppItemRow input{padding:7px 8px;font-size:.85rem}
@@ -215,10 +215,11 @@ small{color:var(--muted)}
 .eppItemMeta{font-size:.68rem;color:var(--muted);margin-top:2px;display:block;min-height:14px}
 .eppFirma{display:grid;grid-template-columns:minmax(240px,1fr) minmax(180px,.7fr);gap:14px;align-items:start;margin-top:10px}
 .sigPadWrap{position:relative;border:1px dashed var(--accent2);border-radius:8px;background:var(--panel);overflow:hidden}
-/* El botón de escanear el elemento, en la misma celda del desplegable.
-   Es ancho completo de la celda y chiquito: es la alternativa al desplegable,
-   no un botón protagonista. */
-.eppScanBtn{margin-top:6px;width:100%;padding:5px 8px;font-size:.65rem}
+/* El botón de escanear ya no está aquí: es uno solo, al lado del título de
+   la lista, y su regla vive en "css/styles.css", que es donde va lo que se
+   agrega. Antes estaba en cada fila, ancho completo de la celda y debajo del
+   desplegable, y eso hacía que la primera columna midiera el doble que las
+   otras cuatro. */
 /* Los tres campos de ubicación: pasillo, sector y nivel. Un grid de tres
    columnas iguales, y en pantallas chicas bajan a uno. */
 .locRow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
@@ -1261,7 +1262,28 @@ duplica nada: la base lo sabe y lo cuenta.
     <div id="eppScanAviso"></div>
     <small>Estos tres campos se pueden dejar vacíos: hay entregas que no son en un punto fijo, como una entrega inicial que se hace en la propia obra.</small>
 
-    <label>Elementos entregados</label>
+    <div class="eppItemsCabecera">
+      <span class="eppItemsTitulo">Elementos entregados
+        <details class="ayuda"><summary class="ayuda-ico" title="Cómo se agrega un elemento">i</summary>
+        <div class="ayuda-caja">
+        Cada fila es un elemento con su <b>talla</b> y su <b>cantidad</b>. La cantidad es
+        cuántos se entregan de ese elemento, no cuántas filas son.
+        <br><br>
+        <b>Escanear</b> pone el elemento en la <b>primera fila que esté vacía</b>, y si
+        todas tienen algo, agrega una fila nueva. No pregunta en qué fila va: la fila
+        vacía es la que se está usando de todas maneras.
+        <br><br>
+        Un elemento que no está en el catálogo entra igual, como carga manual, y
+        avisa arriba para que se dé de alta en el catálogo.
+        </div></details>
+      </span>
+      <button class="btn secondary eppScanBtn" type="button"
+        data-dato="Escanear el código de un elemento y ponerlo en la primera fila vacía"
+        onclick="openQrCamera('epp-item:nueva')">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="14" y1="12" x2="14" y2="12.01"/></svg>
+        Escanear
+      </button>
+    </div>
     <div class="eppItems">
       <div class="eppItemRow eppItemHead">
         <div>Elemento (código)</div><div>Detalle</div><div>Talla</div><div>Cantidad</div><div></div>
@@ -5184,6 +5206,11 @@ function handleScannedCode(rawCode,purpose){
   if(purpose==='epp-historial'){filtrarHistorialPorScan(code);return;}
   if(purpose==='tool-owner'){lookupQrOwner(code);return;}
   // Elemento, herramienta o kit. El numero es la fila a la que va.
+  //
+  // "nueva" no es un numero: es el botón único que está al lado del título, y no
+  // sabe de antemano en qué fila va el código. Eso se resuelve acá, con la lista
+  // ya a la vista, que es el momento en que se puede saber.
+  if(purpose==='epp-item:nueva'){escanearEppEnLaFilaVacia(code);return;}
   if(purpose.indexOf('epp-item:')===0){escanearEppItem(+purpose.slice(9),code);return;}
   if(purpose.indexOf('kit-item:')===0){escanearKitItem(+purpose.slice(9),code);return;}
   const input=document.getElementById('scanCode');
@@ -9921,8 +9948,20 @@ function renderEppItemRows(){
   host.innerHTML=eppItemRows.map((r,i)=>{
     const cat=eppCatalog.find(c=>c.codigo===r.eppCodigo);
     const tipo=tipoTallaDeItem(r);
+    // La nota va en minúscula y sin el paréntesis de la etiqueta.
+    //
+    // "TIPO_TALLA_LABEL" está escrito con mayúscula inicial porque son los
+    // nombres de un desplegable, donde eso tiene sentido. Pegado en medio de una
+    // frase, "usa talla Calzado (tallas chilenas)" se ve como un error de
+    // tipeo, y el paréntesis de la lista de tallas sobra: lo que hace falta es
+    // qué tallas hay, y eso ya está en el desplegable de al lado.
+    //
+    // Antes había un ".replace('General','general')": un parche para una sola
+    // palabra. Con la nota hecha en minúscula desde el principio, el parche no
+    // hace falta.
+    const etiquetaTalla=TIPO_TALLA_LABEL[tipo]||tipo;
     const nota=cat&&cat.tipo_talla
-      ?`usa talla ${TIPO_TALLA_LABEL[tipo]||tipo}`.replace('General','general')
+      ?'usa talla '+etiquetaTalla.charAt(0).toLowerCase()+etiquetaTalla.slice(1).replace(/\s*\(.*\)$/,'')
       :(cat&&cat.detalle?cat.detalle:'');
     return `<div class="eppItemRow" data-i="${i}">
       <div>
@@ -9931,8 +9970,6 @@ function renderEppItemRows(){
           <option value="" ${(!r.otro&&!r.eppCodigo)?'selected':''}>— elegir elemento —</option>
           ${eppCatalog.filter(c=>c.activo!==false).map(c=>`<option value="${c.codigo}" ${!r.otro&&r.eppCodigo===c.codigo?'selected':''}>${c.codigo} — ${c.nombre}</option>`).join('')}
         </select>
-        <button class="btn secondary eppScanBtn" type="button" data-dato="Escanear el código del elemento de esta fila"
-          onclick="openQrCamera('epp-item:${i}')">📷 Escanear</button>
         ${r.otro?`<input style="margin-top:6px" placeholder="Nombre del elemento" value="${r.nombre}" oninput="eppItemRows[${i}].nombre=this.value">
         <select style="margin-top:6px" onchange="eppItemRows[${i}].tipoTalla=this.value;renderEppItemRows()">
           ${['','calzado','ropa','general'].map(t=>`<option value="${t}" ${tipo===t?'selected':''}>${t?('Talla: '+(TIPO_TALLA_LABEL[t]||t)):'Talla: según elemento'}</option>`).join('')}
@@ -9978,6 +10015,27 @@ function avisarElementoFueraDeCatalogo(codigo){
   if(avis)avis.innerHTML='<small style="color:var(--warn-ink)"><b>'+escHtml(codigo)+'</b> no está en el catálogo de EPP, así que se agregó como carga manual. '
     +'Si es un elemento que se usa siempre, conviene darlo de alta en el catálogo.</small>';
   return true;
+}
+// El botón de escanear es UNO, al lado del título, y no uno en cada fila.
+//
+// Antes había uno por fila y eso obligaba a decidir la fila ANTES de escanear,
+// que es un paso que no hacía falta: el código va siempre a la primera fila que
+// todavía no tiene elemento, que es la que la persona está usando de todas
+// maneras. Si todas tienen, se agrega una fila y escanea ahí.
+//
+// Con esto, agregar cinco elementos del mismo código son cinco pulsaciones y
+// cinco filas, sin tener que apretar "Quitar" ni elegir dónde.
+function escanearEppEnLaFilaVacia(codigo){
+  let i=eppItemRows.findIndex(r=>!r.otro&&!r.eppCodigo);
+  if(i<0){
+    addEppItemRow();
+    i=eppItemRows.length-1;
+  }
+  escanearEppItem(i,codigo);
+  // Y la fila queda a la vista. Con varias filas, no ver dónde cayó el código
+  // hace que la persona lo busque con la vista en vez de seguir trabajando.
+  const fila=document.querySelector('.eppItemRow[data-i="'+i+'"]');
+  if(fila&&fila.scrollIntoView)fila.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 function escanearEppItem(indice,codigo){
   const fila=eppItemRows[indice];
@@ -18344,7 +18402,21 @@ async function crearGrupoDesdePantalla(){
     return;
   }
   inp.value='';
-  if(aviso)aviso.textContent='Grupo creado con la clave "'+(data[0]?data[0].gestionar_grupo:'')+'".';
+  // La función "gestionar_grupo" devuelve TEXT: lo que vuelve es la clave, no
+  // una tabla. Pedir una propiedad llamada "gestionar_grupo" sobre un texto
+  // devuelve "undefined", y el "|| ''" no lo frenaba porque un valor indefinido
+  // es verdadero y el operador cortaba ahí. El mensaje terminaba diciendo
+  // 'Grupo creado con la clave "undefined"', con el grupo creado de verdad.
+  const clave=typeof data==='string'?data.trim():'';
+  if(!clave){
+    // Si no hay clave legible, NO se inventa una. Un grupo existe o no existe:
+    // conviene volver a mirarlo antes de decir que se creó.
+    await cargarJerarquiaCargos(true);
+    renderEmpresasCargos();
+    if(aviso)aviso.textContent='El grupo se guardó, pero no se pudo leer la clave con la que quedó. Vuelve a mirarlo en la lista.';
+    return;
+  }
+  if(aviso)aviso.textContent='Grupo creado con la clave "'+clave+'".';
   await cargarJerarquiaCargos(true);
   renderEmpresasCargos();
 }
