@@ -5188,30 +5188,87 @@ header{z-index:30}
    =================================================================== */
 
 #barrasSuperiores{
+  /* El aire de AFUERA es del color de la página: separa el bloque de lo que hay
+     debajo. Poco, y siempre igual en los cuatro lados. */
   background:var(--bg);
-  padding:0 clamp(6px,1vw,14px) clamp(6px,1vw,10px);
-  /* El contenedor pega, las barras de adentro flotan. Al revés no funciona:
-     un contenedor redondeado con barras recta se ve como un marco. */
-  border-radius:0;
+  padding:clamp(5px,.7vh,8px) clamp(6px,1vw,14px) clamp(6px,1vw,10px);
 }
 
 /* -------------------------------------------------------------------
-   LAS BARRAS
-   ------------------------------------------------------------------- */
+   EL BLOQUE
+   -------------------------------------------------------------------
+   Las tres filas en una sola pieza. El borde-redondeado y la sombra van acá y
+   no en las filas: puestos en cada fila se ve un redondeo en los costados de la
+   fila del medio, y tres sombras sumadas dan tres franjas grises entre medio.
+
+   Y el fondo del panel: el aire entre filas tiene que ser del color del bloque.
+   Con el fondo de la página en el medio se lee un corte, y se ven tres tarjetas
+   pegadas en vez de un encabezado. */
 #barrasSuperiores header,
 #barrasSuperiores #mainNav,
 #barrasSuperiores #subNav{
+  margin:0;
+  border-radius:0;
+  box-shadow:none;
+  border:0;
+  border-bottom:1px solid var(--line);
+}
+#barrasSuperiores #subNav{border-bottom:0}
+
+/* El bloque entero, redondeado y con sombra una sola vez */
+#barrasSuperiores>header,
+#barrasSuperiores>#mainNav,
+#barrasSuperiores>#subNav{
+  background:var(--panel);
+}
+#barrasSuperiores{
   border-radius:12px;
   box-shadow:0 2px 5px rgba(0,0,0,.10),0 8px 18px -6px rgba(0,0,0,.14);
-  margin-bottom:clamp(5px,.7vh,8px);
-  /* Sin esto, el fondo del contenedor se transparenta por las esquinas
-     redondeadas y se ve un cuadrado del color de la página en las cuatro
-     puntas de la barra. */
+  /* Sin esto, el fondo del panel se transparenta por las esquinas redondeadas y
+     se ve un cuadrado del color de la página en las cuatro puntas. */
   background-clip:padding-box;
   border:1px solid rgba(0,0,0,.06);
+  overflow:hidden;
 }
-/* La última barra no necesita hueco abajo: abajo está la página */
-#barrasSuperiores #subNav{margin-bottom:0}
+
+/* -------------------------------------------------------------------
+   LA FILA DE ARRIBA: LA ÚNICA CON COLOR
+   -------------------------------------------------------------------
+   Es la que dice en qué sección se está, y por eso conserva el fondo de la
+   sección. Las dos de abajo van con el panel y los botones, que es lo que las
+   separa de la primera sin gastarse un hueco. */
+#barrasSuperiores header{
+  background:var(--fondo-seccion, #101a14);
+}
+/* El aire de adentro lo hace el padding de cada fila, parejo en las tres */
+#barrasSuperiores header{padding:8px 20px}
+#barrasSuperiores #mainNav{padding:2px 10px}
+#barrasSuperiores #subNav{padding:2px 10px 4px}
+
+/* -------------------------------------------------------------------
+   LOS BOTONES DE LAS DOS BARRAS, CON MENOS AIRE
+   -------------------------------------------------------------------
+   Los botones del archivo traen 13 de padding arriba y 13 abajo, pensados para
+   que se puedan apretar con el dedo en un teléfono. Dentro del bloque son
+   demasiado: la fila queda en 44 píxeles y las dos filas de menú se comen 95 de
+   los 184 del bloque.
+
+   De 13 a 8 quedan en unos 38, que siguen siendo más altos que un texto de
+   formulario y se siguen apretando bien con el dedo. El aire de adentro del
+   bloque lo hace el padding del contenedor, que es parejo y es el que separa el
+   bloque de la página.
+
+   Y el encabezado NO se toca: su alto ahora lo pone el logo, que es lo que se
+   pidió agrandar. Achicar el logo para ganar 6 píxeles sería volver atrás.
+   ------------------------------------------------------------------- */
+#barrasSuperiores #mainNav button,
+#barrasSuperiores #subNav>button,
+#barrasSuperiores #subNav .nav-dropdown-trigger{
+  padding-top:8px;
+  padding-bottom:8px;
+}
+/* El borde de 2 del desplegable se ve más gordo con el botón más chico */
+#barrasSuperiores #subNav .nav-dropdown-trigger{border-bottom-width:1px}
 
 /* -------------------------------------------------------------------
    LOS BOTONES
@@ -5867,7 +5924,7 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    ------------------------------------------------------------------- */
 .marca-jc:hover,
 .marca-jc:focus-visible{
-  --crecer:2.2;
+  --crecer:2.5;
   background:rgba(255,255,255,.14);
 }
 .marca-jc:active{--crecer:2}
@@ -5887,8 +5944,8 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    ------------------------------------------------------------------- */
 .marca-jc-dibujo{
   display:block;
-  width:53px;
-  height:37px;
+  width:58px;
+  height:40px;
   /* El color sale de la sección. Es la misma variable que usa el nombre de la
      sección y el ícono del botón de arriba, y por eso el logo, el título y el
      ícono son claramente la misma sección y no tres cosas parecidas. */
@@ -5896,8 +5953,8 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
   /* La máscara usa la transparencia del dibujo, no su color. El archivo puede
      decir currentColor sin que estorbe, porque de la máscara solo se lee la
      forma. */
-  -webkit-mask-image:url("../img/logo-jc.svg");
-          mask-image:url("../img/logo-jc.svg");
+  -webkit-mask-image:url("../img/logo-jc.svg?v=2");
+          mask-image:url("../img/logo-jc.svg?v=2");
   -webkit-mask-repeat:no-repeat;
           mask-repeat:no-repeat;
   -webkit-mask-position:center;
@@ -5924,8 +5981,8 @@ body.nav-compacto .marca-jc{
   padding:3px;
 }
 body.nav-compacto .marca-jc-dibujo{
-  width:39px;
-  height:27px;
+  width:43px;
+  height:30px;
 }
 
 /* -------------------------------------------------------------------
@@ -5970,7 +6027,7 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
    ------------------------------------------------------------------- */
 @media (max-width:700px){
   .marca-jc{padding:4px}
-  .marca-jc-dibujo{width:44px;height:30px}
+  .marca-jc-dibujo{width:46px;height:32px}
 }
 
 /* ===================================================================
