@@ -1,0 +1,502 @@
+/* ===================================================================
+   css/_marca.css — EL LOGO DEL ENCABEZADO
+
+   Un solo componente: la marca, las letras y el nombre de la sección, que se
+   intercambian de sitio al pasar el puntero.
+
+   -------------------------------------------------------------------
+   POR QUÉ ESTÁ EN SU PROPIO ARCHIVO, Y EN ESTE PUNTO DE LA LISTA
+   -------------------------------------------------------------------
+   Se carga DESPUÉS de styles.css y ANTES de movil.css. Antes, este bloque estaba en
+   medio de styles.css, o sea exactamente en ese mismo lugar de la cascada.
+
+   Y no es un detalle que se pueda cambiar después: si este archivo se cargara después de
+   movil.css, el logo se mediría antes de que el teléfono le cambie el tamaño, y ganaría la
+   medida de la pantalla grande. Con el orden de hoy no, porque movil.css no menciona el
+   logo ni una vez.
+
+   -------------------------------------------------------------------
+   LO QUE HAY QUE LLEVARSE TAMBIÉN
+   -------------------------------------------------------------------
+   Este archivo trae el bloque de "prefers-reduced-motion" DEL LOGO, que en styles.css
+   estaba en medio del encabezado del teléfono, muy después de acá.
+
+   Si ese bloque se quedara atrás, quedaría antes que las transiciones de este archivo y
+   dejaría de ganar: el logo volvería a animarse con el puntero aunque la persona haya
+   pedido que no se anime nada. Es un problema de accesibilidad, no de estética.
+
+   -------------------------------------------------------------------
+   LOS NÚMEROS DE ESTE MÓDULO, Y POR QUÉ NO SE CAMBIAN
+   -------------------------------------------------------------------
+   La marca mide 58 x 39 y NO crece al pasar el puntero. Las letras van de "translate(102px, 0)"
+   a "translate(0, 47px)". El 47 son 5 de relleno del enlace, más 39 de la marca, más 3 de
+   hueco. El 102 es el ancho de la marca más su relleno.
+
+   Los dos están MEDIDOS, y la razón de que midan eso y no otra cosa está en el archivo de
+   documentación, con el código de referencia de cada uno.
+   =================================================================== */
+
+/* ===================================================================
+   EL LOGO EN EL ENCABEZADO
+   ===================================================================
+   Son dos elementos y cada uno hace una cosa:
+
+     <a class="marca-jc">        el botón: el fondo, el que crece, el que lleva
+                                 al inicio
+       <span class="marca-jc-dibujo">   la forma del logo, con la máscara
+
+   -------------------------------------------------------------------
+   POR QUÉ NO ES UN SOLO ELEMENTO
+   ------------------------------
+
+   Porque tiene que crecer al pasar el mouse, para que se lean los tres renglones
+   de texto. Y si el que crece fuera el elemento con la máscara, no habría dónde
+   poner el fondo del botón: la imagen se agranda sola y queda flotando sin nada
+   atrás, que se ve como un error.
+
+   Con el dibujo adentro, el fondo del botón crece con el dibujo.
+   =================================================================== */
+.marca-jc{
+  /* Las dos escalas se escriben con variables, porque son la MISMA propiedad y
+     no se pueden escribir dos transformores en un elemento.
+
+     El encabezado se comprime con scaleY(.72) al bajar la página, y el logo se
+     descomprime con 1.3889 para que el producto sea 1 y no se vea chueco. Y al
+     pasar el mouse crece a 2.2, que es el tercer escalón.
+
+     Al pasar el mouse el producto da 0.72 x 1.3889 x 2.2 = 2.2 en los dos ejes:
+     limpio. Si el crecimiento se escribiera después del descompresor, lo
+     taparía y el logo salía chueco al pasar el mouse con la página abajo. */
+  --descomprimir:1;
+  --crecer:1;
+  display:block;
+  flex:0 0 auto;
+  /* El fondo del botón. Se agranda con el botón, que es justo lo que se quiere
+     al crecer. */
+  padding:5px;
+  border-radius:9px;
+  text-decoration:none;
+  color:inherit;
+  cursor:pointer;
+  /* Solo el descompresor, y NO el crecimiento.
+     El descompresor existe porque la barra se aplasta con "scaleY(.72)" al bajar
+     la página, y el logo tiene que devolver su escala para no salir chueco. Eso
+     va en un transform.
+
+     El crecimiento ya NO va acá, y esa es la corrección de este turno. Un
+     transform dibuja más grande sobre el mismo sitio y no cambia el ancho que el
+     elemento ocupa: el logo seguía midiendo 68 mientras se veía de 170, y los 102
+     píxeles de diferencia quedaban encima del título y de los menús. Medido: el
+     título arranca en 115 y el logo llegaba a 201.
+
+     Ahora el crecimiento es el ancho y el alto del dibujo, más abajo. Un ancho que
+     cambia sí ocupa sitio, así que los menús se corren a la derecha, que es lo
+     que se pidió.
+
+     El origen a la izquierda y al medio, para que al crecer se abra hacia la
+     derecha y no se descentre de la barra. */
+  transform:scaleY(var(--descomprimir));
+  transform-origin:left center;
+  /* Para que el crecimiento pase POR ENCIMA del título de la sección, que queda
+     debajo. Sin esto, el logo crece por detrás de las letras. */
+  position:relative;
+  z-index:60;
+  background:transparent;
+  transition:transform .26s cubic-bezier(.25,.46,.45,.94),
+             background-color .22s ease;
+}
+
+/* -------------------------------------------------------------------
+   LA MARCA NO CRECE
+   -------------------------------------------------------------------
+   Antes crecía al pasar el puntero, de 58 x 39 a 145 x 97. Ahora no: se pidió que
+   se mantuviera en la izquierda, y hay una razón de fondo que lo sostiene.
+
+   La marca es la única parte del encabezado que dice QUIÉN es la empresa. El
+   nombre de la sección también está, pero en el submenú, y el submenú no siempre
+   se ve. Si la marca creciera con el puntero, la identidad visual quedaría atada
+   a un gesto, y el gesto se pierde: el puntero pasa de largo, o la persona ya sabe
+   dónde está y no pasa por ahí.
+
+   Lo que crece son las LETRAS, que son las que se piden. Y lo que crece es texto
+   grande, que es lo que se lee de lejos.
+
+   El fondo del botón al pasar se queda: es la señal de que ahí hay algo que se
+   puede apretar, y no tiene nada que ver con el crecimiento. */
+.marca-jc:hover,
+.marca-jc:focus-visible{
+  /* -----------------------------------------------------------------
+     EL FONDO DEL BOTÓN, Y POR QUÉ NO ES UN COLOR FIJO
+     -----------------------------------------------------------------
+     Estaba en "#1b2c23", un verde oscuro. Ese verde era de la paleta anterior, cuando
+     todas las secciones eran verdes. Hoy cada sección tiene su color, y el fondo del
+     encabezado sale de "--fondo-seccion", definida una vez por sección.
+
+     Con el verde fijo, el botón quedaba verde encima de un encabezado que puede ser
+     #8D4D22 en bodega, #4B5F7A en administración o #9E3F2E en prevención. Un parche de
+     otra paleta, y más notorio desde que la marca se achica y queda más fondo a la vista.
+
+     -----------------------------------------------------------------
+     OSCURECE, NO ACLARA, Y POR QUÉ
+     -----------------------------------------------------------------
+     El comentario viejo decía "un punto más claro", y con la paleta anterior, que era
+     casi negra, "más claro" era apenas notarlo. Con los tonos de sección de hoy, aclarar
+     arruina el contraste. Medido, con la tinta de la marca, que es "--cat":
+
+         aclarar  8% hacia el blanco    entre 1,09:1 y 2,03:1
+         aclarar 14% hacia el blanco    entre 1,30:1 y 1,85:1
+         oscurecer 22% hacia el negro   entre 8,05:1 y 17,92:1
+
+     Aclarar sube la luminosidad del fondo hasta pasarla de la tinta, y ahí las dos cosas
+     quedan del mismo lado. Oscurecer hace lo contrario: baja el fondo y sube el contraste
+     de la marca. O sea que el arreglo no solo saca el verde que sobraba, además deja la
+     marca más legible de lo que estaba.
+
+     El 3,05:1 es lo que la norma pide para elementos de interfaz y elementos gráficos, y
+     la marca es un dibujo.
+
+     -----------------------------------------------------------------
+     POR QUÉ SE DERIVA Y NO SE DEFINE OTRA VARIABLE POR SECCIÓN
+     -----------------------------------------------------------------
+     Porque "--fondo-seccion" ya está. Si además hubiera un "--fondo-boton", serían ocho
+     colores más que mantener y ocho lugares donde desincronizarse del fondo. Derivándolo
+     no hay nada que sincronizar: si el encabezado cambia de color, el botón lo sigue.
+
+     Y el respaldo va primero y es un color plano: un navegador que no entienda "color-mix"
+     descarta esa declaración y se queda con el "--fondo-seccion" del propio proyecto. NO
+     se deja "#1b2c23" como respaldo aunque funcione, porque es el verde que hay que sacar. */
+  background:#101a14;
+  background:color-mix(in srgb, var(--fondo-seccion, #101a14) 70%, #000);
+}
+
+/* El foco con teclado tiene que verse, o el logo es inalcanzable sin el mouse */
+.marca-jc:focus-visible{outline:2px solid var(--cat,#EBF9FA);outline-offset:2px}
+
+/* -------------------------------------------------------------------
+   LA FORMA
+   -------------------------------------------------------------------
+   La proporción del logo entero es 1649 x 1145, o sea 1.440. Las medidas de
+   abajo andan en 1.432, lo más cerca que se llega con números enteros.
+
+   El ancho y el alto se animan cuando la barra se encoge, y el transform se
+   anima cuando se pasa el mouse: son dos cosas distintas y no se pueden meter en
+   la misma transición sin que una espere a la otra.
+   ------------------------------------------------------------------- */
+/* -------------------------------------------------------------------
+   LA MARCA, LAS LETRAS Y EL TÍTULO: EL INTERCAMBIO
+   -------------------------------------------------------------------
+
+   Son tres piezas y cambian de sitio cuando el puntero pasa por encima:
+
+       EN REPOSO              CON EL PUNTERO ENCIMA
+
+       las letras   | |        la marca   | |
+       a la DERECHA +-+        arriba      +-+ el título
+       de la marca  | |                    | | solo, en su
+                    | |        las letras  +-+ columna, y las
+                    | |        DEBAJO      | | dos filas
+                    +-+                    | |
+
+   La marca NO se mueve: en los dos dibujos está en la primera columna.
+
+   LAS LETRAS VIAJAN, Y POR QUÉ CON "TRANSFORM"
+   --------------------------------------------
+   Se probó con una cuadrícula de "grid-template-areas" y renombrarlas al pasar el
+   puntero. Da el intercambio exacto. Y NO SE PUEDE ANIMAR: las áreas no se
+   interpolan, el cambio sale de golpe, y un salto en el encabezado se ve como un
+   tirón.
+
+   Con "transform: translate()" sí se anima, y el movimiento es real: cada pieza
+   viaja de un sitio al otro. Y los dos "translate" son medidas, que es lo que los
+   hace interpolables.
+
+   Y el alto del bloque es FIJO, de 70. Porque si el bloque midiera lo que mide cada
+   estado, al pasar el puntero cambiaría su altura, todo lo de debajo se movería, y
+   el intercambio además de animarse daría un salto. Con el alto fijo, lo único que
+   se mueve son las tres piezas.
+
+   Y "inline-flex" y no "flex": el bloque tiene que medir lo que miden la columna
+   del logo y la del título, y ni un píxel más. Si midiera todo el ancho, la marca
+   quedaría pegada a la izquierda de un bloque enorme y el título flotando en el
+   medio.
+
+   -------------------------------------------------------------------
+   LOS NÚMEROS, Y DE DÓNDE SALEN
+   -------------------------------------------------------------------
+       22    el alto de las letras, en los dos estados
+       93    su ancho: 22 por 4,228, que es la proporción de su recorte
+       68    el ancho del enlace: 58 del dibujo más 5 de relleno a cada lado
+       12    el margen a cada lado: (93 - 68) / 2
+       10    el hueco entre la columna del logo y la del título
+       47    abajo de la marca: 5 de relleno, 39 de la marca y 3 de hueco
+       70    el alto del bloque: 42 más 22 más 6 de aire
+       102   a dónde van las letras en reposo: 92 de la columna más 10 del hueco
+       11    cuánto baja el título en reposo
+
+   El 12 es el que engaña: el ancho de la columna NO es el de la marca, es el del
+   enlace, con sus 5 de relleno a cada lado. Con (93 - 58) / 2 la marca quedaría
+   corrida 5 píxeles a la izquierda.
+
+   Y el 70, el 102 y el 11 SE MIDEN después de puesto, no salen de la cuenta: por
+   dónde caiga cada cosa depende del ancho del título, que cambia con el nombre de
+   la sección. Un número que depende de algo que cambia no se puede dejar escrito
+   como si fuera fijo.
+   =================================================================== */
+.marca-bloque{
+  position:relative;
+  display:inline-flex;
+  flex-direction:row;
+  align-items:flex-start;
+  column-gap:10px;
+  height:70px;
+  min-width:0;
+  flex:0 1 auto;
+}
+
+.marca-jc{
+  display:block;
+  margin:0 12px;
+  flex:0 0 auto;
+  position:relative;
+  z-index:2;
+}
+
+.marca-jc-letras{
+  display:block;
+  /* Y el DIBUJO de las letras, que en reposo está a un 70% de la caja y con el
+     puntero al 100%. Como la caja no cambia de tamaño —eso no se toca, es lo que
+     mantiene el bloque quieto— lo que se achica es la máscara de adentro.
+
+     Y con "mask-size" y no con un "transform": un "transform" achicaría el
+     dibujo pero no la caja, y las letras quedarían pegadas a la izquierda en vez
+     de centradas. Con "mask-size:auto 70%" el dibujo se centra dentro de la caja y
+     se ve más chico en el medio, que es lo que se ve en el dibujo.
+
+     Y el 70% y no más chico porque la línea de "JC-SOLUTIONS.CL" es la que se
+     lee, y con menos de 70% hay que pasar el puntero para poder leerla. */
+  position:absolute;
+  left:0;
+  top:0;
+  z-index:1;
+  height:22px;
+  aspect-ratio:1649 / 390;
+  transform:translate(102px, 0);
+  transition:transform .3s cubic-bezier(.25,.46,.45,.94);
+  background-color:var(--cat,#EBF9FA);
+  -webkit-mask-image:url("../img/logo-jc-letras.svg?v=3");
+          mask-image:url("../img/logo-jc-letras.svg?v=3");
+  -webkit-mask-repeat:no-repeat;
+          mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+          mask-position:center;
+  -webkit-mask-size:auto 70%;
+          mask-size:auto 70%;
+  transition:transform .3s cubic-bezier(.25,.46,.45,.94),
+             -webkit-mask-size .3s cubic-bezier(.25,.46,.45,.94),
+             mask-size .3s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* -------------------------------------------------------------------
+   LO DE AL LADO SE ACHICA EN REPOSO, PARA QUE EL LOGO SE VAYA DESTACANDO
+   -------------------------------------------------------------------
+   En reposo el nombre de la sección y las letras del logo están un poco más
+   chicos. Con el puntero por encima crecen a su tamaño y el nombre queda al centro.
+
+   Es al revés de como se suele hacer, que es poner el estado bueno en reposo y
+   animar cuando lo tocas. Acá el logo es lo que manda: la marca mide 58 x 39 en los
+   dos estados, y lo que se achica es lo de al lado.
+
+   Y destacar una cosa no es agrandarla, es achicar lo de al lado. Por eso la marca
+   no cambia de tamaño en ningún momento: lo que crece cuando el puntero pasa es
+   todo lo que estaba al lado.
+
+   EL 0,8 Y POR QUÉ NO MÁS
+   ----------------------------
+   En reposo el nombre mide 22 de alto, y con el puntero tiene que medir unos 26. Y
+   22 / 26 da 0,85. Con 0,8 el salto es discreto y se lee como "se agranda" y no
+   como "cambió de letra". Con 0,6 se vería otro texto.
+
+   Y el "font-size" y no un "transform: scale" del título: el nombre es texto, y
+   un "scale" lo deja borroso y lo descentra de su propia caja. El "font-size" lo
+   vuelve a maquetar de verdad, que es lo que se ve bien.
+
+   Y con ":has()" y no con ":hover" a secas, porque el título es hijo del bloque: si
+   el puntero está encima del título también cambiaría, y el puntero tiene que
+   estar sobre el logo o sobre las letras. */
+#tituloSeccion{
+  align-self:center;
+  font-size:.8em;
+  transform:translateY(11px);
+  transition:transform .3s cubic-bezier(.25,.46,.45,.94),
+             font-size .3s cubic-bezier(.25,.46,.45,.94);
+  min-width:0;
+}
+
+/* Y el puntero tiene que estar sobre el logo o sobre las letras, NO sobre el
+   título: el título es hijo del bloque, así que con ":hover" a seco también lo
+   dispararía. ":has()" pregunta por un descendiente, y es lo único que permite
+   excluir uno. */
+.marca-bloque:has(.marca-jc:hover) .marca-jc-letras,
+.marca-bloque:has(.marca-jc:focus-visible) .marca-jc-letras,
+.marca-bloque:has(.marca-jc-letras:hover) .marca-jc-letras{
+  /* Y 47, no 42. Porque "abajo de la marca" es el fondo del ENLACE, que trae
+     5 de relleno, y no el fondo del dibujo:
+
+         el fondo de la marca dentro del bloque    5
+         la marca, de alto                         39
+         el hueco                                  3
+         -----------------------------------------
+         abajo de la marca                          47
+
+     Con 42, que son 39 más 3, las letras quedaban 5 píxeles más arriba, encima
+     del relleno del enlace. Y 5 era la cuenta hecha sin el relleno, que está en
+     otra regla y a otra distancia: por eso el número se mide.
+
+     Y con el puntero, además de bajar, el DIBUJO crece del 70% al 100%. Porque lo
+     de al lado se achica en reposo para que la marca se destaque, y con el puntero
+     vuelve a su tamaño. */
+  transform:translate(0, 47px);
+  -webkit-mask-size:auto 100%;
+          mask-size:auto 100%;
+}
+.marca-bloque:has(.marca-jc:hover) #tituloSeccion,
+.marca-bloque:has(.marca-jc:focus-visible) #tituloSeccion,
+.marca-bloque:has(.marca-jc-letras:hover) #tituloSeccion{
+  /* Y con el puntero el nombre vuelve a su tamaño Y se centra. El "font-size" va
+     acá, junto al "transform", porque los dos son el mismo cambio: el nombre crece
+     y baja a la altura del medio del bloque. Si estuvieran en reglas distintas
+     sería más difícil de leer y se podría olvidar uno. */
+  font-size:1em;
+  transform:translateY(0);
+}
+
+.marca-jc-dibujo{
+  display:block;
+  width:58px;
+  height:39px;
+  /* El crecimiento va acá, en el ancho y el alto, y no en un transform del
+     botón. Es lo que hace que los menús se corran: un ancho que cambia ocupa
+     sitio, y el de un transform no.
+
+     145 x 100 es lo mismo que se veía antes con "scale(2.5)" sobre 58 x 40, así
+     que el logo se ve igual de grande. Lo que cambia es que ahora ocupa el sitio
+     que necesita.
+
+     La transición del ancho y del alto ya estaba declarada más abajo en esta misma
+     regla, con la misma duración. Por eso el crecimiento se ve parejo. */
+  /* El color sale de la sección. Es la misma variable que usa el nombre de la
+     sección y el ícono del botón de arriba, y por eso el logo, el título y el
+     ícono son claramente la misma sección y no tres cosas parecidas. */
+  background-color:var(--cat,#EBF9FA);
+  /* La máscara usa la transparencia del dibujo, no su color. El archivo puede
+     decir currentColor sin que estorbe, porque de la máscara solo se lee la
+     forma. */
+  /* El recorte de la MARCA, no el logo entero: el otro pedazo, las letras, tiene
+     otra proporción y si compartieran caja una de las dos saldría deformada. */
+  -webkit-mask-image:url("../img/logo-jc-marca.svg?v=3");
+          mask-image:url("../img/logo-jc-marca.svg?v=3");
+  -webkit-mask-repeat:no-repeat;
+          mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+          mask-position:center;
+  -webkit-mask-size:contain;
+          mask-size:contain;
+  transition:width .34s cubic-bezier(.25,.46,.45,.94),
+             height .34s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* -------------------------------------------------------------------
+   AL PASAR EL MOUSE
+   -------------------------------------------------------------------
+   El dibujo crece a 145 x 100. Es el mismo tamaño que se veía con "scale(2.5)"
+   sobre 58 x 40, así que el logo se ve igual. Lo que cambia es que ahora ocupa ese
+   sitio de verdad.
+
+   Y el fondo del botón pasa a opaco. Con el fondo translúcido, el texto de la barra
+   de secciones se leía por detrás del logo, que es lo que se veía en la foto. Con
+   fondo opaco, lo que queda detrás no se ve. Y como el logo ahora empuja a los
+   menús, casi no queda nada detrás: el fondo es para el texto de la fila de abajo,
+   que está en otra fila y no se puede mover.
+
+   El color no es el de la fila, es un punto más claro: "#101a14" con un poco de
+   verde encima. Con el mismo color de la fila el botón se vería como un hole, y
+   con el translúcido de antes se veía el texto a través. Este es el tono que hace
+   que se vea un botón y no un parche.
+   ------------------------------------------------------------------- */
+/* Y la marca tiene la proporción de SU recorte, que es 1,50 a 1, y no la del logo
+   entero, que era 1,44. Con la del logo entero salía 4 píxeles de diferencia entre
+   el ancho y el alto que se le pedían, y la máscara con "contain" lo centró
+   dejando medio píxel de aire a cada lado. Con la suya no sobra nada. */
+
+/* -------------------------------------------------------------------
+   CUANDO LA BARRA SE ENCOGE
+   -------------------------------------------------------------------
+   El encabezado baja con scaleY(.72). Un logo dentro sale aplastado, así que hay
+   que devolverle la escala, y al mismo tiempo achicar el dibujo para que se vea
+   más chico y no solo menos aplastado.
+
+   Si se saca el transform, el logo se ve chueco. Si se saca el width/height,
+   deja de encogerse. Las dos cosas hacen falta.
+   ------------------------------------------------------------------- */
+body.nav-compacto .marca-jc{
+  /* 1 / 0.72 */
+  --descomprimir:1.3889;
+  padding:3px;
+}
+body.nav-compacto .marca-jc-dibujo{
+  width:43px;
+  height:29px;
+}
+
+/* -------------------------------------------------------------------
+   CUANDO EL ENCABEZADO SE DESCOMPRIME AL PASAR EL MOUSE
+   -------------------------------------------------------------------
+   Las barras del archivo tienen una cosa a propósito: al pasar el mouse por
+   encima vuelven a su tamaño completo, para que el puntero no tenga que apuntar
+   a un botón más chico de lo que aparenta.
+
+   O sea que con la página bajada y el mouse encima, el encabezado ya NO está
+   comprimido: está en scaleY(1). Y si el logo se queda con su 1.3889 de siempre,
+   ese 1.3889 queda solo y el logo se estira a lo alto: un dibujo de 39 por 37
+   cuando la proporción del logo es 1.44.
+
+   O sea que el descompresor tiene que acompañar a la compresión. Cuando el
+   encabezado vuelve a su tamaño, el logo también.
+
+   -------------------------------------------------------------------
+   POR QUÉ NO SE RESUELVE SOLO
+   ----------------------------
+   Porque el logo no puede preguntar si su padre está comprimido, y el
+   descompresor es un número fijo. La regla tiene que existir para el otro estado.
+
+   Y no se arregla con un "scale(1)" al pasar el mouse, porque eso DEJARÍA de
+   crecer: el crecimiento es justamente lo que el logo hace, y está en la misma
+   propiedad. Por eso el crecimiento va en una variable y el descompresor en otra,
+   y acá solo se cambia el descompresor.
+   ------------------------------------------------------------------- */
+body.nav-compacto #barrasSuperiores header:hover .marca-jc,
+body.nav-compacto #barrasSuperiores header:focus-within .marca-jc,
+body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
+  --descomprimir:1;
+}
+
+/* -------------------------------------------------------------------
+   UNA PANTALLA CHICA
+   -------------------------------------------------------------------
+   En un teléfono el encabezado ya tiene el nombre de la sección, el selector de
+   empresa y el botón de cerrar sesión. Con el logo más, lo que queda fuera de la
+   pantalla es el botón de cerrar sesión entero: medido, quedaba en el pixel 506
+   de una pantalla de 356. O sea que no se veía ni se podía apretar.
+   ------------------------------------------------------------------- */
+@media (max-width:700px){
+  .marca-jc{padding:4px}
+  .marca-jc-dibujo{width:46px;height:31px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  body.nav-compacto .marca-jc{--descomprimir:1}
+  .marca-jc,
+  .marca-jc-dibujo{transition:none}
+  .marca-jc:hover,
+  .marca-jc:focus-visible{--crecer:1}
+}
