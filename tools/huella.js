@@ -91,6 +91,22 @@ window.__huella = (function () {
   // -------------------------------------------------------------------
   // UNA LÍNEA POR ELEMENTO
   // -------------------------------------------------------------------
+  // El separador entre propiedades.
+  //
+  // -------------------------------------------------------------------
+  // POR QUÉ NO UNA COMA
+  // -------------------
+  //
+  // Porque los valores calculados de CSS llevan comas adentro. "rgb(247, 253, 253)",
+  // "color(srgb 0.135 0.328 0.344)", "rgba(255, 255, 255, 0.09)".
+  //
+  // Con coma, al volver a leer la línea, un solo valor se parte en tres, y el diff queda
+  // desalineado: decía que un "<select>" se había convertido en un "<input>", que es un
+  // disparate que sale de un error de formato y no de la página.
+  //
+  // Un carácter de control no puede aparecer en un valor calculado. Y no se escribe, no se ve.
+  const SEP = '\u0001';
+
   function lineaDe(e, i, cs, r) {
     const t = [];
     for (let k = 0; k < PROPS.length; k++) {
@@ -100,7 +116,7 @@ window.__huella = (function () {
     }
     t.push('caja=' + Math.round(r.left) + ',' + Math.round(r.top) + ','
       + Math.round(r.width) + 'x' + Math.round(r.height));
-    return i + ':' + e.tagName + ' ' + t.join(',');
+    return i + ':' + e.tagName + ' ' + t.join(SEP);
   }
 
   // -------------------------------------------------------------------
@@ -289,11 +305,63 @@ window.__huella = (function () {
   const CLAVE_PAGINA = 'huella-pagina';
   const CLAVE_ZONAS = 'huella-zonas';
 
+  // El TEXTO completo de las zonas, aparte del hash.
+  //
+  // -------------------------------------------------------------------
+  // POR QUÉ EL TEXTO Y NO SOLO EL HASH
+  // ---------------------------------
+  //
+  // Porque con solo hashes, cuando algo cambia el guardián dice QUÉ ELEMENTO cambió, pero no
+  // dice qué propiedad. Y sin la propiedad no hay nada que hacer.
+  //
+  // Pasó con un "<select>": el guardián dijo "cambió el elemento 26" y "cambió select[0]", y
+  // con eso no se podía saber si era un color, un ancho o un borde.
+  //
+  // El texto de las zonas son unos 9.000 caracteres, que entran de sobra en localStorage. Y
+  // los de la página entera son casi 400.000, que no entran y no hacen falta: para eso está el
+  // hash, que localiza, y después se pregunta el detalle del elemento que interesa.
+  const CLAVE_ZONAS_TEXTO = 'huella-zonas-texto';
+
   // Las zonas que se revisan aparte de toda la página.
   function zonas() {
     return ['#barrasSuperiores', '#mainNav', '#subNav', '.card', 'button',
       'input', 'select', 'table', 'dialog', '.modal', '.toast', '.aviso'];
   }
+
+  // -------------------------------------------------------------------
+  // EN QUÉ ESTADO ESTÁ LA PÁGINA
+  // ----------------------------
+  //
+  // -------------------------------------------------------------------
+  // POR QUÉ
+  // -------
+  //
+  // Porque la huella depende del estado: cuántos elementos se dibujan cambia según qué
+  // pantalla está abierta y si el submenú ya se armó.
+  //
+  // Y pasó: se guardó la línea base en un momento en que "showGroup" todavía no estaba
+  // disponible, así que el submenú no se había construido. Después, cuando ya se construía, la
+  // comparación dio "cambiaron 239 elementos", y la página estaba perfecta.
+  //
+  // Y ese es el peor falso positivo posible para un guardián: el que hace que el guion diga
+  // que todo cambió cuando no cambió nada. Después de tres de esos, nadie le cree.
+  //
+  // Así que el estado va DENTRO de la línea base, y si no calza, se dice antes de comparar
+  // estilos: "las páginas no estaban en el mismo estado, la comparación no vale".
+  function estado() {
+    const d = document;
+    const activa = d.querySelector('.view.active');
+    const sub = d.getElementById('subNav');
+    return [
+      'vista=' + (activa ? activa.id : 'ninguna'),
+      'vistas=' + d.querySelectorAll('section.view').length,
+      'subHijos=' + (sub ? sub.children.length : 0),
+      'desplegables=' + d.querySelectorAll('#subNav .nav-dropdown').length,
+      'ancho=' + d.documentElement.clientWidth,
+    ].join(',');
+  }
+
+  const CLAVE_ESTADO = 'huella-estado';
 
   function lineaBase() {
     const h = window.__huella;
@@ -301,11 +369,15 @@ window.__huella = (function () {
       pag: h.resumen(0, h.cuantos()),
       zon: h.resumenSel(zonas()),
       n: h.cuantos(),
+      estado: estado(),
       cuando: new Date().toISOString(),
     };
     try {
       localStorage.setItem(CLAVE_PAGINA, window.__guardado.pag);
       localStorage.setItem(CLAVE_ZONAS, window.__guardado.zon);
+      localStorage.setItem(CLAVE_ESTADO, window.__guardado.estado);
+      localStorage.setItem(CLAVE_ZONAS_TEXTO, h.lineasSel(zonas()).length < 300000
+        ? h.lineasSel(zonas()) : '');
       localStorage.setItem('huella-cuando', window.__guardado.cuando);
       localStorage.setItem('huella-n', String(window.__guardado.n));
     } catch (e) {
@@ -313,7 +385,8 @@ window.__huella = (function () {
     }
     return 'guardado: ' + window.__guardado.n + ' elementos,'
       + ' pagina=' + window.__guardado.pag.length + ' chars,'
-      + ' zonas=' + window.__guardado.zon.length + ' chars';
+      + ' zonas=' + window.__guardado.zon.length + ' chars'
+      + '\n    estado: ' + window.__guardado.estado;
   }
 
   // Divide "0:a1b2c3d4,5:..." en un objeto. Y avisa si el formato no es el que se espera, en
@@ -352,6 +425,30 @@ window.__huella = (function () {
       return 'NO HAY LINEA BASE. Primero se guarda una, antes de tocar nada.';
     }
 
+    // -------------------------------------------------------------------
+    // PRIMERO: ¿LAS DOS PÁGINAS ESTÁN EN EL MISMO ESTADO
+    // ----------------------------------------------------
+    //
+    // Y esto va PRIMERO, antes de comparar un solo estilo. Porque si los estados no son los
+    // mismos, la comparación no dice nada: van a salir cientos de elementos distintos porque
+    // hay más cosas dibujadas, no porque se haya movido nada.
+    const estAntes = localStorage.getItem(CLAVE_ESTADO) || '(no guardado)';
+    const estAhora = estado();
+
+    if (estAntes !== estAhora) {
+      return [
+        '*** LAS DOS PÁGINAS NO ESTÁN EN EL MISMO ESTADO ***',
+        '  la comparación NO vale: los elementos que se dibujan son distintos,',
+        '  y eso no dice nada sobre los estilos.',
+        '',
+        '  línea base: ' + estAntes,
+        '  ahora:      ' + estAhora,
+        '',
+        '  Hay que abrir la página en el mismo estado y volver a comprobar.',
+        '  Si la línea base se guardó mal, se vuelve a guardar con "guardar()".',
+      ].join('\\n');
+    }
+
     const pagAhora = h.resumen(0, h.cuantos());
     const zonAhora = h.resumenSel(zonas());
 
@@ -388,24 +485,111 @@ window.__huella = (function () {
   }
 
   // -------------------------------------------------------------------
-  // LAS LÍNEAS DE LOS ELEMENTOS QUE CAMBIARON
-  // -------------------------------------------------------------------
-  // Con esto se ve el valor viejo y el nuevo del elemento, sin tener que adivinar.
-  function explicar() {
-    const h = window.__huella;
-    const antes = aObjeto(localStorage.getItem(CLAVE_PAGINA));
-    const partes = [];
-    (window.__difPag || []).slice(0, 8).forEach((k) => {
-      const i = parseInt(k, 10);
-      if (isNaN(i)) return;
-      partes.push(h.lineas([i]));
+  // EXPLICAR: QUÉ PROPIEDAD CAMBIÓ, EN QUÉ ELEMENTO
+  // ----------------------------------------------------
+  //
+  // Con esto se ve el valor viejo y el nuevo, sin tener que adivinar. Y es lo que faltaba
+  // cuando el guardián dijo "cambió select[0]" y no se sabía qué.
+  // Y la línea de un elemento es "indice:ETIQUETA prop=valor<SEP>prop=valor...". Los dos
+  // puntos del principio se usan para el índice y la etiqueta, y el resto se parte por el
+  // separador.
+  function partir(linea) {
+    const o = {};
+    const espacio = linea.indexOf(' ');
+    if (espacio < 0) return o;
+    (linea.slice(espacio + 1).split(SEP)).forEach((x) => {
+      const c = x.indexOf('=');
+      if (c > 0) o[x.slice(0, c)] = x.slice(c + 1);
     });
-    return partes.join('\\n');
+    return o;
+  }
+
+  function explicar() {
+    const antes = localStorage.getItem(CLAVE_ZONAS_TEXTO) || '';
+    if (!antes) return 'no hay texto de las zonas guardado';
+
+    const ahora = window.__huella.lineasSel(zonas());
+
+    // -------------------------------------------------------------------
+    // POR QUÉ SE COMPARAN POR CLAVE Y NO POR POSICIÓN
+    // ------------------------------------------------
+    //
+    // Porque el orden de los elementos depende del estado, y si el estado cambia un poco, todo
+    // se desplaza y el diff compara "el elemento 3 de antes" con "el elemento 3 de ahora",
+    // que son cosas distintas. Y el resultado son cientos de diferencias inventadas.
+    //
+    // Con la clave ("select[0]") se compara cada elemento consigo mismo.
+    const a = {};
+    antes.split('|').forEach((l) => { const k = l.slice(0, l.indexOf(' ')); a[k] = l; });
+    const b = {};
+    ahora.split('|').forEach((l) => { const k = l.slice(0, l.indexOf(' ')); b[k] = l; });
+
+    const salida = [];
+    Object.keys(b).forEach((k) => {
+      if (a[k] === b[k]) return;
+      const pa = partir(a[k] || '');
+      const pb = partir(b[k]);
+      const dif = [];
+      Object.keys(pb).forEach((x) => {
+        if (pa[x] === undefined) dif.push('+ ' + x + ': ' + pb[x]);
+        else if (pa[x] !== pb[x]) dif.push('  ' + x + ': ' + pa[x] + '  ->  ' + pb[x]);
+      });
+      Object.keys(pa).forEach((x) => {
+        if (pb[x] === undefined) dif.push('- ' + x + ': ' + pa[x]);
+      });
+      if (dif.length) {
+        salida.push(k + ':');
+        dif.slice(0, 10).forEach((x) => { salida.push('    ' + x); });
+      }
+    });
+    if (!salida.length) return 'las zonas no tienen diferencias de texto';
+    if (salida.length > 400) {
+      return salida.slice(0, 400).join('\n') + '\n... y ' + (salida.length - 400) + ' más';
+    }
+    return salida.join('\n');
+  }
+
+  // -------------------------------------------------------------------
+  // REPOSO: ESPERAR A QUE LAS TRANSICIONES TERMINEN
+  // --------------------------------------------------
+  //
+  // -------------------------------------------------------------------
+  // POR QUÉ
+  // ------
+  //
+  // Porque el guardián photographía un color a mitad de una transición. "#empresaSel" toma su
+  // fondo de "--fondo-seccion", que tiene una transición de ".2s", y el valor calculado sale
+  // como "color(srgb 0.135 0.328 0.344)": un número con decimales que cambia en cada cuadro.
+  //
+  // Y el síntoma era "@select[0] cambió" en dos cargas IDÉNTICAS, sin tocar nada. O sea: un
+  // falso positivo reproducible, que es lo peor que puede tener un guardián. Después de tres
+  // de esos, nadie le cree.
+  //
+  // Se mide: dos cargas sin ningún cambio dieron "cambió 1 elemento", y ese elemento era un
+  // "<select>" con 0 opciones, invisible, cuyo color venía de una transición.
+  //
+  // -------------------------------------------------------------------
+  // Y POR QUÉ UNA ESPERA Y NO LEER EL ESTADO DE LAS TRANSICIONES
+  // ----------------------------------------------------------
+  //
+  // Y por qué esperar en vez de leer el estado de las transiciones: porque se puede, pero
+  // "getAnimations()" no está en todas partes, y una transición de CSS no siempre aparece ahí.
+  //
+  // Y el tiempo por omisión quedó en 3.000 porque está MEDIDO: con 600 y con 900, el guardián
+  // seguía marcando 18 elementos en una página que no se había tocado. Con 3.500 quedó verde.
+  //
+  // Y esos 18 eran la animación de entrada del submenú, que dura más de medio segundo. Y un
+  // falso positivo que se repite hace que el guardián deje de servir: si dice "cambió" cuando
+  // no cambió nada, nadie le cree después de tres veces.
+  function reposo(ms) {
+    return new Promise(function (listo) {
+      window.setTimeout(listo, ms === undefined ? 3000 : ms);
+    });
   }
 
   return {
     completa: completa, cuantos: cuantos, detalle: detalle,
-    forget: forget, props: PROPS.length,
+    forget: forget, props: PROPS.length, reposo: reposo,
     hashDe: hashDe, resumen: resumen, lineas: lineas,
     resumenSel: resumenSel, lineasSel: lineasSel,
     guardar: lineaBase, comprobar: comprobar, explicar: explicar,
