@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- LA LLUVIA. La nube de arriba es la misma forma que en "ico-clima-nube.svg", y
+       las tres gotas de abajo son lo que la distingue. Se comparte la nube para que
+       las dos se vean la misma cuando cambia el tiempo de nublado a llovizna. -->
+  <path fill="currentColor" d="M18.1 8.1h-.36A6.6 6.6 0 0 0 5 7.5a4.7 4.7 0 0 0 .5 9.4h12.6a4.4 4.4 0 0 0 0-8.8z"/>
+  <g stroke="currentColor" stroke-width="1.9" stroke-linecap="round" fill="none">
+    <path d="M8 19.4v2.6"/>
+    <path d="M12 20.2v2.4"/>
+    <path d="M16 19.4v2.6"/>
+  </g>
+</svg>

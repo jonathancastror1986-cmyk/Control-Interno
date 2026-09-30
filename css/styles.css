@@ -6920,3 +6920,498 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
     height:38px;
   }
 }
+
+
+/* ===================================================================
+   EL BOTÓN DE TEMA, EL CLIMA Y LA HORA
+   ===================================================================
+
+   -------------------------------------------------------------------
+   LO QUE SE VE, Y LO QUE SE VEÍA CON EL PUNTERO POR ENCIMA
+   -----------------------------------------------------------
+
+   Todo lo normal, sin pasar el puntero:
+
+       [luna]   [nube] 12°  ·  10:10
+
+   Y al pasar el puntero:
+
+       sobre el ícono del tema   ->  [luna Modo oscuro]
+       sobre la hora             ->  la hora sigue, y ARRIBA aparece
+                                      mié 30 sept · Santiago
+
+   -------------------------------------------------------------------
+   POR QUÉ LA PALABRA "MODO OSCURO" SÍ SE ABRE Y LA FECHA NO
+   -----------------------------------------------------------
+
+   Las dos son detalles que aparecen al pasar el puntero, pero se resuelven de
+   forma distinta, y la razón es el ancho.
+
+   LA PALABRA va EN EL FLUJO, al lado del ícono. Abre el botón de 34 a 96 de
+   ancho.
+
+   ¿Y no empuja todo lo demás? Acá sí, pero hay sitio. El botón viejo con su
+   texto medía 126 de ancho y ahora, sin la palabra a la vista, mide 34. O sea
+   que el cambio deja 92 píxeles libres, y la palabra necesita unos 62. Quedan
+   30 de sobra, más los 31 que ya había a la derecha y los 44 del hueco entre
+   el título y este grupo. Suma.
+
+   LA FECHA NO SE ABRE EN EL FLUJO. Va flotada arriba, como el cuadro de texto
+   de los botones de ícono, que ya existe en el archivo (".btnIcono[data-dato]"
+   con su "::after").
+
+   Y esa no es una preferencia de estilo: el título de la pantalla mide 311 de
+   ancho y tiene "flex-wrap:wrap". Si algo crece a su izquierda, el título pasa
+   a dos renglones y el encabezado se hace más alto. Y el ancho que necesita
+   "mié 30 sept · Santiago" es más que los 75 píxeles que hay entre el final
+   del título y el final de este grupo.
+
+   O sea: la palabra abre porque hay sitio de sobra, y la fecha no abre porque
+   no hay. Y esa es la razón por la que una está en el flujo y la otra no: no
+   que una se vea mejor.
+
+   Y al flotarla ARRIBA, la hora se queda donde está. No desaparece debajo del
+   cuadro: la persona sigue viendo la hora mientras lee la fecha, que es lo que
+   está mirando.
+
+   -------------------------------------------------------------------
+   POR QUÉ LA PALABRA SE ABRE CON "max-width" Y NO CON "display:none"
+   ------------------------------------------------------------------
+
+   Con "display:none" no hay transición: el texto aparece de golpe y el botón
+   salta 62 píxeles de golpe. Se ve como un tirón, y el ojo lo lee como que
+   algo se movió mal.
+
+   Con "max-width" de 0 a 8rem el ancho crece de verdad, y lo que se ve es que
+   el texto se destapa de izquierda a derecha. Es la misma duración que usan
+   los demás cambios del archivo, para que nada se mueva a un ritmo distinto.
+
+   El "overflow:hidden" es lo que hace que el texto que se sale se recorte en
+   vez de desbordar el botón.
+
+   Y el "opacity" aparte del "max-width": si solo creciera el ancho, el texto
+   se vería desde el primer píxel, con la caja todavía chiquita. Con los dos a
+   la vez, la caja crece mientras el texto aparece.
+
+   -------------------------------------------------------------------
+   EL ÍCONO DEL TEMA: LOS DOS EN EL ARCHIVO, Y EL CSS ELIGE
+   ------------------------------------------------------------
+
+   El sol y la luna están los dos en el HTML, y no los dibuja el guion.
+
+   La razón es una vieja: theme.js escribía "button.textContent", que borra
+   todo lo que hay adentro del botón. Con los íconos puestos por el guion, el
+   primer cambio de tema se los comía.
+
+   Entonces el guion no los dibuja y el CSS decide cuál se ve:
+
+       sin "data-theme"      la luna     (el archivo usa el oscuro por omisión)
+       data-theme="light"    el sol
+
+   Son cuatro reglas cortas, y no hay estado guardado en JavaScript que pueda
+   quedar desincronizado con lo que se ve.
+
+   -------------------------------------------------------------------
+   EL COLOR DEL CUADRO DE TEXTO, MEDIDO Y NO SUPUESTO
+   --------------------------------------------------
+
+   El cuadro de texto usa el mismo fondo que los cuadros que ya había en el
+   archivo: "var(--accent2)", con letra blanca.
+
+   El "--accent2" son dos valores distintos, y los dos se midieron en el
+   navegador, con la fórmula de la norma:
+
+       tema claro    #101a14   blanco sobre eso   17.8 a 1
+       tema oscuro   #404040   blanco sobre eso   10.4 a 1
+
+   Los dos pasan el 4.5 a 1 que pide la norma para texto normal, y los dos por
+   encima del 7 a 1 que piden las cifras de contraste alto. El margen se sabe:
+   son 6.4 puntos en tema oscuro y 10.8 en tema claro.
+
+   Y el número va escrito y no un "es alto", porque el "--accent2" puede cambiar y con
+   el número se puede comparar: si algún día dice 4.2, se pasó. Sin el número hay que
+   medir otra vez desde cero, y no se mide porque no hay nada que revisar.
+
+   Y se midió el texto del cuadro contra SU PROPIO fondo, que es lo que hay detrás
+   de la caja, y no contra el de la barra: son dos fondos distintos.
+
+   -------------------------------------------------------------------
+   POR QUÉ EL ÍCONO DEL CLIMA ES UNA MÁSCARA Y NO UN DIBUJO EN EL HTML
+   -------------------------------------------------------------------
+
+   Porque depende de un número que viene de afuera, y si el número cambia hay
+   que cambiar el dibujo. Con una máscara, el guion solo pone una clase
+   ("es-lluvia") y el CSS dice qué archivo se pinta.
+
+   Es el mismo patrón que usa el logo, que también es una máscara con el
+   archivo en "img/".
+
+   Y el color sale del "currentColor" del padre: el archivo SVG puede decir
+   "currentColor" sin estorbar, porque de la máscara solo se lee la FORMA.
+
+   -------------------------------------------------------------------
+   SIN BORDES
+   ----------
+
+   El borde del botón del tema se fue, y con él el del de cerrar sesión. Los
+   dos están sobre el encabezado oscuro, y un cuadrito blanco alrededor de
+   cada uno pesa más que el texto que encierran. Se dejan los dos con el mismo
+   fondo que el encabezado y se distinguen por el ícono y por el texto.
+
+   Y al pasar el puntero aparece el fondo claro, como antes: sin borde, sin
+   nada, el botón no tiene a quién contestarle.
+
+   -------------------------------------------------------------------
+   LO QUE SE ESCONDE EN EL TELÉFONO
+   --------------------------------
+
+   Abajo de 860 los tres menús se esconden y solo queda el botón del menú, así
+   que el encabezado no tiene a quién dejarle sitio. Y la palabra "Modo oscuro"
+   con el ícono al lado ya se entiende, que es lo que se busca: no hay espacio
+   para una frase de 62 píxeles en un encabezado de 390.
+
+   El reloj sí se queda, porque la hora es de lo primero que uno mira al entrar,
+   y son 40 píxeles.
+   =================================================================== */
+
+/* El grupo entero: el botón del tema y el reloj, uno al lado del otro. */
+.clima-reloj{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  margin:0;
+}
+
+/* -------------------------------------------------------------------
+   EL BOTÓN DEL TEMA
+   -------------------------------------------------------------------
+   SIN borde. Pide 34 de ancho con el ícono solo, y 96 con la palabra
+   abierta. El botón de texto que había antes pedía 126. */
+.tema-boton{
+  display:inline-flex;
+  align-items:center;
+  gap:0;
+  margin:0;
+  padding:5px 8px;
+  border:0;
+  border-radius:7px;
+  background:none;
+  color:#fff;
+  font-family:'Montserrat',system-ui,sans-serif;
+  font-size:.62rem;
+  font-weight:600;
+  line-height:1.2;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:background-color .18s ease;
+}
+
+.tema-boton:hover{background:rgba(255,255,255,.14)}
+
+/* El foco se ve, porque si no quien navega con el teclado no sabe dónde está.
+   Es el mismo tratamiento que el del resto de los botones del archivo. */
+.tema-boton:focus-visible{
+  outline:2px solid #fff;
+  outline-offset:1px;
+}
+
+/* Los dos íconos, uno encima del otro en el mismo sitio. Los dos ocupan el
+   mismo hueco, así que cambiar de tema no mueve nada. */
+.tema-ico{
+  position:relative;
+  display:inline-block;
+  flex:0 0 auto;
+  width:17px;
+  height:17px;
+}
+
+.tema-ico .ico{
+  position:absolute;
+  inset:0;
+  width:17px;
+  height:17px;
+  fill:currentColor;
+  stroke:none;
+}
+
+.tema-sol{display:none}
+
+:root[data-theme="light"] .tema-sol{display:block}
+:root[data-theme="light"] .tema-luna{display:none}
+
+:root:not([data-theme="light"]) .tema-luna{display:block}
+
+/* La palabra. Empieza sin ancho, y por eso no empuja a nadie. */
+.tema-palabra{
+  max-width:0;
+  padding-left:0;
+  overflow:hidden;
+  white-space:nowrap;
+  opacity:0;
+  transition:max-width .24s cubic-bezier(.25,.46,.45,.94),
+             padding-left .24s cubic-bezier(.25,.46,.45,.94),
+             opacity .16s ease;
+}
+
+/* Y al pasar el puntero se abre. También con el foco, que es lo mismo para
+   quien navega con el teclado. */
+.tema-boton:hover .tema-palabra,
+.tema-boton:focus-visible .tema-palabra,
+.tema-boton:focus-within .tema-palabra{
+  max-width:8rem;
+  padding-left:7px;
+  opacity:1;
+}
+
+/* -------------------------------------------------------------------
+   LO QUE PIDE LA FILA DEL ENCABEZADO, Y DÓNDE SE PARTE
+   -------------------------------------------------------------------
+   Anotado acá porque es lo primero que hay que mirar si alguien pregunta por qué
+   el encabezado se rompe en pantallas angostas, y porque se encontró MIDIENDO y
+   no a ojo.
+
+   La fila entera pide 928 píxeles con nada apretado:
+
+       el logo                  68
+       el título               311   "Control de Asistencia y Portería", negrita de 16
+       el grupo de la derecha  528   el reloj 118, la empresa 236, salir 120 y los huecos
+       el aire de la barra      21   "clamp(6px,1vw,14px)" a los dos lados
+                                  ----
+                                  928
+
+   Abajo de unos 950 el título y "Cerrar sesión" se parten en dos renglones, y el
+   encabezado queda en 68 de alto en vez de 66.
+
+   Y NO ES DE ESTE CAMBIO. El botón del tema antes era un botón de texto de 126 de
+   ancho, y ahora es un ícono de 33: con el reloj y el clima el grupo pide 118 en
+   vez de 126. O sea que ahora se pide un 8% menos, y el umbral bajó de unos 965
+   a unos 950. Lo que se rompe se rompía antes y con más.
+
+   POR QUÉ NO SE ARREGLA ACÁ: es el diseño del encabezado en pantallas angostas, y
+   eso no se cambia sin que lo pidan. Las tres formas posibles, con lo que cuesta
+   cada una:
+
+     a) que el título se recorte con puntos en vez de partirse. Se le pone
+        "white-space:nowrap", "text-overflow:ellipsis" y "min-width:0". Barato,
+        pero el título se queda sin la última palabra, y el título es lo que dice
+        en qué pantalla se está.
+
+     b) que la empresa baje sin la palabra "Empresa", puesta como texto de
+        reemplazo del selector. Ahorra 42. El umbral queda en unos 890, y sigue
+        sin entrar en 861.
+
+     c) que "Cerrar sesión" sea un ícono de puerta con el texto al pasar el
+        puntero. Ahorra unos 90. Con (a), el umbral queda en unos 860.
+
+   (a) sola no alcanza. (a) con (c) sí.
+   ------------------------------------------------------------------- */
+
+/* -------------------------------------------------------------------
+   EL CLIMA Y LA HORA
+   ------------------------------------------------------------------- */
+.reloj{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  /* Lo mismo, un nivel más arriba. */
+  min-width:0;
+  color:#fff;
+  font-family:'Montserrat',system-ui,sans-serif;
+  font-size:.68rem;
+  font-weight:600;
+  line-height:1.2;
+  white-space:nowrap;
+}
+
+.reloj-corto{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  /* Sin esto el reloj NUNCA se encoge. Un elemento dentro de una fila que se
+     puede encoger es flexible, y un flexible no baja de un ancho mínimo salvo
+     que se le diga. Y lo que hay que dizer es "cero", porque lo que se quiere
+     es que se pueda esconder del todo. */
+  min-width:0;
+  max-width:none;
+  overflow:hidden;
+  transition:max-width .24s cubic-bezier(.25,.46,.45,.94),
+             opacity .16s ease;
+}
+
+.clima{
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+}
+
+/* La máscara. Cada clase es un archivo, y el color sale de "currentColor".
+   Es el mismo patrón del logo. */
+.clima-ico{
+  flex:0 0 auto;
+  width:15px;
+  height:15px;
+  background-color:currentColor;
+  -webkit-mask-repeat:no-repeat;
+          mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+          mask-position:center;
+  -webkit-mask-size:contain;
+          mask-size:contain;
+}
+
+.clima-ico.es-sol{-webkit-mask-image:url("../img/ico-clima-sol.svg");          mask-image:url("../img/ico-clima-sol.svg")}
+.clima-ico.es-nube{-webkit-mask-image:url("../img/ico-clima-nube.svg");        mask-image:url("../img/ico-clima-nube.svg")}
+.clima-ico.es-lluvia{-webkit-mask-image:url("../img/ico-clima-lluvia.svg");    mask-image:url("../img/ico-clima-lluvia.svg")}
+.clima-ico.es-nieve{-webkit-mask-image:url("../img/ico-clima-nieve.svg");      mask-image:url("../img/ico-clima-nieve.svg")}
+.clima-ico.es-tormenta{-webkit-mask-image:url("../img/ico-clima-tormenta.svg");mask-image:url("../img/ico-clima-tormenta.svg")}
+
+/* Cifras de un solo ancho. Sin esto, "10:11" ocupa menos que "10:10" porque el 1
+   es más angosto, y el reloj se ve temblar al cambiar de minuto. */
+.reloj-hora,
+.clima-grados{
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+}
+
+.clima-grados{color:#fff}
+
+/* El puntito de en medio. Chiquito, y a media luz para que no compita con los
+   números, que es lo que hay que leer. */
+.reloj-punto{
+  flex:0 0 auto;
+  width:3px;
+  height:3px;
+  border-radius:50%;
+  background:currentColor;
+  opacity:.45;
+}
+
+/* -------------------------------------------------------------------
+   LA FECHA Y EL LUGAR, FLOTADOS ARRIBA
+   -------------------------------------------------------------------
+   No se abren en el flujo: el título de la pantalla mide 311 de ancho y tiene
+   "flex-wrap:wrap", así que si algo crece a su izquierda el título pasa a dos
+   renglones y el encabezado se hace más alto. Un detalle de la hora no puede
+   hacer eso.
+
+   El fondo es "var(--accent2)", el mismo de los cuadros que ya había en el
+   archivo. Medido:
+     tema claro   #101a14 con blanco   17.8 a 1
+     tema oscuro  #404040 con blanco   10.4 a 1
+   Medido, texto contra SU propio fondo:
+   alto.
+
+   Y se esconde SOLO con "opacity", sin "visibility".
+
+   Con "visibility:hidden" el texto salía del árbol de accesibilidad, y esa
+   fecha con el lugar era la única forma de saberla: ni el lector de pantalla ni
+   el teclado llegaban. Con "opacity:0" el texto se sigue dibujando y sigue
+   estando ahí para leer; lo que no está es a la vista.
+
+   El "pointer-events:none" sigue haciendo falta igual: el cuadro flota arriba,
+   justo sobre los desplegables del submenú, y sin él se los comería aunque no
+   se los pueda ver. */
+.reloj-largo{
+  position:absolute;
+  right:0;
+
+  /* ARRIBA, PERO DENTRO DE LA FILA.
+
+     El cuadro va arriba porque abajo están los desplegables del submenú, y
+     tapar eso es peor que tapar el encabezado.
+
+     Y va PEGADO al reloj, sin separación, porque el encabezado es pegajoso con
+     "top:0": no hay nada por encima de él, nunca. El reloj está a 31 píxeles del
+     borde de arriba y el cuadro mide 24, así que cabe. Medido antes: con 8
+     píxeles de separación el cuadro quedaba en y=-1, un píxel fuera de la
+     ventana, con las esquinas cortadas.
+
+     El "margin-bottom" de 1 píxel es para que el borde redondeado de arriba no
+     quede pegado al borde de la fila. */
+
+  bottom:100%;
+  margin-bottom:1px;
+
+  background:var(--accent2);
+  color:#fff;
+  font-size:.66rem;
+  font-weight:500;
+  letter-spacing:0;
+  text-transform:none;
+  line-height:1.35;
+  padding:5px 9px;
+  border-radius:5px;
+  white-space:nowrap;
+  opacity:0;
+  pointer-events:none;
+  z-index:40;
+  transition:opacity .14s ease;
+}
+
+/* -------------------------------------------------------------------
+   LA PALABRA DEL TEMA, Y LA HORA QUE LE SALE DEL LUGAR
+   -------------------------------------------------------------------
+   Ver arriba el por qué: la palabra se abre EN EL FLUJO, y al abrirse el
+   encabezado se hacía más alto y el título y el botón de cerrar sesión se
+   partían en dos renglones. No había sitio.
+
+   El arreglo es que la palabra no se SUMA a la hora: la REEMPLAZA.
+
+       sin puntero:     luna      nube 12 grados 10:18
+       sobre el ícono: luna Modo claro
+       sobre la hora:            nube 12 grados 10:18   + la fecha arriba
+
+   El ancho del grupo es el mismo en los dos casos, así que no se mueve nada de
+   la fila. Y el reloj no se pierde: está a un puntero de distancia.
+
+   Y sale por la derecha del ícono, no por la izquierda, porque el ícono no se
+   puede mover de sitio: es lo que dice que ese botón es el del tema. */
+
+.tema-boton:hover ~ .reloj .reloj-corto,
+.tema-boton:focus-visible ~ .reloj .reloj-corto,
+.tema-boton:focus-within ~ .reloj .reloj-corto{
+  max-width:0;
+  opacity:0;
+}
+
+.reloj:hover .reloj-largo,
+.reloj:focus-within .reloj-largo{
+  opacity:1;
+}
+
+/* Y el reloj se puede alcanzar con el teclado, que es lo que hace que el
+   ":focus-within" de arriba sirva de algo. El "outline" se ve, porque si no
+   nadie sabría que el foco está ahí. */
+.reloj:focus-visible{
+  outline:2px solid #fff;
+  outline-offset:3px;
+  border-radius:4px;
+}
+
+/* -------------------------------------------------------------------
+   EL BOTÓN DE CERRAR SESIÓN, SIN BORDE
+   -------------------------------------------------------------------
+   El borde era un cuadrito blanco alrededor del texto en un encabezado
+   oscuro. Sin borde, al pasar el puntero aparece el fondo claro, que es lo que
+   dice "esto se puede apretar". */
+.header-actions .btn.secondary{
+  border:0;
+}
+
+.header-actions .btn.secondary:hover{
+  border:0;
+}
+
+/* -------------------------------------------------------------------
+   EL TELÉFONO
+   -------------------------------------------------------------------
+   Abajo de 860 los menús se esconden y el encabezado no tiene a quién
+   dejarle sitio. La palabra "Modo oscuro" no cabe en 390 píxeles con el ícono
+   al lado; el reloj sí, y son 40. */
+@media (max-width:860px){
+  .tema-palabra{display:none}
+
+  .clima-reloj{gap:8px}
+
+  .reloj{font-size:.62rem}
+}

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- EL SOL. Se usa de máscara en CSS, así que solo importa la FORMA que dibuja,
+       no el color: la máscara lee la transparencia. Por eso va todo en negro y el
+       color lo pone el CSS con "background-color". -->
+  <circle cx="12" cy="12" r="4.4" fill="currentColor"/>
+  <g stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none">
+    <path d="M12 1.6v2.9"/>
+    <path d="M12 19.5v2.9"/>
+    <path d="M22.4 12h-2.9"/>
+    <path d="M4.5 12H1.6"/>
+    <path d="M19.4 4.6l-2 2"/>
+    <path d="M6.6 17.4l-2 2"/>
+    <path d="M19.4 19.4l-2-2"/>
+    <path d="M6.6 6.6l-2-2"/>
+  </g>
+</svg>

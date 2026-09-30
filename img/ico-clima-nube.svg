@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- LA NUBE. Sirve para nublado y para niebla: los dos días en que no llueve pero
+       tampoco hay sol, y en el botón de 15 píxeles no hay diferencia real entre
+       una nube y una nube con niebla encima. -->
+  <path fill="currentColor" d="M18.1 9.2h-.36A6.6 6.6 0 0 0 5 8.6a4.7 4.7 0 0 0 .5 9.4h12.6a4.4 4.4 0 0 0 0-8.8z"/>
+</svg>

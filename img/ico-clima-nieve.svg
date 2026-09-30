@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!-- LA NIEVE. La nube más tres puntos redondos abajo, que es como se dibuja un
+       copo a este tamaño. A 15 píxeles un asterisco de seis puntas se convierte en
+       una mancha, así que van puntos: se leen y no se ensucian. -->
+  <path fill="currentColor" d="M18.1 8.1h-.36A6.6 6.6 0 0 0 5 7.5a4.7 4.7 0 0 0 .5 9.4h12.6a4.4 4.4 0 0 0 0-8.8z"/>
+  <g fill="currentColor">
+    <circle cx="8" cy="20.6" r="1.35"/>
+    <circle cx="12" cy="21.4" r="1.35"/>
+    <circle cx="16" cy="20.6" r="1.35"/>
+  </g>
+</svg>
