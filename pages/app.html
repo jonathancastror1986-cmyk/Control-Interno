@@ -498,7 +498,7 @@ Un solo elemento pegajoso en vez de tres medidos es la diferencia entre que
 funcione siempre y que funcione hasta que alguien cambia una fuente.
 -->
 <div id="barrasSuperiores">
-<header><span class="marca-jc" role="img" aria-label="JC Solutions"></span><h1 id="tituloSeccion">Control de Asistencia y Portería</h1><div class="header-actions"><button type="button" class="btn secondary theme-toggle" data-theme-toggle></button><div class="row" style="margin:0 0 0 12px;align-items:center;flex-wrap:nowrap">
+<header><a class="marca-jc" href="#v-nuevo-trabajador" onclick="irAlInicio(event)" title="JC Solutions — ir a la pantalla principal" aria-label="JC Solutions, ir a la pantalla principal"><span class="marca-jc-dibujo" aria-hidden="true"></span></a><h1 id="tituloSeccion">Control de Asistencia y Portería</h1><div class="header-actions"><button type="button" class="btn secondary theme-toggle" data-theme-toggle></button><div class="row" style="margin:0 0 0 12px;align-items:center;flex-wrap:nowrap">
         <label for="empresaSel" style="margin:0;white-space:nowrap">Empresa</label>
         <select id="empresaSel" onchange="cambiarEmpresa(this.value)" style="width:auto;min-width:170px"></select>
       </div>
@@ -18437,6 +18437,26 @@ async function activarCargoDeEmpresa(cargo,activo,casilla){
 //
 // Se usa el evento "toggle" y no el clic, porque el clic no se dispara
 // cuando el <details> se abre con el teclado.
+// -------------------------------------------------------------------
+// EL LOGO LLEVA A LA PANTALLA PRINCIPAL
+// -------------------------------------------------------------------
+// Es un <a> con href, y no un <div> con un onclick. La diferencia no es de
+// estilo: es que con un <a> el logo se puede abrir en una pestaña nueva, se
+// puede copiar el enlace y se puede llegar con el teclado. Con un <div> no.
+//
+// El preventDefault lo deja dentro de la aplicación: si no, el navegador
+// saltaría al ancla y recargaría la página, que en una aplicación de una
+// sola pantalla pierde todo lo que estaba cargado.
+//
+// Y sube al tope, porque si la persona estaba media página abajo, cambiar de
+// vista sin volver arriba la deja mirando la parte de en medio de la
+// pantalla nueva, que está en blanco.
+function irAlInicio(ev){
+  if(ev&&ev.preventDefault)ev.preventDefault();
+  if(typeof showView==='function')showView('nuevo-trabajador');
+  window.scrollTo(0,0);
+}
+
 function conectarAyudas(){
   if(conectarAyudas.hecho)return;
   conectarAyudas.hecho=true;

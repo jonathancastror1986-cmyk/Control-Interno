@@ -4927,14 +4927,52 @@ header{z-index:30}
    -------------------------------------------------------------------
    En el encabezado y en los íconos, y en nada más. Si se le pone transición
    a todo lo que hay arriba, la página se pone pastosa al bajar, y eso se
-   nota más en un computador viejo de la oficina que en uno nuevo. */
-header,
-#mainNav button .ico,
-#subNav .ico,
-#mainNav button,
-#subNav button,
-#subNav .nav-dropdown-trigger,
-header h1,
+   nota más en un computador viejo de la oficina que en uno nuevo.
+
+   -------------------------------------------------------------------
+   LO QUE HABÍA AQUÍ, Y POR QUÉ YA NO ESTÁ
+   -------------------------------------------------------------------
+   Antes había una regla con esta lista de selectores y un "transition" con
+   padding, font-size y transform de 180ms. Se quitó entera cuando el encogido
+   pasó a ser un solo scaleY de la barra entera: animar el padding y el tamaño de
+   letra por separado era justo lo que provocaba el tirón.
+
+   PERO AL QUITAR EL CUERPO SE DEJÓ LA LISTA DE SELECTORES SUELTA, sin la llave
+   de apertura. El parser no avisa: sigue de largo buscando la llave, se
+   encuentra con la regla siguiente —que es la de los contadores del tótem— y le
+   cuelga esa lista adelante. Quedó una sola regla, con ocho selectores, que le
+   puso al ENCABEZADO lo que era del tótem:
+
+       max-width:min(100%, 860px);   margin-left:auto;   margin-right:auto
+
+   Y el encabezado se ve como una caja de 860 píxeles al centro de la pantalla,
+   con las dos barras de abajo llegando al borde. Se veía como un defecto de
+   diseño y no como una regla rota, que es lo peor: un error de sintaxis se
+   nota, uno que se cuelga de otra regla no.
+
+   Por eso la lista desaparece en vez de completarse. Lo que quedó de la
+   transición está más abajo, en "LO QUE QUEDA: EL COLOR Y EL FONDO", que es la
+   regla que el diseño dejó viva.
+
+   -------------------------------------------------------------------
+   Y LO QUE ESA REGLA ROTA ESTABA HACIENDO DE PASO
+   -------------------------------------------------------------------
+   La lista colgante no solo angostaba el encabezado: también le ponía
+   "margin-left:auto" y "margin-right:auto" a los botones de las dos barras, y
+   en una fila flexible los márgenes automáticos se reparten el espacio libre.
+   Eso es lo que las esparce a lo ancho de la barra, que es como se ven.
+
+   Al quitar la lista, los botones se juntan a la izquierda y sobra un palmo
+   vacío a la derecha. Y eso es un cambio en el menú, que es lo que NO se iba a
+   tocar.
+
+   Así que el reparto se escribe explícito acá: mismo efecto, a propósito, y sin
+   depender de una regla rota.
+
+   Y con "min-width:701px" porque en un teléfono el submenú pasa a ser una
+   grilla de dos columnas, y en una grilla un margen automático CENTRA el
+   elemento en su celda en vez de esparcirlo.
+   ------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------
    AL BAJAR: MÁS CONTENIDO
@@ -5761,36 +5799,100 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
 
 /* ===================================================================
    EL LOGO EN EL ENCABEZADO
+   ===================================================================
+   Son dos elementos y cada uno hace una cosa:
+
+     <a class="marca-jc">        el botón: el fondo, el que crece, el que lleva
+                                 al inicio
+       <span class="marca-jc-dibujo">   la forma del logo, con la máscara
+
+   -------------------------------------------------------------------
+   POR QUÉ NO ES UN SOLO ELEMENTO
+   ------------------------------
+
+   Porque tiene que crecer al pasar el mouse, para que se lean los tres renglones
+   de texto. Y si el que crece fuera el elemento con la máscara, no habría dónde
+   poner el fondo del botón: la imagen se agranda sola y queda flotando sin nada
+   atrás, que se ve como un error.
+
+   Con el dibujo adentro, el fondo del botón crece con el dibujo.
    =================================================================== */
 .marca-jc{
+  /* Las dos escalas se escriben con variables, porque son la MISMA propiedad y
+     no se pueden escribir dos transformores en un elemento.
+
+     El encabezado se comprime con scaleY(.72) al bajar la página, y el logo se
+     descomprime con 1.3889 para que el producto sea 1 y no se vea chueco. Y al
+     pasar el mouse crece a 2.2, que es el tercer escalón.
+
+     Al pasar el mouse el producto da 0.72 x 1.3889 x 2.2 = 2.2 en los dos ejes:
+     limpio. Si el crecimiento se escribiera después del descompresor, lo
+     taparía y el logo salía chueco al pasar el mouse con la página abajo. */
+  --descomprimir:1;
+  --crecer:1;
   display:block;
   flex:0 0 auto;
-  /* El logo COMPLETO, no solo el emblema: el microchip con la J y la C más los
-     tres renglones de texto. La proporción es 1649 x 1145, o sea 1.440. Las dos
-     medidas de abajo andan en 1.44, lo más cerca que se llega con números
-     enteros.
+  /* El fondo del botón. Se agranda con el botón, que es justo lo que se quiere
+     al crecer. */
+  padding:5px;
+  border-radius:9px;
+  text-decoration:none;
+  color:inherit;
+  cursor:pointer;
+  /* El origen a la izquierda y al medio: al crecer se abre hacia la derecha y no
+     se descentra de la barra. */
+  transform:scaleY(var(--descomprimir)) scale(var(--crecer));
+  transform-origin:left center;
+  /* Para que el crecimiento pase POR ENCIMA del título de la sección, que queda
+     debajo. Sin esto, el logo crece por detrás de las letras. */
+  position:relative;
+  z-index:60;
+  background:transparent;
+  transition:transform .26s cubic-bezier(.25,.46,.45,.94),
+             background-color .22s ease;
+}
 
-     EL TAMAÑO, Y POR QUÉ ES ESTE
-     -----------------------------
-     Con el logo entero, los tres renglones de texto son el 12%, el 7% y el 6%
-     del alto. A 44 de alto dan 5,3 y 2,6 píxeles: no se leen.
+/* -------------------------------------------------------------------
+   AL PASAR EL MOUSE
+   -------------------------------------------------------------------
+   Crece a 2.2, que es lo que hace falta para leer el texto.
 
-     Y no hay manera de que se lean sin un encabezado de 137 píxeles de alto, que
-     es más de la mitad de un teléfono. Así que el texto del logo, a este tamaño,
-     es una forma, no una palabra: se reconoce el emblema y se sabe que hay un
-     nombre abajo. Es como se ve en cualquier aplicación con logo entero.
+   La cuenta: los tres renglones son el 12%, el 7% y el 6% del alto del logo. Con
+   el dibujo de 37 píxeles dan 4,4 y 2,2: no se leen. Multiplicado por 2.2, dan
+   9,7 y 4,8: el primero se lee y los otros dos se distinguen como palabra.
 
-     Si alguna vez hay que leerlo, el número está acá: alto del logo en píxeles =
-     (alto de la letra que se quiera leer) / 0.073. Para leerla a 10 píxeles
-     hacen falta 137. */
-  width:63px;
-  height:44px;
+   Para que se lean los tres enteros harían falta 137 de alto, y eso es un
+   encabezado. Al pasar el mouse no hace falta que sea un encabezado: es un
+   botón y se ve un momento.
+   ------------------------------------------------------------------- */
+.marca-jc:hover,
+.marca-jc:focus-visible{
+  --crecer:2.2;
+  background:rgba(255,255,255,.14);
+}
+.marca-jc:active{--crecer:2}
+
+/* El foco con teclado tiene que verse, o el logo es inalcanzable sin el mouse */
+.marca-jc:focus-visible{outline:2px solid var(--cat,#EBF9FA);outline-offset:2px}
+
+/* -------------------------------------------------------------------
+   LA FORMA
+   -------------------------------------------------------------------
+   La proporción del logo entero es 1649 x 1145, o sea 1.440. Las medidas de
+   abajo andan en 1.432, lo más cerca que se llega con números enteros.
+
+   El ancho y el alto se animan cuando la barra se encoge, y el transform se
+   anima cuando se pasa el mouse: son dos cosas distintas y no se pueden meter en
+   la misma transición sin que una espere a la otra.
+   ------------------------------------------------------------------- */
+.marca-jc-dibujo{
+  display:block;
+  width:53px;
+  height:37px;
   /* El color sale de la sección. Es la misma variable que usa el nombre de la
      sección y el ícono del botón de arriba, y por eso el logo, el título y el
-     ícono son claramente la misma sección y no tres cosas parecidas.
-     El respaldo es el tono de Portería, porque un logo invisible es peor que
-     un logo del color equivocado. */
-  background-color:var(--cat, #EBF9FA);
+     ícono son claramente la misma sección y no tres cosas parecidas. */
+  background-color:var(--cat,#EBF9FA);
   /* La máscara usa la transparencia del dibujo, no su color. El archivo puede
      decir currentColor sin que estorbe, porque de la máscara solo se lee la
      forma. */
@@ -5803,44 +5905,72 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
   -webkit-mask-size:contain;
           mask-size:contain;
   transition:width .34s cubic-bezier(.25,.46,.45,.94),
-             height .34s cubic-bezier(.25,.46,.45,.94),
-             transform .34s cubic-bezier(.25,.46,.45,.94);
+             height .34s cubic-bezier(.25,.46,.45,.94);
 }
 
 /* -------------------------------------------------------------------
    CUANDO LA BARRA SE ENCOGE
    -------------------------------------------------------------------
-   El encabezado baja con scaleY(.72) al pasar los 40 píxeles. Un logo
-   dentro sale aplastado, así que hay que devolverle la escala.
+   El encabezado baja con scaleY(.72). Un logo dentro sale aplastado, así que hay
+   que devolverle la escala, y al mismo tiempo achicar el dibujo para que se vea
+   más chico y no solo menos aplastado.
 
-   Y la caja se achica en la misma proporción que la barra (63x44 -> 46x32, las
-   dos por 0.73) para que el logo se vea más chico y no solo menos aplastado.
-
-   Si se saca el transform, el logo se ve chueco. Si se saca el width/height, el
-   logo deja de encogerse. Las dos cosas hacen falta.
+   Si se saca el transform, el logo se ve chueco. Si se saca el width/height,
+   deja de encogerse. Las dos cosas hacen falta.
    ------------------------------------------------------------------- */
 body.nav-compacto .marca-jc{
-  width:46px;
-  height:32px;
-  /* 1 / 0.72. El padre pone 0.72 y este pone 1.3889, y da 1. */
-  transform:scaleY(1.3889);
-  transform-origin:center;
+  /* 1 / 0.72 */
+  --descomprimir:1.3889;
+  padding:3px;
+}
+body.nav-compacto .marca-jc-dibujo{
+  width:39px;
+  height:27px;
+}
+
+/* -------------------------------------------------------------------
+   CUANDO EL ENCABEZADO SE DESCOMPRIME AL PASAR EL MOUSE
+   -------------------------------------------------------------------
+   Las barras del archivo tienen una cosa a propósito: al pasar el mouse por
+   encima vuelven a su tamaño completo, para que el puntero no tenga que apuntar
+   a un botón más chico de lo que aparenta.
+
+   O sea que con la página bajada y el mouse encima, el encabezado ya NO está
+   comprimido: está en scaleY(1). Y si el logo se queda con su 1.3889 de siempre,
+   ese 1.3889 queda solo y el logo se estira a lo alto: un dibujo de 39 por 37
+   cuando la proporción del logo es 1.44.
+
+   O sea que el descompresor tiene que acompañar a la compresión. Cuando el
+   encabezado vuelve a su tamaño, el logo también.
+
+   -------------------------------------------------------------------
+   POR QUÉ NO SE RESUELVE SOLO
+   ----------------------------
+   Porque el logo no puede preguntar si su padre está comprimido, y el
+   descompresor es un número fijo. La regla tiene que existir para el otro estado.
+
+   Y no se arregla con un "scale(1)" al pasar el mouse, porque eso DEJARÍA de
+   crecer: el crecimiento es justamente lo que el logo hace, y está en la misma
+   propiedad. Por eso el crecimiento va en una variable y el descompresor en otra,
+   y acá solo se cambia el descompresor.
+   ------------------------------------------------------------------- */
+body.nav-compacto #barrasSuperiores header:hover .marca-jc,
+body.nav-compacto #barrasSuperiores header:focus-within .marca-jc,
+body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
+  --descomprimir:1;
 }
 
 /* -------------------------------------------------------------------
    UNA PANTALLA CHICA
    -------------------------------------------------------------------
    En un teléfono el encabezado ya tiene el nombre de la sección, el selector de
-   empresa y el botón de cerrar sesión. Con el logo de 63 píxeles más, lo que
-   queda fuera de la pantalla es el botón de cerrar sesión entero: medido, quedaba
-   en el pixel 506 de una pantalla de 356. O sea que no se veía ni se podía apretar.
-
-   El logo baja a 52 de ancho. Sigue siendo el emblema completo con su nombre
-   abajo, que es lo que se reconoce; no cabe más.
+   empresa y el botón de cerrar sesión. Con el logo más, lo que queda fuera de la
+   pantalla es el botón de cerrar sesión entero: medido, quedaba en el pixel 506
+   de una pantalla de 356. O sea que no se veía ni se podía apretar.
    ------------------------------------------------------------------- */
 @media (max-width:700px){
-  .marca-jc{width:52px;height:36px}
-  body.nav-compacto .marca-jc{width:38px;height:26px;transform:scaleY(1.3889)}
+  .marca-jc{padding:4px}
+  .marca-jc-dibujo{width:44px;height:30px}
 }
 
 /* ===================================================================
@@ -5869,9 +5999,6 @@ body.nav-compacto .marca-jc{
    Con dos columnas no hay desplazamiento, el menú sale por encima de la página
    como siempre, y además los elementos quedan alineados en una grilla en vez de
    sueltos.
-
-   Y el ancho mínimo del menú baja a 210 en vez de 240, porque a 240 no entraban
-   dos columnas en 356 píxeles.
    =================================================================== */
 @media (max-width:700px){
   #subNav{
@@ -5903,15 +6030,27 @@ body.nav-compacto .marca-jc{
     overflow:hidden;
     text-overflow:ellipsis;
   }
+  /* A 240 de ancho mínimo no entraban dos columnas en 356 píxeles */
   #subNav .nav-dropdown-menu{min-width:210px}
+}
+
+/* -------------------------------------------------------------------
+   UN ELEMENTO SOLO
+   -------------------------------------------------------------------
+   Con un solo elemento en el submenú, una grilla de dos columnas lo dejaría en
+   la mitad izquierda con la mitad derecha vacía. Con una sola cosa, la grilla
+   tiene que ser de una columna.
+   ------------------------------------------------------------------- */
+@media (max-width:700px){
+  #subNav:only-child{grid-template-columns:1fr}
 }
 
 /* -------------------------------------------------------------------
    LA BARRA DE SECCIONES SE DESPLAZA, Y HAY QUE SÍ SABERLO
    -------------------------------------------------------------------
    Siete secciones no entran en 390 píxeles: la barra se desplaza de lado. Eso
-   funciona, porque el dedo la mueve. Lo que no funcionaba era que no se veía:
-   la barra parecía cortada, y una barra cortada parece rota, no desplazable.
+   funciona, porque el dedo la mueve. Lo que no se veía es que se desplaza: la
+   barra parecía cortada, y una barra cortada parece rota, no desplazable.
 
    El desvanecido del borde derecho es lo que lo dice. Se hace con una máscara,
    sin una sola línea de JavaScript y sin sensor: el degradado está fijo en el
@@ -5928,29 +6067,17 @@ body.nav-compacto .marca-jc{
   }
 }
 
-/* -------------------------------------------------------------------
-   UN ELEMENTO SOLO
-   -------------------------------------------------------------------
-   Con un solo elemento en el submenú, una grilla de dos columnas lo dejaría
-   en la mitad izquierda con la mitad derecha vacía. Con una sola cosa, la grilla
-   tiene que ser de una columna.
-   ------------------------------------------------------------------- */
-@media (max-width:700px){
-  #subNav:only-child{grid-template-columns:1fr}
-}
-
 /* ===================================================================
    EL ENCABEZADO EN UN TELÉFONO
    ===================================================================
    Lo que había no cabía. Medido en una pantalla de 356 píxeles:
 
-     el encabezado        344 x 90      (casi media pantalla de barra)
-     el titulo             73 x 64      (estrujado a 73 de ancho, cuatro renglones)
-     el selector de empresa  x 42        el borde derecho en 413
-     cerrar sesión         x 54         el borde derecho en 506, fuera de la pantalla
-
-   Y el submenú, 93 píxeles de alto, con un hueco entre el primer elemento y los
-   otros dos porque el flex los parte como puede.
+     el encabezado         344 x 90     con el botón de cerrar sesión en el
+                                       pixel 506 de una pantalla de 356:
+                                       INALCANZABLE
+     el titulo              73 x 64     estrujado a 73 de ancho, cuatro renglones
+     el selector de empresa             el borde derecho en 413
+     el submenu                        93 de alto, con un hueco de 48 píxeles
 
    -------------------------------------------------------------------
    POR QUÉ DOS FILAS Y NO UNA
@@ -6002,7 +6129,7 @@ body.nav-compacto .marca-jc{
 /* -------------------------------------------------------------------
    UN TELÉFONO MÁS ANGOSTO
    -------------------------------------------------------------------
-   En 400 píxeles o menos, el nombre de la sección y el selector ya no caben ni
+   En 430 píxeles o menos, el nombre de la sección y el selector ya no caben ni
    en dos filas sin que el logo quede aplastado. El nombre de la sección está
    además escrito en el botón del menú que está activo, o sea que no se pierde
    información: solo deja de estar en dos lugares a la vez.
@@ -6023,7 +6150,7 @@ body.nav-compacto .marca-jc{
     white-space:nowrap;
   }
   /* Con el nombre de la sección escondido, el selector de empresa vuelve a la
-     primera fila y el encabezado pasa de 113 a menos de 70 píxeles.
+     primera fila y el encabezado pasa de 113 a 63 píxeles.
 
      Lo que se sacrifica es el ancho del selector: queda con lo que sobra después
      del logo y de los dos botones. El texto de una empresa larga se corta, y eso
@@ -6035,18 +6162,22 @@ body.nav-compacto .marca-jc{
   .header-actions{order:3;flex:1 1 0}
   .header-actions select{min-width:0}
   header{padding:10px 12px;row-gap:6px}
-  .marca-jc{width:46px;height:32px}
-  body.nav-compacto .marca-jc{width:34px;height:24px;transform:scaleY(1.3889)}
 }
 
 /* -------------------------------------------------------------------
    SIN ANIMACIONES
    -------------------------------------------------------------------
-   Con prefers-reduced-motion los estilos de la barra ponen transform:none, o
-   sea que ya no se comprime nada. Si el logo se quedara con su 1.3889 y el
-   padre no comprime, saldría un 39% más grande. Por eso vuelve a la nada.
+   Con prefers-reduced-motion los estilos de la barra ponen transform:none, o sea
+   que ya no se comprime nada. Si el logo se quedara con su 1.3889 y el padre no
+   comprime, saldría un 39% más grande. Por eso vuelve a la nada.
+
+   Y el crecimiento al pasar el mouse también es una animación, así que en este
+   modo aparece del tamaño normal al instante, sin agrandarse.
    ------------------------------------------------------------------- */
 @media (prefers-reduced-motion: reduce){
-  body.nav-compacto .marca-jc{transform:none}
-  .marca-jc{transition:none}
+  body.nav-compacto .marca-jc{--descomprimir:1}
+  .marca-jc,
+  .marca-jc-dibujo{transition:none}
+  .marca-jc:hover,
+  .marca-jc:focus-visible{--crecer:1}
 }
