@@ -87,7 +87,24 @@ header{display:flex;align-items:center;gap:16px;padding:14px 24px;position:stick
 
 header h1{font-family:'Montserrat',system-ui,sans-serif;font-size:1rem;font-weight:700;color:#fff;text-transform:uppercase;margin:0}
 
-header>button{float:none!important;margin:0 0 0 auto!important}
+/* Los botones a la derecha del encabezado.
+   Antes era "header>button", que alcanzaba a los dos <button> hijos directos del
+   encabezado: el de cerrar sesión y el del botón de menú. Los dos recibían el
+   "margin-left:auto", que es un margen CENTRADO: el navegador reparte el sobrante
+   por igual y los empuja a la derecha.
+
+   En el escritorio no se notaba, porque el del menú tiene "display:none" arriba de
+   700 de ancho. En el teléfono aparece, y quedaba con 221.6 píxeles de margen a la
+   izquierda, medido, en una pantalla de 375. El botón del menú salía en x=248.
+
+   Ahora la regla nombra el botón de cerrar sesión, que es el que quería estar a la
+   derecha. El "auto" es lo que pone el de tema oscuro y el de la empresa en su
+   lugar, y eso sigue igual.
+
+   El "!important" se queda: hay otras reglas del archivo con "!important" sobre
+   márgenes de botones, y sacarlo sería abrir una pelea de especificidades que no
+   hace falta para lo que se está pidiendo. */
+header>.boton-salir{float:none!important;margin:0 0 0 auto!important}
 
 .header-actions{display:flex;align-items:center;gap:8px;margin-left:auto}
 
@@ -6267,8 +6284,18 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
     overflow:hidden;
     text-overflow:ellipsis;
   }
-  /* Los botones al final de la primera fila */
-  header>button{order:4;flex:0 0 auto}
+  /* Los botones al final de la primera fila.
+     Y aquí se corrigió el selector: era "header>button", que alcanza a TODOS los
+     <button> hijos directos del encabezado, incluido el del botón de menú. Con
+     order:4 los dos se iban al final y el del menú caía una fila más abajo,
+     medio cortado. Medido en 375 de ancho: estaba 97 píxeles más abajo que el
+     logo, en vez de al lado.
+
+     Ahora la regla nombra el botón de cerrar sesión por su clase, que es lo que
+     quería decir desde el principio. Un selector que alcanza a más elementos de
+     los que cree no falla: los manda a otra parte y el resultado se ve raro en
+     otro lado, que es peor. */
+  .boton-salir{order:4;flex:0 0 auto}
   /* Y el selector de empresa, solo y a lo ancho en la segunda fila */
   .header-actions{
     order:5;
@@ -6538,6 +6565,80 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   body.menu-movil-abierto #subNav{
     transform:none;
     transition:none;
+  }
+
+  /* -----------------------------------------------------------------
+     EL BOTÓN DEL MENÚ, Y LO QUE SE ESCONDE CON EL MENÚ ABIERTO
+     -----------------------------------------------------------------
+     Con el menú abierto se esconden los tres botones de la barra de arriba y NO
+     las barras de navegación, que son lo que se vino a ver. Las barras ya se
+     muestran; esto apaga los botones.
+
+     El del modo oscuro se cambia una vez y se deja. La empresa se elige antes de
+     empezar a marcar. Cerrar sesión no se usa mientras se está trabajando.
+
+     Sobre la empresa, que en este archivo hay escrito que nunca se esconde, y con
+     razón: es donde se está trabajando, y sin verla uno puede marcar la
+     asistencia de la obra equivocada. Con el menú abierto no se está marcando
+     nada: se está navegando, y en ninguna de esas pantallas se marca. El riesgo
+     que protege esa regla no existe mientras el menú está abierto. Al cerrarlo,
+     el selector vuelve con la empresa que tenía.
+
+     Y el botón del menú, con su propio orden. Estaba al final porque la regla de
+     los botones lo alcanzaba a él también, y no a propósito.
+     ------------------------------------------------------------------- */
+
+  /* -----------------------------------------------------------------
+     EL BOTÓN DEL MENÚ, A LA IZQUIERDA DE TODO
+     -----------------------------------------------------------------
+     El botón tiene "order:0" para ir antes que el logo y el grupo de la derecha,
+     y el logo usa el 0 por defecto: los dos empatan y gana el orden del
+     documento, que pone primero al botón. Medido: botón en 248, logo en 294.
+
+     Pero los dos quedan a la DERECHA de la pantalla, con 248 píxeles de vacío a
+     la izquierda. La causa es el título de la sección: en pantalla chica está
+     oculto a propósito, pero conserva "flex:1 1 0", que lo hace crecer y
+     repartirse el espacio sobrante. Se come los 282 píxeles que sobran en una
+     fila de 375, y el botón y el logo quedan corridos al otro lado.
+
+     Con el título oculto, el espacio entre el logo y el grupo de la derecha no lo
+     ocupa nadie. Así que no hay que repartirlo.
+
+     Y con el menú abierto el título tampoco se ve, por la misma razón: el
+     encabezado queda solo con el logo y el botón.
+
+     Esto vive en un "max-width:700px", así que el escritorio no se toca.
+     ------------------------------------------------------------------- */
+  #btnMenuMovil{order:0}
+  #barrasSuperiores header{justify-content:flex-start}
+  #barrasSuperiores header h1{flex:0 1 auto}
+
+  /* Y el grupo de la derecha se queda con el ancho de la fila.
+     Este "flex:1 0 100%" estaba bien desde el principio y lo cambié sin motivo:
+     con "0 0 auto" el ancho pasa a ser la suma de los hijos, y esa suma es 384 en
+     una pantalla de 375. El grupo se salía de la pantalla.
+
+     Con el ancho de la fila, no cabe nada más a su lado y baja a la línea de abajo
+     por el "flex-wrap:wrap", que es como se ve en la foto: el logo y el botón
+     arriba, y debajo el modo oscuro, la empresa y cerrar sesión. */
+  #barrasSuperiores .header-actions{flex:1 0 100%}
+
+  /* El botón del menú, con margen propio.
+     La regla general del encabezado que pone "margin-left:auto" ya no lo alcanza,
+     porque ahora nombra solo al botón de cerrar sesión. Pero un "margin:0" propio
+     deja dicho que va a la izquierda, en vez de depender de que nadie le ponga
+     nada: un margen automático es un margen que se recalcula solo. */
+  #btnMenuMovil{margin:0}
+
+  /* Los tres botones de la barra de arriba, fuera mientras el menú está abierto */
+  body.menu-movil-abierto #barrasSuperiores .header-actions,
+  body.menu-movil-abierto #barrasSuperiores .boton-salir{
+    display:none;
+  }
+
+  /* Y el encabezado se achica solo al no tener nada más que mostrar */
+  body.menu-movil-abierto #barrasSuperiores header{
+    row-gap:0;
   }
 
   /* -----------------------------------------------------------------
