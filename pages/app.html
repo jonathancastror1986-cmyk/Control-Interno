@@ -500,7 +500,7 @@ Un solo elemento pegajoso en vez de tres medidos es la diferencia entre que
 funcione siempre y que funcione hasta que alguien cambia una fuente.
 -->
 <div id="barrasSuperiores">
-<header><button type="button" id="btnMenuMovil" class="menu-movil-boton" onclick="alternarMenuMovil()" aria-label="Abrir el menú" aria-expanded="false" aria-controls="mainNav"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg></button><a class="marca-jc" href="#v-nuevo-trabajador" onclick="irAlInicio(event)" title="JC Solutions — ir a la pantalla principal" aria-label="JC Solutions, ir a la pantalla principal"><span class="marca-jc-dibujo" aria-hidden="true"></span></a><h1 id="tituloSeccion">Control de Asistencia y Portería</h1><div class="header-actions"><div class="clima-reloj">
+<header><button type="button" id="btnMenuMovil" class="menu-movil-boton" onclick="alternarMenuMovil()" aria-label="Abrir el menú" aria-expanded="false" aria-controls="mainNav"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg></button><div class="marca-bloque"><a class="marca-jc" href="#v-nuevo-trabajador" onclick="irAlInicio(event)" title="JC Solutions — ir a la pantalla principal" aria-label="JC Solutions, ir a la pantalla principal"><span class="marca-jc-dibujo" aria-hidden="true"></span></a><span class="marca-jc-letras" aria-hidden="true"></span><h1 id="tituloSeccion">Control de Asistencia y Portería</h1></div><div class="header-actions"><div class="clima-reloj">
 
   <button type="button" class="tema-boton" data-theme-toggle>
     <span class="tema-ico" aria-hidden="true">
@@ -3735,25 +3735,6 @@ function applyAttendanceQr(code,purpose){
   }
   renderMatrix();
 }
-/* -------------------------------------------------------------------
-   CUÁNTAS PESTAÑAS TIENE EL SUBMENÚ, PARA SABER SI TOCA REPARTIRLAS
-   -------------------------------------------------------------------
-   Con ocho o menos se reparten el ancho entre todas, que es lo de siempre. Con
-   más de ocho cada una puede ocupar como máximo la octava parte, así que entran
-   ocho por fila y las demás bajan.
-
-   Y el divisor del tope es OCHO, no la cantidad: así el ancho de cada una no
-   cambia cuando se agrega o se saca una pestaña. Si fuera la cantidad, cada vez
-   que el menú cambiara todas cambiarían de ancho y la fila bailaría.
-
-   Cuenta los hijos DIRECTOS, que son las pestañas de primer nivel. Los
-   desplegables también cuentan: cada uno es una pestaña con su flecha. Los
-   hijos de ADENTRO del desplegable no, porque cuelgan hacia abajo. */
-function ajustarPestanasSub(){
-  const sub=document.getElementById('subNav');
-  if(!sub)return;
-  sub.classList.toggle('muchas',sub.children.length>8);
-}
 function showAttendancePanel(name){
   document.querySelectorAll('[data-attendance-panel]').forEach(panel=>panel.classList.toggle('active',panel.dataset.attendancePanel===name));
   document.querySelectorAll('[data-attendance-tab]').forEach(tab=>{
@@ -3889,11 +3870,11 @@ function showGroup(group){
     }
   }
   sub.innerHTML=items.map(it=>it.options
-    ? `<details class="nav-dropdown"><summary class="nav-dropdown-trigger">${iconoMenu(it.v)}<span class="pest-txt">${it.label}</span></summary><div class="nav-dropdown-menu">${it.options.map(option=>option.children
-      ? `<details class="nav-dropdown-nested"><summary><span class="pest-txt">${option.label}</span></summary><div class="nav-dropdown-children">${option.children.map(child=>`<button type="button" data-v="${child.v}">${child.label}</button>`).join('')}</div></details>`
-      : `<button type="button" data-v="${option.v}">${iconoMenu(option.v)}<span class="pest-txt">${option.label}</span></button>`
+    ? `<details class="nav-dropdown"><summary class="nav-dropdown-trigger">${iconoMenu(it.v)}${it.label}</summary><div class="nav-dropdown-menu">${it.options.map(option=>option.children
+      ? `<details class="nav-dropdown-nested"><summary>${option.label}</summary><div class="nav-dropdown-children">${option.children.map(child=>`<button type="button" data-v="${child.v}">${child.label}</button>`).join('')}</div></details>`
+      : `<button type="button" data-v="${option.v}">${iconoMenu(option.v)}${option.label}</button>`
     ).join('')}</div></details>`
-    : `<button data-v="${it.v}">${iconoMenu(it.v)}<span class="pest-txt">${it.label}</span></button>`
+    : `<button data-v="${it.v}">${iconoMenu(it.v)}${it.label}</button>`
   ).join('');
   sub.querySelectorAll('button[data-v]').forEach(b=>b.addEventListener('click',()=>{
     // Un ítem bloqueado se puede hacer clic a propósito: contesta por qué
@@ -3960,7 +3941,6 @@ function showGroup(group){
   // las pestañas pasan a armarse con los permisos de la persona, que es cuando sí
   // harían falta.
 
-  ajustarPestanasSub();
   ocultarSubNavSinPermiso();
   // abrir la primera vista que la persona sí pueda ver
   const primero=[...sub.querySelectorAll('button[data-v]')].find(b=>b.style.display!=='none');

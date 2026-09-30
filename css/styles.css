@@ -6175,26 +6175,26 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
 }
 
 /* -------------------------------------------------------------------
-   AL PASAR EL MOUSE
+   LA MARCA NO CRECE
    -------------------------------------------------------------------
-   Crece a 2.2, que es lo que hace falta para leer el texto.
+   Antes crecía al pasar el puntero, de 58 x 39 a 145 x 97. Ahora no: se pidió que
+   se mantuviera en la izquierda, y hay una razón de fondo que lo sostiene.
 
-   La cuenta: los tres renglones son el 12%, el 7% y el 6% del alto del logo. Con
-   el dibujo de 37 píxeles dan 4,4 y 2,2: no se leen. Multiplicado por 2.2, dan
-   9,7 y 4,8: el primero se lee y los otros dos se distinguen como palabra.
+   La marca es la única parte del encabezado que dice QUIÉN es la empresa. El
+   nombre de la sección también está, pero en el submenú, y el submenú no siempre
+   se ve. Si la marca creciera con el puntero, la identidad visual quedaría atada
+   a un gesto, y el gesto se pierde: el puntero pasa de largo, o la persona ya sabe
+   dónde está y no pasa por ahí.
 
-   Para que se lean los tres enteros harían falta 137 de alto, y eso es un
-   encabezado. Al pasar el mouse no hace falta que sea un encabezado: es un
-   botón y se ve un momento.
-   ------------------------------------------------------------------- */
+   Lo que crece son las LETRAS, que son las que se piden. Y lo que crece es texto
+   grande, que es lo que se lee de lejos.
+
+   El fondo del botón al pasar se queda: es la señal de que ahí hay algo que se
+   puede apretar, y no tiene nada que ver con el crecimiento. */
 .marca-jc:hover,
 .marca-jc:focus-visible{
   background:#1b2c23;
 }
-/* Con el puntero apretado crece menos que al pasar: es el gesto de apretar, y
-   tiene que ser un escalón más chico que el de pasar. */
-.marca-jc:active{--crecer:2}
-.marca-jc:active .marca-jc-dibujo{width:116px;height:80px}
 
 /* El foco con teclado tiene que verse, o el logo es inalcanzable sin el mouse */
 .marca-jc:focus-visible{outline:2px solid var(--cat,#EBF9FA);outline-offset:2px}
@@ -6209,10 +6209,136 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    anima cuando se pasa el mouse: son dos cosas distintas y no se pueden meter en
    la misma transición sin que una espere a la otra.
    ------------------------------------------------------------------- */
+/* -------------------------------------------------------------------
+   LAS LETRAS, ARRIBA DEL TITULO
+   -------------------------------------------------------------------
+   Es una caja aparte de la marca, y no una parte de la misma, por dos razones:
+
+   La PROPORCION es otra: la marca es 1,50 a 1 y las letras 4,23 a 1. Con un solo
+   "<span>" las dos saldrías con la proporción de una sola, y una de las dos se ve
+   aplastada o estirada.
+
+   Y la marca CRECE al pasar el puntero y esto no. Con una caja compartida,
+   crecer la marca agranda las letras también, y el nombre de la empresa se agranda
+   con el dibujo, que es un efecto que no se pidió.
+
+   LA ALTURA, Y POR QUÉ UNA ALTURA Y NO UN ANCHO
+   ---------------------------------------------
+   Las letras son anchas y bajas. Si se fija el ANCHO, el alto sale de ahí, y a 180
+   de ancho el alto es de 42: el encabezado se come 42 píxeles de una línea de texto.
+   Si se fija la ALTURA, el ancho sale de la proporción, y a 20 de alto el ancho es
+   de 85: que es lo que ocupa al lado del título.
+
+   Y se fija la altura porque es lo que hay que mantener corto. El ancho puede ser
+   el que salga.
+
+   Y toma el mismo "--cat" que la marca y el título, para que el logo, el nombre y
+   el ícono de arriba sean claramente la misma sección. */
+.marca-jc-letras{
+  display:block;
+  height:20px;
+  aspect-ratio:1649 / 390;
+  /* El alto es lo único que cambia, y el ancho sale de la proporción. Por eso las
+     letras se TRASLADAN: la columna se hace más ancha y el título se corre a la
+     derecha. Es lo que se pidió.
+
+     Y no es un "transform:scale". Un "transform" dibuja más grande sobre el mismo
+     sitio y no ocupa nada: las letras se verían grandes POR ENCIMA del título y
+     el título no se movería. Y en este encabezado el crecimiento va en el ancho y
+     el alto desde hace rato, porque con "transform" el logo tapaba el título: el
+     logo seguía midiendo 68 mientras se veía de 170, y los 102 de diferencia
+     quedaban encima.
+
+     De 20 a 30. Las tres líneas están en 20, 12 y 10 píxeles, así que a 30 se leen
+     18, 11 y 9: la primera entera y las otras dos como palabra. Con más, la
+     primera deja de destacar y es un bloque que empuja la barra entera.
+
+     Y OJO con lo que se pidió y lo que hace: se pidió que las letras "se trasladen",
+     y lo que hacen es crecer EN SU SITIO. El título no se corre, porque la columna
+     la mide el título, que es más ancha que las letras. Lo que se mueve es el alto
+     del encabezado, 10 píxeles. Está medido y anotado en el bloque de la columna.
+
+     Y NO se agranda con un "transform" ni con "font-size": es la caja de la
+     máscara, y la caja es la que ocupa sitio. */
+  transition:height .26s cubic-bezier(.25,.46,.45,.94);
+  background-color:var(--cat,#EBF9FA);
+  -webkit-mask-image:url("../img/logo-jc-letras.svg?v=3");
+          mask-image:url("../img/logo-jc-letras.svg?v=3");
+  -webkit-mask-repeat:no-repeat;
+          mask-repeat:no-repeat;
+  -webkit-mask-position:center;
+          mask-position:center;
+  -webkit-mask-size:contain;
+          mask-size:contain;
+}
+
+/* -------------------------------------------------------------------
+   LA COLUMNA: MARCA ARRIBA, LETRAS, TITULO
+   -------------------------------------------------------------------
+   Las tres cosas en una columna y no en la fila del encabezado, porque se pidio
+   que las letras esten ARRIBA del titulo y el logo ARRIBA de las letras. En la
+   fila del encabezado, que es horizontal, ninguna de las dos cosas se puede ver
+   arriba de la otra.
+
+   Y "align-items:flex-start" para que las tres queden pegadas a la izquierda: la
+   marca y las letras son angostas y si quedaran centradas en una columna ancha,
+   la marca quedaria en el medio del titulo en vez de a su izquierda.
+
+   -------------------------------------------------------------------
+   LO QUE PASA AL PASAR EL PUNTERO
+   -------------------------------------------------------------------
+   Crece el alto de las LETRAS, de 20 a 30. El ancho sale de la proporción, así
+   que pasan de 85 x 20 a 127 x 30.
+
+   Y LA MARCA NO SE MUEVE. Sigue en x=36 y en 58 x 39, antes y después. Eso se
+   midió, y es lo que se pidió: la marca es la parte del encabezado que dice quién
+   es la empresa, y si se moviera con el puntero la identidad quedaría atada a un
+   gesto que se puede perder.
+
+   EL ENCABEZADO CRECE 10 PÍXELES, Y NO ES POCO
+   --------------------------------------------
+   La columna se mide por la SUMA de sus tres cosas, no por la más alta. En reposo:
+
+       la marca     39  +  10 de padding del botón           =  49
+       las letras   20  +  3 de hueco  +  el título 22      =  45
+
+   Manda la marca, con 49. Y con las letras crecidas a 30:
+
+       la marca     39  +  10 de padding del botón           =  49
+       las letras   30  +  3 de hueco  +  el título 22      =  55
+
+   Ahora mandan las letras, con 55. Medido: el encabezado pasa de 113 a 123.
+
+   Y el título NO se corre: sigue en x=31. Porque la columna la mide el título, que
+   es de 311 de ancho, y las letras de 85 o de 127 no llegan a eso. O sea que las
+   letras crecen dentro de la columna y no empujan nada del lado: empujan hacia
+   abajo, esos 10.
+
+   Estos números son MEDIDOS, y hay que volver a medirlos si se cambia el 30. Un
+   número que no se ha medido es una sorpresa esperando su momento. */
+.marca-bloque{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:3px;
+  min-width:0;
+  flex:0 1 auto;
+}
+
+/* Y al pasar el puntero, POR ENCIMA DE LA MARCA O DE LAS LETRAS, LAS LETRAS CRECEN.
+   El objetivo es toda la columna, no solo la marca: el puntero pasa por las dos
+   y las dos son la misma cosa, que es la marca de la empresa. Si el objetivo fuera
+   solo la marca, pasar por las letras no cambiaría nada, que es raro: uno pasa por
+   encima de lo que grew y no pasa. */
+.marca-bloque:hover .marca-jc-letras,
+.marca-bloque:focus-within .marca-jc-letras{
+  height:30px;
+}
+
 .marca-jc-dibujo{
   display:block;
   width:58px;
-  height:40px;
+  height:39px;
   /* El crecimiento va acá, en el ancho y el alto, y no en un transform del
      botón. Es lo que hace que los menús se corran: un ancho que cambia ocupa
      sitio, y el de un transform no.
@@ -6230,8 +6356,10 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
   /* La máscara usa la transparencia del dibujo, no su color. El archivo puede
      decir currentColor sin que estorbe, porque de la máscara solo se lee la
      forma. */
-  -webkit-mask-image:url("../img/logo-jc.svg?v=2");
-          mask-image:url("../img/logo-jc.svg?v=2");
+  /* El recorte de la MARCA, no el logo entero: el otro pedazo, las letras, tiene
+     otra proporción y si compartieran caja una de las dos saldría deformada. */
+  -webkit-mask-image:url("../img/logo-jc-marca.svg?v=3");
+          mask-image:url("../img/logo-jc-marca.svg?v=3");
   -webkit-mask-repeat:no-repeat;
           mask-repeat:no-repeat;
   -webkit-mask-position:center;
@@ -6260,11 +6388,10 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    con el translúcido de antes se veía el texto a través. Este es el tono que hace
    que se vea un botón y no un parche.
    ------------------------------------------------------------------- */
-.marca-jc:hover .marca-jc-dibujo,
-.marca-jc:focus-visible .marca-jc-dibujo{
-  width:145px;
-  height:100px;
-}
+/* Y la marca tiene la proporción de SU recorte, que es 1,50 a 1, y no la del logo
+   entero, que era 1,44. Con la del logo entero salía 4 píxeles de diferencia entre
+   el ancho y el alto que se le pedían, y la máscara con "contain" lo centró
+   dejando medio píxel de aire a cada lado. Con la suya no sobra nada. */
 
 /* -------------------------------------------------------------------
    CUANDO LA BARRA SE ENCOGE
@@ -6283,7 +6410,7 @@ body.nav-compacto .marca-jc{
 }
 body.nav-compacto .marca-jc-dibujo{
   width:43px;
-  height:30px;
+  height:29px;
 }
 
 /* -------------------------------------------------------------------
@@ -6328,7 +6455,7 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
    ------------------------------------------------------------------- */
 @media (max-width:700px){
   .marca-jc{padding:4px}
-  .marca-jc-dibujo{width:46px;height:32px}
+  .marca-jc-dibujo{width:46px;height:31px}
 }
 
 /* ===================================================================
@@ -7689,173 +7816,4 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
 .attendance-tabs.muchas button[role="tab"]:focus-visible{
   flex-grow:1;
   max-width:40em;
-}
-
-/* ===================================================================
-   LAS PESTAÑAS DEL SUBMENÚ, AL MODELO DE LAS DE LA TARJA
-   ===================================================================
-
-   -------------------------------------------------------------------
-   QUÉ ES ESTO Y QUÉ NO
-   -------------------
-   La fila del submenú del encabezado: "Asistencia diaria", "Conciliar el reloj con
-   la planilla", "Mis avisos de ingreso", "Avisos del día", "Importar mapa". Se ve
-   como las de la tarja: cajas chicas, repartidas de lado a lado, sin barra de
-   desplazamiento, y con la palabra larga completa al pasar el puntero.
-
-   Y la fila de ARRIBA —"PORTERÍA / ADMINISTRACIÓN / BODEGA"—, que es "#mainNav", NO
-   se toca: es oscura, sin cajas, y es otra cosa.
-
-   -------------------------------------------------------------------
-   POR QUÉ LA PALABRA VA EN UN <span>
-   -------------------------------
-   Para poder recortarla con puntos. "text-overflow:ellipsis" funciona en un bloque
-   con texto, no en un elemento "flex", y el botón es "flex" porque el ícono va al
-   lado de la palabra. Sin una caja propia no hay dónde ponerlos.
-
-   -------------------------------------------------------------------
-   LAS DOS FORMAS DE AJUSTAR
-   --------------------------
-       ocho o menos     se reparten el ancho entre todas
-       más de ocho      cada una como máximo la octava parte, ocho por fila
-
-   Con "flex:1 1 0" se reparten lo que hay, que es lo de la foto. Y el tope de la
-   octava parte, en la regla ".muchas", es lo que hace que con nueve quepan ocho
-   en una fila y el noveno baje.
-
-   -------------------------------------------------------------------
-   EL <details> DEL DESPLEGABLE
-   ----------------------------
-   El "flex:1 1 0" va en el "<details>", que es la caja de primer nivel. El
-   "<summary>" de adentro es lo que se ve, y ocupa todo el ancho de su
-   "<details>": por eso lleva "width:100%".
-
-   Y NINGUNO de los dos lleva "overflow:hidden", porque el "<details>" tiene el
-   menú colgado con "position:absolute": con "overflow:hidden" el menú se cortaría a
-   la altura del botón, que es un defecto que ya se corrigió una vez.
-
-   -------------------------------------------------------------------
-   Y LA BARRA DE DESPLAZAMIENTO
-   ---------------------------
-   La fila hereda el "overflow-x:auto" de la regla general "nav". Acá se dice
-   "nowrap" solo con las reglas de los botones, y la barra desaparece porque con
-   las pestañas repartidas no hace falta. Si hiciera falta, la fila baja de línea:
-   es mejor un renglón más que una barra que hay que arrastrar.
-   =================================================================== */
-
-/* -------------------------------------------------------------------
-   CADA PESTAÑA
-   ------------------------------------------------------------------- */
-#subNav > button,
-#subNav > .nav-dropdown{
-  flex:1 1 0;
-  min-width:0;
-  max-width:100%;
-  display:inline-flex;
-  align-items:center;
-}
-
-#subNav > button{
-  gap:7px;
-  padding:9px 13px;
-  border:1px solid var(--line);
-  border-radius:8px;
-  background:var(--panel);
-  color:var(--text);
-  font-family:'Montserrat',system-ui,sans-serif;
-  font-size:.68rem;
-  font-weight:600;
-  letter-spacing:.03em;
-  line-height:1.2;
-  text-align:left;
-  white-space:nowrap;
-  cursor:pointer;
-  transition:background-color .18s ease,
-             border-color .18s ease,
-             color .15s ease,
-             max-width .26s cubic-bezier(.25,.46,.45,.94);
-}
-
-/* El <summary> es lo que se ve, y tiene que ocupar todo el ancho de su
-   "<details>". */
-#subNav > .nav-dropdown > .nav-dropdown-trigger{
-  width:100%;
-  box-sizing:border-box;
-  gap:7px;
-  padding:9px 13px;
-  border:1px solid var(--line);
-  border-radius:8px;
-  background:var(--panel);
-  color:var(--text);
-  font-family:'Montserrat',system-ui,sans-serif;
-  font-size:.68rem;
-  font-weight:600;
-  letter-spacing:.03em;
-  line-height:1.2;
-  text-align:left;
-  white-space:nowrap;
-  cursor:pointer;
-  transition:background-color .18s ease,
-             border-color .18s ease,
-             color .15s ease;
-}
-
-#subNav > button:hover,
-#subNav > .nav-dropdown > .nav-dropdown-trigger:hover{
-  background:var(--surface-hover);
-  border-color:var(--cat,var(--accent));
-  color:var(--text);
-}
-
-#subNav > button.active,
-#subNav > .nav-dropdown[open] > .nav-dropdown-trigger{
-  background:var(--surface-hover);
-  border-color:var(--cat,var(--accent));
-  border-width:2px;
-  color:var(--cat,var(--accent));
-  font-weight:700;
-}
-
-/* La palabra, que se puede cortar con puntos. */
-#subNav .pest-txt{
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
-
-/* -------------------------------------------------------------------
-   CON MÁS DE OCHO
-   -------------------------------------------------------------------
-   El "flex-grow" pasa a cero: el ancho ya no se reparte, es la octava parte para
-   cada una, ocho por fila, y el noveno baja. */
-#subNav.muchas > button,
-#subNav.muchas > .nav-dropdown{
-  /* La BASE es el texto, y el TOPE es la octava parte.
-     Con "flex:0 0 calc(...)" el ancho quedaba FIJO en la octava parte, y subir el
-     "max-width" no hacía nada: el ancho ya estaba. Ni con "flex-grow:1" en el
-     hover funcionaba, porque en una fila llena no hay espacio libre que repartir.
-     Medido: el tope subía de 121 a 435 y el botón se quedaba en 119. */
-  flex:0 1 auto;
-  max-width:calc((100% - 7 * 8px) / 8);
-}
-
-/* Y al pasar el puntero el tope se levanta, para que la palabra se lea entera. El
-   "flex-grow" vuelve a uno, porque el botón tiene que crecer para hacer sitio, no
-   encogerse. */
-#subNav.muchas > button:hover,
-#subNav.muchas > button:focus-visible,
-#subNav.muchas > .nav-dropdown:hover,
-#subNav.muchas > .nav-dropdown:focus-within{
-  flex-grow:1;
-  max-width:40em;
-}
-
-/* Y el "<summary>" tiene que poder soltar su propio tope, que es el del
-   "<details>": si no, el "<details>" crece y el "<summary>" se queda corto. */
-#subNav.muchas > .nav-dropdown > .nav-dropdown-trigger{
-  max-width:100%;
-  transition:background-color .18s ease,
-             border-color .18s ease,
-             color .15s ease;
 }
