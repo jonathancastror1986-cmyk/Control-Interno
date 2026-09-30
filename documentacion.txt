@@ -42,6 +42,10 @@ MODULOS
   _vistas.css   Un bloque por grupo de menú, con lo que ese grupo puede cambiar por su
                 cuenta. Hoy los seis están vacíos, y lo correcto es que estén vacíos:
                 el ancho sale de "--ancho-maximo", que está en ":root".
+  componentes/  Un archivo por módulo que se usa en una sola pantalla. Hoy hay uno,
+                "porteria.css". Los componentes COMPARTIDOS —tarjeta, botón, campo,
+                tabla— se quedan en "styles.css", porque usarlos en dos pantallas es lo
+                más común: de las 29 reglas que tocan la portería, 28 son compartidas.
 
 ------------------------------------------------------------------------------
 [marca-01]  Las dos escalas van en variables porque son la misma propiedad, y el crecimiento ya no va acá
@@ -828,3 +832,61 @@ MODULOS
 
   Y si dos grupos necesitaran valores distintos, el que gana es el último en la hoja.
   Por hoy no hay dos, así que no hay que decidir nada.
+
+
+------------------------------------------------------------------------------
+[porteria-01]  La pantalla de la portería. Hoy solo el margen del resultado
+------------------------------------------------------------------------------
+
+  Archivo: css/componentes/porteria.css
+
+  La pantalla de la portería son 13 renglones de HTML y usa clases que usan otras
+  cuarenta pantallas: "btn", "card", "row", "secondary".
+
+  ------------------------------------------------------------------
+  LO QUE SE PREGUNTÓ ANTES DE SACAR NADA
+  ------------------------------------------------------------------
+  En el navegador, para cada una de las 969 reglas que existen, se preguntó si el
+  selector matchea algo DENTRO de "#v-porteria", y después si matchea algo de otra
+  pantalla:
+
+      reglas que tocan algo de portería ....... 29
+      de esas, SOLO de portería ................... 1
+      compartidas con otras pantallas ........... 28
+
+  Y la única que es de portería es:
+
+      #scanResult{ margin-top:12px }
+
+  Las otras 28 son componentes compartidos, y se quedan donde están. Moverlas sería
+  hacer que cuarenta pantallas pierdan el botón o la tarjeta.
+
+  ------------------------------------------------------------------
+  LA COPIA MUERTA QUE SE BORRÓ
+  ------------------------------------------------------------------
+  "#scanResult{margin-top:12px}" estaba dos veces: en el "<style>" en línea de la
+  línea 93 de "app.html", y en "styles.css". Las dos dicen lo mismo y gana la de
+  "styles.css", que se carga después. La de adentro no pintaba nada.
+
+  Dejarla era peor que sobrarla: el día que alguien cambie el margen, la de adentro
+  va a seguir diciendo 12, y va a parecer que hay dos estilos en pugna cuando hay
+  uno solo que manda.
+
+  ------------------------------------------------------------------
+  DÓNDE ESTÁ EN LA CASCADA, Y POR QUÉ
+  ------------------------------------------------------------------
+  Entre "_vistas.css" y "movil.css". Después de "styles.css", que es donde estaba,
+  para que al sacarla de ahí no le ganen las reglas del archivo grande. Y antes de
+  "movil.css", porque las reglas de móvil son de "max-width:860px" y tienen que
+  ganar para lo suyo.
+
+  ------------------------------------------------------------------
+  CÓMO SE COMPROBÓ QUE NO CAMBIÓ NADA
+  ------------------------------------------------------------------
+  En el navegador: "#scanResult" mide "margin-top:12px" con la hoja puesta, y
+  "0px" sin ella. O sea que la regla es la que sostiene el margen, y la comprobación
+  puede fallar.
+
+  Y en el archivo: la lista de selectores de "styles.css" contra el commit anterior.
+  Se fue uno solo, "#scanResult", y no llegó ninguno. Si mañana este trabajo saca dos
+  reglas sin querer, se ven las dos.
