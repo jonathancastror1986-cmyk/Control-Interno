@@ -6210,57 +6210,94 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    la misma transición sin que una espere a la otra.
    ------------------------------------------------------------------- */
 /* -------------------------------------------------------------------
-   LAS LETRAS, ARRIBA DEL TITULO
+   LA MARCA, LAS LETRAS Y EL TÍTULO: EL INTERCAMBIO
    -------------------------------------------------------------------
-   Es una caja aparte de la marca, y no una parte de la misma, por dos razones:
 
-   La PROPORCION es otra: la marca es 1,50 a 1 y las letras 4,23 a 1. Con un solo
-   "<span>" las dos saldrías con la proporción de una sola, y una de las dos se ve
-   aplastada o estirada.
+   Son tres piezas y cambian de sitio cuando el puntero pasa por encima:
 
-   Y la marca CRECE al pasar el puntero y esto no. Con una caja compartida,
-   crecer la marca agranda las letras también, y el nombre de la empresa se agranda
-   con el dibujo, que es un efecto que no se pidió.
+       EN REPOSO              CON EL PUNTERO ENCIMA
 
-   LA ALTURA, Y POR QUÉ UNA ALTURA Y NO UN ANCHO
-   ---------------------------------------------
-   Las letras son anchas y bajas. Si se fija el ANCHO, el alto sale de ahí, y a 180
-   de ancho el alto es de 42: el encabezado se come 42 píxeles de una línea de texto.
-   Si se fija la ALTURA, el ancho sale de la proporción, y a 20 de alto el ancho es
-   de 85: que es lo que ocupa al lado del título.
+       las letras   | |        la marca   | |
+       a la DERECHA +-+        arriba      +-+ el título
+       de la marca  | |                    | | solo, en su
+                    | |        las letras  +-+ columna, y las
+                    | |        DEBAJO      | | dos filas
+                    +-+                    | |
 
-   Y se fija la altura porque es lo que hay que mantener corto. El ancho puede ser
-   el que salga.
+   La marca NO se mueve: en los dos dibujos está en la primera columna.
 
-   Y toma el mismo "--cat" que la marca y el título, para que el logo, el nombre y
-   el ícono de arriba sean claramente la misma sección. */
+   LAS LETRAS VIAJAN, Y POR QUÉ CON "TRANSFORM"
+   --------------------------------------------
+   Se probó con una cuadrícula de "grid-template-areas" y renombrarlas al pasar el
+   puntero. Da el intercambio exacto. Y NO SE PUEDE ANIMAR: las áreas no se
+   interpolan, el cambio sale de golpe, y un salto en el encabezado se ve como un
+   tirón.
+
+   Con "transform: translate()" sí se anima, y el movimiento es real: cada pieza
+   viaja de un sitio al otro. Y los dos "translate" son medidas, que es lo que los
+   hace interpolables.
+
+   Y el alto del bloque es FIJO, de 70. Porque si el bloque midiera lo que mide cada
+   estado, al pasar el puntero cambiaría su altura, todo lo de debajo se movería, y
+   el intercambio además de animarse daría un salto. Con el alto fijo, lo único que
+   se mueve son las tres piezas.
+
+   Y "inline-flex" y no "flex": el bloque tiene que medir lo que miden la columna
+   del logo y la del título, y ni un píxel más. Si midiera todo el ancho, la marca
+   quedaría pegada a la izquierda de un bloque enorme y el título flotando en el
+   medio.
+
+   -------------------------------------------------------------------
+   LOS NÚMEROS, Y DE DÓNDE SALEN
+   -------------------------------------------------------------------
+       22    el alto de las letras, en los dos estados
+       93    su ancho: 22 por 4,228, que es la proporción de su recorte
+       68    el ancho del enlace: 58 del dibujo más 5 de relleno a cada lado
+       12    el margen a cada lado: (93 - 68) / 2
+       10    el hueco entre la columna del logo y la del título
+       47    abajo de la marca: 5 de relleno, 39 de la marca y 3 de hueco
+       70    el alto del bloque: 42 más 22 más 6 de aire
+       102   a dónde van las letras en reposo: 92 de la columna más 10 del hueco
+       11    cuánto baja el título en reposo
+
+   El 12 es el que engaña: el ancho de la columna NO es el de la marca, es el del
+   enlace, con sus 5 de relleno a cada lado. Con (93 - 58) / 2 la marca quedaría
+   corrida 5 píxeles a la izquierda.
+
+   Y el 70, el 102 y el 11 SE MIDEN después de puesto, no salen de la cuenta: por
+   dónde caiga cada cosa depende del ancho del título, que cambia con el nombre de
+   la sección. Un número que depende de algo que cambia no se puede dejar escrito
+   como si fuera fijo.
+   =================================================================== */
+.marca-bloque{
+  position:relative;
+  display:inline-flex;
+  flex-direction:row;
+  align-items:flex-start;
+  column-gap:10px;
+  height:70px;
+  min-width:0;
+  flex:0 1 auto;
+}
+
+.marca-jc{
+  display:block;
+  margin:0 12px;
+  flex:0 0 auto;
+  position:relative;
+  z-index:2;
+}
+
 .marca-jc-letras{
   display:block;
-  height:20px;
+  position:absolute;
+  left:0;
+  top:0;
+  z-index:1;
+  height:22px;
   aspect-ratio:1649 / 390;
-  /* El alto es lo único que cambia, y el ancho sale de la proporción. Por eso las
-     letras se TRASLADAN: la columna se hace más ancha y el título se corre a la
-     derecha. Es lo que se pidió.
-
-     Y no es un "transform:scale". Un "transform" dibuja más grande sobre el mismo
-     sitio y no ocupa nada: las letras se verían grandes POR ENCIMA del título y
-     el título no se movería. Y en este encabezado el crecimiento va en el ancho y
-     el alto desde hace rato, porque con "transform" el logo tapaba el título: el
-     logo seguía midiendo 68 mientras se veía de 170, y los 102 de diferencia
-     quedaban encima.
-
-     De 20 a 30. Las tres líneas están en 20, 12 y 10 píxeles, así que a 30 se leen
-     18, 11 y 9: la primera entera y las otras dos como palabra. Con más, la
-     primera deja de destacar y es un bloque que empuja la barra entera.
-
-     Y OJO con lo que se pidió y lo que hace: se pidió que las letras "se trasladen",
-     y lo que hacen es crecer EN SU SITIO. El título no se corre, porque la columna
-     la mide el título, que es más ancha que las letras. Lo que se mueve es el alto
-     del encabezado, 10 píxeles. Está medido y anotado en el bloque de la columna.
-
-     Y NO se agranda con un "transform" ni con "font-size": es la caja de la
-     máscara, y la caja es la que ocupa sitio. */
-  transition:height .26s cubic-bezier(.25,.46,.45,.94);
+  transform:translate(102px, 0);
+  transition:transform .3s cubic-bezier(.25,.46,.45,.94);
   background-color:var(--cat,#EBF9FA);
   -webkit-mask-image:url("../img/logo-jc-letras.svg?v=3");
           mask-image:url("../img/logo-jc-letras.svg?v=3");
@@ -6272,67 +6309,38 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
           mask-size:contain;
 }
 
-/* -------------------------------------------------------------------
-   LA COLUMNA: MARCA ARRIBA, LETRAS, TITULO
-   -------------------------------------------------------------------
-   Las tres cosas en una columna y no en la fila del encabezado, porque se pidio
-   que las letras esten ARRIBA del titulo y el logo ARRIBA de las letras. En la
-   fila del encabezado, que es horizontal, ninguna de las dos cosas se puede ver
-   arriba de la otra.
-
-   Y "align-items:flex-start" para que las tres queden pegadas a la izquierda: la
-   marca y las letras son angostas y si quedaran centradas en una columna ancha,
-   la marca quedaria en el medio del titulo en vez de a su izquierda.
-
-   -------------------------------------------------------------------
-   LO QUE PASA AL PASAR EL PUNTERO
-   -------------------------------------------------------------------
-   Crece el alto de las LETRAS, de 20 a 30. El ancho sale de la proporción, así
-   que pasan de 85 x 20 a 127 x 30.
-
-   Y LA MARCA NO SE MUEVE. Sigue en x=36 y en 58 x 39, antes y después. Eso se
-   midió, y es lo que se pidió: la marca es la parte del encabezado que dice quién
-   es la empresa, y si se moviera con el puntero la identidad quedaría atada a un
-   gesto que se puede perder.
-
-   EL ENCABEZADO CRECE 10 PÍXELES, Y NO ES POCO
-   --------------------------------------------
-   La columna se mide por la SUMA de sus tres cosas, no por la más alta. En reposo:
-
-       la marca     39  +  10 de padding del botón           =  49
-       las letras   20  +  3 de hueco  +  el título 22      =  45
-
-   Manda la marca, con 49. Y con las letras crecidas a 30:
-
-       la marca     39  +  10 de padding del botón           =  49
-       las letras   30  +  3 de hueco  +  el título 22      =  55
-
-   Ahora mandan las letras, con 55. Medido: el encabezado pasa de 113 a 123.
-
-   Y el título NO se corre: sigue en x=31. Porque la columna la mide el título, que
-   es de 311 de ancho, y las letras de 85 o de 127 no llegan a eso. O sea que las
-   letras crecen dentro de la columna y no empujan nada del lado: empujan hacia
-   abajo, esos 10.
-
-   Estos números son MEDIDOS, y hay que volver a medirlos si se cambia el 30. Un
-   número que no se ha medido es una sorpresa esperando su momento. */
-.marca-bloque{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:3px;
+#tituloSeccion{
+  align-self:center;
+  transform:translateY(11px);
+  transition:transform .3s cubic-bezier(.25,.46,.45,.94);
   min-width:0;
-  flex:0 1 auto;
 }
 
-/* Y al pasar el puntero, POR ENCIMA DE LA MARCA O DE LAS LETRAS, LAS LETRAS CRECEN.
-   El objetivo es toda la columna, no solo la marca: el puntero pasa por las dos
-   y las dos son la misma cosa, que es la marca de la empresa. Si el objetivo fuera
-   solo la marca, pasar por las letras no cambiaría nada, que es raro: uno pasa por
-   encima de lo que grew y no pasa. */
-.marca-bloque:hover .marca-jc-letras,
-.marca-bloque:focus-within .marca-jc-letras{
-  height:30px;
+/* Y el puntero tiene que estar sobre el logo o sobre las letras, NO sobre el
+   título: el título es hijo del bloque, así que con ":hover" a seco también lo
+   dispararía. ":has()" pregunta por un descendiente, y es lo único que permite
+   excluir uno. */
+.marca-bloque:has(.marca-jc:hover) .marca-jc-letras,
+.marca-bloque:has(.marca-jc:focus-visible) .marca-jc-letras,
+.marca-bloque:has(.marca-jc-letras:hover) .marca-jc-letras{
+  /* Y 47, no 42. Porque "abajo de la marca" es el fondo del ENLACE, que trae
+     5 de relleno, y no el fondo del dibujo:
+
+         el fondo de la marca dentro del bloque    5
+         la marca, de alto                         39
+         el hueco                                  3
+         -----------------------------------------
+         abajo de la marca                          47
+
+     Con 42, que son 39 más 3, las letras quedaban 5 píxeles más arriba, encima
+     del relleno del enlace. Y 5 era la cuenta hecha sin el relleno, que está en
+     otra regla y a otra distancia: por eso el número se mide. */
+  transform:translate(0, 47px);
+}
+.marca-bloque:has(.marca-jc:hover) #tituloSeccion,
+.marca-bloque:has(.marca-jc:focus-visible) #tituloSeccion,
+.marca-bloque:has(.marca-jc-letras:hover) #tituloSeccion{
+  transform:translateY(0);
 }
 
 .marca-jc-dibujo{
