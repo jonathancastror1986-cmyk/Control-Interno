@@ -113,9 +113,16 @@ nav button.active{background:none;color:var(--secondary-text);border-color:var(-
 
 #subNav .nav-dropdown-children button{padding-left:18px;font-size:.75rem}
 
-main{padding:24px;max-width:1280px;margin:0 auto}
+/* ref: ancho-02 - El envoltorio ya no fija el ancho, y declara el "none" a propósito */
+main{padding:24px;max-width:none;margin:0 auto}
 
-.view{display:none}
+.view{
+  display:none;
+  /* ref: ancho-03 - La vista toma el ancho del token y se centra sola */
+  max-width:var(--ancho-maximo,1232px);
+  margin-left:auto;
+  margin-right:auto;
+}
 
 .view.active{display:block}
 

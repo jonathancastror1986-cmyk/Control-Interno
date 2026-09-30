@@ -1,0 +1,25 @@
+/* ref: vista-01 - Un bloque por grupo de menú, para acotar el ancho sin tocar los demás */
+
+.v-administracion{
+  /* ref: vista-02 - Trabajadores, asistencia, aprobaciones, relojes, kit y la pantalla de portería. Acá va "--ancho-maximo" si esta vista necesita otro */
+}
+
+.v-bodega{
+  /* ref: vista-03 - EPP, kits, catálogos, historial, asignación y códigos QR. Acá va "--ancho-maximo" si esta vista necesita otro */
+}
+
+.v-soporte{
+  /* ref: vista-04 - Centro de soporte, usuarios, permisos, empresas y las indicaciones sociales. Acá va "--ancho-maximo" si esta vista necesita otro */
+}
+
+.v-supervisores{
+  /* ref: vista-05 - La matriz de supervisores y la justificación diaria. Acá va "--ancho-maximo" si esta vista necesita otro */
+}
+
+.v-prevencion{
+  /* ref: vista-06 - Alertas e indicaciones de prevención. Acá va "--ancho-maximo" si esta vista necesita otro */
+}
+
+.v-porteria{
+  /* ref: vista-07 - Consultar trabajador. También lleva "v-administracion", porque sale en los dos menús. Acá va "--ancho-maximo" si esta vista necesita otro */
+}

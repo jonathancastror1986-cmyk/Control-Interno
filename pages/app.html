@@ -482,6 +482,7 @@ en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
 <link rel="stylesheet" href="../css/_marca.css?v=1">
+<link rel="stylesheet" href="../css/_vistas.css?v=1">
 <link rel="stylesheet" href="../css/movil.css" media="(max-width: 860px)">
 </head>
 <body>
@@ -542,7 +543,7 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
 </div>
 <main>
 
-<section class="view active" id="v-nuevo-trabajador">
+<section class="view active v-administracion" id="v-nuevo-trabajador">
   <div class="card">
     <h2>Nuevo trabajador</h2>
     <div class="row">
@@ -605,7 +606,7 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
   </div>
 </section>
 
-<section class="view" id="v-listado-trabajadores">
+<section class="view v-administracion" id="v-listado-trabajadores">
   <div class="card">
     <h2>Listado de trabajadores</h2>
     <div id="dupNamesWarn"></div>
@@ -623,7 +624,7 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
   </div>
 </section>
 
-<section class="view" id="v-asignar-supervisor">
+<section class="view v-administracion" id="v-asignar-supervisor">
   <div class="card">
     <h2>Asignar supervisor</h2>
     <div class="row">
@@ -668,7 +669,7 @@ descarga la usa para escribir el archivo. No hay dos listas, y por eso no
 pueden separarse: si un campo esta en la pantalla, esta en el archivo,
 porque salen del mismo lugar.
 -->
-<section class="view" id="v-ficha-trabajador">
+<section class="view v-administracion" id="v-ficha-trabajador">
   <div class="card">
     <h2 id="fichaTitulo">Ficha del trabajador</h2>
     <div class="fichaHerramientas">
@@ -682,7 +683,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-carga-csv-trabajadores">
+<section class="view v-administracion" id="v-carga-csv-trabajadores">
   <div class="card">
     <h2>Carga masiva de trabajadores</h2>
     <small>Cada campo debe ocupar su propia columna. Se aceptan archivos separados por coma o punto y coma. Las columnas obligatorias son <b>codigo</b> y <b>nombre</b>; también puedes incluir cargo, telefono, fecha_ingreso, es_supervisor, codigo_supervisor y datos de emergencia.</small>
@@ -695,7 +696,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-empresa">
+<section class="view v-soporte" id="v-empresa">
   <div class="card">
     <h2>Empresas</h2>
     <small>Cada trabajador pertenece a una empresa. Quien usa el sistema solo ve los trabajadores de las empresas que tenga asignadas.</small>
@@ -756,7 +757,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-usuarios">
+<section class="view v-soporte" id="v-usuarios">
   <div class="card">
     <h2>Usuarios del sistema</h2>
     <small>Para agregar un usuario nuevo, invítalo desde el panel de Supabase
@@ -766,7 +767,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-invitar-usuario">
+<section class="view v-soporte" id="v-invitar-usuario">
   <div class="card">
     <h2>Invitar usuario</h2>
     <small>Escribes el correo y le dejas los permisos. La persona recibe un enlace, se registra con su
@@ -892,7 +893,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-mi-perfil">
+<section class="view v-soporte" id="v-mi-perfil">
   <div class="card">
     <h2>Mis datos</h2>
     <small>Así te ven los demás en el sistema. Si algo está mal, corrígelo tú mismo: no necesitas
@@ -912,7 +913,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-soporte">
+<section class="view v-soporte" id="v-soporte">
   <div class="card">
     <h2>Soporte del sistema</h2>
     <div class="row">
@@ -924,14 +925,14 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-alertas-sociales">
+<section class="view v-soporte" id="v-alertas-sociales">
   <div class="card">
     <h2>Alertas de Asistencia Social</h2>
     <div id="socialAlertsList"></div>
   </div>
 </section>
 
-<section class="view" id="v-indicaciones-sociales">
+<section class="view v-soporte" id="v-indicaciones-sociales">
   <div class="card">
     <h2>Indicaciones para trabajadores</h2>
     <label for="socialInstructionWorker">Trabajador</label>
@@ -943,14 +944,14 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-alertas-prevencion">
+<section class="view v-prevencion" id="v-alertas-prevencion">
   <div class="card">
     <h2>Alertas de Prevención</h2>
     <div id="preventionAlertsList"></div>
   </div>
 </section>
 
-<section class="view" id="v-indicaciones-prevencion">
+<section class="view v-prevencion" id="v-indicaciones-prevencion">
   <div class="card">
     <h2>Indicaciones para trabajadores</h2>
     <label for="preventionInstructionWorker">Trabajador</label>
@@ -962,7 +963,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-buscar-tarjeta">
+<section class="view v-administracion" id="v-buscar-tarjeta">
   <div class="card">
     <label>Seleccionar trabajador</label>
     <select id="cardSelect" onchange="renderCard()"></select>
@@ -970,7 +971,7 @@ porque salen del mismo lugar.
   <div class="card cardWrap" id="cardArea"></div>
 </section>
 
-<section class="view" id="v-imprimir-tarjetas">
+<section class="view v-administracion" id="v-imprimir-tarjetas">
   <div class="card">
     <h2>Exportar PDF de tarjetas (varias a la vez)</h2>
     <small>Las temporales salen por parejas, frente y reverso lado a lado, con línea central para doblar. Imprime al 100 %, dobla y corta cada tarjeta. Las definitivas mantienen la impresión dúplex por caras.</small>
@@ -986,7 +987,7 @@ porque salen del mismo lugar.
 </section>
 
 
-<section class="view" id="v-porteria">
+<section class="view v-administracion v-porteria" id="v-porteria">
   <div class="card">
     <h2>Escaneo / búsqueda</h2>
     <small>Escanea con el lector conectado (funciona como teclado), usa la cámara, o escribe el código y presiona Enter.</small>
@@ -1000,7 +1001,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-solicitar-cambio">
+<section class="view v-administracion" id="v-solicitar-cambio">
   <div id="solAviso" style="display:none;margin-bottom:12px"></div>
   <div class="card">
     <h2>Solicitar cambio de estado en la tarja</h2>
@@ -1029,7 +1030,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-aprobar-cambio">
+<section class="view v-administracion" id="v-aprobar-cambio">
   <div id="solAviso2" style="display:none;margin-bottom:12px"></div>
   <div class="card">
     <h2>Solicitudes pendientes de aprobación</h2>
@@ -1056,7 +1057,7 @@ porque salen del mismo lugar.
   </div>
 </section>
 
-<section class="view" id="v-empresas-cargos">
+<section class="view v-soporte" id="v-empresas-cargos">
   <h2 class="con-ayuda">Empresas: cargos, grupos y permisos
   <details class="ayuda"><summary class="ayuda-ico" title="Qué son el grupo y el cargo">i</summary>
   <div class="ayuda-caja">
@@ -1155,7 +1156,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </div>
 
-<section class="view" id="v-permisos">
+<section class="view v-soporte" id="v-permisos">
   <div class="card">
     <h2>Permisos por rol</h2>
     <small>Marca qué puede ver y hacer cada rol. El rol <b>Administración</b> siempre tiene acceso total. Un usuario puede tener varios roles, y sus permisos son la unión de todos.</small>
@@ -1163,7 +1164,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-asistencia">
+<section class="view v-administracion" id="v-asistencia">
   <div class="attendance-tabs" role="tablist" aria-label="Opciones de asistencia">
 <button type="button" class="active" role="tab" aria-selected="true" data-attendance-tab="tarja"><span class="pest-txt">Tarja mensual</span></button>
 <button type="button" role="tab" aria-selected="false" data-attendance-tab="marcaje"><span class="pest-txt">Registrar marcaje</span></button>
@@ -1261,7 +1262,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-bodega-epp">
+<section class="view v-bodega" id="v-bodega-epp">
   <div class="card">
     <h2>Entrega de EPP / materiales</h2>
     <small>Busca al trabajador (escribe el código, usa el lector o escanea la tarjeta con la cámara), agrega los elementos entregados y pídele que firme en el recuadro.</small>
@@ -1347,7 +1348,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-bodega-kits">
+<section class="view v-bodega" id="v-bodega-kits">
   <div class="card">
     <h2>1. Asignar kit al ingresar un trabajador</h2>    <small>Al contratar a alguien se le asigna un kit de su especialidad. Queda una lista de control con el estado de cada elemento para poder entregarlos de a uno, de varios o de todos.</small>
     <div class="row">
@@ -1427,7 +1428,7 @@ duplica nada: la base lo sabe y lo cuenta.
 
 </section>
 
-<section class="view" id="v-bodega-kits-admin">
+<section class="view v-bodega" id="v-bodega-kits-admin">
   <div class="card">
     <h2>Administrar kits por especialidad</h2>
     <small>Una especialidad puede tener varios kits (por ejemplo <b>Pintor A</b> y <b>Pintor B</b>). Define qué EPP lleva cada uno. Esto es solo configuración: la entrega y la firma van en "Asignar y entregar".</small>
@@ -1456,7 +1457,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-bodega-epp-catalogo">
+<section class="view v-bodega" id="v-bodega-epp-catalogo">
   <div class="card">
     <h2>Catálogo de EPP</h2>
     <small>Elementos que se pueden entregar. Se entrega precargado; agrega los que falten con un código corto y they'll disponibles en el formulario de entrega.</small>
@@ -1478,7 +1479,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-bodega-historial">
+<section class="view v-bodega" id="v-bodega-historial">
   <div class="card">
     <h2>Historial de entregas EPP</h2>
     <small>Una fila por trabajador. <b>Ver detalle</b> abre las entregas con sus ítems, la firma, el PDF y la ubicación.</small>
@@ -1502,7 +1503,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-bodega-catalogo">
+<section class="view v-bodega" id="v-bodega-catalogo">
   <div class="card">
     <h2>Catálogo de herramientas</h2>
     <small>El código identifica el <b>tipo</b> de herramienta. Cada unidad física lleva su propio QR, que se emite en <b>QR / Etiquetas</b>.</small>
@@ -1516,7 +1517,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-bodega-asignar">
+<section class="view v-bodega" id="v-bodega-asignar">
   <div class="card">
     <h2>Asignar herramienta a trabajador</h2>
     <small>Se asigna una <b>unidad física</b> (con su QR), no solo el tipo. Al devolverla, esa etiqueta vuelve a quedar disponible.</small>
@@ -1539,7 +1540,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-bodega-qr">
+<section class="view v-bodega" id="v-bodega-qr">
   <div class="card">
     <h2>QR / Etiquetas de herramientas y materiales</h2>
     <small>Cada unidad física lleva un QR propio. Sirve para saber quién la tiene, y para anular la etiqueta si la herramienta se pierde o se descarta.</small>
@@ -1571,7 +1572,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-supervisores">
+<section class="view v-supervisores" id="v-supervisores">
   <div class="card" id="supIntroCard">
     <h2>Supervisores</h2>
     <small>Los supervisores son trabajadores marcados con "Este trabajador es supervisor" en su ficha.</small>
@@ -1623,7 +1624,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </div>
 
-<section class="view" id="v-sup-diaria">
+<section class="view v-supervisores" id="v-sup-diaria">
   <div class="supTabs" role="tablist" aria-label="Opciones del supervisor">
     <button type="button" class="active" aria-selected="true" role="tab" data-sup-tab="diaria">Asistencia diaria</button>
     <button type="button" aria-selected="false" role="tab" data-sup-tab="conciliacion">Conciliar el reloj con la planilla</button>
@@ -1684,7 +1685,7 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
-<section class="view" id="v-just-diaria">
+<section class="view v-administracion" id="v-just-diaria">
   <div class="card">
     <h2>Justificación diaria</h2>
     <small>Quién tiene que explicar su asistencia de un día, y por qué. Para Administración y RRHH: no es la vista del supervisor con su equipo, sino toda la obra, y ordenada por lo que hay que resolver.
@@ -1733,7 +1734,7 @@ le entró, la pregunta es por los marcajes, no por la planilla.
 Esta pantalla NO edita. Un marcaje es un hecho: pasó o no pasó. Editarlo es
 otra cosa, y esa otra cosa es la asistencia, con su motivo y su firma.
 -->
-<section class="view" id="v-marcajes">
+<section class="view v-administracion" id="v-marcajes">
   <div class="card">
     <h2>Marcajes</h2>
     <small>Cada vez que alguien pasó su credencial, con el reloj, la hora exacta y el origen.
@@ -1785,7 +1786,7 @@ le entró, la pregunta es por los marcajes, no por la planilla.
 Esta pantalla NO edita. Un marcaje es un hecho: pasó o no pasó. Editarlo es
 otra cosa, y esa otra cosa es la asistencia, con su motivo y su firma.
 -->
-<section class="view" id="v-relojes">
+<section class="view v-administracion" id="v-relojes">
   <div class="card">
     <h2>Relojes y centros de costo</h2>
     <small>Cada reloj es un aparato. Se le dice en qué centro de costo está (que es contra el dato que se
@@ -2276,7 +2277,7 @@ Una charla de albanil no le toca a un portero. La lista de especialidades
 viene de la que ya usa el EPP, con las 25 del formulario de inducción de la
 obra sembradas por la migración 031.
 -->
-<section class="view" id="v-plantillas-kit">
+<section class="view v-administracion" id="v-plantillas-kit">
   <div class="card">
     <h2>Plantillas del kit de contratación</h2>
     <small>Los papeles que se le entregan a una persona cuando entra. Prevención los escribe y los cambia cuando
@@ -2304,7 +2305,7 @@ EL KIT DE UN TRABAJADOR
 La lista la arma la base de datos, no la pantalla: con muchas personas y
 varios papeles, una lista mal armada es un papel que no se entrega.
 -->
-<section class="view" id="v-kit">
+<section class="view v-administracion" id="v-kit">
   <div class="card">
     <h2>Kit de contratación</h2>
     <small>Los papeles que le tocan a un trabajador y los que ya firmó. Para armar el kit, primero hay que
@@ -2517,7 +2518,7 @@ tabla no tiene permisos de UPDATE ni de DELETE ni en la base.
 Lo que se muestra es el antes y el después de cada cambio, porque un motivo
 sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
 -->
-<section class="view" id="v-auditoria">
+<section class="view v-administracion" id="v-auditoria">
   <div class="card">
     <h2>Bitácora de asistencia</h2>
     <small>Quién cambió qué, cuándo y por qué. Es un registro que no se puede modificar ni borrar: ni desde la aplicación, ni desde la base de datos.
@@ -2552,7 +2553,7 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<section class="view" id="v-exportar">
+<section class="view v-administracion" id="v-exportar">
   <div class="card">
     <h2>Exportar códigos para carga masiva a remuneraciones</h2>
     <div class="row">
@@ -2582,7 +2583,7 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
      alta a alguien. Si no lo sabe, va a suponer que la persona ya quedó
      trabajando y va a pasar por portería a sacarle un marcaje que no existe.
      ================================================================== -->
-<section class="view" id="v-solicitar-ingreso">
+<section class="view v-soporte" id="v-solicitar-ingreso">
   <h2>Solicitar ingreso de un trabajador</h2>
   <div class="small" style="max-width:900px;margin-bottom:14px">
     Anota a la persona nueva y envíala a RRHH. <b>RRHH le asigna el código y
@@ -2634,7 +2635,7 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
      Se ven los pedidos de todos, no solo los de quien mira, porque el que
      aprueba es RRHH y los pedidos vienen de varias empresas.
      ================================================================== -->
-<section class="view" id="v-ingresos-cola">
+<section class="view v-administracion" id="v-ingresos-cola">
   <h2>Ingresos pendientes</h2>
   <div class="small" style="max-width:900px;margin-bottom:14px">
     Pedidos que dejaron los supervisores. Al aprobar, <b>se crea el trabajador

@@ -35,9 +35,13 @@ UNA ADVERTENCIA QUE YA SE PAGÓ
 MODULOS
 -------
   _tokens.css   La paleta. Solo variables, en cuatro bloques: ":root", el del sistema
-                en oscuro, y los dos selects de tema.
+                en oscuro, y los dos selects de tema. Y "--ancho-maximo", que es el
+                único token de tamaño que hay.
   _marca.css    El logo del encabezado: la marca, las letras y el nombre de la sección,
                 que se intercambian de sitio al pasar el puntero.
+  _vistas.css   Un bloque por grupo de menú, con lo que ese grupo puede cambiar por su
+                cuenta. Hoy los seis están vacíos, y lo correcto es que estén vacíos:
+                el ancho sale de "--ancho-maximo", que está en ":root".
 
 ------------------------------------------------------------------------------
 [marca-01]  Las dos escalas van en variables porque son la misma propiedad, y el crecimiento ya no va acá
@@ -536,3 +540,291 @@ MODULOS
   de una pantalla de 356. O sea que no se veía ni se podía apretar.
   -------------------------------------------------------------------
 
+
+------------------------------------------------------------------------------
+[ancho-01]  El ancho de la pantalla, y por qué es 1232 y no 1280
+------------------------------------------------------------------------------
+
+  Archivo: css/_tokens.css
+
+  Este es el primer token que se ACOTA por vista. Cada grupo puede bajarlo o subirlo
+  en su propia regla, de "css/_vistas.css", sin tocar los demás.
+
+  ------------------------------------------------------------------
+  EL 1232, Y POR QUÉ NO 1280
+  ------------------------------------------------------------------
+  Porque 1280 era el ancho del ENVOLTORIO, no el de la pantalla. Con el
+  "box-sizing: border-box" de ":root", esto:
+
+      main{ max-width:1280px; padding:24px }
+
+  deja 1280 por fuera y 1232 por dentro. Y las vistas están por dentro de "main":
+  la pantalla de contenido siempre fue de 1232.
+
+  Con 1280 puesto acá, todo lo que está más ancho que 1328 píxeles se veía 48
+  píxeles más ancho y 24 más a la izquierda. Medido en el navegador:
+
+      ventana 1600   antes 1232 en x=184   con 1280: 1280 en x=160
+      ventana 1400   antes 1232 en x= 84   con 1280: 1280 en x= 60
+      ventana 1300   antes 1232 en x= 34   con 1280: 1252 en x= 24
+      ventana 1000   antes  952 en x= 24   con 1280:  952 en x= 24   igual
+      ventana  700   antes  680 en x= 10   con 1280:  680 en x= 10   igual
+
+  Abajo de 1328 los dos coinciden, porque no hay nada que repartir. Y arriba se
+  nota, que es justo la parte de escritorio que no se toca sin que la pidan.
+
+  ------------------------------------------------------------------
+  Y POR QUÉ ESTÁ AQUÍ EN ":root", Y NO EN CADA GRUPO
+  ------------------------------------------------------------------
+  Porque si "--ancho-maximo" solo viviera dentro de ".v-bodega", las otras cuarenta
+  vistas no lo tendrían, y ".view" caería en un valor de omisión que tendría que
+  ser el correcto para todas. Que es lo mismo que no tener nada.
+
+  ------------------------------------------------------------------
+  Y POR QUÉ NO ESTÁ EN "main"
+  ------------------------------------------------------------------
+  Porque "main" es el PADRE de las vistas, y una variable de CSS baja hacia los
+  hijos, nunca sube. Con el ancho en "main", escribir
+
+      .v-bodega{ --ancho-maximo:1440px }
+
+  no cambiaba NADA, y no daba ningún error: la propiedad se usaba, el valor
+  estaba, la vista tenía la clase. Solo que estaba del lado equivocado de la cascada.
+
+
+------------------------------------------------------------------------------
+[ancho-02]  El envoltorio ya no fija el ancho, y declara el "none" a propósito
+------------------------------------------------------------------------------
+
+  Archivo: css/styles.css
+
+  Antes decía "max-width:1280px", y con eso las cuarenta y una vistas quedaban
+  con el mismo ancho, sin forma de que una se saliera sin cambiar todas las demás.
+  Y no se podía arreglar poniendo "--ancho-maximo" en la clase de la vista, porque
+  "main" es el padre y la variable no sube (ver [ancho-01]).
+
+  Ahora el ancho vive en ".view", que está DENTRO de "main", y ahí sí llega.
+
+  ------------------------------------------------------------------
+  Y POR QUÉ EL "none" ESTÁ ESCRITO, Y NO SÓLO FALTA
+  ------------------------------------------------------------------
+  Porque "<style>" en línea de "app.html" —las líneas 20 a 443— declara lo mismo:
+
+      main{ padding:16px; max-width:900px; margin:0 auto }
+
+  Y ese bloque se carga ANTES que "styles.css". "Gana el último" quiere decir "la
+  última que DECLARA la propiedad". Si aquí no se declara "max-width", la que gana
+  es la de adentro, y la pantalla se queda en 900 píxeles.
+
+  Pasó. Y no salió ningún error, no cambió un renglón de código y ningún test lo
+  notó: simplemente se quitó una declaración y quedó a la vista la de atrás.
+
+  Por eso el "none" está escrito. Sacar una propiedad y no poner la suya NO es
+  dejarla sin valor: es dejar que gane la siguiente.
+
+  ------------------------------------------------------------------
+  Y POR QUÉ "main" PUEDE OCUPAR TODA LA PANTALLA
+  ------------------------------------------------------------------
+  Porque su caja es invisible. Medido en el navegador: fondo "rgba(0,0,0,0)",
+  borde "0px" y sombra "none". Lo único que se ve de "main" es el relleno, y ese
+  se conserva.
+
+  Si algún día "main" gana un fondo o un borde, este "none" hay que revisarlo: la
+  banda dejaría de medir 1280 y pasaría a medir lo que mida la ventana, y eso sí se
+  vería.
+
+
+------------------------------------------------------------------------------
+[ancho-03]  La vista toma el ancho del token y se centra sola
+------------------------------------------------------------------------------
+
+  Archivo: css/styles.css
+
+  El token "--ancho-maximo" viene de ":root" con 1232. Y el 1232 es el ancho que la
+  pantalla tenía de verdad: 1280 era el del envoltorio e incluía los 48 de relleno
+  de "main" (ver [ancho-01]).
+
+  Y está acá y no en "main" por una razón que cuesta un rato: "main" es el PADRE de
+  la vista, y una variable de CSS solo baja hacia los hijos. Con el ancho en "main",
+  escribir ".v-bodega{ --ancho-maximo:1440px }" no cambiaba NADA, y no daba error
+  ninguno.
+
+  Y el "margin:auto" mantiene la pantalla centrada, que antes daba el "main". Se puso
+  como "margin-left" y "margin-right" por separado, y no como "margin:0 auto", porque
+  la forma corta pondría cero arriba y abajo también, y esos dos valores no se
+  revisaron.
+
+  ------------------------------------------------------------------
+  PROBADO QUE EL AISLAMIENTO FUNCIONA
+  ------------------------------------------------------------------
+  Con ".v-bodega{ --ancho-maximo:900px }" puesto en el navegador:
+
+      antes : todas 1232
+      después: bodega 900, las otras cinco 1232
+
+  Y "v-porteria" lleva DOS clases, "v-administracion v-porteria", porque sale en el
+  grupo Portería y también como opción de Administración. El orden en que estén en
+  el atributo "class" no importa: el CSS lee que existan las reglas, no el orden del
+  atributo.
+
+
+------------------------------------------------------------------------------
+[vista-01]  Un bloque por grupo de menú, para acotar el ancho sin tocar los demás
+------------------------------------------------------------------------------
+
+  Archivo: css/_vistas.css
+
+  Las clases van en los "<section class=\"view\">" de "pages/app.html":
+
+      <section class="view v-bodega" id="v-bodega-epp">
+
+  ------------------------------------------------------------------
+  PARA QUÉ SIRVE
+  ------------------------------------------------------------------
+  Para que cambiarle el diseño a UNA vista no le cambie nada a las otras cuarenta.
+  Hoy el ancho sale de "--ancho-maximo", que está en ":root". Si algún día Bodega
+  necesita más ancho, se escribe en su bloque, y Administración, Portería y Soporte
+  no se enteran.
+
+  ------------------------------------------------------------------
+  POR QUÉ LOS BLOQUES ESTÁN VACÍOS
+  ------------------------------------------------------------------
+  Porque el valor por omisión ya es el correcto para todos, y está en ":root".
+
+  Y escribir "--ancho-maximo:1232px" en los seis sería copiar un número seis veces.
+  Al día siguiente alguien lo cambia en ":root" —que es donde se cambia— y los seis
+  bloques quedan diciendo el número viejo, sin ninguna señal de que estén viejos.
+
+  Un bloque vacío no es un bloque sin hacer: es un bloque que dice "esta vista usa el
+  valor de todos". Y el día que eso deje de ser cierto, se escribe una línea.
+
+  ------------------------------------------------------------------
+  Y POR QUÉ LA CLASE ES DEL GRUPO Y NO DE LA VISTA
+  ------------------------------------------------------------------
+  Porque lo que se quiere aislar es la SECCIÓN, que es lo que el usuario tiene delante.
+  Y porque con la clase del grupo son seis reglas; con la de la vista serían cuarenta
+  y una, y un cambio en Bodega tocaría ocho lugares.
+
+  ------------------------------------------------------------------
+  EL ORDEN EN LA CASCADA
+  ------------------------------------------------------------------
+  Se enlaza DESPUÉS de "styles.css", porque es el archivo que pone el ancho por omisión
+  y así un grupo lo tapa sin peleas. Y antes de "movil.css", porque las reglas de móvil
+  son de "max-width:860px" y tienen que ganar para lo suyo.
+
+  ------------------------------------------------------------------
+  CÓMO SE HIZO EL MAPA DE VISTA A GRUPO
+  ------------------------------------------------------------------
+  Leyendo "navGroups" en "app.html", que es de dónde salen los menús. Dos vistas no
+  salen en ningún grupo: "ficha-trabajador" e "ingresos-cola". Se les puso Administración
+  por la vista que está justo antes en el archivo, que es por donde se llega.
+
+  Y eso es evidencia, no criterio. Si están mal, se cambian dos clases y nada más.
+
+
+------------------------------------------------------------------------------
+[vista-02]  Trabajadores, asistencia, aprobaciones, relojes, kit y la pantalla de portería. Acá va "--ancho-maximo" si esta vista necesita otro
+------------------------------------------------------------------------------
+
+  Archivo: css/_vistas.css
+
+  Este es el bloque de ".v-administracion". Hoy no declara nada.
+
+  Y que esté vacío es lo correcto: el ancho sale de "--ancho-maximo" en ":root", que
+  es el valor de todos. Lo que se escribe acá es la INTENCIÓN y el lugar donde se
+  escribe, para que el próximo cambio sea una línea y se sepa dónde va:
+
+      .v-administracion{ --ancho-maximo:1440px }
+
+  Y si dos grupos necesitaran valores distintos, el que gana es el último en la hoja.
+  Por hoy no hay dos, así que no hay que decidir nada.
+
+
+------------------------------------------------------------------------------
+[vista-03]  EPP, kits, catálogos, historial, asignación y códigos QR. Acá va "--ancho-maximo" si esta vista necesita otro
+------------------------------------------------------------------------------
+
+  Archivo: css/_vistas.css
+
+  Este es el bloque de ".v-bodega". Hoy no declara nada.
+
+  Y que esté vacío es lo correcto: el ancho sale de "--ancho-maximo" en ":root", que
+  es el valor de todos. Lo que se escribe acá es la INTENCIÓN y el lugar donde se
+  escribe, para que el próximo cambio sea una línea y se sepa dónde va:
+
+      .v-bodega{ --ancho-maximo:1440px }
+
+  Y si dos grupos necesitaran valores distintos, el que gana es el último en la hoja.
+  Por hoy no hay dos, así que no hay que decidir nada.
+
+
+------------------------------------------------------------------------------
+[vista-04]  Centro de soporte, usuarios, permisos, empresas y las indicaciones sociales. Acá va "--ancho-maximo" si esta vista necesita otro
+------------------------------------------------------------------------------
+
+  Archivo: css/_vistas.css
+
+  Este es el bloque de ".v-soporte". Hoy no declara nada.
+
+  Y que esté vacío es lo correcto: el ancho sale de "--ancho-maximo" en ":root", que
+  es el valor de todos. Lo que se escribe acá es la INTENCIÓN y el lugar donde se
+  escribe, para que el próximo cambio sea una línea y se sepa dónde va:
+
+      .v-soporte{ --ancho-maximo:1440px }
+
+  Y si dos grupos necesitaran valores distintos, el que gana es el último en la hoja.
+  Por hoy no hay dos, así que no hay que decidir nada.
+
+
+------------------------------------------------------------------------------
+[vista-05]  La matriz de supervisores y la justificación diaria. Acá va "--ancho-maximo" si esta vista necesita otro
+------------------------------------------------------------------------------
+
+  Archivo: css/_vistas.css
+
+  Este es el bloque de ".v-supervisores". Hoy no declara nada.
+
+  Y que esté vacío es lo correcto: el ancho sale de "--ancho-maximo" en ":root", que
+  es el valor de todos. Lo que se escribe acá es la INTENCIÓN y el lugar donde se
+  escribe, para que el próximo cambio sea una línea y se sepa dónde va:
+
+      .v-supervisores{ --ancho-maximo:1440px }
+
+  Y si dos grupos necesitaran valores distintos, el que gana es el último en la hoja.
+  Por hoy no hay dos, así que no hay que decidir nada.
+
+
+------------------------------------------------------------------------------
+[vista-06]  Alertas e indicaciones de prevención. Acá va "--ancho-maximo" si esta vista necesita otro
+------------------------------------------------------------------------------
+
+  Archivo: css/_vistas.css
+
+  Este es el bloque de ".v-prevencion". Hoy no declara nada.
+
+  Y que esté vacío es lo correcto: el ancho sale de "--ancho-maximo" en ":root", que
+  es el valor de todos. Lo que se escribe acá es la INTENCIÓN y el lugar donde se
+  escribe, para que el próximo cambio sea una línea y se sepa dónde va:
+
+      .v-prevencion{ --ancho-maximo:1440px }
+
+  Y si dos grupos necesitaran valores distintos, el que gana es el último en la hoja.
+  Por hoy no hay dos, así que no hay que decidir nada.
+
+
+------------------------------------------------------------------------------
+[vista-07]  Consultar trabajador. También lleva "v-administracion", porque sale en los dos menús. Acá va "--ancho-maximo" si esta vista necesita otro
+------------------------------------------------------------------------------
+
+  Archivo: css/_vistas.css
+
+  Este es el bloque de ".v-porteria". Hoy no declara nada.
+
+  Y que esté vacío es lo correcto: el ancho sale de "--ancho-maximo" en ":root", que
+  es el valor de todos. Lo que se escribe acá es la INTENCIÓN y el lugar donde se
+  escribe, para que el próximo cambio sea una línea y se sepa dónde va:
+
+      .v-porteria{ --ancho-maximo:1440px }
+
+  Y si dos grupos necesitaran valores distintos, el que gana es el último en la hoja.
+  Por hoy no hay dos, así que no hay que decidir nada.
