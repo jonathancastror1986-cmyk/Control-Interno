@@ -886,36 +886,21 @@ Las proporciones son de la más ancha a la más chica: nombre del trabajador
 
     minmax(0, 0.9fr);  /* centro de costo */
 
-  }
-
-  /* En pantallas angostas la septima columna no cabe. Se oculta la CELDA,
-
-     no el dato: el filtro por centro sigue funcionando y el reloj ya
-
-     identifica la fila. Es preferible a dejar el texto cortado a la
-
-     mitad, que parece un error de la pantalla. */
-
-  @media (max-width: 1150px) {
-
-    .marcajes-fila,
-
-    .marcajes-cabecera { grid-template-columns: 96px 58px minmax(0, 1fr) 88px 82px minmax(0, 0.8fr); }
-
-    .marcajes-fila .m7,
-
-    .marcajes-cabecera .m7 { display: none; }
-
-  }
-
   align-items: center;
-
   gap: 10px;
-
   padding: 7px 12px;
-
   font-size: .88rem;
 
+}
+/* En pantallas angostas la septima columna no cabe. Se oculta la CELDA, no
+   el dato: el filtro por centro sigue funcionando y el reloj ya identifica
+   la fila. Es preferible a dejar el texto cortado a la mitad, que parece un
+   error de la pantalla. */
+@media (max-width:1150px){
+  .marcajes-fila,
+  .marcajes-cabecera{grid-template-columns:96px 58px minmax(0,1fr) 88px 82px minmax(0,0.8fr)}
+  .marcajes-fila .m7,
+  .marcajes-cabecera .m7{display:none}
 }
 
 .marcajes-cabecera {
@@ -5686,10 +5671,6 @@ body.nav-compacto #subNav .nav-dropdown:hover{
    tiene que salir de una caja normal y no de un círculo. */
 .ayuda{position:relative;display:inline-block;vertical-align:middle}
 
-}
-.ayuda::-webkit-details-marker{display:none}
-.ayuda:hover{color:var(--accent);border-color:var(--accent);background:var(--surface-hover)}
-
 /* -------------------------------------------------------------------
    LA VENTANITA
    -------------------------------------------------------------------
@@ -5776,3 +5757,79 @@ h2.con-ayuda,h3.con-ayuda{
    ícono a ciegas.
    ------------------------------------------------------------------- */
 body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);outline-offset:2px}
+
+
+/* ===================================================================
+   EL LOGO EN EL ENCABEZADO
+   =================================================================== */
+.marca-jc{
+  display:block;
+  flex:0 0 auto;
+  /* La proporción del emblema es 1044 x 691, o sea 1.511. Las dos medidas de
+     abajo andan en 1.5, que es lo más cerca que se llega con números enteros
+     sin que se note. */
+  width:45px;
+  height:30px;
+  /* El color sale de la sección. Es la misma variable que usa el nombre de la
+     sección y el ícono del botón de arriba, y por eso el logo, el título y el
+     ícono son claramente la misma sección y no tres cosas parecidas.
+     El respaldo es el tono de Portería, porque un logo invisible es peor que
+     un logo del color equivocado. */
+  background-color:var(--cat, #EBF9FA);
+  /* La máscara usa la transparencia del dibujo, no su color. El archivo puede
+     decir currentColor sin que estorbe, porque de la máscara solo se lee la
+     forma. */
+  -webkit-mask:url("../img/logo-jc.svg") no-repeat 50% 50%/contain;
+          mask:url("../img/logo-jc.svg") no-repeat 50% 50%/contain;
+  transition:width .34s cubic-bezier(.25,.46,.45,.94),
+             height .34s cubic-bezier(.25,.46,.45,.94),
+             transform .34s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* -------------------------------------------------------------------
+   CUANDO LA BARRA SE ENCOGE
+   -------------------------------------------------------------------
+   El encabezado baja con scaleY(.72) al pasar los 40 píxeles. Un logo
+   dentro sale aplastado, así que hay que devolverle la escala.
+
+   Y la caja se achica en la misma proporción que la barra (45x30 -> 33x22, las
+   dos por 0.73) para que el logo se vea más chico y no solo menos aplastado.
+
+   Si se saca el transform, el logo se ve chueco. Si se saca el width/height, el
+   logo deja de encogerse. Las dos cosas hacen falta.
+   ------------------------------------------------------------------- */
+body.nav-compacto .marca-jc{
+  width:33px;
+  height:22px;
+  /* 1 / 0.72. El padre pone 0.72 y este pone 1.3889, y da 1. */
+  transform:scaleY(1.3889);
+  transform-origin:center;
+}
+
+/* -------------------------------------------------------------------
+   UNA PANTALLA CHICA
+   -------------------------------------------------------------------
+   En un teléfono el encabezado ya tiene el nombre de la sección, el selector de
+   empresa y el botón de cerrar sesión. Con el logo de 45 píxeles más no entra
+   nada, y lo que se esconde es el selector de empresa, que es lo que más hace
+   falta.
+
+   El logo se achica antes que desaparecer: en 28 de alto todavía se reconoce la
+   J y la C, que es lo que tiene que reconocerse.
+   ------------------------------------------------------------------- */
+@media (max-width:640px){
+  .marca-jc{width:34px;height:23px}
+  body.nav-compacto .marca-jc{width:25px;height:17px;transform:scaleY(1.3889)}
+}
+
+/* -------------------------------------------------------------------
+   SIN ANIMACIONES
+   -------------------------------------------------------------------
+   Con prefers-reduced-motion los estilos de la barra ponen transform:none, o
+   sea que ya no se comprime nada. Si el logo se quedara con su 1.3889 y el
+   padre no comprime, saldría un 39% más grande. Por eso vuelve a la nada.
+   ------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce){
+  body.nav-compacto .marca-jc{transform:none}
+  .marca-jc{transition:none}
+}
