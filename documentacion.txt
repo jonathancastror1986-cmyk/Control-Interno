@@ -47,6 +47,11 @@ MODULOS
                 tabla— se quedan en "styles.css", porque usarlos en dos pantallas es lo
                 más común: de las 29 reglas que tocan la portería, 28 son compartidas.
 
+  Y en "js/componentes/", los módulos de JavaScript, con la misma regla: un archivo por
+  módulo, y el nombre dice a quién le afecta cambiarlo. Hoy hay uno, "escaner.js", que
+  usan diez pantallas. Se llaman así y no "porteria.js" por lo mismo: si el archivo dijera
+  "porteria", el que lo tocara creería que no afecta a nadie más.
+
 ------------------------------------------------------------------------------
 [marca-01]  Las dos escalas van en variables porque son la misma propiedad, y el crecimiento ya no va acá
 ------------------------------------------------------------------------------
@@ -890,3 +895,84 @@ MODULOS
   Y en el archivo: la lista de selectores de "styles.css" contra el commit anterior.
   Se fue uno solo, "#scanResult", y no llegó ninguno. Si mañana este trabajo saca dos
   reglas sin querer, se ven las dos.
+
+
+------------------------------------------------------------------------------
+[escaner-01]  El escáner de códigos. Lo usan diez pantallas, no una
+------------------------------------------------------------------------------
+
+  Archivo: js/componentes/escaner.js
+
+  766 renglones y 36 declaraciones de función, que estaban entre la línea 5208 y la
+  5973 de "pages/app.html", dentro del "<script>" grande.
+
+  ------------------------------------------------------------------
+  POR QUÉ EL ARCHIVO NO SE LLAMA "porteria.js"
+  ------------------------------------------------------------------
+  Porque el escáner se usa en DIEZ pantallas:
+
+      openQrCamera   porteria, asistencia, bodega-epp, bodega-kits, bodega-historial,
+                     bodega-asignar, bodega-qr, supervisores, sup-diaria, ingresos-cola
+
+  Y de las 36 funciones, solo "doScan" es de la portería.
+
+  El nombre del archivo tiene que decir a quién le afecta un cambio. Ese es el motivo
+  de separarlo: el que vaya a tocar el escáner tiene que ver, antes de tocarlo, que
+  hay nueve pantallas más detrás.
+
+  ------------------------------------------------------------------
+  CÓMO SE ENCONTRARON LOS EXTREMOS
+  ------------------------------------------------------------------
+  Por NOMBRE de función, no por número de línea: arranca en "qrSupportedFormats",
+  termina en "doScan", y la llave que cierra esa última marca el final.
+
+  Un número de línea se corre en cuanto se agrega una línea antes, y el archivo tiene
+  casi 19.000.
+
+  ------------------------------------------------------------------
+  POR QUÉ MOVERLO ES SEGURO
+  ------------------------------------------------------------------
+  Porque el bloque termina JUSTO en la llave de "doScan". No hay código suelto después,
+  y eso es lo único que hacía falta comprobar.
+
+  Un bloque que además tuviera un "algo()" al final se movería y se rompería: ese
+  código se ejecuta al cargar, y necesitaría variables que están declaradas más abajo
+  en el "<script>" grande.
+
+  Con solo declaraciones de funciones, mudarlo no cambia nada: una función declarada
+  con "function" en un "<script>" clásico es global, y en otro "<script>" clásico
+  también. El código que la llama sigue encontrándola por el mismo nombre.
+
+  Y el archivo se carga ANTES del "<script>" grande, así que para cuando este empiece
+  a correr, las funciones ya existen.
+
+  Lo que NO se movió, y por qué: el estado compartido ("sigInk", "especialidades",
+  "kits", "aviso"), que es de muchas pantallas, y además cambiarlo de archivo
+  cambiaría el orden de inicialización.
+
+  ------------------------------------------------------------------
+  LO QUE SALIÓ MAL, Y QUE QUEDA ANOTADO PORQUE SE REPITE
+  ------------------------------------------------------------------
+  El enlace se metió DENTRO de un comentario. En "app.html" hay un "<script>" escrito
+  dentro de un comentario de JavaScript, en la línea 1713, que dice "Va fuera del
+  <script src=...>". La expresión regular se emparejó con ese, y el archivo no cargaba.
+
+  Y no salió ningún error: un "<script>" dentro de un comentario es texto, y el
+  navegador lo lee como comentario. El síntoma eran las diez funciones del escáner en
+  "undefined", y se veía en la consola del navegador, no en el guion.
+
+  La regla que queda: una etiqueta se reconoce por lo que la ENVUELVE, no por su
+  texto. La de verdad está sola en su renglón; la del comentario está en medio de una
+  frase. Por eso ahora se busca "^<script>" y nada más, y se comprueba que la línea del
+  enlace empiece con "<script".
+
+  ------------------------------------------------------------------
+  CÓMO SE COMPROBÓ
+  ------------------------------------------------------------------
+  - En el navegador: doce funciones del escáner, "typeof" = "function", y
+    "js/componentes/escaner.js?v=1" en la lista de scripts cargados.
+  - Las cuatro pantallas que usan el escáner abren y miden 1232: portería, EPP,
+    asistencia y supervisores.
+  - En el archivo: contra el commit anterior se fueron 36 funciones y no llegó ninguna.
+    Si el trabajo se lleva dos de más, la lista muestra dos.
+  - "node --check" sobre el archivo nuevo, y la suite entera en verde.
