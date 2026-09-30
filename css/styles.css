@@ -6009,9 +6009,24 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
   text-decoration:none;
   color:inherit;
   cursor:pointer;
-  /* El origen a la izquierda y al medio: al crecer se abre hacia la derecha y no
-     se descentra de la barra. */
-  transform:scaleY(var(--descomprimir)) scale(var(--crecer));
+  /* Solo el descompresor, y NO el crecimiento.
+     El descompresor existe porque la barra se aplasta con "scaleY(.72)" al bajar
+     la página, y el logo tiene que devolver su escala para no salir chueco. Eso
+     va en un transform.
+
+     El crecimiento ya NO va acá, y esa es la corrección de este turno. Un
+     transform dibuja más grande sobre el mismo sitio y no cambia el ancho que el
+     elemento ocupa: el logo seguía midiendo 68 mientras se veía de 170, y los 102
+     píxeles de diferencia quedaban encima del título y de los menús. Medido: el
+     título arranca en 115 y el logo llegaba a 201.
+
+     Ahora el crecimiento es el ancho y el alto del dibujo, más abajo. Un ancho que
+     cambia sí ocupa sitio, así que los menús se corren a la derecha, que es lo
+     que se pidió.
+
+     El origen a la izquierda y al medio, para que al crecer se abra hacia la
+     derecha y no se descentre de la barra. */
+  transform:scaleY(var(--descomprimir));
   transform-origin:left center;
   /* Para que el crecimiento pase POR ENCIMA del título de la sección, que queda
      debajo. Sin esto, el logo crece por detrás de las letras. */
@@ -6037,10 +6052,12 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    ------------------------------------------------------------------- */
 .marca-jc:hover,
 .marca-jc:focus-visible{
-  --crecer:2.5;
-  background:rgba(255,255,255,.14);
+  background:#1b2c23;
 }
+/* Con el puntero apretado crece menos que al pasar: es el gesto de apretar, y
+   tiene que ser un escalón más chico que el de pasar. */
 .marca-jc:active{--crecer:2}
+.marca-jc:active .marca-jc-dibujo{width:116px;height:80px}
 
 /* El foco con teclado tiene que verse, o el logo es inalcanzable sin el mouse */
 .marca-jc:focus-visible{outline:2px solid var(--cat,#EBF9FA);outline-offset:2px}
@@ -6059,6 +6076,16 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
   display:block;
   width:58px;
   height:40px;
+  /* El crecimiento va acá, en el ancho y el alto, y no en un transform del
+     botón. Es lo que hace que los menús se corran: un ancho que cambia ocupa
+     sitio, y el de un transform no.
+
+     145 x 100 es lo mismo que se veía antes con "scale(2.5)" sobre 58 x 40, así
+     que el logo se ve igual de grande. Lo que cambia es que ahora ocupa el sitio
+     que necesita.
+
+     La transición del ancho y del alto ya estaba declarada más abajo en esta misma
+     regla, con la misma duración. Por eso el crecimiento se ve parejo. */
   /* El color sale de la sección. Es la misma variable que usa el nombre de la
      sección y el ícono del botón de arriba, y por eso el logo, el título y el
      ícono son claramente la misma sección y no tres cosas parecidas. */
@@ -6076,6 +6103,30 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
           mask-size:contain;
   transition:width .34s cubic-bezier(.25,.46,.45,.94),
              height .34s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* -------------------------------------------------------------------
+   AL PASAR EL MOUSE
+   -------------------------------------------------------------------
+   El dibujo crece a 145 x 100. Es el mismo tamaño que se veía con "scale(2.5)"
+   sobre 58 x 40, así que el logo se ve igual. Lo que cambia es que ahora ocupa ese
+   sitio de verdad.
+
+   Y el fondo del botón pasa a opaco. Con el fondo translúcido, el texto de la barra
+   de secciones se leía por detrás del logo, que es lo que se veía en la foto. Con
+   fondo opaco, lo que queda detrás no se ve. Y como el logo ahora empuja a los
+   menús, casi no queda nada detrás: el fondo es para el texto de la fila de abajo,
+   que está en otra fila y no se puede mover.
+
+   El color no es el de la fila, es un punto más claro: "#101a14" con un poco de
+   verde encima. Con el mismo color de la fila el botón se vería como un hole, y
+   con el translúcido de antes se veía el texto a través. Este es el tono que hace
+   que se vea un botón y no un parche.
+   ------------------------------------------------------------------- */
+.marca-jc:hover .marca-jc-dibujo,
+.marca-jc:focus-visible .marca-jc-dibujo{
+  width:145px;
+  height:100px;
 }
 
 /* -------------------------------------------------------------------
