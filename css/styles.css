@@ -1,79 +1,9 @@
-:root{
+/* ===================================================================
+   css/styles.css — LOS ESTILOS
 
-  --bg:#f4f7f5; --panel:#ffffff; --card:#ffffff; --line:#dce5df;
-
-  --accent:#218653; --accent2:#101a14; --text:#18221b; --muted:#707d74; --danger:#b54852;
-
-  /* --danger es para TEXTO rojo; --danger-solid es para los fondos rojos con
-
-     letra blanca. No pueden ser el mismo color: el rojo que se lee sobre
-
-     superficie oscura es claro, y con letra blanca encima no se lee. */
-
-  --field-line:#cfd9d1; --field-hover:#aebdb2; --button-hover:#1a6d44; --danger-solid:#b54852;
-
-  /* El naranja de "la hora no coincide" estaba fijo en #e08b1a, que sobre
-
-     blanco da 2.7:1. Necesita un valor por tema: uno que se lea de claro y
-
-     otro que se lea de oscuro. */
-
-  --warn:#a86410; --danger-surface:#fdeaea; --warn-surface:#fff6e0; --warn-ink:#8a5a00; --on-accent:#fff;
-
-  --surface-hover:#edf4ef; --focus-shadow:rgba(33,134,83,.18); --secondary-text:#101a14;
-
-  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
-
-  box-sizing:border-box;
-
-}
-
-/* Modo oscuro: fondo #121212 · superficie #1e1e1e · primario #7eb96e ·
-
-   secundario #404040 · texto #dedede.
-
-
-   El bloque de arriba es SOLO para el sistema en oscuro y sin elección
-
-   guardada; el de abajo es el que manda cuando theme.js pone
-
-   data-theme="dark". Los dos tienen que decir lo mismo: si difieren, la
-
-   pantalla cambia de paleta según de dónde se llegó. */
-
-@media (prefers-color-scheme: dark){
-
-  :root:not([data-theme="light"]){
-
-    --bg:#121212; --panel:#1e1e1e; --card:#1e1e1e; --line:#404040;
-
-    --accent:#7eb96e; --accent2:#404040; --text:#dedede; --muted:#a3a3a3; --danger:#e5727a;
-
-    --danger-solid:#c2454e; --warn:#e08b1a; --danger-surface:#2a1618; --warn-surface:#2a2113; --warn-ink:#e0a94a; --on-accent:#18221b;
-
-    --field-line:#404040; --field-hover:#5c5c5c;
-
-    --button-hover:#8fc47f; --surface-hover:#2a2a2a; --focus-shadow:rgba(126,185,110,.22);
-
-    --secondary-text:#dedede;
-
-  }
-
-}
-
-:root[data-theme="dark"]{
-
-  --bg:#121212; --panel:#1e1e1e; --card:#1e1e1e; --line:#404040;
-
-  --accent:#7eb96e; --accent2:#404040; --text:#dedede; --muted:#a3a3a3; --danger:#e5727a;
-
-  --danger-solid:#c2454e; --warn:#e08b1a; --danger-surface:#2a1618; --warn-surface:#2a2113; --warn-ink:#e0a94a; --on-accent:#18221b;
-
-  --field-line:#404040; --field-hover:#5c5c5c; --button-hover:#8fc47f;
-
-  --surface-hover:#2a2a2a; --focus-shadow:rgba(126,185,110,.22); --secondary-text:#dedede;
-
-}
+   La paleta NO está aquí: está en css/_tokens.css, que se enlaza justo antes.
+   Este archivo empieza por los estilos de verdad.
+   =================================================================== */
 
 *{box-sizing:border-box}
 

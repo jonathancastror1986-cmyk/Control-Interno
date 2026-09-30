@@ -1,0 +1,132 @@
+/* ===================================================================
+   css/_tokens.css — LA PALETA
+   ===================================================================
+
+   Lo primero que se carga. Solo variables: ni una regla de estilo, ni una
+   clase, ni un id. Si algún día este archivo tiene un selector de verdad, es
+   que algo se metió donde no debía.
+
+   -------------------------------------------------------------------
+   POR QUÉ ESTÁ EN SU PROPIO ARCHIVO, Y POR QUÉ EL ORDEN MANTA
+   -------------------------------------------------------------------
+   La cascada no depende del archivo sino del ORDEN. Este va enlazado justo
+   antes que styles.css, así que los ":root" siguen llegando antes que cualquier
+   regla de la página, y la pantalla queda exactamente igual.
+
+   Si alguien lo mueve después, el ":root" del <style> en línea de app.html
+   (que solo trae padding-top y box-sizing) pasa a ganar en empate, y el
+   encabezado cambia de alto. Por eso hay una comprobación que mira el orden de
+   los <link>.
+
+   -------------------------------------------------------------------
+   LOS TRES BLOQUES, Y POR QUÉ HAY DOS OSCUROS
+   -------------------------------------------------------------------
+   1. ":root" a secas                  -> lo único por omisión.
+   2. "@media (prefers-color-scheme:dark)" -> el sistema está en oscuro y NO hay
+      elección guardada.
+   3. ":root[data-theme=\"dark\"]"     -> theme.js puso data-theme="dark".
+
+   Los dos últimos tienen que decir EXACTAMENTE lo mismo. Si difieren, la pantalla
+   cambia de paleta según de dónde se llegó, que es la forma más difícil de
+   depurar que existe: el mismo usuario ve dos colores distintos según si.reload
+   la página o vuelve de otra vista.
+
+   Y el segundo NO se puede quitar: sin él, alguien que tiene el sistema en oscuro y
+   nunca tocó el botón ve la página en claro. El primero solo aplica si no hay
+   elección guardada, porque ":root[data-theme]" pesa más que ":root a secas".
+
+   -------------------------------------------------------------------
+   CADA COLOR ESTÁ MEDIDO, NO SUPUESTO
+   -------------------------------------------------------------------
+   --warn está en dos valores porque el naranja fijo #e08b1a sobre blanco da 2.7:1, y
+   eso no se lee. --danger igual: el rojo de TEXTO y el de FONDO con letra blanca no
+   pueden ser el mismo color, porque el que se lee sobre superficie oscura no se lee
+   con blanco encima.
+
+   Para cambiar un color hay que medir el contraste en los dos temas. No basta con que
+   "se vea bien" en el que estás mirando.
+
+   -------------------------------------------------------------------
+   SI VAS A AGREGAR UNA VARIABLE
+   -------------------------------------------------------------------
+   Con su valor en los TRES bloques, o el tema nuevo la va a heredar del tema viejo y
+   no se va a ver. Y si es un color, con su valor en claro y en oscuro medidos.
+   */
+
+:root{
+
+  --bg:#f4f7f5; --panel:#ffffff; --card:#ffffff; --line:#dce5df;
+
+  --accent:#218653; --accent2:#101a14; --text:#18221b; --muted:#707d74; --danger:#b54852;
+
+  /* --danger es para TEXTO rojo; --danger-solid es para los fondos rojos con
+
+     letra blanca. No pueden ser el mismo color: el rojo que se lee sobre
+
+     superficie oscura es claro, y con letra blanca encima no se lee. */
+
+  --field-line:#cfd9d1; --field-hover:#aebdb2; --button-hover:#1a6d44; --danger-solid:#b54852;
+
+  /* El naranja de "la hora no coincide" estaba fijo en #e08b1a, que sobre
+
+     blanco da 2.7:1. Necesita un valor por tema: uno que se lea de claro y
+
+     otro que se lea de oscuro. */
+
+  --warn:#a86410; --danger-surface:#fdeaea; --warn-surface:#fff6e0; --warn-ink:#8a5a00; --on-accent:#fff;
+
+  --surface-hover:#edf4ef; --focus-shadow:rgba(33,134,83,.18); --secondary-text:#101a14;
+
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+
+  box-sizing:border-box;
+
+}
+
+/* Modo oscuro: fondo #121212 · superficie #1e1e1e · primario #7eb96e ·
+
+   secundario #404040 · texto #dedede.
+
+
+   El bloque de arriba es SOLO para el sistema en oscuro y sin elección
+
+   guardada; el de abajo es el que manda cuando theme.js pone
+
+   data-theme="dark". Los dos tienen que decir lo mismo: si difieren, la
+
+   pantalla cambia de paleta según de dónde se llegó. */
+
+@media (prefers-color-scheme: dark){
+
+  :root:not([data-theme="light"]){
+
+    --bg:#121212; --panel:#1e1e1e; --card:#1e1e1e; --line:#404040;
+
+    --accent:#7eb96e; --accent2:#404040; --text:#dedede; --muted:#a3a3a3; --danger:#e5727a;
+
+    --danger-solid:#c2454e; --warn:#e08b1a; --danger-surface:#2a1618; --warn-surface:#2a2113; --warn-ink:#e0a94a; --on-accent:#18221b;
+
+    --field-line:#404040; --field-hover:#5c5c5c;
+
+    --button-hover:#8fc47f; --surface-hover:#2a2a2a; --focus-shadow:rgba(126,185,110,.22);
+
+    --secondary-text:#dedede;
+
+  }
+
+}
+
+:root[data-theme="dark"]{
+
+  --bg:#121212; --panel:#1e1e1e; --card:#1e1e1e; --line:#404040;
+
+  --accent:#7eb96e; --accent2:#404040; --text:#dedede; --muted:#a3a3a3; --danger:#e5727a;
+
+  --danger-solid:#c2454e; --warn:#e08b1a; --danger-surface:#2a1618; --warn-surface:#2a2113; --warn-ink:#e0a94a; --on-accent:#18221b;
+
+  --field-line:#404040; --field-hover:#5c5c5c; --button-hover:#8fc47f;
+
+  --surface-hover:#2a2a2a; --focus-shadow:rgba(126,185,110,.22); --secondary-text:#dedede;
+
+}
+
