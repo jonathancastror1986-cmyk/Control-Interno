@@ -5744,13 +5744,141 @@ button,.btn{border-radius:7px}
    barra se hunde hacia abajo y el contenido de abajo trepa, que es justo el
    tirón que se veía. Desde arriba, la barra se comprime contra su propio borde
    y lo que sube es el contenido, que es lo que se espera. */
+/* Las filas NO se escalan. El div entero es el que escala, más abajo, y con
+   un solo origen las tres quedan pegadas. Si cada una se escalara por separado,
+   cada una dejaría su propio hueco: eso es lo que se veía. */
 body.nav-compacto #barrasSuperiores header,
 body.nav-compacto #mainNav,
 body.nav-compacto #subNav{
+  transition:none;
+}
+
+/* -------------------------------------------------------------------
+   UNA SOLA ESCALA, Y LAS TRES FILAS QUEDAN PEGADAS
+   -------------------------------------------------------------------
+   Antes se escalaban las TRES filas por separado, cada una con su propio
+   "transform-origin:top center". Y como cada una se comprime contra SU PROPIO
+   borde superior, cada una deja atrás la parte de su alto que sobra.
+
+   Y el alto que dejan atrás no se recupera, porque el div que las contiene sigue
+   reservando el alto natural de cada fila. El div es el único que no escala.
+
+   O sea que había dos cosas diciendo la altura: las filas el alto natural y lo
+   pintado el 72%. Los dos tenían razón y el resultado eran 56 píxeles de hueco,
+   que se veían como una línea entre el encabezado y las secciones, y otra entre
+   las secciones y el submenú.
+
+   Medido, con la barra encogida:
+
+       hueco entre el encabezado y las secciones    16 px
+       hueco entre las secciones y el submenú      11 px
+       los altos en el flujo                        138 px
+       lo pintado al 72%                             99 px
+       lo que mide el div                           155 px
+       sobran                                        56 px
+
+   -------------------------------------------------------------------
+   POR QUÉ UNA ESCALA Y NO TRES
+   -------------------------------------------------------------------
+   Escalar el DIV entero deja un solo origen. Las tres filas quedan pegadas por
+   construcción: no hay nada que compensar, porque no hay tres cajas que dejen
+   espacio cada una. Y es una sola propiedad en vez de tres, que es lo que hace
+   que el movimiento no dé tirones.
+
+   Además las tres filas tienen padding distinto, y con la escala del div cada una
+   conserva el suyo: se ven igual de separadas entre sí que sin encoger.
+
+   Y el alto del div no cambia, así que el margen que ya tiene lo compensa.
+
+   -------------------------------------------------------------------
+   LAS LETRAS, QUE ESTABAN MUY ANGOSTAS
+   -------------------------------------------------------------------
+   "scaleY" solo escala en vertical. El renglón mide 15 px de ancho encogido, igual
+   que sin encoger, y 10.8 de alto. O sea que la letra conserva el ancho y pierde
+   el 28% del alto, y eso la angosta: la proporción de una letra es ancho/alto.
+
+   Medido: 1.88 px de ancho por letra. "Portería" salía de 15 de ancho por 10.8 de
+   alto, más alta que ancha, que no es la forma de una letra.
+
+   Acá también se escala en X, un 10%: lo justo para que la letra no se estreche
+   de más al perder alto. Con ".9" el ancho baja 1.5 de los 15, y la proporción
+   queda parecida a la de una letra normal.
+
+   Y el div tiene que crecer un 11% para compensar, o el contenido de abajo también
+   se angosta. Por eso el "width:111%" con el margen compensatorio.
+   ------------------------------------------------------------------- */
+/* El borde tampoco baja con la escala: se mide antes del "transform", así que
+   pinta 0.8 cuando el resto baja a 0.72, y la línea se ve más finita que las
+   demás. Con 1.1 queda en 0.79, que es un borde de 1 sin encoger. */
+body.nav-compacto #barrasSuperiores{border-width:1.1px}
+
+/* Solo el eje vertical, y el div NO crece.
+
+   -------------------------------------------------------------------
+   POR QUÉ SOLO VERTICAL, Y POR QUÉ ESO ARREGLA LAS LETRAS
+   -------------------------------------------------------------------
+   Se probó escalar los dos ejes, con "scale(.72,.72)" y un "width:139%" para
+   compensar. La forma de la letra quedaba perfecta —la proporción se midió en 1.00
+   —, y el div pasaba a ocupar 1444 píxeles en una pantalla de 1039.
+
+   Eso es 405 píxeles de ancho extra que nadie pidió: el contenido de abajo se
+   alarga y la barra tapa más de lo que le toca.
+
+   Con "scaleY(.72)" el ancho no cambia, y por eso la letra NUNCA se angosta. La
+   comprime en alto, que es lo que se ve en la foto del usuario: letras
+   apretadas, no letras angostas. Apretadas se leen bien porque el ancho es el de
+   siempre.
+
+   Y al no haber escala en X, el div mide lo que mide, y el aire de afuera —que es
+   un margen entre la barra y la página, y no parte de la barra— no tiene que
+   compensarse.
+
+   -------------------------------------------------------------------
+   POR QUÉ EL AIRE DE AFUERA QUEDA COMO ESTÁ
+   -------------------------------------------------------------------
+   El padding del div es "clamp(5px,.7vh,8px) clamp(6px,1vw,14px)", y es
+   RESPONSIVE a propósito: separa el bloque de lo que hay debajo, y es donde se
+   ven el filete y la sombra.
+
+   Un margen de separación no se encoge con la barra. Cuando la barra baja a 111, el
+   aire sigue siendo de 8 píxeles: es el espacio entre la barra y la primera línea de
+   contenido, no parte de la barra.
+
+   Con eso, la cola que quedaba no era un error: era el aire. */
+body.nav-compacto #barrasSuperiores{
   transform:scaleY(.72);
-  transform-origin:top center;
+  transform-origin:top left;
   transition:transform .34s cubic-bezier(.25,.46,.45,.94);
   will-change:transform;
+}
+
+/* -------------------------------------------------------------------
+   LOS DESPLEGABLES, QUE NO PUEDEN APLASTARSE
+   -------------------------------------------------------------------
+   Cuelgan hacia abajo con "position:absolute", así que si el div escala, ellos
+   también. Y saldrían con las letras medio píxel de ancho.
+
+   Se contraescalan con 1.3889, que es 1 / 0.72: el mismo número que usa el logo
+   para el mismo motivo. El origen va arriba a la izquierda, que es donde se abre
+   el menú. */
+body.nav-compacto #subNav .nav-dropdown-menu{
+  transform:scaleY(1.3889);
+  transform-origin:top left;
+}
+
+/* Y los que anidan, con su propia contraescala acumulada: van al 1.93, que es
+   1.3889 al cuadrado, porque están dentro del que ya se contraescaló. */
+body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
+  transform:scaleY(1.3889);
+}
+
+/* El puntero sobre la fila la devuelve a su tamaño: entonces el div deja de
+   escalar y no hay nada que contraescalar. */
+body.nav-compacto #barrasSuperiores:hover,
+body.nav-compacto #barrasSuperiores:focus-within,
+body.nav-compacto #mainNav:hover,
+body.nav-compacto #subNav:hover{
+  transform:none;
 }
 
 /* -------------------------------------------------------------------
