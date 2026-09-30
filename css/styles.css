@@ -5240,16 +5240,101 @@ header{z-index:30}
   border-top:1px solid rgba(255,255,255,.14);
 }
 
+/* -------------------------------------------------------------------
+   Y EL TEXTO DE LOS BOTONES DEL SUBMENÚ
+   -------------------------------------------------------------------
+   Las tres filas se pusieron del color oscuro de la sección. Eso está bien. Lo
+   que no se acompañó fue el color de las letras del submenú, que seguió con
+   los del tema claro:
+
+       nav button                    color:var(--muted)            cerrado
+       #subNav button.active         color:var(--secondary-text)   la sección actual
+       #subNav [open]>trigger        color:var(--secondary-text)   el desplegable
+
+   "--secondary-text" es #101a14 y el fondo de la fila es #101a14: el mismo
+   color. Medido, salió rgb(16, 26, 20) sobre rgb(16, 26, 20). No se ve ni la
+   palabra ni el triángulo. Y una barra donde no se lee la sección en la que se
+   está parece una pantalla rota antes que un problema de color.
+
+   Esto va pegado a la regla que puso la fila oscura, y no con las de los
+   botones, porque es su consecuencia: si algún día la fila vuelve a ser
+   clara, este bloque sobra y se borra entero junto con aquella.
+
+   -------------------------------------------------------------------
+   POR QUÉ EL ABIERTO VA APARTE Y CON ":not([open])"
+   -------------------------------------------------------------------
+   El desplegable abierto cambia de fondo en pantalla chica: "movil.css" le da
+   "--surface-hover", un clarito. Ahí el texto tiene que ser oscuro, y ya lo
+   pone ese archivo, que es el que también da el fondo.
+
+   Si la regla del cerrado lo alcanza, le gana por peso (dos id contra uno) y el
+   abierto queda en claro sobre claro. Se ve en la captura: "ASISTENCIA MENSUAL"
+   presente y legible no. Es el peor de los dos defectos, porque un texto que está
+   y no se lee parece un error de la pantalla.
+
+   El ":not([open])" le deja el estado abierto a quien le toca, en vez de
+   pelearlo con un color puesto dos veces.
+
+   Y va en el <details>, que es el elemento que lleva el atributo "open", con el
+   combinador de hijo directo. Ponerlo en el <summary> no excluye nada: el
+   atributo nunca estuvo ahí, la condición era cierta siempre, y el botón
+   abierto seguía saliendo en claro. Un ":not()" mal puesto no da error: da
+   regla muerta.
+   ------------------------------------------------------------------- */
+
+/* Cerrado */
+#barrasSuperiores #subNav>button,
+#barrasSuperiores #subNav .nav-dropdown:not([open])>.nav-dropdown-trigger{
+  color:#d4dbe4;
+}
+
+/* Con el dedo encima el fondo no cambia: sigue siendo el oscuro de la fila */
+#barrasSuperiores #subNav>button:hover,
+#barrasSuperiores #subNav .nav-dropdown:not([open])>.nav-dropdown-trigger:hover{
+  color:#fff;
+}
+
+/* La sección en la que se está. Es la que más hace falta ver y era la más
+   invisible: "--secondary-text" sobre "--fondo-seccion" es el mismo color */
+#barrasSuperiores #subNav>button.active,
+#barrasSuperiores #subNav .nav-dropdown:not([open])>.nav-dropdown-trigger.active{
+  color:#fff;
+}
+
+/* Y el desplegable abierto, que solo necesita regla propia en pantalla ancha:
+   allí no cambia de fondo y el texto oscuro se pierde en el oscuro */
+@media (min-width:861px){
+  #barrasSuperiores #subNav .nav-dropdown[open]>.nav-dropdown-trigger{
+    color:#fff;
+  }
+}
+
 /* El bloque entero, redondeado y con sombra una sola vez */
 #barrasSuperiores{
   border-radius:12px;
   box-shadow:0 2px 5px rgba(0,0,0,.10),0 8px 18px -6px rgba(0,0,0,.14);
-  /* Sin esto, el fondo se transparenta por las esquinas redondeadas y se ve un
-     cuadrado del color de la página en las cuatro puntas. */
   background-clip:padding-box;
   border:1px solid rgba(0,0,0,.06);
-  overflow:hidden;
+  /* SIN "overflow:hidden", y a propósito.
+     Se puso para que las esquinas redondeadas no dejaran ver un cuadrado del
+     color de la página en las puntas. Pero recorta TODO lo que sale de la caja,
+     no solo el fondo, y los desplegables del submenú cuelgan hacia abajo: se
+     veían cortados a la altura del bloque, como si la lista estuviera
+     incompleta.
+
+     Las esquinas van donde corresponde: en la primera fila arriba y en la última
+     abajo. Es lo mismo que hace el resto del archivo: cada elemento pone su
+     borde-redondeado y el contenedor no reescribe la forma de lo que tiene
+     adentro. */
 }
+
+/* -------------------------------------------------------------------
+   LAS ESQUINAS, EN LAS FILAS DE LOS EXTREMOS
+   -------------------------------------------------------------------
+   La primera fila las tiene arriba y la última abajo. Las del medio no, porque
+   están en el medio. */
+#barrasSuperiores>header{border-radius:12px 12px 0 0}
+#barrasSuperiores>#subNav{border-radius:0 0 12px 12px}
 
 /* El aire de adentro lo hace el padding de cada fila, parejo en las tres */
 #barrasSuperiores header{padding:8px 20px}
@@ -6254,12 +6339,13 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
 /* ===================================================================
    EL MENÚ DEL MÓVIL
    ===================================================================
-   En un teléfono las dos barras se ocultan y aparece un botón que las muestra
-   centradas, como el menú de una aplicación.
+   En un teléfono las dos barras están ocultas y hay un botón que las muestra. Y
+   cuando se muestran se ven como en el escritorio: una fila, alineada a la
+   izquierda, con el ícono pegado a la palabra.
 
    Y en la pantalla grande no hay botón: las barras están siempre a la vista y un
-   botón de menú estorbaría. Por eso todo esto vive en un "max-width" y el
-   botón se esconde arriba con un "min-width".
+   botón de menú estorbaría. Por eso todo esto vive en un "max-width" y el botón
+   se esconde arriba con un "display:none".
    =================================================================== */
 
 /* El botón: existe solo en la pantalla chica */
@@ -6286,88 +6372,179 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   /* -----------------------------------------------------------------
      CERRADAS
      -----------------------------------------------------------------
-     Lo primero que se oculta es el SUBMENÚ, que es el que se mira menos. Si se
-     dejaran las dos barras se seguirían viendo unos 160 de los 700 píxeles del
-     teléfono, y con el logo grande el encabezado solo ya se come 67. */
+     Lo primero que se oculta es el SUBMENÚ, que es el que se mira menos. Con
+     las dos barras siempre a la vista se gastaban unos 160 de los 700 píxeles
+     del teléfono, y con el logo grande el encabezado solo ya se come 59. */
   #barrasSuperiores #subNav,
   #barrasSuperiores #mainNav{display:none}
 
   /* -----------------------------------------------------------------
-     ABIERTAS
+     ABIERTAS: UNA FILA, COMO EN EL ESCRITORIO
      -----------------------------------------------------------------
-     Una columna, centrada, con los textos al centro. Y el ícono pegado al texto:
-     el ojo baja por la columna sin buscar de dónde sale cada línea. */
+     Alineada a la izquierda, el ícono pegado a la palabra, y se desplaza de
+     lado si no entra. Es el mismo comportamiento que la barra del escritorio, y
+     por eso se lee igual: quien la conoce en una la reconoce en la otra. */
   body.menu-movil-abierto #barrasSuperiores #mainNav,
   body.menu-movil-abierto #barrasSuperiores #subNav{
     display:flex;
-    flex-direction:column;
+    flex-direction:row;
     align-items:center;
-    gap:4px;
-    padding:6px 8px;
+    justify-content:flex-start;
+    gap:6px;
+    padding:5px 8px;
+    overflow-x:auto;
+    /* "nowrap", y no "wrap". Con "wrap" los botones bajan de línea en vez de
+       desplazarse, y medido: las siete secciones ocupaban SEIS líneas y el
+       submenú tres. Un menú de seis renglones es una columna con pasos, que es
+       justo lo que se quería evitar. El dedo recorre la fila y ya está.
+
+       El único que necesita bajar es el desplegable abierto, y para eso está la
+       regla de más abajo, que solo aplica con la clase "desplegado". */
+    flex-wrap:nowrap;
+    scrollbar-width:none;
   }
+  body.menu-movil-abierto #barrasSuperiores #mainNav::-webkit-scrollbar,
+  body.menu-movil-abierto #barrasSuperiores #subNav::-webkit-scrollbar{display:none}
+
+  /* -------------------------------------------------------------------
+     DÓNDE SE PARAN EN LA FILA Y CUÁNTO MIDEN
+     -------------------------------------------------------------------
+     El <details> es la caja que contiene al botón, no el botón. Solo se le dice
+     dónde se para en la fila y cuánto mide de ancho. NADA más: en una lista de
+     selectores lo que está en el cuerpo se aplica a todos, y si el <details>
+     comparte la lista con los botones se lleva también su relleno y su fuente.
+
+     Le pasaba: con 9 de relleno arriba y abajo en los dos, el botón quedaba en
+     9 + 35 + 9 = 53, y se veía más alto que los 36 de las secciones al lado.
+
+     El "width:auto" está acá por una razón concreta: un bloque anterior de este
+     mismo archivo, del que la grilla de dos columnas, puso "width:100%" en
+     todos los desplegables porque en una grilla el ancho lo da la celda y el
+     elemento tiene que ocuparla entera. Ese diseño ya no está. Acá el ancho lo
+     tiene que dar el texto del botón, y con el ancho entero cada uno pide la
+     fila completa: tres filas enteras no entran en una fila, y el submenú queda
+     de 253 de alto en vez de 41.
+     ------------------------------------------------------------------- */
+  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown{
+    flex:0 0 auto;
+    width:auto;
+  }
+
+  /* -------------------------------------------------------------------
+     CÓMO SE VEN LOS BOTONES
+     -------------------------------------------------------------------
+     El <summary> entra en esta lista porque no es un <button>: es el control del
+     desplegable y hay que darle el mismo aspecto. Por eso el "display:flex" y
+     el centrado en vertical: como bloque, el texto y el triángulo caían en
+     renglones separados y el botón quedaba 17 píxeles más alto que sus
+     vecinos de la fila.
+     ------------------------------------------------------------------- */
   body.menu-movil-abierto #barrasSuperiores #mainNav button,
-  body.menu-movil-abierto #barrasSuperiores #subNav button,
+  body.menu-movil-abierto #barrasSuperiores #subNav>button,
   body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown-trigger{
-    width:100%;
-    justify-content:center;
-    text-align:center;
-    padding:11px 12px;
-    font-size:.78rem;
+    flex:0 0 auto;
+    width:auto;
+    display:flex;
+    align-items:center;
+    justify-content:flex-start;
+    text-align:left;
+    padding:9px 12px;
+    font-size:.72rem;
     white-space:nowrap;
   }
   body.menu-movil-abierto #barrasSuperiores #mainNav button .ico,
   body.menu-movil-abierto #barrasSuperiores #subNav .ico{
-    /* El ícono va pegado al texto, no al borde de la fila. Con la fila centrada,
-       un ícono al borde deja el ícono de un lado y la palabra en el medio, que
-       se ve como dos cosas. */
-    margin-right:8px;
+    /* El ícono pegado a la palabra, y no suelto al borde. Es lo que hace que el
+       ojo baje por la fila sin tener que buscar de dónde sale cada texto. */
+    margin-right:7px;
     flex:0 0 auto;
   }
 
   /* -----------------------------------------------------------------
-     EL SUBMENÚ, QUE ANTES IBA EN DOS COLUMNAS
+     EL DESPLEGABLE, QUE NO SE PUEDE DEJAR FLOTANDO
      -----------------------------------------------------------------
-     Ahora está escondido la mayor parte del tiempo, así que cuando se abre puede
-     bajar entero. Y una columna de una palabra por fila se lee mucho mejor en un
-     teléfono que dos columnas apretadas de dos palabras. */
-  body.menu-movil-abierto #barrasSuperiores #subNav{
-    display:flex;
-    flex-direction:column;
-    grid-template-columns:none;
-    justify-items:stretch;
+     El menú sale por debajo de la fila. Con la fila desplazándose en horizontal,
+     el navegador recorta también en vertical: no existe "desplazarse en X y
+     dejar pasar en Y", en cuanto un eje se desplaza el otro se vuelve a
+     recortar. Y un menú cortado es peor que un menú abajo de todo.
+
+     La salida es que, SOLO con un desplegable abierto, la fila deje de
+     desplazarse y vuelva a envolver, y el desplegable ocupe una línea entera:
+
+       flex-wrap:wrap   la fila vuelve a envolver, y lo que no entra baja
+       overflow:visible deja de recortar, que es lo que cortaba el menú
+       width:100%       el desplegable abierto toma el ancho completo
+       position:static  su menú vive en el flujo, no flotando
+
+     Así el menú no se recorta porque la fila CRECE hacia abajo, y se lee entero
+     sin tener que desplazarse para llegar al último botón.
+
+     Y al cerrar el desplegable, la clase "desplegado" se va y la fila vuelve a
+     ser la de una línea que se desplaza. El estado sale del propio "details":
+     lo pone y lo saca el evento "toggle" del submenú, que ya existía para
+     cerrar los hermanos. No hay un segundo contador que pueda desfasarse.
+     ------------------------------------------------------------------- */
+  body.menu-movil-abierto #barrasSuperiores #subNav.desplegado{
+    flex-wrap:wrap;
+    overflow:visible;
   }
-  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown,
-  body.menu-movil-abierto #barrasSuperiores #subNav>button{
+  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown[open]{
     width:100%;
   }
 
-  /* -----------------------------------------------------------------
-     EL MENÚ DEL DESPLEGABLE
-     -----------------------------------------------------------------
-     Va posicionado y sale hacia abajo. En una columna angosta se sale de la
-     pantalla, así que pasa a ocupar el ancho de la columna y a empujar a los de
-     abajo. Ponerlo en el flujo y no posicionado es lo que hace que se lea entero
-     y que apretar un botón no requiera dos aciertos. */
-  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown-menu{
+  /* El panel y el color de los ítems NO se ponen acá. Vienen de "movil.css",
+     que es donde ya se definían, y que además cubre la franja de 701 a 860
+     píxeles, donde el menú del móvil todavía no existe. Si se definieran en
+     los dos lados, con el tiempo uno se queda viejo y el menú se ve distinto
+     según el ancho de la pantalla.
+
+     Acá va solo lo que es propio de esta fila: que el menú se ubique en el
+     flujo y tome el ancho entero. */
+  body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown[open]>.nav-dropdown-menu{
     position:static;
     min-width:0;
     width:100%;
     display:flex;
+    margin-top:4px;
   }
   body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown-children button{
     padding-left:14px;
   }
 
-  /* Y la flechita del desplegable apunta hacia abajo, que es hacia donde se abre */
+  /* Y la flechita apunta hacia abajo, que es hacia donde se abre.
+     El tamaño va en "1em" y no en el ".9rem" que le pone "movil.css": a .9rem
+     el triángulo tiene una línea más alta que el texto, y el renglón crece. Con
+     la misma altura de letra, el botón mide lo mismo que el de al lado. */
   body.menu-movil-abierto #barrasSuperiores #subNav .nav-dropdown-trigger:after{
     content:'\25BE';
+    font-size:1em;
+    line-height:inherit;
+    padding-left:0;
+    margin-left:auto;
+  }
+
+  /* -----------------------------------------------------------------
+     CUANDO SE ABRE, NO HAY QUE COMPONER LAS BARRAS
+     -----------------------------------------------------------------
+     El archivo encoge las barras con "scaleY(.72)" al bajar la página. Con el
+     menú abierto eso aplasta el menú entero, y un menú aplastado se lee mal.
+
+     Con el menú abierto la animación se apaga y las barras quedan enteras. No es
+     un detalle: el menú se abre arriba de todo, y si la barra de arriba se
+     comprime mientras el dedo todavía está bajando, el botón se le va de debajo.
+     ------------------------------------------------------------------- */
+  body.menu-movil-abierto #barrasSuperiores header,
+  body.menu-movil-abierto #mainNav,
+  body.menu-movil-abierto #subNav{
+    transform:none;
+    transition:none;
   }
 
   /* -----------------------------------------------------------------
      EL ENCABEZADO, CON EL BOTÓN AL LADO
      -----------------------------------------------------------------
-     El botón va antes del logo, así que el logo se corre un poco a la derecha. En
-     un teléfono de 390 eso es lo que hay. */
+     El botón va antes del logo, así que el logo se corre a la derecha. En un
+     teléfono de 390 eso es lo que hay. */
   #barrasSuperiores header{
     flex-wrap:wrap;
     row-gap:8px;
@@ -6375,21 +6552,3 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   }
 }
 
-/* -------------------------------------------------------------------
-   CUANDO SE ABRE, NO HAY QUE COMPONER LAS BARRAS
-   -------------------------------------------------------------------
-   El archivo encoge las barras con "scaleY(.72)" al bajar la página. Con el menú
-   abierto eso aplasta el menú entero, y un menú aplastado se lee mal.
-
-   Con el menú abierto la animación se apaga y las barras quedan enteras. No es un
-   detalle: el menú se abre arriba de todo, y si la barra de arriba se comprime
-   mientras el dedo todavía está bajando, el botón se le va de debajo.
-   ------------------------------------------------------------------- */
-@media (max-width:700px){
-  body.menu-movil-abierto #barrasSuperiores header,
-  body.menu-movil-abierto #mainNav,
-  body.menu-movil-abierto #subNav{
-    transform:none;
-    transition:none;
-  }
-}

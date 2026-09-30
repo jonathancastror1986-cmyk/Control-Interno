@@ -235,12 +235,20 @@ header .row label {
   max-width: 100%;
   min-width: 0;
   box-shadow: none;
-  background: transparent;
+  /* Ni "transparent" ni el riel de la izquierda.
+     El riel tenía sentido con el menú en columna: marcaba "esto cuelga de lo
+     de arriba". Pero la barra del submenú ahora es del color oscuro de la
+     sección, y un panel transparente sobre ese fondo con la tinta oscura del
+     texto no se lee: medido, el texto salía rgb(24, 34, 27) sobre un fondo
+     rgb(16, 26, 20).
+
+     El panel es del mismo tono que la barra y el texto es el mismo claro que
+     el de los botones de al lado, que es lo que ya hace la barra de secciones. */
+  background: rgba(0, 0, 0, .26);
   border: 0;
-  border-left: 3px solid var(--line);
-  border-radius: 0;
-  margin: 0 0 4px 14px;
-  padding: 0;
+  border-radius: 8px;
+  margin: 4px 0 4px 14px;
+  padding: 4px;
 }
 
 #subNav .nav-dropdown[open] > .nav-dropdown-menu {
@@ -251,6 +259,9 @@ header .row label {
   width: 100%;
   text-align: left;
   white-space: normal;
+  /* El mismo claro que los botones de la barra, por el mismo motivo que el
+     panel de arriba: sobre el fondo oscuro la tinta de "--text" no se ve. */
+  color: #d4dbe4;
   /* 15px y no 13: con 13 las filas quedan en 41 pixels, y el mínimo
      cómodo para apretar con el dedo son 44. Es la diferencia entre
      apretar un botón y apretar el de al lado. */

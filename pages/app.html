@@ -3857,6 +3857,13 @@ function showGroup(group){
   // cerraba, y con un clic rápido queda en el estado equivocado.
   sub.querySelectorAll('details.nav-dropdown').forEach(d=>{
     d.addEventListener('toggle',()=>{
+      // En un teléfono la fila del submenú se desplaza de lado, y un contenedor
+      // que se desplaza en horizontal recorta también en vertical: el menú del
+      // desplegable se cortaría a la mitad. La clase "desplegado" le dice al
+      // estilo que vuelva a envolver mientras haya alguno abierto, para que el
+      // menú baje entero. Se lee el estado del propio "details" y no un
+      // contador: un contador se desfasaría al cerrar dos de un clic.
+      sub.classList.toggle('desplegado',!!sub.querySelector('details.nav-dropdown[open]'));
       if(!d.open)return;
       // Se cierra el hermano del mismo nivel. Se comparan los dos
       // desplegables de primer nivel, no todos: los anidados viven dentro
