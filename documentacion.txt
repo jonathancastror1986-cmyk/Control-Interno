@@ -1740,3 +1740,41 @@ Seis módulos, en este orden porque cada corte tiene que estar completo antes de
 
 La herramienta es "tools/saca-modulo.js <nombre>", y ella sola avisa si se intenta sacar
 administración antes de tiempo: el guardia del grafo lo ve.
+[supervisores-  "js/supervisores.js"
+------------------------------------------------------------------------------
+
+QUÉ HAY AQUÍ
+
+  - JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA
+  - CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ
+
+Del "js/app.js" de HEAD, 13210 renglones; ahora 12718, y este archivo tiene 541.
+
+El "<script>" va después de "js/nucleo.js" y antes de "js/app.js".
+
+
+QUÉ COMPRUEBA EL GUARDIÁN DE "tools/saca-modulo.js"
+-------------------------------------------------------
+Además de lo de siempre (las llaves, los trozos, los nombres repetidos, el orden de los
+"<script>"), este corte usa el GRAFO desde las llamadas de nivel superior del módulo:
+sigue a dónde llega cada una y avisa si se sale del archivo o del núcleo.
+
+Ese grafo es lo que impide sacar "js/administracion.js" antes de tiempo. Ver
+[modulos-01], que explica por qué.
+
+
+CÓMO SE COMPROBÓ
+----------------
+  - "node --check" sobre los dos archivos escritos, leyéndolos del disco.
+  - Los nombres: los de "js/app.js" en HEAD contra los de "js/app.js" más este archivo.
+    598 en los dos lados, ni uno menos ni uno más,
+    y ninguno declarado en dos archivos a la vez. Ese control es aparte del "--check",
+    porque un nombre perdido no rompe la sintaxis: rompe cuando alguien lo llama.
+  - "tools/sonda-js.js" en el navegador: el mismo hash que antes del corte, y consola
+    sin errores. La huella no sirve para esto; está escrito en [nucleo-01].
+  - Las doce pruebas.
+
+
+LO QUE SE DEJÓ PENDIENTE
+-----------------------
+El archivo se sigue partiendo. Ver [modulos-01] para el orden y lo que falta.

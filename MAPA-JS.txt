@@ -1,7 +1,7 @@
 EL MAPA DE "js/app.js"
 ======================
 
-  Medido el 2026-10-01 sobre 14304 renglones y 553 funciones.
+  Medido el 2026-10-01 sobre 13210 renglones y 491 funciones.
 
   Cómo se generó:  node tools/mapa-js.js
   Cómo se verifica que no esté viejo:  node tools/mapa-js.js --verificar
@@ -24,29 +24,26 @@ EL MAPA DE "js/app.js"
     L 5351  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.
     L 5572  DAR DE ALTA SIN CORREO    233 regl.    8 fn.
     L 5805  MIS DATOS   1595 regl.   75 fn.
-    L 7400  KITS INICIALES POR ESPECIALIDAD    588 regl.   40 fn.
-    L 7988  MULTI-EMPRESA    217 regl.   13 fn.
-    L 8205  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.
-    L 8567  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    572 regl.   14 fn.
-    L 9139  BAJAR LA PLANTILLA EN WORD    275 regl.    5 fn.
-    L 9414  ROLES Y PERMISOS    255 regl.   11 fn.
-    L 9669  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.
-    L 9703  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)
-    L 9731  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.
-    L11832  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.
-    L12542  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)
-    L12583  EL BLOQUEO REAL    170 regl.   11 fn.
-    L12753  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.
-    L12777  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.
-    L12886  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)
-    L12920  LO QUE NO HACE    269 regl.   11 fn.
-    L13189  KIT DE CONTRATACIÓN     34 regl.    0 fn.   (solo el banner)
-    L13223  LA ESPECIALIDAD DEL TRABAJADOR    472 regl.   22 fn.
-    L13695  LA BITÁCORA, PARA PODER LEERLA    136 regl.    5 fn.
-    L13831  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.
+    L 7400  KITS INICIALES POR ESPECIALIDAD    217 regl.   13 fn.
+    L 7617  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.
+    L 7979  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    572 regl.   14 fn.
+    L 8551  BAJAR LA PLANTILLA EN WORD    275 regl.    5 fn.
+    L 8826  ROLES Y PERMISOS    255 regl.   11 fn.
+    L 9081  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.
+    L 9115  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)
+    L 9143  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.
+    L11244  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.
+    L11954  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)
+    L11995  EL BLOQUEO REAL    170 regl.   11 fn.
+    L12165  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.
+    L12189  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.
+    L12298  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)
+    L12332  LO QUE NO HACE    269 regl.   11 fn.
+    L12601  KIT DE CONTRATACIÓN    136 regl.    5 fn.
+    L12737  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.
 
   ----------------------------------------------------------------------------
-  537 de 553 funciones (97%) caen dentro de una sección.
+  475 de 491 funciones (97%) caen dentro de una sección.
 
 
   LAS 16 FUNCIONES QUE NO CAEN EN NINGUNA SECCIÓN
@@ -71,15 +68,14 @@ EL MAPA DE "js/app.js"
     L  239  aprobarIngresoPendiente
     L  270  rechazarIngresoPendiente
 
-  SECCIONES SIN FUNCIONES DENTRO (4)
+  SECCIONES SIN FUNCIONES DENTRO (3)
   ----------------------------------------------------------------------------
   Son un banner con el título y nada más: toda la función está en la de abajo.
   No están rotas. Se listan para no pensar que falta algo.
 
-    L 9703  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
-    L12542  EL KIOSCO DEL RELOJ
-    L12886  LOS MARCAJES
-    L13189  KIT DE CONTRATACIÓN
+    L 9115  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
+    L11954  EL KIOSCO DEL RELOJ
+    L12298  LOS MARCAJES
 
   Y LO QUE ESTO NO DICE
   ----------------------------------------------------------------------------
