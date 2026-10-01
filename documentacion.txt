@@ -48,7 +48,8 @@ MODULOS
                 cuenta. Hoy los seis están vacíos, y lo correcto es que estén vacíos:
                 el ancho sale de "--ancho-maximo", que está en ":root".
   componentes/  Un archivo por módulo. El nombre dice a quién le afecta cambiarlo.
-                Hoy hay dos: "porteria.css" (una regla) y "totem.css" (154 reglas).
+                Hoy hay tres: "porteria.css" (una regla), "tarjeta.css" (6) y
+                    "totem.css" (154).
                 Los COMPARTIDOS —tarjeta, botón, campo, tabla— se quedan en "styles.css",
                 porque usarlos en varias pantallas es lo más común: de las 29 reglas que
                 tocan la portería, 28 son compartidas.
@@ -1277,3 +1278,94 @@ MODULOS
   "js/componentes/escaner.js", que usan diez pantallas. El orden de la cascada del
   JavaScript importa menos que el del CSS: si dos archivos definen lo mismo, gana el que se
   carga último, y eso sí hay que medirlo.
+
+
+------------------------------------------------------------------------------
+[tarjeta-01]  La fila de fotos del trabajador: la caja, la imagen y el botón de elegir
+------------------------------------------------------------------------------
+
+  Archivo: css/componentes/tarjeta.css
+
+  Lo que trae: ".photoRow", ".photoBox", ".photoBox img", ".photoBox label.fileLabel" y
+  ".photoBox input[type=file]". Cinco reglas.
+
+  La última parece vacía —"display:none"— y no lo es: sin ella, el campo de elegir archivo
+  se ve como un botón gris feo en medio de la caja. Por eso está, y por eso se midió.
+
+  ------------------------------------------------------------------
+  LO QUE SE ENCONTRÓ: ESTABA ESCRITA DOS VECES
+  ------------------------------------------------------------------
+  Una aquí, y otra en el "<style>" en línea de "app.html", con SEIS VALORES DISTINTOS:
+
+      .photoRow                      gap:10px      contra  gap:14px
+      .photoBox img                  radio 6px     contra  radio 0
+      label.fileLabel                radio 6px     contra  radio 0
+      label.fileLabel                padding 8px   contra  9px
+      label.fileLabel                .75rem        contra  .72rem
+      label.fileLabel                --accent2     contra  --secondary-text
+
+  "styles.css" se carga DESPUÉS del "<style>" en línea, así que gana "styles.css". Y se
+  comprobó en el navegador que el bloque en línea no llegaba a verse en NINGUNA de sus
+  propiedades: el radio daba 0, el relleno 9, la fuente 11.52 píxeles.
+
+  O sea que eran 21 líneas que no hacían nada. Se sacaron.
+
+  ------------------------------------------------------------------
+  POR QUÉ ESO NO ES "UNA LIMPIEZA" Y SÍ ES LO IMPORTANTE
+  ------------------------------------------------------------------
+  Porque una regla duplicada no es inocua: es una bomba de tiempo con dos detonadores.
+
+  Hoy gana "styles.css" porque se carga después. Si alguien mueve el "<link>" de "styles.css"
+  arriba del "<style>", o mete la tarjeta en un archivo que se cargue antes, gana la otra. Y
+  la pantalla cambia de golpe: el radio vuelve a 6, el relleno a 8, el texto se pone turquesa.
+
+  No es un cambio que uno note mientras escribe. Es un cambio que aparece una semana después,
+  en otra pantalla, y que nadie sabe de dónde salió.
+
+  Y por eso el "<link>" va en un lugar FIJO y no "donde quepa": entre "componentes/totem.css"
+  y "movil.css". Ver "tarjeta-02" para por qué ese orden no es lo mismo que cualquiera.
+
+  ------------------------------------------------------------------
+  Y POR QUÉ ESTA REGLA NO SE MOVIDO A LA TARJETA
+  ------------------------------------------------------------------
+  Porque está dentro de un "@media" en "styles.css" que contiene veinte reglas más del
+  encabezado, de la barra y de "main". Mover el "@media" entero habría sido mover todo eso.
+
+  Así que se sacó UNA línea de adentro, y se copió la condición tal cual: "@media(max-width:
+  700px)". La condición se copia del archivo, no se escribe de memoria, porque un espacio de
+  más o un "860px" en vez de "700px" no da ningún error: la tarjeta deja de apilarse en una
+  pantalla en la que antes se apilaba, y en la pantalla ancha no se nota.
+------------------------------------------------------------------------------
+
+[tarjeta-02]  En pantalla angosta las dos fotos se apilan, en vez de quedar al lado
+------------------------------------------------------------------------------
+
+  Archivo: css/componentes/tarjeta.css
+
+      @media(max-width:700px){
+        .photoRow{flex-direction:column}
+      }
+
+  ------------------------------------------------------------------
+  POR QUÉ ESTO ES UNA ENTRADA Y NO UNA LÍNEA MÁS
+  ------------------------------------------------------------------
+  Porque un "@media" se puede anidar. Si queda dentro de otro "{", sigue siendo sintaxis
+  válida, el navegador no se queja, y la regla NO SE APLICA NUNCA.
+
+  Esa es la diferencia con una regla mal escrita: una regla mal escrita rompe la hoja entera
+  y se ve al instante. Un "@media" anidado donde no va deja de hacer efecto en silencio, y la
+  tarjeta se ve bien en la pantalla ancha —que es donde se mira— y mal en la angosta.
+
+  ------------------------------------------------------------------
+  LA COMPROBACIÓN
+  ------------------------------------------------------------------
+  En dos marcos de la MISMA página, porque comparar angosto contra ancho en momentos
+  distintos no dice nada. El "max-width" se mide contra el ancho del marco, no contra el de
+  la ventana: cambiar el ancho de la ventana no cambia el "max-width" de lo que hay dentro.
+
+      marco de 640 px   ->  flex-direction: column   (apiladas)   correcto
+      marco de 1280 px  ->  flex-direction: row      (al lado)    correcto
+
+  Y el hueco, que no es 14: es "normal". Porque no hay separación. Que es más fácil de ver
+  que un pixel de diferencia.
+------------------------------------------------------------------------------

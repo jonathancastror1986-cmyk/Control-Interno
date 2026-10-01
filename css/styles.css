@@ -825,16 +825,6 @@ que uno dude de cómo va a salir impreso.
 .lista-iconos>span{cursor:pointer;line-height:1}
 
 
-.photoRow{display:flex;gap:14px}
-
-.photoBox{flex:1;text-align:center}
-
-.photoBox img{width:100%;height:110px;object-fit:cover;border:1px solid var(--line);border-radius:0;background:var(--panel);display:block;margin-bottom:4px}
-
-.photoBox label.fileLabel{display:block;background:var(--panel);border:1px dashed var(--accent2);border-radius:0;padding:9px;cursor:pointer;font-size:.72rem;color:var(--secondary-text);text-align:center}
-
-.photoBox input[type=file]{display:none}
-
 .loginCard{max-width:420px;width:calc(100% - 32px);background:var(--panel);border:1px solid var(--line);border-radius:2px;padding:32px;box-shadow:0 10px 32px rgba(7,17,31,.08)}
 
 .loginCard h1{font-size:2rem}
@@ -860,8 +850,6 @@ que uno dude de cómo va a salir impreso.
   .card{padding:14px}
 
   .row>div{min-width:100%}
-
-  .photoRow{flex-direction:column}
 
 }
 
