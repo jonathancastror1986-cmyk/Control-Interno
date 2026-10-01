@@ -3649,19 +3649,33 @@ function completarPlantilla(html, datos, faltantes) {
 
   let salida = html;
 
-  // Primero los "[CAMPO:algo]", que son más largos y tienen prefijo: si se buscara "[algo]"
+  // -------------------------------------------------------------------
+  // LAS DOS FORMAS, Y POR QUÉ LAS DOS
+  // -------------------------------------------------------------------
+  // "[NOMBRE]" es la forma que ya usan los documentos que existen. Y "[CAMPO:7-licencia]" la
+  // que se inventó después, con prefijo, para que un campo propio no se confundiera con una
+  // variable fija.
+  //
+  // Se aceptan LAS DOS, y no es porcompatibilidad con uno mismo: hay documentos armorados con
+  // la forma vieja, y un documento que deja de completarse a mitad es peor que un documento
+  // con una sintaxis de más. Cambiar la forma es para los documentos NUEVOS.
+  //
+  // Y el orden importa: los "[CAMPO:...]" se reemplazan PRIMERO, porque si se buscara "[...]"
   // primero, "[CAMPO:7-licencia]" se partiría en "[7-licencia]" y "CAMPO:7-licencia]" queda
-  // colgado.
+  // colgado adentro del documento.
+  const reemplazar = (marcador, valor) => { salida = salida.split(marcador).join(valor); };
+
   Object.keys(nuevos).forEach(k => {
     const valor = nuevos[k] == null ? '' : String(nuevos[k]);
-    salida = salida.split('[CAMPO:' + k + ']').join(valor);
-    salida = salida.split('[CAMPO:' + k.toUpperCase() + ']').join(valor);
+    const alta = k.toUpperCase();
+    reemplazar('[CAMPO:' + k + ']', valor);
+    reemplazar('[CAMPO:' + alta + ']', valor);
   });
 
-  // Y después las fijas, sin prefijo.
+  // Y después, todo lo demás con corchetes solos: "[NOMBRE]", "[LICENCIA]".
   Object.keys(nuevos).forEach(k => {
     const valor = nuevos[k] == null ? '' : String(nuevos[k]);
-    salida = salida.split('[' + k.toUpperCase() + ']').join(valor);
+    reemplazar('[' + k.toUpperCase() + ']', valor);
   });
 
   return salida;
