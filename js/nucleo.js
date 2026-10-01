@@ -87,6 +87,13 @@ function save(){
 function normalizarRut(valor){
   return String(valor==null?'':valor).replace(/[^0-9kK]/g,'').toUpperCase();
 }
+// Y el código de la AFP se guarda SIN ESPACIOS y en mayúscula, por lo mismo que el RUT:
+// en las importaciones se compara carácter por carácter, y "AFPH" y "AFPH " no son el
+// mismo dato. Con un espacio de más, el trabajador deja de emparejar en la planilla y
+// nadie sabe por qué: el código se ve igual en las dos pantallas.
+function normalizarAfp(valor){
+  return String(valor==null?'':valor).replace(/\s+/g,'').toUpperCase();
+}
 function workerToDb(w){
   return {
     code:w.code, name: componerNombre(w), cargo:w.spec||null, phone:w.phone||null,
@@ -97,6 +104,11 @@ function workerToDb(w){
     apellido_paterno: w.apellido_paterno||null,
     apellido_materno: w.apellido_materno||null,
     direccion: w.direccion||null, correo: w.correo||null,
+    // La AFP con código y nombre (migración 057). Los dos, porque las planillas usan el
+    // código y las cartas usan el nombre. Con uno solo, la mitad de los documentos sale
+    // mal. Ver [afp-01].
+    afp_codigo: normalizarAfp(w.afp_codigo)||null,
+    afp_nombre: w.afp_nombre||null,
     rut: normalizarRut(w.rut)||null,
     fecha_ingreso:w.fecha_ingreso||null, tipo_trabajador:w.tipo_trabajador||'interno',
     is_supervisor: !!w.is_supervisor, supervisor_code: w.supervisor_code||null,
@@ -154,6 +166,7 @@ function dbToWorker(r){
     apellido_materno: r.apellido_materno||null,
     nombreCompleto: componerNombre(r)||r.name||'',
     direccion: r.direccion||null, correo: r.correo||null,
+    afp_codigo: r.afp_codigo||null, afp_nombre: r.afp_nombre||null,
     is_supervisor:r.is_supervisor, supervisor_code:r.supervisor_code,
     casual:r.foto_casual_url, safety:r.foto_seguridad_url,
     emerg_name:r.emerg_nombre, emerg_phone:r.emerg_telefono, emerg_rel:r.emerg_relacion,

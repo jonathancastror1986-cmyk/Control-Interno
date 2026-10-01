@@ -1369,7 +1369,7 @@ function clearForm(){
   // Y los cinco de la 056 van en la lista. Si no, quedan con lo de la ficha anterior y
   // el siguiente trabajador nace con el apellido del otro: es el peor lugar para que un
   // campo se quede pegado, porque no se nota hasta que se imprimió la planilla.
-  ['w-code','w-name','w-nombres','w-apellido-paterno','w-apellido-materno','w-direccion','w-correo','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['w-code','w-name','w-nombres','w-apellido-paterno','w-apellido-materno','w-direccion','w-correo','w-afp-codigo','w-afp-nombre','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('w-is-supervisor').checked=false;
   llenarSelectoresEspecialidad();
   if(document.getElementById('w-cargo')){
@@ -1428,6 +1428,8 @@ async function saveWorker(){
     name:componerNombre({nombres,apellido_paterno:apellidoPaterno,apellido_materno:apellidoMaterno}),
     direccion:document.getElementById('w-direccion').value.trim(),
     correo:document.getElementById('w-correo').value.trim(),
+    afp_codigo:document.getElementById('w-afp-codigo').value.trim(),
+    afp_nombre:document.getElementById('w-afp-nombre').value.trim(),
     spec,
     empresa_id: (empSel&&empSel.value)?parseInt(empSel.value):(existing?existing.empresa_id:null),
     phone: document.getElementById('w-phone').value.trim(),
@@ -1954,6 +1956,10 @@ function editWorker(code){
   document.getElementById('w-apellido-materno').value=w.apellido_materno||'';
   document.getElementById('w-direccion').value=w.direccion||'';
   document.getElementById('w-correo').value=w.correo||'';
+  // Y la AFP. Si faltan acá, editar una ficha BORRA la AFP: el "upsert" manda todas las
+  // columnas del objeto, y lo que no está llega como null.
+  document.getElementById('w-afp-codigo').value=w.afp_codigo||'';
+  document.getElementById('w-afp-nombre').value=w.afp_nombre||'';
   document.getElementById('w-spec').value=w.spec||'';
   llenarSelectoresEspecialidad();
   seleccionarGrupoYCargo(document.getElementById('w-grupo'),document.getElementById('w-cargo'),w.especialidad_clave||'');
