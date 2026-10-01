@@ -1366,7 +1366,10 @@ wirephoto('w-casual','pre-casual','casual');
 wirephoto('w-safety','pre-safety','safety');
 
 function clearForm(){
-  ['w-code','w-name','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>document.getElementById(id).value='');
+  // Y los cinco de la 056 van en la lista. Si no, quedan con lo de la ficha anterior y
+  // el siguiente trabajador nace con el apellido del otro: es el peor lugar para que un
+  // campo se quede pegado, porque no se nota hasta que se imprimió la planilla.
+  ['w-code','w-name','w-nombres','w-apellido-paterno','w-apellido-materno','w-direccion','w-correo','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('w-is-supervisor').checked=false;
   llenarSelectoresEspecialidad();
   if(document.getElementById('w-cargo')){
@@ -1396,15 +1399,36 @@ function fillWorkerEmpresaSelect(){
 
 async function saveWorker(){
   const code=document.getElementById('w-code').value.trim();
-  const name=document.getElementById('w-name').value.trim();
   const spec=document.getElementById('w-spec').value.trim();
   const espClave=document.getElementById('w-cargo')
     ?document.getElementById('w-cargo').value:'';
-  if(!code||!name){alert('Código y nombre son obligatorios');return;}
+
+  // Y los nombres se leen de los tres campos, y el entero se arma con ellos.
+  //
+  // Antes se leía de "w-name", que ahora está oculto. Leer el campo oculto sin armarlo
+  // primero guardaría siempre un nombre vacío, porque nadie escribe en un campo oculto.
+  const nombres=document.getElementById('w-nombres').value.trim();
+  const apellidoPaterno=document.getElementById('w-apellido-paterno').value.trim();
+  const apellidoMaterno=document.getElementById('w-apellido-materno').value.trim();
+
+  // Y si no hay nombres, se avisa acá y no en la base. La base no avisa "falta el
+  // apellido paterno": guarda lo que le manden, y el nombre queda a medias.
+  if(!code){alert('El código es obligatorio');return;}
+  if(!nombres||!apellidoPaterno){
+    alert('Nombres y apellido paterno son obligatorios. El apellido materno es opcional.');
+    return;
+  }
+
   const existing=workers.find(w=>w.code===code)||todosWorkers.find(w=>w.code===code);
   const empSel=document.getElementById('w-empresa');
+
   const worker={
-    code,name,spec,
+    code,
+    nombres,apellido_paterno:apellidoPaterno,apellido_materno:apellidoMaterno,
+    name:componerNombre({nombres,apellido_paterno:apellidoPaterno,apellido_materno:apellidoMaterno}),
+    direccion:document.getElementById('w-direccion').value.trim(),
+    correo:document.getElementById('w-correo').value.trim(),
+    spec,
     empresa_id: (empSel&&empSel.value)?parseInt(empSel.value):(existing?existing.empresa_id:null),
     phone: document.getElementById('w-phone').value.trim(),
     rut: document.getElementById('w-rut').value.trim() || (existing?existing.rut:''),
@@ -1923,7 +1947,13 @@ function editWorker(code){
   if(!w)return;
   showView('nuevo-trabajador');
   document.getElementById('w-code').value=w.code;
-  document.getElementById('w-name').value=w.name;
+  // Y los nombres van a los tres campos. "w-name" queda oculto y no se escribe, porque
+  // "saveWorker" lo arma con esos tres y no lo lee.
+  document.getElementById('w-nombres').value=w.nombres||'';
+  document.getElementById('w-apellido-paterno').value=w.apellido_paterno||'';
+  document.getElementById('w-apellido-materno').value=w.apellido_materno||'';
+  document.getElementById('w-direccion').value=w.direccion||'';
+  document.getElementById('w-correo').value=w.correo||'';
   document.getElementById('w-spec').value=w.spec||'';
   llenarSelectoresEspecialidad();
   seleccionarGrupoYCargo(document.getElementById('w-grupo'),document.getElementById('w-cargo'),w.especialidad_clave||'');

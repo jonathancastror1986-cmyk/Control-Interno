@@ -2847,6 +2847,33 @@ function cambiarGrupoTrabajador(){
   if(!sg||!sc)return;
   pintarOpcionesCargo(sc,sg.value);
 }
+
+// -------------------------------------------------------------------
+// EL CARGO SE ESCRIBE UNA SOLA VEZ
+// -------------------------------------------------------------------
+// Al elegir el cargo, "Cargo para las planillas" se completa con el nombre de ese cargo. Es
+// el texto que sale impreso en las planillas y en la credencial, y antes había que
+// escribirlo a mano, igual que ya estaba elegido en el desplegable.
+//
+// Tres reglas, y las tres importan:
+//
+//   1. SOLO SI EL CAMPO ESTÁ VACÍO. Si alguien ya escribió algo —"Maestro de obra, sector
+//      norte"— no se pisa. Ese texto a mano es información que el desplegable no tiene.
+//   2. AL VACIAR EL DESPLEGABLE TAMPOCO SE BORRA. "Sin asignar" no significa "el texto
+//      está mal": el cargo puede no estar en el catálogo y el texto igual ser el correcto.
+//   3. NO ESCRIBE SI NO HAY CARGO ELEGIDO. Por lo mismo del punto 2.
+function completarCargoEnElTexto(){
+  const sc=document.getElementById('w-cargo');
+  const st=document.getElementById('w-spec');
+  if(!sc||!st)return;
+  if(!sc.value)return;
+  if(st.value.trim())return;
+  const nombre=sc.options[sc.selectedIndex] ? (sc.options[sc.selectedIndex].textContent||'').trim() : '';
+  if(!nombre)return;
+  // Y solo si el texto que muestra el desplegable es el nombre del cargo y no algo como
+  // "Gastos Generales / Administrativo": el texto de las planillas es el del cargo.
+  st.value=nombre.split(' / ').pop().trim();
+}
 function initKitView(){
   const sel=document.getElementById('kitWorker');
   const anterior=sel.value;

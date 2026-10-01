@@ -89,7 +89,14 @@ function normalizarRut(valor){
 }
 function workerToDb(w){
   return {
-    code:w.code, name:w.name, cargo:w.spec||null, phone:w.phone||null,
+    code:w.code, name: componerNombre(w), cargo:w.spec||null, phone:w.phone||null,
+    // Los nombres separados (migración 056). Sin estas cuatro líneas, el "upsert" las
+    // pisaría con null en cada guardado: el "upsert" manda todas las columnas del
+    // objeto, no solo las que cambiaron.
+    nombres: w.nombres||null,
+    apellido_paterno: w.apellido_paterno||null,
+    apellido_materno: w.apellido_materno||null,
+    direccion: w.direccion||null, correo: w.correo||null,
     rut: normalizarRut(w.rut)||null,
     fecha_ingreso:w.fecha_ingreso||null, tipo_trabajador:w.tipo_trabajador||'interno',
     is_supervisor: !!w.is_supervisor, supervisor_code: w.supervisor_code||null,
@@ -114,9 +121,39 @@ function workerToDb(w){
     empresa_id: w.empresa_id||null
   };
 }
+// -------------------------------------------------------------------
+// EL NOMBRE ENTERO, ARMADO CON LOS TRES CAMPOS
+// -------------------------------------------------------------------
+// Y es lo ÚNICO que arma "name". Todos los que leen "w.name" —las exportaciones, las
+// importaciones desde Excel, las búsquedas, la credencial— siguen recibiendo el mismo
+// texto que antes, porque no se cambió de dónde sale.
+//
+// Y si faltan los nombres, se usa el texto que venga como "w.name". Porque hay
+// importaciones que traen el nombre entero y no los tres, y si acá se exigieran los tres,
+// esas importaciones dejarían de entrar.
+function componerNombre(w){
+  const partes=[String(w.nombres||'').trim(),
+                String(w.apellido_paterno||'').trim(),
+                String(w.apellido_materno||'').trim()].filter(Boolean);
+  if(!partes.length)return String(w.name||'').trim();
+  return partes.join(' ');
+}
+
+// Y pasa por los tres si están, y si no por el nombre entero.
 function dbToWorker(r){
   return {
     code:r.code, name:r.name, spec:r.cargo, phone:r.phone, rut:r.rut, fecha_ingreso:r.fecha_ingreso, tipo_trabajador:r.tipo_trabajador||'interno',
+    // Los nombres separados (migración 056). Sin mapearlos, el formulario de edición
+    // los muestra vacíos y si alguien guarda la ficha los pisa con null.
+    //
+    // Y el nombre entero se arma con ellos CUANDO están, porque hay fichas cargadas
+    // antes de la 056 que no los tienen y siguen teniendo "name" bueno: sin este
+    // "||", esas fichas se mostrarían con el nombre en blanco.
+    nombres: r.nombres||null,
+    apellido_paterno: r.apellido_paterno||null,
+    apellido_materno: r.apellido_materno||null,
+    nombreCompleto: componerNombre(r)||r.name||'',
+    direccion: r.direccion||null, correo: r.correo||null,
     is_supervisor:r.is_supervisor, supervisor_code:r.supervisor_code,
     casual:r.foto_casual_url, safety:r.foto_seguridad_url,
     emerg_name:r.emerg_nombre, emerg_phone:r.emerg_telefono, emerg_rel:r.emerg_relacion,
