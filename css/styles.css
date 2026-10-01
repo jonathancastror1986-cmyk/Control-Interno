@@ -9,13 +9,13 @@
 
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 
-body{margin:0;background:var(--bg);color:var(--text);font-family:'Montserrat',system-ui,sans-serif;min-height:100vh}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--menu-fuente-pila);min-height:100vh}
 
 h1,h2,h3{font-family:'Questrial','Segoe UI',system-ui,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.04em;margin:.2em 0;color:var(--text)}
 
 header{display:flex;align-items:center;gap:16px;padding:14px 24px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--accent2);z-index:5}
 
-header h1{font-family:'Montserrat',system-ui,sans-serif;font-size:1rem;font-weight:700;color:#fff;text-transform:uppercase;margin:0}
+header h1{font-family:var(--menu-fuente-pila);font-size:1rem;font-weight:700;color:#fff;text-transform:uppercase;margin:0}
 
 /* Los botones a la derecha del encabezado.
    Antes era "header>button", que alcanzaba a los dos <button> hijos directos del
@@ -52,7 +52,7 @@ header>.boton-salir{float:none!important;margin:0 0 0 auto!important}
 
 nav{display:flex;gap:8px;overflow-x:auto;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--line)}
 
-nav button{flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;border-radius:5px 5px 0 0;color:var(--muted);padding:13px 12px;cursor:pointer;white-space:nowrap;font:600 .75rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;transition:color .18s ease,border-color .18s ease,background-color .18s ease}
+nav button{flex:0 0 auto;background:none;border:0;border-bottom:2px solid transparent;border-radius:5px 5px 0 0;color:var(--muted);padding:13px 12px;cursor:pointer;white-space:nowrap;font:600 .75rem var(--menu-fuente-pila);text-transform:uppercase;transition:color .18s ease,border-color .18s ease,background-color .18s ease}
 
 nav button:hover{color:var(--text)}
 
@@ -60,9 +60,9 @@ nav button.active{background:none;color:var(--secondary-text);border-color:var(-
 
 #mainNav{background:var(--accent2);border:0}
 
-#mainNav button{color:#d4dbe4}
+#mainNav button{color:var(--menu-boton)}
 
-#mainNav button:hover,#mainNav button.active{color:#fff}
+#mainNav button:hover,#mainNav button.active{color:var(--menu-boton-activo)}
 
 #mainNav button.active{border-color:var(--accent)}
 
@@ -85,7 +85,7 @@ nav button.active{background:none;color:var(--secondary-text);border-color:var(-
 
 #subNav summary::-webkit-details-marker{display:none}
 
-#subNav .nav-dropdown-trigger{display:flex;align-items:center;gap:8px;padding:13px 12px;border-bottom:2px solid transparent;color:var(--muted);font:600 .75rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase}
+#subNav .nav-dropdown-trigger{display:flex;align-items:center;gap:8px;padding:13px 12px;border-bottom:2px solid transparent;color:var(--muted);font:600 .75rem var(--menu-fuente-pila);text-transform:uppercase}
 
 #subNav .nav-dropdown-trigger:after{content:'▾';font-size:.7rem}
 
@@ -95,7 +95,7 @@ nav button.active{background:none;color:var(--secondary-text);border-color:var(-
 
 #subNav .nav-dropdown[open]>.nav-dropdown-menu{display:flex;flex-direction:column}
 
-#subNav .nav-dropdown-menu button,#subNav .nav-dropdown-nested>summary{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 12px;border:0;border-radius:4px;background:transparent;color:var(--text);text-align:left;text-transform:none;font:500 .8rem 'Montserrat',system-ui,sans-serif;white-space:nowrap}
+#subNav .nav-dropdown-menu button,#subNav .nav-dropdown-nested>summary{display:flex;align-items:center;justify-content:space-between;width:100%;padding:10px 12px;border:0;border-radius:4px;background:transparent;color:var(--text);text-align:left;text-transform:none;font:500 .8rem var(--menu-fuente-pila);white-space:nowrap}
 
 #subNav .nav-dropdown-menu button:hover,#subNav .nav-dropdown-nested>summary:hover{background:var(--surface-hover);color:var(--secondary-text)}
 
@@ -140,7 +140,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);
 
 textarea{resize:vertical;min-height:72px}
 
-button.btn{background:var(--accent2);color:#fff;border:1px solid var(--accent2);padding:10px 16px;border-radius:8px;cursor:pointer;font:600 .75rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;margin-top:10px;transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
+button.btn{background:var(--accent2);color:#fff;border:1px solid var(--accent2);padding:10px 16px;border-radius:8px;cursor:pointer;font:600 .75rem var(--menu-fuente-pila);text-transform:uppercase;margin-top:10px;transition:background-color .18s ease,border-color .18s ease,color .18s ease,box-shadow .18s ease,transform .18s ease}
 
 button.btn:hover{background:var(--button-hover);border-color:var(--button-hover);box-shadow:0 3px 9px rgba(7,17,31,.14);transform:translateY(-1px)}
 
@@ -1894,7 +1894,7 @@ que uno dude de cómo va a salir impreso.
    -------------------------------------------------------------------
    EL COLOR DE REPOSO ES EL DEL TEXTO, Y NO UN GRIS
    -------------------------------------------------------------------
-   El texto del menu va en #d4dbe4 sobre una barra oscura. Si el icono
+   El texto del menu va en var(--menu-boton) sobre una barra oscura. Si el icono
    tuviera su propio gris, el texto y el icono dirian cosas distintas: uno
    "estas aqui" y el otro "estas a punto de apretar". Con currentColor el
    icono toma el color del texto, y los dos dicen lo mismo siempre.
@@ -3607,7 +3607,7 @@ header{z-index:30}
 /* Cerrado */
 #barrasSuperiores #subNav>button,
 #barrasSuperiores #subNav .nav-dropdown:not([open])>.nav-dropdown-trigger{
-  color:#d4dbe4;
+  color:var(--menu-boton);
 }
 
 /* Con el dedo encima el fondo no cambia: sigue siendo el oscuro de la fila */
@@ -5116,7 +5116,7 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
   border-radius:7px;
   background:none;
   color:#fff;
-  font-family:'Montserrat',system-ui,sans-serif;
+  font-family:var(--menu-fuente-pila);
   font-size:.62rem;
   font-weight:600;
   line-height:1.2;
@@ -5289,7 +5289,7 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
 
   transition:opacity .16s ease;
   color:#fff;
-  font-family:'Montserrat',system-ui,sans-serif;
+  font-family:var(--menu-fuente-pila);
   font-size:.68rem;
   font-weight:600;
   line-height:1.2;
@@ -5599,7 +5599,7 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
   border-radius:9px;
   background:var(--panel);
   color:var(--text);
-  font-family:'Montserrat',system-ui,sans-serif;
+  font-family:var(--menu-fuente-pila);
   font-size:.72rem;
   font-weight:600;
   letter-spacing:.03em;

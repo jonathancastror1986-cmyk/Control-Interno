@@ -77,6 +77,26 @@
 
   --surface-hover:#edf4ef; --focus-shadow:rgba(33,134,83,.18); --secondary-text:#101a14;
 
+  /* ------------------------------------------------------------------
+     MENU: LA PALETA Y LA FUENTE DE LAS DOS BARRAS
+     ------------------------------------------------------------------
+     Lo que estaba escrito a mano, con nombre. Los VALORES son los de siempre; lo unico
+     nuevo es que ahora estan en un solo lugar y se cambian en un renglon.
+
+     "--menu-boton" es el color de la palabra de los botones. "--menu-boton-activo" es el
+     del puntero y el de "estas aqui". El activo va en blanco a proposito: el quieto es un
+     gris azulado que se lee sobre los seis fondos de grupo.
+
+     Y los FONDOS de las barras no estan aqui: son "--fondo-seccion", "--fondo-nav" y
+     "--fondo-subnav", que se definen por grupo de menu. Ese es el color de la empresa.
+     Ver "--fondo-seccion" en "styles.css".
+
+     "--menu-fuente-pila" es la pila de fuentes. Antes cada boton la escribia entera, nueve
+     veces, y cambiar la fuente era buscarla en las nueve.
+     */
+
+  --menu-boton:#d4dbe4; --menu-boton-activo:#fff;
+  --menu-fuente-pila:'Montserrat',system-ui,sans-serif;
   /* ref: ancho-01 - El ancho de la pantalla, y por qué es 1232 y no 1280 */
   --ancho-maximo:1232px;
 
