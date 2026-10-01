@@ -167,6 +167,7 @@ reglas(base).forEach((r) => {
 
   let tapadaPor = null;     // una regla m\u00e1s abajo que cubra TODO
   let tapadaEn = 0;         // cu\u00e1ntas propiedades cubre otra, aunque no todas
+  let igualesTodas = false; // y si además los valores coinciden: copia o resto viejo
 
   sels.forEach((s) => {
     (indice[s] || []).forEach((otro) => {
@@ -179,17 +180,21 @@ reglas(base).forEach((r) => {
         else distintas++;
       });
 
-      if (propias === 0 && distintas === 0) {
-        // Cubre todo. Y si adem\u00e1s los valores son iguales, es c\u00f3digo muerto.
-        // Si alg\u00fan valor difiere, es pisada de igual forma: la de abajo gana.
+      if (propias === 0) {
+        // Cubre TODAS las declaraciones. Con eso basta: gana la de abajo por orden de
+        // cascada, así que los valores de "_base.css" no se ven, no importa qué valgan.
+        //
+        // Y antes también se exigía que fueran IGUALES, y eso estaba de más: bajaba la
+        // cuenta de 42 a 23, y 19 reglas muertas quedaban sin señalar.
         if (!tapadaPor) tapadaPor = otro;
+        if (distintas === 0) igualesTodas = true;   // copia literal, no resto viejo
       } else if (propias < props.length) {
         if (tapadaEn < propias) tapadaEn = propias;
       }
     });
   });
 
-  const item = { linea: lineaDe(r.ini), sels, props: props.map((p) => p + ':' + decl[p]), tapadaPor, tapadaEn };
+  const item = { linea: lineaDe(r.ini), sels, props: props.map((p) => p + ':' + decl[p]), tapadaPor, tapadaEn, igualesTodas };
 
   if (tapadaPor) muertas.push(item);
   else if (tapadaEn > 0) parciales.push(item);
