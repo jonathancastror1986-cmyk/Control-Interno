@@ -4323,6 +4323,9 @@ async function cargarEmpresasCargos(){
 function renderEmpresasCargos(){
   renderGruposCargos();
   renderCargosDeEmpresa();
+  // Y el desplegable del cargo nuevo, porque si no queda con la lista de antes y uno
+  // elige un grupo que ya no existe.
+  poblarGrupoDelCargoNuevo();
 }
 
 // -------------------------------------------------------------------
@@ -4399,6 +4402,122 @@ async function crearGrupoDesdePantalla(){
   if(aviso)aviso.textContent='Grupo creado con la clave "'+clave+'".';
   await cargarJerarquiaCargos(true);
   renderEmpresasCargos();
+}
+
+// -------------------------------------------------------------------
+// CREAR UN CARGO DESDE ESTA PANTALLA
+// -------------------------------------------------------------------
+// Los grupos salían de la misma jerarquía, así que el desplegable también. Y un grupo que
+// no aparece es que no tiene ningún cargo: como destino de un cargo nuevo no sirve de nada.
+function gruposParaCargoNuevo(){
+  const vistos={};
+  const out=[];
+  jerarquiaCargos.forEach(f=>{
+    if(!f.grupo||vistos[f.grupo])return;
+    vistos[f.grupo]=1;
+    out.push({clave:f.grupo,nombre:f.grupoNombre||f.grupo});
+  });
+  // Y "general" igual, porque existe siempre y es donde cae lo que no es de un grupo
+  // definido. Si no hay ningún cargo en él, la jerarquía no lo trae, y sin él no se
+  // podría crear un cargo "soltado", que es el caso más común de los que no son de obra.
+  if(!vistos.general)out.push({clave:'general',nombre:'General'});
+  return out.sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
+}
+
+function poblarGrupoDelCargoNuevo(){
+  const sel=document.getElementById('ecCargoGrupo');
+  if(!sel)return;
+  const antes=sel.value;
+  sel.innerHTML=gruposParaCargoNuevo()
+    .map(g=>'<option value="'+escHtml(g.clave)+'">'+escHtml(g.nombre)+'</option>')
+    .concat('<option value="__nuevo__">Crear un grupo nuevo…</option>').join('');
+  // Y se conserva lo que estaba elegido, si es que sigue estando.
+  if(antes&&[...sel.options].some(o=>o.value===antes))sel.value=antes;
+  alCambiarGrupoDelCargoNuevo();
+}
+
+// Y el campo del grupo nuevo aparece solo cuando se pide, en vez de estar siempre ahí
+// molestando: si está siempre visible, alguien lo llena sin querer pensando que es el
+// nombre del cargo, y el cargo se crea donde no es.
+function alCambiarGrupoDelCargoNuevo(){
+  const sel=document.getElementById('ecCargoGrupo');
+  const caja=document.getElementById('ecGrupoNuevoCaja');
+  if(sel&&caja)caja.style.display=sel.value==='__nuevo__'?'':'none';
+}
+
+async function crearCargoDesdePantalla(){
+  const sel=document.getElementById('ecCargoGrupo');
+  const inp=document.getElementById('ecCargoNombre');
+  const nuevo=document.getElementById('ecGrupoNuevo');
+  const aviso=document.getElementById('ecAviso');
+  if(!sel||!inp)return;
+
+  const nombre=inp.value.trim();
+  if(!nombre){
+    if(aviso)aviso.textContent='Escribe el nombre del cargo.';
+    inp.focus();
+    return;
+  }
+
+  let grupo=sel.value;
+
+  // -----------------------------------------------------------------
+  // EL GRUPO NUEVO, SI SE PIDIÓ
+  // -----------------------------------------------------------------
+  // Con la función que ya existe para el grupo de arriba, porque es la misma tarea y
+  // tener dos caminos para lo mismo hace que uno de los dos se quede viejo.
+  if(grupo==='__nuevo__'){
+    const g=nuevo?(nuevo.value||'').trim():'';
+    if(!g){
+      if(aviso)aviso.textContent='Escribe el nombre del grupo nuevo.';
+      if(nuevo)nuevo.focus();
+      return;
+    }
+    const r=await window.supabaseClient.rpc('gestionar_grupo',{
+      p_clave:null,p_nombre:g,p_orden:900,p_activo:true
+    });
+    if(r.error){
+      if(aviso)aviso.textContent='No se pudo crear el grupo: '+r.error.message;
+      return;
+    }
+    // Y vuelve un TEXT con la clave, no una tabla. Pedir una propiedad llamada
+    // "gestionar_grupo" sobre un texto devuelve "undefined", y el grupo queda creado
+    // con el mensaje diciendo que no se pudo leer la clave.
+    grupo=typeof r.data==='string'?r.data.trim():'';
+    if(!grupo){
+      await cargarJerarquiaCargos(true);
+      renderEmpresasCargos();
+      if(aviso)aviso.textContent='El grupo se guardó, pero no se pudo leer su clave. Elígelo de la lista y vuelve a crear el cargo.';
+      return;
+    }
+  }
+
+  const {data,error}=await window.supabaseClient.rpc('gestionar_cargo',{
+    p_clave:null,p_nombre:nombre,p_grupo_clave:grupo,p_activo:true
+  });
+  if(error){
+    if(aviso)aviso.textContent='No se pudo crear el cargo: '+error.message;
+    return;
+  }
+
+  // Y por lo mismo: la clave es lo que vuelve, y si no se puede leer no se inventa.
+  const clave=typeof data==='string'?data.trim():'';
+  if(!clave){
+    await cargarJerarquiaCargos(true);
+    renderEmpresasCargos();
+    if(aviso)aviso.textContent='El cargo se guardó, pero no se pudo leer la clave con la que quedó. Vuelve a mirarlo en la lista.';
+    return;
+  }
+
+  inp.value='';
+  if(nuevo)nuevo.value='';
+  await cargarJerarquiaCargos(true);
+  poblarGrupoDelCargoNuevo();
+  renderEmpresasCargos();
+  // Y el mensaje no dice "creado", porque la función devuelve la clave tanto si lo creó
+  // como si ya existía escrito de otra forma. Decir "creado" cuando no se creó nada
+  // hace dudar de la lista que se ve debajo.
+  if(aviso)aviso.textContent='"'+nombre+'" quedó con la clave "'+clave+'". Ya aparece en el desplegable del ingreso.';
 }
 
 // -------------------------------------------------------------------

@@ -692,6 +692,34 @@ porque salen del mismo lugar.
     que lo tienen lo conservan, y el EPP y las charlas ya entregadas siguen en el historial.
     </div></details></h3>
     <div id="ecCargos" style="margin-top:10px"></div>
+    <!--
+    EL ALTA DE UN CARGO
+    ===================
+    El grupo se podía crear en línea y el cargo no. Y el cargo es lo que decide el EPP y las
+    charlas, así que un cargo que no existe es un trabajador con el EPP de otro.
+
+    Por eso el grupo NO es un campo libre: es un desplegable con los que ya están, más una
+    entrada para crear uno. Con campo libre, un error de tipeo deja un grupo basura en el
+    catálogo, y ese grupo basura aparece después en el primer desplegable del ingreso como si
+    fuera un área real.
+
+    Y la clave la arma la base, no la pantalla: el mismo nombre escrito de dos formas tiene
+    que dar el mismo cargo, no dos.
+    -->
+    <div class="row" style="margin-top:10px;align-items:flex-end">
+      <div><label for="ecCargoGrupo">Grupo del cargo nuevo</label>
+        <select id="ecCargoGrupo" onchange="alCambiarGrupoDelCargoNuevo()"></select></div>
+      <div id="ecGrupoNuevoCaja" style="display:none">
+        <label for="ecGrupoNuevo">Nombre del grupo nuevo</label>
+        <input id="ecGrupoNuevo" placeholder="Ej. Taller, Servicios,Bodega"></div>
+      <div><label for="ecCargoNombre">Nombre del cargo nuevo</label>
+        <input id="ecCargoNombre" placeholder="Ej. Soldador, Maestro de obra"
+          onkeydown="if(event.key==='Enter'){crearCargoDesdePantalla();return false;}"></div>
+      <div><button class="btn secondary" type="button" onclick="crearCargoDesdePantalla()">Crear cargo</button></div>
+    </div>
+    <small style="color:var(--muted)">El cargo se guarda con su nombre en minúsculas como clave,
+      igual que los que ya están. El EPP y las charlas se eligen por cargo, así que conviene
+      nombrarlo como lo llaman en la obra.</small>
   </div>
 
   <div class="card" style="margin-top:14px">
