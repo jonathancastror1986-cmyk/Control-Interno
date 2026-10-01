@@ -17,12 +17,12 @@
 <script src="../js/auth.js"></script>
 <script src="../js/theme.js"></script>
 <script src="../js/clima-reloj.js"></script>
-<link rel="stylesheet" href="../css/base.css?v=8">
+<link rel="stylesheet" href="../css/base.css?v=11">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=8">
-<link rel="stylesheet" href="../css/grupos.css?v=8">
+<link rel="stylesheet" href="../css/tokens.css?v=11">
+<link rel="stylesheet" href="../css/grupos.css?v=11">
 <link rel="stylesheet" href="../css/styles.css">
 <!--
 EL TEMA OSCURO DE WHATSAPP
@@ -59,11 +59,11 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=8">
-<link rel="stylesheet" href="../css/vistas.css?v=8">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=8">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=8">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=8">
+<link rel="stylesheet" href="../css/marca.css?v=11">
+<link rel="stylesheet" href="../css/vistas.css?v=11">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=11">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=11">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=11">
 <link rel="stylesheet" href="../css/componentes/plantillas.css?v=6">
 <link rel="stylesheet" href="../css/movil.css" media="(max-width: 860px)">
 </head>
@@ -2198,6 +2198,27 @@ no se pueden editar con la barra.
       <select class="btn" style="padding:3px 6px" onchange="document.execCommand('fontSize',false,this.value);this.value=''">
         <option value="">Tamaño</option><option value="1">Chico</option><option value="3">Normal</option><option value="5">Grande</option>
       </select>
+      <!--
+      LAS FUENTES, Y SOLO SEIS
+      =======================
+      El "fontName" de "execCommand" pone "<font face=...>", que es lo más viejo que hay y
+      por eso funciona en todos lados. Y el desplegable NO se arma con un catálogo: se arma
+      con la lista de "FUENTES_PLANTILLA", que está en el JavaScript.
+
+      Y la lista vive ahí y no acá a propósito. Si estuviera en el HTML habría dos lugares
+      donde cambiar las fuentes —esta lista y la de la plantilla— y algún día se cambiaría
+      en uno y no en el otro, y el editor ofrecería una fuente que la plantilla no tiene.
+
+      Y son SEIS, no un catálogo. Con veinte fuentes disponibles cada documento sale con una
+      distinta y la empresa deja de verse como empresa. Tres serif para el texto que se lee
+      seguido y tres sans para lo que se escanea.
+
+      Y hay una razón técnica: Word NO descarga fuentes de Google. La fuente viaja con el
+      archivo solo si va embebida, y Word no la embebe desde un HTML. Por eso el archivo
+      generado lleva, después de cada fuente, una del sistema con el mismo carácter.
+      -->
+      <select class="btn" id="plantillaFuente" style="padding:3px 6px"
+        onchange="aplicarFuentePlantilla(this.value);this.value=''"></select>
       <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertUnorderedList')">• Lista</button>
       <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertOrderedList')">1. Lista</button>
       <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertParagraph')">Párrafo</button>
@@ -2438,16 +2459,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=8"></script>
-<script src="../js/componentes/escaner.js?v=8"></script>
+<script src="../js/nucleo.js?v=11"></script>
+<script src="../js/componentes/escaner.js?v=11"></script>
 
-<script src="../js/relojes.js?v=8"></script>
-<script src="../js/soporte.js?v=8"></script>
-<script src="../js/administracion.js?v=8"></script>
-<script src="../js/bodega.js?v=8"></script>
-<script src="../js/documentos.js?v=8"></script>
-<script src="../js/supervisores.js?v=8"></script>
-<script src="../js/app.js?v=8"></script>
+<script src="../js/relojes.js?v=11"></script>
+<script src="../js/soporte.js?v=11"></script>
+<script src="../js/administracion.js?v=11"></script>
+<script src="../js/bodega.js?v=11"></script>
+<script src="../js/documentos.js?v=11"></script>
+<script src="../js/supervisores.js?v=11"></script>
+<script src="../js/app.js?v=11"></script>
 
 <!--
 EL MOTIVO DEL CAMBIO

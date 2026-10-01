@@ -2661,6 +2661,9 @@ async function abrirEditorPlantilla(code){
   comprobarLecturaPegada();
   const p=code?plantillasContratacion.find(x=>x.code===code):null;
   const dlg=document.getElementById('dlgPlantilla');
+  // Y el desplegable de fuentes se arma acá, y no en el HTML, para que la lista de las seis
+  // tenga un solo lugar. Ver [fuentes-01].
+  llenarFuentesPlantilla();
   document.getElementById('plantillaTitulo').textContent=p?('Editar '+p.nombre):'Agregar plantilla';
   document.getElementById('plantillaError').textContent='';
   document.getElementById('plantillaCode').value=p?p.code:'';
@@ -3777,4 +3780,133 @@ async function descargarPlantillaConDatos() {
   URL.revokeObjectURL(url);
 
   if (aviso) aviso.textContent = 'Descargado: ' + archivo;
+}
+
+// LAS SEIS FUENTES DE LAS PLANTILLAS
+// =====================================
+//
+// -------------------------------------------------------------------
+// POR QUÉ ESTA LISTA VIVE ACÁ Y NO EN EL HTML
+// -----------------------------------------
+//
+// El desplegable del editor se arma con esta lista. Y si la lista estuviera escrita en el
+// HTML, habría dos lugares donde cambiar las fuentes: el desplegable y la plantilla
+// general. Y algún día se cambiaría en uno y no en el otro, y el editor ofrecería una
+// fuente que la plantilla no tiene.
+//
+// O sea que la lista tiene que estar en UN solo lugar, y el que se lee desde los dos
+// lados es el JavaScript.
+//
+// -------------------------------------------------------------------
+// POR QUÉ SEIS Y NO UN CATÁLOGO
+// ----------------------------
+//
+// Porque "elegante" sin criterio es un catálogo entero, y con veinte fuentes disponibles
+// cada documento sale con una distinta y la empresa deja de verse como empresa.
+//
+// Con seis hay una regla que se puede decir de una vez: una serif para el texto que se lee
+// seguido, y una sans para lo que se escanea. Y si un día hay que agregar una, se agrega
+// acá y en la plantilla, y son dos lugares.
+//
+// -------------------------------------------------------------------
+// Y LA RAZÓN TÉCNICA, QUE ES LA IMPORTANTE
+// ----------------------------------------
+//
+// WORD NO DESCARGA FUENTES DE GOOGLE. La fuente viaja con el archivo solo si va EMBEBIDA, y
+// Word no la embebe desde un HTML.
+//
+// O sea que el documento descargado lleva la fuente pedida, pero la que Word va a mostrar
+// es la primera de la lista que ese computador tenga instalada. Y por eso cada fuente trae
+// una del sistema con el mismo carácter como segunda: si no está Lora, se ve Georgia, que
+// es una serif de lectura parecida.
+//
+// Y esa segunda es la que hace que el documento NO se vea roto en la máquina de quien lo
+// abre. Sin ella, en un computador sin la fuente, el texto cae en una tipografía de sistema
+// que no se parece en nada, y el documento pierde toda la apariencia.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ ESTAS SEIS
+// --------------------
+//
+// Con serif para el cuerpo del texto, que es lo que se lee seguido en un contrato de
+// veinte artículos:
+//
+//     Lora              la más cómoda de las tres para texto largo
+//     Playfair Display  contraste alto, para títulos
+//     Crimson Text      serif de lectura rápida, la mejor para artículos densos
+//
+// Con sans para títulos y rótulos, que es lo que se escanea:
+//
+//     Montserrat        la que ya usa este proyecto en sus menús
+//     Source Sans 3     limpia, para rótulos largos
+//     Inter             la más neutra, para datos
+const FUENTES_PLANTILLA = [
+  { valor: 'Lora', respaldo: 'Georgia,serif' },
+  { valor: 'Playfair Display', respaldo: 'Georgia,serif' },
+  { valor: 'Crimson Text', respaldo: 'Georgia,serif' },
+  { valor: 'Montserrat', respaldo: 'Arial,sans-serif' },
+  { valor: 'Source Sans 3', respaldo: 'Arial,sans-serif' },
+  { valor: 'Inter', respaldo: 'Arial,sans-serif' },
+];
+
+// -------------------------------------------------------------------
+// EL DESPLEGABLE
+// -------------------------------------------------------------------
+// Y se arma por código, no en el HTML, para que la lista de arriba sea la única.
+function llenarFuentesPlantilla() {
+  const sel = document.getElementById('plantillaFuente');
+  if (!sel) return;
+
+  // Y si ya está armado no se rehace: "abrirEditorPlantilla" se llama cada vez que se edita
+  // una plantilla y rehacer el desplegable cada vez pierde la fuente que el usuario tenía
+  // elegida a medio cambiar.
+  if (sel.dataset.lleno === '1') return;
+
+  sel.innerHTML = '<option value="">Fuente</option>' +
+    FUENTES_PLANTILLA
+      .map(f => '<option value="' + escHtml(f.valor) + '">' + escHtml(f.valor) + '</option>')
+      .join('');
+
+  sel.dataset.lleno = '1';
+}
+
+// -------------------------------------------------------------------
+// APLICARLA
+// -------------------------------------------------------------------
+// Y con "styleWithCSS" en falso ANTES de aplicar la fuente, y no después.
+//
+// La diferencia se ve: con estilos en falso sale UN "<font face=...>" por la selección, y con
+// estilos entrue sale un "<span style=...>" por renglón. Y el "<span>" es el problema: se
+// multiplica con cada cambio de fuente y con cada pegada de Word, y a la tercera ya hay
+// veinte capas anidadas y el documento pesa el doble sin que se vea.
+//
+// Y el ORDEN importa. Ponerlo después no deshace lo que ya hizo el comando anterior: cada
+// "execCommand" usa el valor que había cuando empezó. Así que puesto después no sirve de
+// nada, y seemed que sí.
+//
+// Medido en el navegador, con el diálogo abierto:
+//
+//     estilo en falso   <p><font face="Lora">texto</font></p>
+//     estilo en true    <p><span style="font-family: Montserrat;">texto</span></p>
+function aplicarFuentePlantilla(valor) {
+  if (!valor) return;
+  document.execCommand('styleWithCSS', false, false);
+  document.execCommand('fontName', false, valor);
+}
+
+// -------------------------------------------------------------------
+// Y PARA EL DOCUMENTO DESCARGADO
+// -------------------------------
+// Que es donde las seis son una restriction real y no una preferencia: el archivo que se
+// baja lleva, al lado de cada fuente, su respaldo del sistema. Si el documento se arma sin
+// eso, el que lo abre en un computador sin las fuentes ve una tipografía cualquiera.
+//
+// Y por eso la función está acá y no en el CSS de la plantilla: la necesita el generador
+// del archivo, que es JavaScript.
+function reglaFuentesDocumento(regla) {
+  FUENTES_PLANTILLA.forEach(f => {
+    regla += (regla && !/^\s*$/.test(regla)) ? '\n' : '';
+    regla += f.valor + ', ' + f.respaldo;
+  });
+  return regla;
 }
