@@ -1627,3 +1627,116 @@ b) Los cuatro trozos se cortaron con "slice" sobre el texto, usando números de 
    como si fueran de CARÁCTER. Se llevó un par de llaves en vez de 347, y el guardia lo
    detectó: el conteo de llaves no mintió, mintió el corte. Ahora se corta sobre el
    ARREGLO DE RENGLONES.
+[modulos-01]  LA BODEGA: kits, EPP, herramientas y la especialidad del trabajador
+------------------------------------------------------------------------------
+
+QUÉ SE MUDÓ
+
+De "js/app.js" a "js/bodega.js", tres secciones y 1094 renglones:
+
+  - KITS INICIALES POR ESPECIALIDAD    (588 renglones, 40 funciones)
+  - KIT DE CONTRATACIÓN                 (34 renglones, banner solo)
+  - LA ESPECIALIDAD DEL TRABAJADOR      (472 renglones, 22 funciones)
+
+Y el "<script>" queda después de "js/nucleo.js" y antes de "js/app.js".
+
+
+EL GUARDIÁN NUEVO: EL GRAFO DE LO QUE SE TOCA AL CARGAR
+-------------------------------------------------------------
+Este es lo nuevo de este corte, y es lo que faltaba en el del núcleo.
+
+La medición anterior contó las llamadas de NIVEL SUPERIOR: nueve en todo el archivo. Y
+ninguna pedía reordenar los "<script>".
+
+Eso es cierto y no alcanza. Porque una llamada de nivel superior es la PUNTA. Debajo hay
+un grafo: una función llama a otras diez, y esas diez son las que se rompen si no están
+cargadas.
+
+O sea que lo que hay que mirar no es "qué se llama al cargar", sino "a qué se llega desde
+lo que se llama al cargar". Y hay que seguirlo TRANSITIVO, porque una llamada llama a otra
+que llama a otra.
+
+La primera versión de este guardia hizo lo contrario, y salió con 442 problemas: estaba
+mirando las llamadas de carga de los OTROS módulos. Y esas no importan, porque "js/app.js"
+carga DESPUÉS: lo que se ejecute al cargar ya encuentra todo.
+
+Lo que importa es al revés: qué toca el código de carga de ESTE módulo, cuando este módulo
+se pone antes de "js/app.js".
+
+Para la bodega: una sola llamada de nivel superior, "montarFirmaPapel()", y desde ahí se
+llega a una función. O sea que "js/bodega.js" puede cargar donde sea, después del núcleo.
+
+
+EL ORDEN EN QUE SE SACAN LOS MÓDULOS, Y POR QUÉ NO ES CUALQUIERA
+---------------------------------------------------------------------
+
+  - los módulos SIN llamadas de nivel superior: en cualquier orden
+  - portería y bodega: en cualquier orden, porque sus llamadas al cargar solo usan el núcleo
+  - ADMINISTRACIÓN VA DE ÚLTIMO
+
+Y por qué administración de último: porque "boot()" es una llamada de nivel superior que
+está ahí, y "boot" llama a un montón de cosas. Mientras "boot" siga en "js/app.js", las
+funciones que necesita siguen estando ahí y cargan después. Si se sacara administración
+antes, "boot()" se caería al arrancar.
+
+Y eso no se ve leyendo el archivo. Se ve en la consola del navegador, con la página en
+blanco. Que es el peor lugar para descubrirlo.
+
+
+UNA COMPROBACIÓN QUE ESTÁ SEPARADA, Y POR QUÉ
+------------------------------------------------
+Que los archivos compilan no dice que no se haya cortado una función.
+
+Un nombre que queda declarado en DOS archivos sí es error de sintaxis, y "node --check" lo
+agarra. Pero un nombre que se PIERDE no lo agarra nadie: no rompe la sintaxis, rompe el día
+que alguien lo llama, en el navegador, en producción.
+
+Así que se comparan los conjuntos de nombres:
+
+  antes    los de "js/app.js" en HEAD
+  ahora    los de "js/app.js" más el archivo nuevo
+
+  antes: 667 nombres    ahora: 667 nombres
+  ok  ni uno menos, ni uno más, y ninguno en dos archivos a la vez
+
+Y el núcleo NO se compara contra HEAD, porque HEAD ya es post-núcleo: esos 92 nombres darían
+"de más" sin serlo, y el guardia se quejaría de algo que no pasó.
+
+
+LO QUE MIDE LA COMPROBACIÓN EN EL NAVEGADOR
+--------------------------------------------
+Con "tools/sonda-js.js", no con la huella. Y eso está escrito arriba, en [nucleo-01].
+
+Con la partida: el MISMO hash. Y consola con cero errores.
+
+Y otra vez se vio roja, rompiendo "hoyLocal()" en "js/nucleo.js": el hash cambió y señaló
+el renglón exacto.
+
+
+LO QUE SE MODIFICÓ DE PASO: UNA PRUEBA
+---------------------------------------
+"test-totem2.js" se cayó al sacar la bodega, porque leía un solo archivo:
+
+  FALLA empresaDelPapel existe y se usa -> declarada=0 usos=4
+
+O sea que encontraba los cuatro usos (que quedaron en "js/app.js") y ninguna declaración
+(que se fue con la bodega). Y ahora lee los cuatro archivos, en el orden en que los carga
+la página.
+
+Ese aviso, el "declarada=0 usos=4", es el que hay que aprender: una función mudada de
+archivo se ve como si estuviera sin declarar, y la culpa parece del código.
+
+
+LO QUE FALTA
+-------------
+Seis módulos, en este orden porque cada corte tiene que estar completo antes del siguiente:
+
+  js/supervisores.js     492 renglones, 2 secciones
+  js/documentos.js      1350 renglones, 3 secciones
+  js/porteria.js        2657 renglones, 6 secciones
+  js/relojes.js         3275 renglones, 7 secciones
+  js/soporte.js         3020 renglones, 8 secciones
+  js/administracion.js  2416 renglones, 4 secciones   <- DE ULTIMO
+
+La herramienta es "tools/saca-modulo.js <nombre>", y ella sola avisa si se intenta sacar
+administración antes de tiempo: el guardia del grafo lo ve.
