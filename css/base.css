@@ -29,10 +29,10 @@
   padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
   box-sizing:border-box;
 }
-*
-html
-body
-h1,h2,h3
+/* Esta lista de selectores terminaba en un "*" suelto antes de "html", y eso hacia que
+   TODOS los "h2" de la pagina tomaran el estilo del encabezado pegajoso: fondo "--accent2",
+   borde, "padding:16px" y "position:sticky". Un titulo de tarjeta salia con una franja
+   negra y el texto encima, y ademas se pegaba al hacer scroll. Ver [h2-01]. */
 header{padding:16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--accent2);top:env(safe-area-inset-top,0px);z-index:5}
 header h1{font-size:1.3rem;color:#fff;text-transform:uppercase;letter-spacing:.04em}
 nav

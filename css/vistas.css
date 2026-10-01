@@ -23,3 +23,11 @@
 .v-porteria{
   /* ref: vista-07 - Consultar trabajador. También lleva "v-administracion", porque sale en los dos menús. Acá va "--ancho-maximo" si esta vista necesita otro */
 }
+
+/* ref: vista-08 - La bitácora de acceso crece con los ingresos: se midió en 2.738 px de alto,
+   y eso arrastra la página entera. Con alto máximo y scroll, la tarjeta queda de una altura
+   razonable y la tabla se recorre adentro. Ver [bitacora-01]. */
+#bitacoraList{
+  max-height:min(70vh,620px);
+  overflow:auto;
+}
