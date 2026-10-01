@@ -1817,3 +1817,152 @@ CÓMO SE COMPROBÓ
 LO QUE SE DEJÓ PENDIENTE
 -----------------------
 El archivo se sigue partiendo. Ver [modulos-01] para el orden y lo que falta.
+[legal-01]  Firma con tarjeta, en vez de con el dedo
+------------------------------------------------------------------------------
+
+QUÉ SE PIDIÓ
+
+Que el trabajador firme con su tarjeta, en vez de firmar con el dedo en un recuadro.
+
+POR QUÉ NO SE HIZO, Y POR QUÉ ESO ES LO IMPORTANTE
+------------------------------------------------
+Primero: no es un cambio de diseño, es un cambio de LEY. Y no se toca.
+
+Segundo: la base de datos RECHAZA el método. En "migrations/008_epp_firma.sql", línea 74:
+
+    firma_metodo text check (firma_metodo in ('canvas'))
+
+El único valor permitido es "canvas". Cualquier otro da error de la base. O sea que la
+firma con tarjeta necesita una migración nueva, y esa migración cambia qué se guarda de
+una firma. Qué se puede guardar de una firma de eso es pregunta de abogado, no de código.
+
+Y hay algo más, que es una contradicción de fondo. En el mismo bloque de código hay:
+
+  - "firma_lat" y "firma_lng", que se llenan SOLAS.
+  - Un aviso que dice "Se toma sola cuando el trabajador empieza a firmar".
+
+O sea que hoy se guarda la geolocalización de la firma. Y el proyecto tiene escrito que NO
+se usa geolocalización. Además "firma_lat" y "firma_lng" son datos personales del
+trabajador, y su fundamento legal es otro tema.
+
+Así que la pregunta para el abogado es de tres partes, y las tres hay que responderlas
+antes de escribir una línea:
+
+  1. ¿Puede la tarjeta sustituir la firma? En Chile la firma del trabajador en un
+     documento es lo que da fe de que ese documento es suyo. Sustituirla por una tarjeta
+     cambia el valor del documento.
+
+  2. Si se firma con tarjeta, ¿qué se guarda? La tarjeta tiene número y fecha de emisión.
+     ¿Basta con eso para dar fe, o hace falta guardar más?
+
+  3. ¿Y la geolocalización automática? Si ya se guarda sola, hay que decir para qué y
+     avisar a la persona. Si se va a sacar, hay que sacarla de la base.
+
+Lo que hay que hacer, y en este orden:
+
+  1. Preguntar las tres cosas. Sin respuesta escrita no se toca nada.
+  2. Después, si la respuesta es que sí: una migración que admita el método nuevo, y otra
+     que decida qué pasa con "firma_lat" y "firma_lng".
+  3. Y recién ahí el código.
+
+Mientras tanto queda como está: firma con el dedo, y con la geolocalización que ya se
+guardaba.
+
+
+[legal-02]  No existe el grupo de vistas de asistencia
+------------------------------------------------------------------------------
+
+QUÉ PASA
+
+Hay 41 pantallas en la aplicación y 5 grupos de menú. Y 20 de esas pantallas están bajo
+"v-administracion", o sea el grupo equivocado.
+
+Y hay un grupo que no existe: "v-asistencia". En "css/_vistas.css" hay una regla para cada
+grupo de menú, y la de asistencia no está. Porque en el HTML las pantallas de asistencia
+se llaman con una CLASE, y el resto con un ID.
+
+O sea: el mismo nombre, escrito de dos maneras, y solo una llega al selector de CSS.
+
+DÓNDE ESTÁ
+
+  css/_vistas.css      la regla de asistencia no existe (y por eso hay 6 reglas vacías)
+  pages/app.html       "v-asistencia" aparece 0 veces como atributo class
+  css/styles.css       los selectores que usan "v-" como clase, en vez de id
+
+POR QUÉ NO SE TOCA
+
+Porque arreglarlo cambia el ancho de 20 pantallas. Y eso es diseño.
+
+Y porque hay dos arreglos distintos, con efectos distintos:
+
+  a) Agregar "v-asistencia" a los class de las 20 pantallas. No cambia nada visual, pero
+     toca el HTML de 20 pantallas.
+  b) Cambiar los selectores de CSS para que acepten id. Cambia el ancho de 20 pantallas.
+
+El (a) es el que no cambia nada. El (b) es el que probablemente se quiere, y es el que
+hay que pedir.
+
+
+[cambio-01]  "--ink" se usa dieciséis veces y no está declarada en ningún lado
+------------------------------------------------------------------------------
+
+QUÉ PASA
+
+  css/_tokens.css   NO la declara. No está en ninguna hoja.
+  16 reglas         la usan con "var(--ink)", SIN respaldo.
+
+Y qué pasa cuando una "var(--ink)" no existe y no tiene valor de respaldo: la
+declaración queda inválida, y en una propiedad que se hereda como "color", el resultado
+es HEREDAR del padre.
+
+O sea que hoy se ve bien. Pero por accidente, no porque alguien lo decided:
+
+  - Si alguien agrega "--ink" a "_tokens.css" para usarla de verdad, cambian 16 reglas
+    de golpe, y no se ve en ningún lado por qué.
+  - Si alguien lee "color:var(--ink)" y busca el token, no lo encuentra, y Cree que es
+    código roto.
+
+LOS DOS ARREGLOS, Y UNO CAMBIA LA PANTALLA
+
+  a) QUITAR el "var(--ink)" de las 16 reglas. La pantalla queda EXACTAMENTE igual, porque
+     eso ya es lo que pasa. Y se deja de mentir el código. Es el arreglo sin riesgo.
+
+  b) DECLARAR "--ink" en "_tokens.css". Eso cambia 16 reglas si el valor no es el que se
+     está heredando hoy. Y nadie sabe qué color se quería.
+
+No se hizo ninguno de los dos. El (a) es seguro y se puede hacer cuando se pida. El (b)
+es una pregunta de diseño: ¿de qué color es la tinta?
+
+
+[cambio-02]  Las cuatro reglas "PARCIALES" de "_base.css" NO se tocan
+------------------------------------------------------------------------------
+
+Esto estaba en la lista de pendientes desde hace días, y no es un defecto.
+
+QUÉ SON
+
+El detector de reglas muertas ("tools/mide-pisadas.js") separa las reglas en tres:
+
+  MUERTAS     todo lo que dicen está en una hoja de abajo. 0
+  PARCIALES   una hoja de abajo tapa algunas, no todas.    4
+  VIVAS       nadie abajo compite con el mismo selector. 267
+
+Y las cuatro parciales son:
+
+  L  37  header h1                 1 de 4 declaraciones tapadas
+  L  50  nav button.active ...     7 de 8
+  L 349  .attendance-tabs          3 de 5
+  L 350  .attendance-tabs button  10 de 11
+
+POR QUÉ NO SE BORRAN
+
+Porque las que NO están tapadas siguen aplicando, y son la base:
+
+  header h1              font-size, text-transform y letter-spacing
+  .attendance-tabs       display y gap
+  .attendance-tabs button   flex
+
+Y eso es lo correcto: "_base.css" pone la base, y "styles.css" y "componentes/*" afinan
+encima. Una regla "parcialmente tapada" es el estado normal de una hoja de base.
+
+Se cierra. No hay nada que hacer.
