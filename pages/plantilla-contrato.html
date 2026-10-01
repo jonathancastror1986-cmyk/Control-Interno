@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Contrato — plantilla general</title>
+
+<!--
+QUÉ ES ESTO
+===========
+Una plantilla GENERAL de contrato. No es un contrato: no dice qué contrato es, ni de qué
+empresa, ni bajo qué ley. Es el esqueleto con las partes que TODOS los contratos tienen, y
+los huecos marcados con corchetes.
+
+POR QUÉ UN HTML Y NO UN ".docx"
+==============================
+Porque un ".docx" de verdad es un ZIP con archivos XML adentro, y si Word no lo abre bien
+no hay ningún aviso: el usuario lo abre, ve que no sirve, y pierde el trabajo.
+
+Un HTML con "application/msword" abre en Word, se edita normal, y el usuario le hace
+"Guardar como .docx" cuando quiere. Cero dependencias, cero riesgo de que no abra.
+
+
+LOS CORCHETES
+=============
+Son variables. El editor que ya existe las rellena:
+
+    [NOMBRE], [RUT], [CARGO]                    los del trabajador
+    [EMPRESA], [RUT_EMPRESA]                     los de la empresa
+    [FECHA], [LUGAR]                             del documento
+    [CAMPO:7-licencia]                          los campos propios de la empresa
+
+Y si un campo no tiene dato, el editor NO deja descargar. Ver [campos-01].
+
+
+LAS FUENTES
+============
+SOLO seis, y son las únicas que se pueden elegir. Ver la nota al pie del archivo, porque
+el motivo de que sean pocas y no muchas es el que importa.
+
+Se cargan de Google Fonts con un "<link>". Y en la hoja de estilo hay un bloque que
+DELIMITA cuáles: todo "@font-face" o "font-family" que no sea una de las seis se ignora al
+generar el Word. Ahí está la regla, y está escrita una sola vez.
+-->
+
+<!--
+  LAS SEIS, Y NI UNA MÁS.
+
+  Con serif para el cuerpo del texto, que es lo que se lee seguido:
+    Lora, Playfair Display, Crimson Text
+
+  Con sans para títulos y rótulos, que es lo que se escanea:
+    Montserrat, Source Sans 3, Inter
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,600;1,400&family=Playfair+Display:wght@500;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Montserrat:wght@500;700&family=Source+Sans+3:wght@400;600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+/*
+  EL DOCUMENTO
+  ============
+
+  Todo lo que Word entiende. Sin grid, sin variables CSS, sin "@media": el motor de Word
+  de 2016 no los tiene, y lo que no entiende lo tira sin avisar.
+
+  Los colores van en HEX, no en nombres, porque un color con nombre puede no existir en la
+  máquina del usuario.
+*/
+.doc{
+  font-family:'Lora',Georgia,serif;
+  font-size:11pt;
+  line-height:1.55;
+  color:#1a1a1a;
+  max-width:19cm;              /* el ancho de un A4 con márgenes normales */
+  margin:0 auto;
+  padding:2.2cm 2cm;
+}
+
+/*
+  EL LOGO
+  =======
+
+  Va con "<img>" y con un alto en centímetros, no en píxeles. Porque el logo de una empresa
+  tiene proporciones distintas en cada una, y si se fuerza un ancho fijo el logo se estira
+  o se aplasta.
+
+  Y hay un "<div>" de reserva con la misma altura: si la empresa no tiene logo, el hueco
+  queda igual y el texto de abajo no sube. Un logo que aparece y desaparece mueve el
+  documento entero, y en un contrato eso se nota.
+*/
+.doc-logo{
+  height:2.4cm;
+  margin-bottom:0.9cm;
+}
+.doc-logo img{
+  max-height:2.4cm;
+  max-width:7cm;
+  border:0;
+}
+.doc-logo .sin-logo{
+  font-family:'Montserrat',Arial,sans-serif;
+  font-size:8pt;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:#8a8a8a;
+  border-bottom:1px solid #d8d8d8;
+  padding-bottom:.2cm;
+}
+
+/*
+  LOS BLOQUES DE DATOS
+  ====================
+
+  Empresa arriba a la izquierda, el código del documento a la derecha. Los dos con la
+  misma fuente sans y el mismo tamaño, porque son dos cosas de la misma categoría: si uno
+  se ve más importante que el otro, el que tiene más tamaño no es el documento, es la
+  empresa.
+*/
+.doc-cabecera{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  border-bottom:2px solid #1a1a1a;
+  padding-bottom:.5cm;
+  margin-bottom:1.1cm;
+}
+.doc-empresa{
+  font-family:'Montserrat',Arial,sans-serif;
+  font-size:9pt;
+  font-weight:700;
+  line-height:1.5;
+}
+.doc-empresa .muelle{
+  font-weight:500;
+  color:#6b6b6b;
+}
+.doc-codigo{
+  font-family:'Source Sans 3',Arial,sans-serif;
+  font-size:8pt;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  color:#6b6b6b;
+  text-align:right;
+}
+
+/*
+  TÍTULOS
+  =======
+
+  Playfair Display. Es una serif de contraste alto, y contrasta con Lora justamente porque
+  las dos son serif pero de pesos distintos: si las dos fueran parecidas, el título se
+  pierde con el texto.
+*/
+.doc h1{
+  font-family:'Playfair Display',Georgia,serif;
+  font-size:17pt;
+  font-weight:700;
+  text-align:center;
+  letter-spacing:.02em;
+  margin:0 0 .3cm 0;
+}
+.doc .subtitulo{
+  font-family:'Crimson Text',Georgia,serif;
+  font-size:10.5pt;
+  font-style:italic;
+  text-align:center;
+  color:#6b6b6b;
+  margin:0 0 1.6cm 0;
+}
+.doc h2{
+  font-family:'Montserrat',Arial,sans-serif;
+  font-size:9.5pt;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.1em;
+  border-bottom:1px solid #d8d8d8;
+  padding-bottom:.15cm;
+  margin:1cm 0 .45cm 0;
+}
+.doc h3{
+  font-family:'Montserrat',Arial,sans-serif;
+  font-size:9pt;
+  font-weight:600;
+  margin:.7cm 0 .25cm 0;
+}
+
+/*
+  LAS PARTES CON TÍTULO AL COSTADO
+  ================================
+
+  Que el rótulo esté a la izquierda, en una columna fija, y el dato a la derecha. Es lo
+  que usan las actas y los contratos de verdad, y evita que un bloque de datos se lea
+  como un párrafo.
+
+  Y la columna del rótulo es fija en centímetros, no en porcentaje: si fuera en
+  porcentaje, con el ancho de la pantalla de cada uno el rótulo se parte y el dato no
+  queda alineado. En el Word el ancho no cambia nunca.
+*/
+.doc-datos{
+  width:100%;
+  border-collapse:collapse;
+  font-size:10pt;
+}
+.doc-datos td{
+  padding:.22cm 0;
+  border-bottom:1px dotted #d0d0d0;
+  vertical-align:top;
+}
+.doc-datos td.rotulo{
+  width:5.2cm;
+  font-family:'Source Sans 3',Arial,sans-serif;
+  font-size:8.5pt;
+  font-weight:600;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:#6b6b6b;
+}
+.doc-datos td.dato{
+  font-family:'Lora',Georgia,serif;
+  font-weight:400;
+}
+.doc-datos .vacio{
+  color:#b04a4a;
+  font-style:italic;
+  font-family:'Crimson Text',Georgia,serif;
+}
+
+/*
+  LAS CLÁUSULAS
+  =============
+
+  Crimson Text para el texto corrido de los artículos. Es una serif de lectura rápida, que
+  es lo que pasa cuando hay veinte artículos y hay que firmar.
+
+  Y la numeración va a mano y no automática: en Word la numeración automática se reacomoda
+  sola si alguien mete un párrafo, y en un contrato los artículos se numeran para siempre.
+*/
+.doc-articulo{
+  font-family:'Crimson Text',Georgia,serif;
+  font-size:11pt;
+  text-align:justify;
+  margin:0 0 .7cm 0;
+}
+.doc-articulo .num{
+  font-weight:600;
+}
+.doc-articulo .espacio{
+  display:inline-block;
+  width:1.1cm;
+}
+
+/*
+  LAS FIRMAS
+  ==========
+
+  Dos bloques lado a lado, con la línea de firma y el nombre abajo.
+
+  Y el hueco de la firma mide lo mismo que un renglón en blanco de verdad, porque si el
+  hueco es más chico que la firma, la firma se corta. Y si es más grande, el documento
+  queda con un vacío que parece que falta algo.
+*/
+.doc-firmas{
+  display:flex;
+  gap:1.2cm;
+  margin-top:1.6cm;
+}
+.doc-firma{
+  flex:1;
+}
+.doc-firma .linea{
+  border-bottom:1px solid #1a1a1a;
+  height:1.7cm;                /* el hueco REAL de la firma */
+  margin-bottom:.25cm;
+}
+.doc-firma .nombre{
+  font-family:'Montserrat',Arial,sans-serif;
+  font-size:8.5pt;
+  font-weight:600;
+}
+.doc-firma .cargo{
+  font-family:'Source Sans 3',Arial,sans-serif;
+  font-size:8pt;
+  color:#6b6b6b;
+}
+.doc-firma .para{
+  font-family:'Crimson Text',Georgia,serif;
+  font-size:9pt;
+  font-style:italic;
+  color:#6b6b6b;
+  margin-top:.15cm;
+}
+
+/*
+  EL PIE
+  =====
+  Y en gris claro, porque un pie de página se lee una vez por hoja y no compite con el
+  contrato. Si el pie tiene el mismo peso que el texto, la gente lee primero el pie.
+*/
+.doc-pie{
+  border-top:1px solid #d8d8d8;
+  margin-top:2cm;
+  padding-top:.4cm;
+  font-family:'Source Sans 3',Arial,sans-serif;
+  font-size:7.5pt;
+  color:#8a8a8a;
+  display:flex;
+  justify-content:space-between;
+}
+
+/*
+  LO QUE WORD NO ENTIENDE
+  =======================
+
+  Esto no es una lista de cosas lindas: es la lista de cosas que Word de 2016 tira sin
+  avisar. Cada una está aquí porque se puso y se perdió.
+
+    grid y flex      Word los entiende a medias y el resultado depende de la versión.
+                     Por eso el pie y las firmas usan flex, que sí funciona, y no hay un
+                     solo grid en el documento.
+    variables CSS    no existen. Todos los colores y medidas están escritos enteros.
+    @media           no existe. Por eso el documento tiene un ancho fijo en centímetros.
+    box-shadow       no. Las sombras se pierden y el borde queda.
+    border-radius    no. Por eso las esquinas son rectas.
+    gap              funciona, pero el valor tiene que ser pequeño: con mucho se separa
+                     de más en algunas versiones.
+*/
+</style>
+</head>
+
+<body>
+
+<div class="doc">
+
+  <!--
+    EL LOGO. Y el bloque de reserva con la MISMA altura, para que el texto de abajo no
+    suba cuando la empresa todavía no cargó su logo.
+  -->
+  <div class="doc-logo">
+    <!-- <img src="[LOGO_EMPRESA]" alt=""> -->
+    <div class="sin-logo">[LOGO DE LA EMPRESA]</div>
+  </div>
+
+  <div class="doc-cabecera">
+    <div class="doc-empresa">
+      [EMPRESA]<br>
+      <span class="muelle">[RUT_EMPRESA] &middot; [DIRECCION_EMPRESA]</span>
+    </div>
+    <div class="doc-codigo">
+      C&oacute;digo [CODIGO_DOCUMENTO]<br>
+      Fecha [FECHA]
+    </div>
+  </div>
+
+  <h1>CONTRATO DE TRABAJO</h1>
+  <p class="subtitulo">[SUBTITULO]</p>
+
+  <h2>Identificaci&oacute;n de las partes</h2>
+
+  <table class="doc-datos">
+    <tr>
+      <td class="rotulo">Empresario</td>
+      <td class="dato">[EMPRESA], RUT [RUT_EMPRESA], con domicilio en [DIRECCION_EMPRESA].</td>
+    </tr>
+    <tr>
+      <td class="rotulo">Trabajador</td>
+      <td class="dato">[NOMBRE], RUT [RUT], [NACIONALIDAD].</td>
+    </tr>
+    <tr>
+      <td class="rotulo">Fecha de ingreso</td>
+      <td class="dato">[FECHA_INGRESO]</td>
+    </tr>
+    <tr>
+      <td class="rotulo">Cargo</td>
+      <td class="dato">[CARGO]</td>
+    </tr>
+    <tr>
+      <td class="rotulo">Centro de costo</td>
+      <td class="dato">[CAMPO:1-centro-costo]</td>
+    </tr>
+  </table>
+
+  <h2>Declaraci&oacute;n</h2>
+
+  <p class="doc-articulo">
+    <span class="num">PRIMERO.</span><span class="espacio"></span>
+    El trabajador declara que los datos consignados en este contrato son ciertos, y que
+    tiene [CAMPO:1-antiguedad] a&ntilde;os de experiencia en el oficio.
+  </p>
+
+  <p class="doc-articulo">
+    <span class="num">SEGUNDO.</span><span class="espacio"></span>
+    El trabajador declara no tener contrato vigente con [CARGO] en [FECHA], y que no tiene
+    [CAMPO:1-antecedentes] pendientes. La empresa toma conocimiento de esta declaraci&oacute;n.
+  </p>
+
+  <p class="doc-articulo">
+    <span class="num">TERCERO.</span><span class="espacio"></span>
+    El trabajador se obliga a informar todo cambio de RUT, domicilio o situaci&oacute;n
+    previsional dentro de los diez d&iacute;as h&aacute;biles siguientes.
+  </p>
+
+  <h2>Remuneraci&oacute;n y previsi&oacute;n</h2>
+
+  <p class="doc-articulo">
+    <span class="num">CUARTO.</span><span class="espacio"></span>
+    La remuneraci&oacute;n mensual del trabajador es de [CAMPO:1-remuneracion], con una
+    jubilaci&oacute;n estimada del [CAMPO:1-jubilacion].
+  </p>
+
+  <p class="doc-articulo">
+    <span class="num">QUINTO.</span><span class="espacio"></span>
+    El trabajador est&aacute; afiliado a [AFP_NOMBRE], c&oacute;digo [AFP_CODIGO], y a
+    [CAMPO:1-salud].
+  </p>
+
+  <h2>Seguridad y elementos de protecci&oacute;n</h2>
+
+  <p class="doc-articulo">
+    <span class="num">SEXTO.</span><span class="espacio"></span>
+    La empresa entrega al trabajador los elementos de protecci&oacute;n personal que
+    corresponde a su cargo, seg&uacute;n el cargo definido en el contrato. El cargo
+    determina el kit, y el kit se entrega al ingreso y queda registrado.
+  </p>
+
+  <p class="doc-articulo">
+    <span class="num">S&Eacute;PTIMO.</span><span class="espacio"></span>
+    El trabajador se obliga a usar los elementos entregados y a informar de inmediato
+    cualquier extravio o deterioro.
+  </p>
+
+  <h2>Texto libre</h2>
+
+  <!--
+    Ac&aacute; van los art&iacute;culos que cada empresa quiera agregar. Es un "<p>" con la
+    misma clase, y se copia y pega.
+
+    Y ESTE es el punto donde se anexa una plantilla: si hay un anexo, es un
+    "<h2>ANEXO 1</h2>" con su texto y sus datos, despu&eacute;s; de este bloque.
+  -->
+  <p class="doc-articulo">
+    <span class="num">OCTAVO.</span><span class="espacio"></span>
+    [TEXTO_LIBRE]
+  </p>
+
+  <h2>Ejemplares</h2>
+
+  <p class="doc-articulo">
+    <span class="num">NOVENO.</span><span class="espacio"></span>
+    El presente contrato se firma en dos ejemplares de id&eacute;ntica fecha y tenor, que
+    quedan en poder de cada parte.
+  </p>
+
+  <!--
+    LAS FIRMAS.
+
+    El hueco de cada firma mide 1.7 cm, que es lo que ocupa una firma de verdad. Con menos
+    se corta; con m&aacute;s queda un vac&iacute;o que parece que falta algo.
+  -->
+  <div class="doc-firmas">
+    <div class="doc-firma">
+      <div class="linea"></div>
+      <div class="nombre">[EMPRESA]</div>
+      <div class="cargo">Por la empresa</div>
+      <div class="para">[NOMBRE_FIRMANTE_EMPRESA] &middot; [CARGO_FIRMANTE_EMPRESA]</div>
+    </div>
+    <div class="doc-firma">
+      <div class="linea"></div>
+      <div class="nombre">[NOMBRE]</div>
+      <div class="cargo">El trabajador</div>
+      <div class="para">C&oacute;digo [CODIGO]</div>
+    </div>
+  </div>
+
+  <div class="doc-pie">
+    <span>[EMPRESA] &middot; [CODIGO_DOCUMENTO]</span>
+    <span>Emitido el [FECHA] en [LUGAR]</span>
+  </div>
+
+</div>
+
+<!--
+  LAS FUENTES, Y POR QUÉ SON SEIS Y NO VEINTICINCO
+  =================================================
+
+  Pediste que solo se acepten unas fuentes elegantes de Google Fonts. Elegí seis, tres
+  serif y tres sans, y la razón de que sean pocas es la que importa:
+
+  "Elegante" sin criterio es un catálogo entero, y con veinte fuentes disponibles nadie
+  elige: cada documento sale con una distinta y la empresa deja de verse como empresa.
+  Con seis, un documento tiene una serif y una sans. Fin.
+
+  Y hay una razón t&eacute;cnica igual de importante: Word NO descarga fuentes de Google.
+  La fuente viaja con el archivo solo si est&aacute; embebida, y Word no la embebe desde un
+  HTML. O sea que el que abre el documento en un computador sin esas fuentes va a ver una
+  substitutes.
+
+  Por eso, al descargar: la fuente del documento es la que se pide, pero la que Word va a
+  usar es la primera de la lista que el sistema tenga instalada. Por eso cada "font-family"
+  del archivo tiene DOS fuentes, la de Google y una del sistema con el mismo car&aacute;cter
+  (Lora-&gt;Georgia, Playfair-&gt;Garamond, Montserrat-&gt;Arial).
+
+  Y por eso la lista de seis vive en UN solo lugar, en el generador del documento, y no
+  repartida en el HTML: si est&aacute; en el HTML, el d&iacute;a que las puede cambiar sin
+  que nadie lo note.
+-->
+</body>
+</html>
