@@ -95,14 +95,25 @@ function normalizarAfp(valor){
   return String(valor==null?'':valor).replace(/\s+/g,'').toUpperCase();
 }
 function workerToDb(w){
+  // Y esto va PRIMERO, antes de armar el objeto: "rellenarNombres" lee "w.name", que es
+  // el nombre entero, y devuelve las tres columnas. Si se hiciera al final, ya se estaría
+  // escribiendo el objeto.
+  const nombresRellenados = rellenarNombres(w);
   return {
     code:w.code, name: componerNombre(w), cargo:w.spec||null, phone:w.phone||null,
     // Los nombres separados (migración 056). Sin estas cuatro líneas, el "upsert" las
     // pisaría con null en cada guardado: el "upsert" manda todas las columnas del
     // objeto, no solo las que cambiaron.
-    nombres: w.nombres||null,
-    apellido_paterno: w.apellido_paterno||null,
-    apellido_materno: w.apellido_materno||null,
+    //
+    // Y van por "rellenarNombres", no directo: hay un solo campo donde se escribe el nombre
+    // entero —el del ingreso que pide un supervisor, y el del Excel— y esas columnas
+    // quedaban vacías. Y si quedan vacías no se puede ordenar por apellido.
+    //
+    // Y la función NO pisa lo que alguien ya escribió: solo rellena cuando las tres están
+    // vacías. Ver [nombres-01].
+    nombres: nombresRellenados.nombres,
+    apellido_paterno: nombresRellenados.apellido_paterno,
+    apellido_materno: nombresRellenados.apellido_materno,
     direccion: w.direccion||null, correo: w.correo||null,
     // La AFP con código y nombre (migración 057). Los dos, porque las planillas usan el
     // código y las cartas usan el nombre. Con uno solo, la mitad de los documentos sale
@@ -143,6 +154,102 @@ function workerToDb(w){
 // Y si faltan los nombres, se usa el texto que venga como "w.name". Porque hay
 // importaciones que traen el nombre entero y no los tres, y si acá se exigieran los tres,
 // esas importaciones dejarían de entrar.
+// PARTIR EL NOMBRE ENTERO EN NOMBRES Y APELLIDOS
+// =================================================
+//
+// -------------------------------------------------------------------
+// POR QUÉ EXISTE
+// --------------
+//
+// Porque hay un solo campo donde se escribe el nombre entero —el del ingreso, el del Excel— y
+// las columnas nuevas de la 056 ("nombres", "apellido_paterno", "apellido_materno") quedan
+// vacías. Y si quedan vacías, no se puede ordenar por apellido ni sacar una planilla con
+// columnas separadas.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ ES UNA ADIVINADA, Y QUÉ HACE CUANDO SE FALLA
+// -------------------------------------------------------
+//
+// "Jonathan Castro Rocha" se parte sin problema: dos apellidos al final. "María Teresa Álvarez
+// Cordero" también. Y "Pedro Pérez" no tiene segundo apellido, y "Juan de la Fuente" no
+// sigue ninguna regla.
+//
+// O sea que esto NO SABE el nombre de alguien. Adivina, y por eso:
+//
+//   - SOLO rellena cuando las tres columnas están vacías. Si alguien ya las escribió a mano,
+//     no se tocan. Un dato que una persona puso no se pisa con una adivinada.
+//   - NUNCA inventa una columna que falta. Si no alcanza para los dos apellidos, el segundo
+//     queda vacío, porque un apellido inventado es peor que un apellido faltante.
+//   - Y siempre se puede corregir en la ficha, que es donde va la gente de RRHH a revisarlo.
+//
+// -------------------------------------------------------------------
+// LA REGLA, Y POR QUÉ ES ESTA Y NO OTRA
+// --------------------------------------
+//
+// De atrás para adelante: el último apellido es el materno, el que lo precede es el paterno,
+// y todo lo demás son los nombres.
+//
+// Y NO se intenta detectar "de", "del", "de la": en "Juan de la Fuente" hay tres palabras de
+// apellido y dos de nombre, y cualquier lista de partículas adivina mal la mitad de los
+// casos. Es mejor una regla simple que se pueda explicar en una línea que una lista de
+// excepciones que se va llenando sola.
+//
+// Y el resultado NO SE USA PARA NADA CRÍTICO: la columna "name" sigue siendo la que va en la
+// credencial, en las planillas y en las importaciones. Esto es para poder ORDENAR y para
+// tener las columnas separadas.
+function partirNombre(entero) {
+  const limpio = String(entero || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  if (!limpio) return { nombres: '', apellido_paterno: '', apellido_materno: '' };
+
+  const partes = limpio.split(' ');
+
+  // Y una sola palabra no es un nombre con apellidos: es un nombre y nada más. Una entrada
+  // con un solo campo es una entrada incompleta, y ponerle un apellido inventado es peor.
+  if (partes.length === 1) {
+    return { nombres: partes[0], apellido_paterno: '', apellido_materno: '' };
+  }
+
+  // Con dos, el segundo es el paterno. No hay materno, y no se inventa.
+  if (partes.length === 2) {
+    return { nombres: partes[0], apellido_paterno: partes[1], apellido_materno: '' };
+  }
+
+  return {
+    nombres: partes.slice(0, partes.length - 2).join(' '),
+    apellido_paterno: partes[partes.length - 2],
+    apellido_materno: partes[partes.length - 1],
+  };
+}
+
+// -------------------------------------------------------------------
+// Y EL RELLENO
+// -------------------------------------------------------------------
+// Que se usa en "workerToDb". Y el nombre de la función dice lo que hace: "rellena", no
+// "parte". "Partir" suena a que siempre pasa; "rellena" dice que solo pasa cuando falta algo.
+function rellenarNombres(w) {
+  const yaEstan = w.nombres || w.apellido_paterno || w.apellido_materno;
+  if (yaEstan) {
+    // Y si hay alguno de los tres escrito, NO se completa el resto. Un formulario a medio
+    // llenar significa que alguien está en el medio de escribirlo, y completar lo que falta
+    // se lo escribe por encima.
+    return {
+      nombres: w.nombres || null,
+      apellido_paterno: w.apellido_paterno || null,
+      apellido_materno: w.apellido_materno || null,
+    };
+  }
+
+  const p = partirNombre(w.name);
+  return {
+    nombres: p.nombres || null,
+    apellido_paterno: p.apellido_paterno || null,
+    apellido_materno: p.apellido_materno || null,
+  };
+}
+
 function componerNombre(w){
   const partes=[String(w.nombres||'').trim(),
                 String(w.apellido_paterno||'').trim(),
