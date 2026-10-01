@@ -834,7 +834,7 @@ function buildMatrixHtml(y,m,lista,modo){
   const nd=daysInMonth(y,m);
   const workedWeeks=buildWorkedWeeks();
   const recordsByDay=new Map(attendance.map(record=>[`${record.code}|${record.date}`,record]));
-  let html='<table><tr><th>Código</th><th>Trabajador</th>';
+  let html='<table><tr><th>Código</th><th class="attendance-name-column">Trabajador</th>';
   for(let d=1;d<=nd;d++)html+=`<th>${d}</th>`;
   html+='<th>Días trab. (base 30)</th><th>Días efectivos</th><th>Días lluvia (LL)</th><th>Días reales trabajados</th><th>Lic./Acc. (L,A)</th><th>Inasist. (F,P)</th></tr>';
   html+='<tr><td></td><td><i>Día</i></td>';
@@ -846,7 +846,7 @@ function buildMatrixHtml(y,m,lista,modo){
   }
   html+='<td colspan="6"></td></tr>';
   lista.forEach(w=>{
-    html+=`<tr><td class="attendance-code-column">${escHtml(codigoMostrar(w.code))}</td><td>${escHtml(w.name)}</td>`;
+    html+=`<tr><td class="attendance-code-column">${escHtml(codigoMostrar(w.code))}</td><td class="attendance-name-column">${escHtml(w.name)}</td>`;
     let cX=0,cHolidayX=0,cF=0,cP=0,cL=0,cA=0,cPP=0,cV=0,cLL=0;
     for(let d=1;d<=nd;d++){
       const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;

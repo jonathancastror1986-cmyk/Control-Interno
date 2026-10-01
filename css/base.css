@@ -344,6 +344,37 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 .attendance-cell{position:relative;cursor:pointer}
 .attendance-cell:hover{outline:2px solid var(--accent);outline-offset:-2px}
 .attendance-code-column{min-width:72px;white-space:nowrap;font-weight:700;color:var(--secondary-text)}
+
+/* ref: base-02 - La columna del nombre, en la matriz de asistencia.
+
+   Antes el "<td>" del nombre no tenía clase, así que no tenía ancho: la tabla repartía
+   el espacio entre las 37 columnas y el nombre se quedaba con lo que sobraba. Con nombres
+   largos ("Jonathan Castro Rocha") se partía en tres renglones y la fila quedaba
+   altísima, así que había que bajar por la tabla para ver a quién correspondía cada fila.
+
+   Y ACÁ ESTÁ LO QUE HACE FALTA Y NO SE INTUYE: "min-width" SOLO NO HACE NADA.
+
+   Medido en el navegador, con los mismos nombres:
+
+       min-width:210px                     el nombre queda en  82 px, filas de 74
+       min-width:210px y width:210px        el nombre queda en 219 px, filas de 28
+
+   Porque "min-width" no aplica a las celdas de tabla: CSS lo define para elementos no
+   reemplazados, y una celda con contenido se puede apretar igual. Cuando la tabla tiene
+   37 columnas y el nombre compite con ellas, el navegador se queda con lo que le sobra.
+
+   Y "width" sí se respeta, porque la primera fila es la que decide cómo se reparte. Por
+   eso van las dos: la "width" es la que manda, y la "min-width" queda por si algún día
+   la tabla cambia de "table-layout" y la celda pasa a respetarla.
+
+   Y "nowrap" porque, con el ancho puesto, no hace falta partir. Un nombre más largo que
+   el mínimo se desborda un poco, y es preferible a que se parta en cuatro renglones.
+
+   Se probó también con "<colgroup>" y anchos por columna, y NO sirvió: la tabla se armó
+   con "colspan" y celdas que no calzan con los "<col>", y el navegador volvió a repartir
+   el espacio como le gustara. Ver [tarja-01]. */
+.attendance-name-column{min-width:210px;width:210px;white-space:nowrap}
+
 .day-label-holiday{background:#f5dada!important;color:#3b2424!important;font-weight:700}
 .day-label-holiday small{color:#3b2424!important;font-weight:700}
 .attendance-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;border-bottom:1px solid var(--line)}
