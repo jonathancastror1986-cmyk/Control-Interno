@@ -1,0 +1,102 @@
+EL MAPA DE "js/app.js"
+======================
+
+  Medido el 2026-10-01 sobre 15521 renglones y 610 funciones.
+
+  Cómo se generó:  node tools/mapa-js.js
+  Cómo se verifica que no esté viejo:  node tools/mapa-js.js --verificar
+
+  Este archivo NO es fuente. Se borra y se regenera; el que manda es "js/app.js".
+
+
+  LAS SECCIONES
+  ----------------------------------------------------------------------------
+
+    L  471  EL INGRESO PENDIENTE    288 regl.   16 fn.
+    L  759  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1797 regl.   70 fn.
+    L 2556  ASISTENCIA DIARIA DEL SUPERVISOR    522 regl.   23 fn.
+    L 3078  JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA    285 regl.    5 fn.
+    L 3363  CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ    207 regl.    4 fn.
+    L 3570  MARCAR Y AVISAR    134 regl.    3 fn.
+    L 3704  BITÁCORA DE ACCESO    221 regl.    5 fn.
+    L 3925  IMPORTAR MARCAJES DESDE EXCEL    503 regl.   19 fn.
+    L 4428  TARJA DE SUPERVISORES   1203 regl.   52 fn.
+    L 5631  INVITAR USUARIO DESDE LA APP    184 regl.    5 fn.
+    L 5815  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.
+    L 6036  DAR DE ALTA SIN CORREO    233 regl.    8 fn.
+    L 6269  MIS DATOS   1581 regl.   75 fn.
+    L 7850  KITS INICIALES POR ESPECIALIDAD    588 regl.   40 fn.
+    L 8438  MULTI-EMPRESA    217 regl.   13 fn.
+    L 8655  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.
+    L 9017  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    572 regl.   14 fn.
+    L 9589  BAJAR LA PLANTILLA EN WORD    275 regl.    5 fn.
+    L 9864  ROLES Y PERMISOS    255 regl.   11 fn.
+    L10119  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.
+    L10153  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)
+    L10181  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.
+    L12282  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.
+    L12992  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)
+    L13033  EL BLOQUEO REAL    170 regl.   11 fn.
+    L13203  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.
+    L13227  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.
+    L13336  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)
+    L13370  LO QUE NO HACE    269 regl.   11 fn.
+    L13639  KIT DE CONTRATACIÓN     34 regl.    0 fn.   (solo el banner)
+    L13673  LA ESPECIALIDAD DEL TRABAJADOR    472 regl.   22 fn.
+    L14145  LA BITÁCORA, PARA PODER LEERLA    140 regl.    5 fn.
+    L14285  ¿ESTÁ PUESTA LA BITÁCORA DE AUDITORÍA?    516 regl.   22 fn.
+    L14801  CONFIGURACIÓN DE PERMISOS POR ROL    136 regl.    5 fn.
+    L14937  EL ENCABEZADO SE ENCOGE AL BAJAR    111 regl.    3 fn.
+    L15048  EMPRESAS: CARGOS, GRUPOS Y PERMISOS    474 regl.   21 fn.
+
+  ----------------------------------------------------------------------------
+  583 de 610 funciones (96%) caen dentro de una sección.
+
+
+  LAS 27 FUNCIONES QUE NO CAEN EN NINGUNA SECCIÓN
+  ----------------------------------------------------------------------------
+  Están antes de la primera sección, o en un banner sin título.
+  No es un error: es el borde del archivo. Se listan para que se sepa qué son.
+
+    L   22  save
+    L   35  normalizarRut
+    L   38  workerToDb
+    L   65  dbToWorker
+    L   96  attToDb
+    L   99  dbToAtt
+    L  102  loadWorkers
+    L  110  loadAttendanceFromDB
+    L  115  loadTarjetas
+    L  122  bodegaError
+    L  126  loadEppCatalog
+    L  131  loadEppDeliveries
+    L  151  fillEppItemFilter
+    L  167  loadTools
+    L  178  loadToolAssignments
+    L  188  loadEppTallas
+    L  193  loadInventarioQr
+    L  198  loadBodega
+    L  206  generateCardId
+    L  210  issueCard
+    L  224  getOrIssueCard
+    L  230  uid
+    L  231  isoLocal
+    L  232  hoyLocal
+    L  237  isFeriado
+    L  339  iconoMenu
+    L  361  ponerIconosEnPestanas
+
+  SECCIONES SIN FUNCIONES DENTRO (4)
+  ----------------------------------------------------------------------------
+  Son un banner con el título y nada más: toda la función está en la de abajo.
+  No están rotas. Se listan para no pensar que falta algo.
+
+    L10153  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
+    L12992  EL KIOSCO DEL RELOJ
+    L13336  LOS MARCAJES
+    L13639  KIT DE CONTRATACIÓN
+
+  Y LO QUE ESTO NO DICE
+  ----------------------------------------------------------------------------
+  No dice qué se puede separar y qué no. Las secciones SON los grupos posibles,
+  con sus límites en renglones: con eso se decide mirando los títulos.
