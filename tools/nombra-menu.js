@@ -6,7 +6,7 @@
 // otro.
 //
 // -------------------------------------------------------------------
-// PASO 1: LAS VARIABLES, EN "_tokens.css"
+// PASO 1: LAS VARIABLES, EN "tokens.css"
 // --------------------------------------
 // Y en ":root", al lado de la paleta, porque el archivo se titula "LA PALETA" y es donde uno va
 // a buscar para cambiar un color.
@@ -46,7 +46,7 @@ const fs = require('fs');
 const path = require('path');
 
 const raiz = path.resolve(__dirname, '..');
-const TOKENS = path.join(raiz, 'css', '_tokens.css');
+const TOKENS = path.join(raiz, 'css', 'tokens.css');
 const STYLES = path.join(raiz, 'css', 'styles.css');
 
 const PILA = "'Montserrat',system-ui,sans-serif";
@@ -129,7 +129,7 @@ if (tokens.indexOf('--menu-boton:') >= 0) {
   console.log('    (las variables ya están)');
 } else {
   if (tokens.indexOf(ANCLA) < 0) {
-    console.log('  *** NO SE ENCONTRÓ EL ANCLA EN "_tokens.css" ***');
+    console.log('  *** NO SE ENCONTRÓ EL ANCLA EN "tokens.css" ***');
     process.exit(1);
   }
   tokens = tokens.replace(ANCLA, BLOQUE + ANCLA);

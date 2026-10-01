@@ -35,8 +35,8 @@
 // POR QUÉ "_base" Y NO "base"
 // --------------------------
 //
-// Porque los archivos con "_" adelante son CAPAS: "_tokens.css" son variables, "_marca.css" es
-// el logo, "_vistas.css" son las pantallas. Y este es una capa, no un módulo: es el CSS que era
+// Porque los archivos con "_" adelante son CAPAS: "tokens.css" son variables, "marca.css" es
+// el logo, "vistas.css" son las pantallas. Y este es una capa, no un módulo: es el CSS que era
 // de la página y que hoy sostiene a media aplicación.
 //
 // -------------------------------------------------------------------
@@ -63,9 +63,9 @@ const path = require('path');
 
 const raiz = path.resolve(__dirname, '..');
 const APP = path.join(raiz, 'pages', 'app.html');
-const NUEVO = path.join(raiz, 'css', '_base.css');
+const NUEVO = path.join(raiz, 'css', 'base.css');
 
-const LINK = '<link rel="stylesheet" href="../css/_base.css?v=1">';
+const LINK = '<link rel="stylesheet" href="../css/base.css?v=1">';
 
 // -------------------------------------------------------------------
 // 0. IDEMPOTENCIA
@@ -73,7 +73,7 @@ const LINK = '<link rel="stylesheet" href="../css/_base.css?v=1">';
 // Por ESTADO y no por "el archivo existe":
 //   - si ya no hay "<style>", puede ser que esté hecho, o que alguien lo haya sacado a mano.
 //     Se distingue por el "<link>".
-//   - y si hay "<style>" y ya existe "_base.css", hay dos fuentes de verdad y eso no se deja pasar.
+//   - y si hay "<style>" y ya existe "base.css", hay dos fuentes de verdad y eso no se deja pasar.
 let app = fs.readFileSync(APP, 'utf8');
 
 const yaHayLink = app.indexOf(LINK) >= 0;
@@ -85,14 +85,14 @@ if (!hayStyle && yaHayLink) {
 }
 
 if (!hayStyle && !yaHayLink) {
-  console.log('  *** NO HAY "<style>" NI "<link>" DE "_base.css" ***');
+  console.log('  *** NO HAY "<style>" NI "<link>" DE "base.css" ***');
   console.log('    No se escribe nada: el archivo ya no tiene CSS en línea, pero no');
   console.log('    viene de este guion. Hay que mirarlo a mano.');
   process.exit(1);
 }
 
 if (hayStyle && fs.existsSync(NUEVO)) {
-  console.log('  *** YA EXISTE "css/_base.css" Y TODAVÍA HAY "<style>" EN LÍNEA ***');
+  console.log('  *** YA EXISTE "css/base.css" Y TODAVÍA HAY "<style>" EN LÍNEA ***');
   console.log('    Habría dos fuentes de verdad para el mismo CSS, y no se sabe cuál manda.');
   console.log('    No se escribe nada.');
   process.exit(1);
@@ -269,7 +269,7 @@ if (posStyles < 0) {
   process.exit(1);
 }
 if (posLink > posStyles) {
-  console.log('  *** EL "<link>" DE "_base.css" QUEDÓ DESPUÉS DE "styles.css" ***');
+  console.log('  *** EL "<link>" DE "base.css" QUEDÓ DESPUÉS DE "styles.css" ***');
   console.log('    Eso SÍ cambiaría la pantalla: "styles.css" le ganaría a este archivo en');
   console.log('    todas las reglas que compitan.');
   console.log('    No se escribe nada.');
@@ -285,7 +285,7 @@ if (veces(app, '<head>') !== 1 || veces(app, '</' + 'head>') !== 1) {
 }
 
 if (process.exitCode) {
-  console.log('    "css/_base.css" NO se grabó: se borró lo que se había escrito.');
+  console.log('    "css/base.css" NO se grabó: se borró lo que se había escrito.');
   console.log('    Y "app.html" NO se grabó tampoco: el cambio estaba solo en la memoria.');
   process.exit(process.exitCode);
 }
@@ -295,7 +295,7 @@ fs.writeFileSync(APP, app, 'utf8');
 const lineasAhora = app.split(nl).length;
 const linesasDe = (s) => (s.indexOf('\r\n') >= 0 ? s.split('\r\n').length : s.split('\n').length);
 
-console.log('    ok  escrito "css/_base.css", ' + linesasDe(contenido) + ' renglones');
+console.log('    ok  escrito "css/base.css", ' + linesasDe(contenido) + ' renglones');
 console.log('    ok  los ' + k.abren + ' pares de llaves del CSS en línea, íntegros');
 console.log('    ok  "app.html": el "<style>" de los renglones 20 al 436 es un "<link>"');
 console.log('        y sigue en el renglón ' + renglonDelStyle + ', ANTES de "styles.css"');

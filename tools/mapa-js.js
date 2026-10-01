@@ -132,9 +132,19 @@ for (let i = 0; i < lineas.length; i++) {
   if (!RE_BANNER.test(lineas[i])) continue;
 
   let titulo = null;
+  // Y en qué renglón quedó el título.
+  //
+  // Y esto es lo que hace falta para saber dónde ABRE el banner, que es un dato y no una
+  // cuenta. Y "es un dato" es lo importante: antes se suponía que el banner abría dos
+  // renglones antes del cierre, y hay banners de dos renglones y de tres, y con los de dos la
+  // cuenta sale mal y el corte parte el banner por la mitad.
+  //
+  // Y pasó con cuatro secciones seguidas, todas con el mismo aviso del guardia.
+  let tituloEn = -1;
+  let apertura = i;
+
   for (let k = i - 1; k >= 0 && k >= i - 14; k--) {
     const t = lineas[k].trim();
-    if (RE_BANNER.test(t)) break;              // el piso es el banner anterior
 
     if (!/^\/\//.test(t)) break;               // ya no es comentario: es código o marcado
     const sinPre = t.replace(/^\/\/\s*/, '');
@@ -146,11 +156,32 @@ for (let i = 0; i < lineas.length; i++) {
       && sinPre[sinPre.length - 1] !== '.'
       && (sinPre === sinPre.toUpperCase() || sinPre.split(/\s+/).length <= 4);
 
-    if (esEtiqueta) { titulo = sinPre; break; }
+    // Y el "===" que se encuentra subiendo desde el título es el de apertura.
+    //
+    // Y se sube DESDE EL TÍTULO, y no desde el cierre. Porque desde el cierre, el bucle
+    // encuentra el título y corta, y nunca llega a la apertura.
+    if (RE_BANNER.test(t)) {
+      if (titulo) { apertura = k; break; }
+      break;
+    }
+
+    if (esEtiqueta) { titulo = sinPre; tituloEn = k; break; }
   }
 
   if (!titulo) { sinTitulo.push(i + 1); continue; }
-  secciones.push({ linea: i + 1, titulo });
+
+  // Y si el título no tenía banner justo encima, se sube hasta encontrarlo, hasta 14.
+  //
+  // Y "apertura" ya se declaró arriba, y acá se le ASIGNA. Declararla otra vez con "let" es un
+  // error de sintaxis, y el archivo deja de compilar. Que es lo que pasó: quedó
+  // "Identifier 'apertura' has already been declared".
+  apertura = tituloEn - 1;
+  while (apertura >= 0 && !RE_BANNER.test(lineas[apertura].trim()) && tituloEn - apertura <= 14) {
+    apertura--;
+  }
+  if (apertura < 0 || tituloEn - apertura > 14) apertura = i;
+
+  secciones.push({ linea: i + 1, ini: apertura + 1, titulo });
 }
 
 // -------------------------------------------------------------------
@@ -203,7 +234,19 @@ limpias.forEach((s) => {
     + '  ' + s.titulo.slice(0, ancho)
     + '  ' + String(s.fin - s.linea + 1).padStart(5) + ' regl.'
     + '  ' + String(s.funciones.length).padStart(3) + ' fn.'
-    + (s.funciones.length === 0 ? '   (solo el banner)' : ''));
+    + (s.funciones.length === 0 ? '   (solo el banner)' : '')
+    // Y dónde ABRE el banner, que es lo que las herramientas de corte necesitan.
+    //
+    // Y va al FINAL, y no después de la "L", por una razón práctica: el patrón que leen las
+    // herramientas termina con "fn.", así que agregar una columna al final no rompe lo que ya
+    // funciona, y agregar una columna en el medio sí.
+    //
+    // Y sin esta columna, el corte tiene que sacarla cuenta: "el banner abre dos renglones
+    // antes del cierre". Y eso es una regla, y hay banners de dos renglones y de tres, y con
+    // los de dos la regla se equivoca y parte el banner por la mitad.
+    //
+    // Un dato medido le gana a una regla suponer. Siempre.
+    + '   abre L' + s.ini);
 });
 
 out.push('');

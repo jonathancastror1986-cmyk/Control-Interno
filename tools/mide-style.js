@@ -30,10 +30,10 @@
 //
 //   1. el "<style>" en línea          renglones 20 a 436
 //   2. las fuentes de Google          renglón 445
-//   3. _tokens.css                    renglón 446
+//   3. tokens.css                    renglón 446
 //   4. styles.css                     renglón 447
-//   5. _marca.css                     renglón 483
-//   6. _vistas.css                    renglón 484
+//   5. marca.css                     renglón 483
+//   6. vistas.css                    renglón 484
 //   7. componentes/porteria.css       renglón 485
 //   8. componentes/tarjeta.css        renglón 486
 //   9. componentes/totem.css          renglón 487

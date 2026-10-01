@@ -1,4 +1,4 @@
-// BORRAR DE "css/_base.css" LAS REGLAS QUE NO LLEGAN A LA PANTALLA
+// BORRAR DE "css/base.css" LAS REGLAS QUE NO LLEGAN A LA PANTALLA
 // ====================================================================
 //
 // -------------------------------------------------------------------
@@ -63,12 +63,12 @@ const fs = require('fs');
 const path = require('path');
 
 const raiz = path.resolve(__dirname, '..');
-const BASE = path.join(raiz, 'css', '_base.css');
+const BASE = path.join(raiz, 'css', 'base.css');
 
 const DESPUES = [
   'css/styles.css',
-  'css/_marca.css',
-  'css/_vistas.css',
+  'css/marca.css',
+  'css/vistas.css',
   'css/componentes/porteria.css',
   'css/componentes/totem.css',
   'css/componentes/tarjeta.css',
@@ -150,7 +150,7 @@ const lineaDe = (pos) => base.slice(0, pos).split(nlB).length;
 // -------------------------------------------------------------------
 // Y se pregunta por el ESTADO, no por "el archivo existe".
 //
-// Si "css/_base.css" ya no tiene reglas muertas, est\u00e1 hecho. Y si todav\u00eda tiene, hay que
+// Si "css/base.css" ya no tiene reglas muertas, est\u00e1 hecho. Y si todav\u00eda tiene, hay que
 // borrar. Y si tiene MUCHAS m\u00e1s de las esperadas, no se toca nada: alguien cambi\u00f3 algo y este
 // guion ya no sabe de qu\u00e9 est\u00e1 hablando.
 const indice = {};
@@ -202,7 +202,7 @@ function muertasDe(texto) {
 const muertas = muertasDe(base);
 
 if (muertas.length === 0) {
-  console.log('    (ya est\u00e1 hecho: "css/_base.css" no tiene reglas muertas)');
+  console.log('    (ya est\u00e1 hecho: "css/base.css" no tiene reglas muertas)');
   process.exit(0);
 }
 
@@ -287,7 +287,7 @@ const kDespues = (function (s) {
 })(base);
 
 if (kAntes[0] !== kAntes[1]) {
-  console.log('  *** "_base.css" ESTABA DESCUADRADO ANTES ***');
+  console.log('  *** "base.css" ESTABA DESCUADRADO ANTES ***');
   process.exit(1);
 }
 if (kDespues[0] !== kDespues[1]) {
@@ -315,7 +315,7 @@ fs.writeFileSync(BASE, base, 'utf8');
 const lA = antes.split(nlB).length;
 const lD = base.split(nlB).length;
 console.log('');
-console.log('    ok  se borraron ' + ESPERADAS + ' reglas de "css/_base.css"');
+console.log('    ok  se borraron ' + ESPERADAS + ' reglas de "css/base.css"');
 console.log('    ok  llaves: ' + kAntes[0] + ' -> ' + kDespues[0] + '  (' + ESPERADAS + ' menos, ni una de m\u00e1s)');
 console.log('    ok  lineas: ' + lA + ' -> ' + lD);
 console.log('    ok  y ya no queda ninguna regla muerta: el bucle lleg\u00f3 en un paso');

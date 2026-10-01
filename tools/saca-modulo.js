@@ -140,7 +140,36 @@ mapa.split('\n').forEach((l) => {
   if (dentro && /^\s*LAS \d/.test(l)) { dentro = false; return; }
   if (!dentro) return;
   const m = RE_SEC.exec(l);
-  if (m) secciones.push({ linea: Number(m[1]), titulo: m[2].trim(), reglas: Number(m[3]), fn: Number(m[4]) });
+  if (!m) return;
+
+  // Y el renglón donde ABRE el banner.
+  //
+  // Y se lee de una columna aparte, que es como el mapa la escribe. Y es una columna aparte
+  // porque si estuviera en el medio, el patrón de arriba tendría que cambiar, y ese patrón lo
+  // usan otras herramientas.
+  //
+  // Y si el mapa no trae la columna, NO SE CALCULA. Porque calcularla es restar, y restar fue
+  // exactamente el error: hay banners de dos renglones y de tres, y con los de dos sale mal y
+  // parte el banner por la mitad.
+  //
+  // Y eso pasó cuatro veces seguidas, y las cuatro con el mismo aviso del guardia.
+  const abre = /abre L(\d+)/.exec(l);
+  if (!abre) {
+    salida.push('*** UNA SECCIÓN DEL MAPA NO TIENE LA COLUMNA "abre L" ***');
+    salida.push('    ' + l.trim().slice(0, 78));
+    salida.push('    El mapa se regenera con "node tools/mapa-js.js", que ya la escribe.');
+    salida.push('    No se calcula a mano: calcularla es restar, y restar es el error.');
+    salida.push('    No se sigue.');
+    process.exit(1);
+  }
+
+  secciones.push({
+    linea: Number(m[1]),
+    ini: Number(abre[1]),
+    titulo: m[2].trim(),
+    reglas: Number(m[3]),
+    fn: Number(m[4]),
+  });
 });
 secciones.forEach((s, k) => { s.fin = (k < secciones.length - 1 ? secciones[k + 1].linea : lineas0.length) - 1; });
 

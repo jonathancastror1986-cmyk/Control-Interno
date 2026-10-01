@@ -1,7 +1,7 @@
 EL MAPA DE "js/app.js"
 ======================
 
-  Medido el 2026-10-01 sobre 12718 renglones y 482 funciones.
+  Medido el 2026-10-01 sobre 11368 renglones y 444 funciones.
 
   Cómo se generó:  node tools/mapa-js.js
   Cómo se verifica que no esté viejo:  node tools/mapa-js.js --verificar
@@ -12,36 +12,33 @@ EL MAPA DE "js/app.js"
   LAS SECCIONES
   ----------------------------------------------------------------------------
 
-    L  289  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1803 regl.   70 fn.
-    L 2092  ASISTENCIA DIARIA DEL SUPERVISOR    522 regl.   23 fn.
-    L 2614  JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA    134 regl.    3 fn.
-    L 2748  BITÁCORA DE ACCESO    221 regl.    5 fn.
-    L 2969  IMPORTAR MARCAJES DESDE EXCEL    503 regl.   19 fn.
-    L 3472  TARJA DE SUPERVISORES   1203 regl.   52 fn.
-    L 4675  INVITAR USUARIO DESDE LA APP    184 regl.    5 fn.
-    L 4859  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.
-    L 5080  DAR DE ALTA SIN CORREO    233 regl.    8 fn.
-    L 5313  MIS DATOS   1595 regl.   75 fn.
-    L 6908  KITS INICIALES POR ESPECIALIDAD    217 regl.   13 fn.
-    L 7125  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.
-    L 7487  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    572 regl.   14 fn.
-    L 8059  BAJAR LA PLANTILLA EN WORD    275 regl.    5 fn.
-    L 8334  ROLES Y PERMISOS    255 regl.   11 fn.
-    L 8589  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.
-    L 8623  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)
-    L 8651  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.
-    L10752  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.
-    L11462  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)
-    L11503  EL BLOQUEO REAL    170 regl.   11 fn.
-    L11673  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.
-    L11697  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.
-    L11806  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)
-    L11840  LO QUE NO HACE    269 regl.   11 fn.
-    L12109  KIT DE CONTRATACIÓN    136 regl.    5 fn.
-    L12245  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.
+    L  289  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1803 regl.   70 fn.   abre Lundefined
+    L 2092  ASISTENCIA DIARIA DEL SUPERVISOR    522 regl.   23 fn.   abre Lundefined
+    L 2614  JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA    134 regl.    3 fn.   abre Lundefined
+    L 2748  BITÁCORA DE ACCESO    221 regl.    5 fn.   abre Lundefined
+    L 2969  IMPORTAR MARCAJES DESDE EXCEL   1203 regl.   52 fn.   abre Lundefined
+    L 4172  INVITAR USUARIO DESDE LA APP    184 regl.    5 fn.   abre Lundefined
+    L 4356  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.   abre Lundefined
+    L 4577  DAR DE ALTA SIN CORREO    233 regl.    8 fn.   abre Lundefined
+    L 4810  MIS DATOS   1595 regl.   75 fn.   abre Lundefined
+    L 6405  KITS INICIALES POR ESPECIALIDAD    217 regl.   13 fn.   abre Lundefined
+    L 6622  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.   abre Lundefined
+    L 6984  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    255 regl.   11 fn.   abre Lundefined
+    L 7239  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.   abre Lundefined
+    L 7273  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)   abre Lundefined
+    L 7301  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.   abre Lundefined
+    L 9402  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.   abre Lundefined
+    L10112  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)   abre Lundefined
+    L10153  EL BLOQUEO REAL    170 regl.   11 fn.   abre Lundefined
+    L10323  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.   abre Lundefined
+    L10347  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.   abre Lundefined
+    L10456  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)   abre Lundefined
+    L10490  LO QUE NO HACE    269 regl.   11 fn.   abre Lundefined
+    L10759  KIT DE CONTRATACIÓN    136 regl.    5 fn.   abre Lundefined
+    L10895  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.   abre Lundefined
 
   ----------------------------------------------------------------------------
-  466 de 482 funciones (97%) caen dentro de una sección.
+  428 de 444 funciones (96%) caen dentro de una sección.
 
 
   LAS 16 FUNCIONES QUE NO CAEN EN NINGUNA SECCIÓN
@@ -71,9 +68,9 @@ EL MAPA DE "js/app.js"
   Son un banner con el título y nada más: toda la función está en la de abajo.
   No están rotas. Se listan para no pensar que falta algo.
 
-    L 8623  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
-    L11462  EL KIOSCO DEL RELOJ
-    L11806  LOS MARCAJES
+    L 7273  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
+    L10112  EL KIOSCO DEL RELOJ
+    L10456  LOS MARCAJES
 
   Y LO QUE ESTO NO DICE
   ----------------------------------------------------------------------------

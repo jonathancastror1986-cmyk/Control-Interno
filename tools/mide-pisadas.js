@@ -1,4 +1,4 @@
-// CU\u00c1LES REGLAS DE "_base.css" NO LLEGAN NUNCA A LA PANTALLA
+// CU\u00c1LES REGLAS DE "base.css" NO LLEGAN NUNCA A LA PANTALLA
 // ==============================================================
 //
 // -------------------------------------------------------------------
@@ -10,7 +10,7 @@
 //
 // Y eso est\u00e1 mal. El ejemplo que lo muestra:
 //
-//     _base.css  L36   header{ padding, border-bottom, position, top, background, ... 7 }
+//     base.css  L36   header{ padding, border-bottom, position, top, background, ... 7 }
 //     styles.css L16   header{ ... 5 en com\u00fan ... }
 //
 // O sea: hay 5 declaraciones en com\u00fan y 2 que "styles.css" NO pone. Esas dos S\u00cd llegan a la
@@ -29,23 +29,23 @@
 // EL CRITERIO QUE S\u00cd SIRVE, Y ES EL \u00daNICO SIN DISCUSI\u00d3N
 // -----------------------------------------------
 //
-// Una regla de "_base.css" est\u00e1 MUERTA si existe una regla m\u00e1s abajo, con el MISMO selector, que
+// Una regla de "base.css" est\u00e1 MUERTA si existe una regla m\u00e1s abajo, con el MISMO selector, que
 // declare TODAS sus propiedades, con el MISMO valor.
 //
 //   - Mismo selector: misma especificidad, as\u00ed que gana la de abajo sin discusi\u00f3n.
 //   - Todas las propiedades: si falta una, esa sigue aplicando.
-//   - Mismo valor: si el valor es otro, el de abajo gana y el de "_base.css" no se ve, pero solo
-//     para esa propiedad. Y si es IGUAL, da lo mismo, y la de "_base.css" es redundante.
+//   - Mismo valor: si el valor es otro, el de abajo gana y el de "base.css" no se ve, pero solo
+//     para esa propiedad. Y si es IGUAL, da lo mismo, y la de "base.css" es redundante.
 //
-// Y ojal\u00e1: si el valor es distinto, la de "_base.css" est\u00e1 pisada solo para esa propiedad. Eso es
+// Y ojal\u00e1: si el valor es distinto, la de "base.css" est\u00e1 pisada solo para esa propiedad. Eso es
 // PARCIAL, que es una categor\u00eda aparte de MUERTA y de VIVA.
 //
 // -------------------------------------------------------------------
 // Y POR QU\u00c9 "MISMO VALOR" CUENTA COMO MUERTA Y NO COMO VIVA
 // ----------------------------------------------------------
 //
-// Porque si las dos reglas dicen "padding:8px" y la de "_base.css" est\u00e1 antes, la de "_base.css"
-// nunca es la que se aplica. La p\u00e1gina muestra el valor de la de abajo. La de "_base.css" es c\u00f3digo que
+// Porque si las dos reglas dicen "padding:8px" y la de "base.css" est\u00e1 antes, la de "base.css"
+// nunca es la que se aplica. La p\u00e1gina muestra el valor de la de abajo. La de "base.css" es c\u00f3digo que
 // no hace nada, aunque se vea igual.
 //
 // O sea que no es "c\u00f3digo que se puede quitar porque no importa": es c\u00f3digo que no hace NADA. Y
@@ -54,12 +54,12 @@ const fs = require('fs');
 const path = require('path');
 
 const raiz = path.resolve(__dirname, '..');
-const BASE = path.join(raiz, 'css', '_base.css');
+const BASE = path.join(raiz, 'css', 'base.css');
 
 const DESPUES = [
   'css/styles.css',
-  'css/_marca.css',
-  'css/_vistas.css',
+  'css/marca.css',
+  'css/vistas.css',
   'css/componentes/porteria.css',
   'css/componentes/totem.css',
   'css/componentes/tarjeta.css',
@@ -182,7 +182,7 @@ reglas(base).forEach((r) => {
 
       if (propias === 0) {
         // Cubre TODAS las declaraciones. Con eso basta: gana la de abajo por orden de
-        // cascada, así que los valores de "_base.css" no se ven, no importa qué valgan.
+        // cascada, así que los valores de "base.css" no se ven, no importa qué valgan.
         //
         // Y antes también se exigía que fueran IGUALES, y eso estaba de más: bajaba la
         // cuenta de 42 a 23, y 19 reglas muertas quedaban sin señalar.
@@ -201,10 +201,10 @@ reglas(base).forEach((r) => {
   else vivas.push(item);
 });
 
-console.log('  QU\u00c9 REGLAS DE "css/_base.css" NO LLEGAN A LA PANTALLA');
+console.log('  QU\u00c9 REGLAS DE "css/base.css" NO LLEGAN A LA PANTALLA');
 console.log('  ================================================');
 console.log('');
-console.log('  "_base.css" se carga en el rengl\u00f3n 20, ANTES que todas las dem\u00e1s hojas.');
+console.log('  "base.css" se carga en el rengl\u00f3n 20, ANTES que todas las dem\u00e1s hojas.');
 console.log('  As\u00ed que cuando dos reglas dicen lo mismo, gana la de abajo.');
 console.log('');
 console.log('    MUERTAS    todo lo que dicen est\u00e1 en una hoja de abajo:  ' + muertas.length);

@@ -54,8 +54,8 @@ const DEL_MENU = [
   'nav-compacto',
 ];
 
-const HOJAS = ['css/_base.css', 'css/styles.css', 'css/_marca.css',
-  'css/_vistas.css', 'css/componentes/tarjeta.css'];
+const HOJAS = ['css/base.css', 'css/styles.css', 'css/marca.css',
+  'css/vistas.css', 'css/componentes/tarjeta.css'];
 
 function reglas(texto) {
   const out = [];

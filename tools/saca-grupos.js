@@ -15,7 +15,7 @@
 // con los mismos tres valores. La segunda no hace nada.
 //
 // -------------------------------------------------------------------
-// Y POR QUÉ ES EL MISMO PATRÓN DE TRES BLOQUES DE "_tokens.css"
+// Y POR QUÉ ES EL MISMO PATRÓN DE TRES BLOQUES DE "tokens.css"
 // ---------------------------------------------------
 //
 // Porque la paleta global ya usa tres bloques: ":root" a secas, ":root:not([data-theme=light])"
@@ -45,13 +45,13 @@
 // Y DÓNDE SE ENLAZA, Y POR QUÉ AHÍ
 // ------------------------------
 //
-// Después de "_tokens.css" y antes de "styles.css".
+// Después de "tokens.css" y antes de "styles.css".
 //
 // Porque "[data-group=\"x\"]" tiene especificidad (0,1,0), igual que ":root". Y en empate gana el
-// que se cargó después. Si esta hoja se enlazara antes de "_tokens.css", y "_tokens.css" llegara a
+// que se cargó después. Si esta hoja se enlazara antes de "tokens.css", y "tokens.css" llegara a
 // definir alguno de estos nombres, perderían.
 //
-// Hoy "_tokens.css" NO define "--fondo-seccion" ni "--fondo-nav" ni "--fondo-subnav", así que no
+// Hoy "tokens.css" NO define "--fondo-seccion" ni "--fondo-nav" ni "--fondo-subnav", así que no
 // hay empate. Pero el orden se deja como tiene que ser por si mañana los agrega.
 //
 // -------------------------------------------------------------------
@@ -60,7 +60,7 @@
 //
 //  1. Que el CSS del archivo nuevo sea IDÉNTICO a lo que se saca. Carácter por carácter.
 //  2. Que las llaves queden cuadradas, y con la misma cantidad de pares.
-//  3. Que el "<link>" quede DESPUÉS de "_tokens.css" y ANTES de "styles.css".
+//  3. Que el "<link>" quede DESPUÉS de "tokens.css" y ANTES de "styles.css".
 //  4. Que no quede ningún bloque "[data-group=…]" dentro de "styles.css".
 //  5. Y que el duplicado no se lleve por delante nada: es el MISMO bloque, con los mismos valores.
 const fs = require('fs');
@@ -69,9 +69,9 @@ const path = require('path');
 const raiz = path.resolve(__dirname, '..');
 const STYLES = path.join(raiz, 'css', 'styles.css');
 const APP = path.join(raiz, 'pages', 'app.html');
-const NUEVO = path.join(raiz, 'css', '_grupos.css');
+const NUEVO = path.join(raiz, 'css', 'grupos.css');
 
-const LINK = '<link rel="stylesheet" href="../css/_grupos.css?v=1">';
+const LINK = '<link rel="stylesheet" href="../css/grupos.css?v=1">';
 
 // -------------------------------------------------------------------
 // 0. IDEMPOTENCIA
@@ -299,7 +299,7 @@ console.log('');
 // Con los bloques TAL CUAL, en el orden en que están. Y arriba, lo que hay que saber.
 const CABECERA = [
   '/* ===================================================================',
-  '   css/_grupos.css - LA PALETA POR GRUPO DE MENÚ',
+  '   css/grupos.css - LA PALETA POR GRUPO DE MENÚ',
   '   ===================================================================',
   '',
   '   Los siete colores del menú: portería, administración, bodega,',
@@ -308,11 +308,11 @@ const CABECERA = [
   '   -------------------------------------------------------------------',
   '   POR QUÉ ESTÁN EN SU PROPIO ARCHIVO, Y NO EN "styles.css"',
   '   -------------------------------------------------------------------',
-  '   Porque son la paleta, y la paleta vive en "_tokens.css". Estos son los',
+  '   Porque son la paleta, y la paleta vive en "tokens.css". Estos son los',
   '   mismos colores que "--menu-boton" y "--cat", pero por grupo de menú, y',
   '  olean al lado de ellos.',
   '',
-  '   Se enlaza DESPUÉS de "_tokens.css" y ANTES de "styles.css". Porque',
+  '   Se enlaza DESPUÉS de "tokens.css" y ANTES de "styles.css". Porque',
   '   "[data-group=\"x\"]" tiene especificidad (0,1,0), igual que ":root". Y en empate gana el',
   '   que se cargó después.',
   '',
@@ -491,7 +491,7 @@ function estilosConGrupo(txt) {
 // -------------------------------------------------------------------
 let app = app0;
 
-const ANCLA_TOKENS = '<link rel="stylesheet" href="../css/_tokens.css?v=1">';
+const ANCLA_TOKENS = '<link rel="stylesheet" href="../css/tokens.css?v=1">';
 const ANCLA_STYLES = '<link rel="stylesheet" href="../css/styles.css">';
 
 if (app.split(ANCLA_TOKENS).length - 1 !== 1 || app.split(ANCLA_STYLES).length - 1 !== 1) {
@@ -506,11 +506,11 @@ const pTok = app.indexOf(ANCLA_TOKENS);
 const pLink = app.indexOf(LINK);
 const pSty = app.indexOf(ANCLA_STYLES);
 if (!(pTok < pLink && pLink < pSty)) {
-  console.log('  *** EL "<link>" NO QUEDÓ ENTRE "_tokens.css" Y "styles.css" ***');
+  console.log('  *** EL "<link>" NO QUEDÓ ENTRE "tokens.css" Y "styles.css" ***');
   console.log('    pos tokens ' + pTok + ', link ' + pLink + ', styles ' + pSty);
   process.exit(1);
 }
-console.log('    ok  el "<link>" quedó entre "_tokens.css" y "styles.css"');
+console.log('    ok  el "<link>" quedó entre "tokens.css" y "styles.css"');
 
 if (app.split('<head>').length - 1 !== 1 || app.split('</' + 'head>').length - 1 !== 1) {
   console.log('  *** EL "<head>" NO ESTÁ ENTERO ***');
@@ -524,7 +524,7 @@ if (app.split('<head>').length - 1 !== 1 || app.split('</' + 'head>').length - 1
 //
 // Porque los bloques se copian de "styles.css", que tiene CRLF, y el encabezado se arma
 // con "\n". Sin esto el archivo sale con los dos, y una mitad con un salto que la otra no
-// tiene. Que es lo que pasó con "css/_grupos.css" y con "css/_marca.css".
+// tiene. Que es lo que pasó con "css/grupos.css" y con "css/marca.css".
 const cssCRLF = cssNuevo.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
 
 // Y el guardia: ni un LF suelto, ni un CRLF de más.
@@ -543,7 +543,7 @@ fs.writeFileSync(APP, app, 'utf8');
 
 const l = (s) => (s.indexOf('\r\n') >= 0 ? s.split('\r\n').length : s.split('\n').length);
 console.log('');
-console.log('    ok  escrito "css/_grupos.css", ' + l(cssNuevo) + ' renglones');
+console.log('    ok  escrito "css/grupos.css", ' + l(cssNuevo) + ' renglones');
 console.log('    ok  "styles.css": ' + l(styles0) + ' -> ' + l(styles) + ' lineas');
 console.log('        (' + aQuitar.length + ' bloques de paleta, '
   + aBorrar.length + ' de ellos duplicados)');

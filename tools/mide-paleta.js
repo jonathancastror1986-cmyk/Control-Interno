@@ -31,7 +31,7 @@ const fs = require('fs');
 const path = require('path');
 
 const raiz = path.resolve(__dirname, '..');
-const TOK = path.join(raiz, 'css', '_tokens.css');
+const TOK = path.join(raiz, 'css', 'tokens.css');
 const txt = fs.readFileSync(TOK, 'utf8');
 
 function bloque(desde, hasta) {
@@ -130,7 +130,7 @@ if (soloClaro.length) {
 // 3. \u00bfCU\u00c1NTAS SE USAN?
 // -------------------------------------------------------------------
 // Y hay que contar en TODOS los archivos de CSS, no solo en la paleta.
-const hojas = ['css/_base.css', 'css/styles.css', 'css/_marca.css', 'css/_vistas.css',
+const hojas = ['css/base.css', 'css/styles.css', 'css/marca.css', 'css/vistas.css',
   'css/movil.css',
   'css/componentes/porteria.css', 'css/componentes/tarjeta.css', 'css/componentes/totem.css'];
 

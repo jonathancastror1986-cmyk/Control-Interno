@@ -1,5 +1,5 @@
 /* ===================================================================
-   css/_grupos.css - LA PALETA POR GRUPO DE MENÚ
+   css/grupos.css - LA PALETA POR GRUPO DE MENÚ
    ===================================================================
 
    Los siete grupos: portería, administración, bodega, supervisores,
@@ -44,10 +44,10 @@
    -------------------------------------------------------------------
    POR QUÉ ESTÁN EN SU PROPIO ARCHIVO, Y NO EN "styles.css"
    -------------------------------------------------------------------
-   Porque son la paleta, y la paleta vive en "_tokens.css". Estos son
+   Porque son la paleta, y la paleta vive en "tokens.css". Estos son
    los mismos colores, pero por grupo de menú.
 
-   Se enlaza DESPUÉS de "_tokens.css" y ANTES de "styles.css". Porque
+   Se enlaza DESPUÉS de "tokens.css" y ANTES de "styles.css". Porque
    "[data-group="x"]" tiene especificidad (0,1,0), igual que ":root". Y
    en empate gana el que se cargó después.
 
