@@ -1503,3 +1503,127 @@ cada uno responde a algo que pasó de verdad:
     renglón
 
 La herramienta se puede volver a correr: si ya no hay bloques, lo dice y no escribe nada.
+[nucleo-01]  Lo que usa más de un módulo, en "js/nucleo.js"
+------------------------------------------------------------------------------
+
+QUÉ SE MUDÓ
+
+Cuatro trozos, 1237 renglones, de "js/app.js" a "js/nucleo.js".
+
+  1. La CABEZA: los renglones 1 al 470. Ahí están las 25 variables de estado de la
+     aplicación ("workers", "attendance", "tarjetas", "eppCatalog", "kits",
+     "especialidades", "eppGps", "extraHolidays"...) y los ayudantes que usan todos.
+  2. La bitácora, para poder leerla.                    (5 funciones)
+  3. Si está puesta la bitácora de auditoría.           (22 funciones)
+  4. El encabezado que se encoge al bajar.               (3 funciones)
+
+Y el "<script>" va el PRIMERO de los tres:
+
+  js/nucleo.js                  <- este
+  js/componentes/escaner.js     <- sin tocar
+  js/app.js                     <- sigue con las otras 33 secciones
+
+
+POR QUÉ VA PRIMERO, Y POR QUÉ NO ES POR LAS FUNCIONES
+-------------------------------------------------------
+Las funciones de nivel superior son GLOBALES. Una de "js/app.js" la puede llamar
+"js/nucleo.js" sin importar el orden. Eso se comprobó: de 703 llamadas de nivel
+superior, solo 9 corren al cargar la página, y ninguna necesita que su módulo esté
+antes.
+
+Es por las VARIABLES. De las 151 declaradas en el nivel superior, 51 las usa más de un
+módulo:
+
+  workers      la declara la cabeza,  la usan los 8 módulos
+  attendance   la declara la cabeza,  la usan 5
+  marcajes     la declara administracion,  la usan porteria, supervisores, documentos,
+                              relojes y soporte
+  empresas     la declara administracion,  la usan 4
+  relojes      la declara relojes,  la usan porteria, bodega y soporte
+  miPerfil     la declara soporte,  la usan nucleo, porteria y administracion
+
+Y esas son "const" y "let", que NO se levantan como las "function". Si el módulo que las
+usa carga antes que el que las declara, se cae con "ReferenceError" al tocarlas.
+
+Con lo cual el núcleo carga primero, y los otros siete después en cualquier orden.
+
+
+QUE LOS TROZOS NO SON CONTIGUOS, Y POR QUÉ AUN ASÍ NO ROMPIÓ NADA
+---------------------------------------------------------------------
+Los cuatro trozos del núcleo están separados por 13.700 renglones de otras secciones.
+Y juntarlos cambia el orden en que se declaran las cosas de nivel superior.
+
+Da igual, por dos razones juntas:
+
+  - Al concatenar se conserva el orden ORIGINAL de los trozos. Si el trozo 1 va antes
+    del 4 en el archivo nuevo, también iba antes en el viejo.
+
+  - Y en el archivo viejo no hay ninguna declaración de nivel superior que use algo
+    declarado más abajo. Si la hubiera, la aplicación no habría cargado. Entre módulos
+    tampoco puede haber una referencia de nivel superior hacia adelante, por lo mismo.
+
+Lo único que hay que cuidar es el ORDEN DE CARGA, y ese quedó escrito en el "<script>".
+
+
+CÓMO SE COMPROBÓ
+----------------
+Con "tools/sonda-js.js", que es una sonda FUNCIONAL. Y esa elección tiene una razón.
+
+La huella ("tools/huella.js") se probó primero, y NO alcanzó: se rompió
+"function hoyLocal(){return isoLocal(new Date());}" por una fecha fija en
+"js/nucleo.js", y la huella dijo "NADA CAMBIÓ".
+
+Y no se equivocó. La huella mide colores y geometría de lo que se ve AHORA, y en la
+vista de portería no se ve ninguna fecha. Con lo cual no miró ese cambio.
+
+Para partir CSS la huella es la herramienta correcta. Para partir código hay que mirar
+lo que el código DEVUELVE. Y esa sonda mide tres cosas:
+
+  1. Lo que devuelven las funciones compartidas ("hoyLocal", "isoLocal",
+     "normalizarRut", "escHtml").
+  2. Lo que muestra la página: el encabezado, los siete botones, el submenú.
+  3. El "innerHTML" de las 41 vistas. Y esto es lo fuerte: esas 41 vistas las arman
+     funciones de módulos distintos, y si una cambió aunque sea un espacio, el texto
+     cambia.
+
+Resultado: con el código partido y sin él, el MISMO hash.
+
+  - "workers" con 47 trabajadores y "attendance" con 116: o sea que "boot()" corrió y
+    trajo datos de verdad.
+  - consola con un solo mensaje, de "supabaseClient", y ningún error.
+  - 41 vistas, "v-porteria" visible, "data-group=porteria", el encabezado con su texto.
+  - las 12 suites en verde.
+
+Y la sonda se vio ROJA primero: con la fecha fija, el hash cambió y señaló el renglón
+exacto ("hoyLocal() = 2035-07-04" en vez de "2026-10-01").
+
+
+LO QUE FALTA, Y EN QUÉ ORDEN
+------------------------------
+El archivo se sigue partiendo. Quedan 33 secciones en 7 módulos:
+
+  js/administracion.js   asistencia diaria, tarja, multi-empresa, empresas  2416 reg.
+  js/relojes.js          los 7 bloques de relojes                          3275 reg.
+  js/soporte.js          invitaciones, mis datos, permisos                 3020 reg.
+  js/porteria.js         ingreso, desplegables, marcar, bloqueo           2657 reg.
+  js/documentos.js       importaciones de Excel y Word                     1350 reg.
+  js/bodega.js           kits, especialidad, EPP                          1094 reg.
+  js/supervisores.js     justificación y conciliación                       492 reg.
+
+Y salen de este archivo los mismos cuatro trozos, con las mismas nueve llamadas de nivel
+superior como seña. Entre módulos ninguno se pisan variables de nivel superior hacia
+adelante, que ya se comprobó.
+
+Ver la entrada [modulos-01] cuando se hagan.
+
+
+DOS HALLAZGOS SOBRE EL MODO DE TRABAJAR, QUE QUEDAN PARA EL RESTO
+---------------------------------------------------------------
+
+a) "tools/huella.js" no ve cambios de JavaScript. Es correcto para CSS y es un agujero
+   para código. Para cada corte de código hay que correr "tools/sonda-js.js".
+
+b) Los cuatro trozos se cortaron con "slice" sobre el texto, usando números de RENGLÓN
+   como si fueran de CARÁCTER. Se llevó un par de llaves en vez de 347, y el guardia lo
+   detectó: el conteo de llaves no mintió, mintió el corte. Ahora se corta sobre el
+   ARREGLO DE RENGLONES.

@@ -1,7 +1,7 @@
 EL MAPA DE "js/app.js"
 ======================
 
-  Medido el 2026-10-01 sobre 15521 renglones y 610 funciones.
+  Medido el 2026-10-01 sobre 15541 renglones y 610 funciones.
 
   Cómo se generó:  node tools/mapa-js.js
   Cómo se verifica que no esté viejo:  node tools/mapa-js.js --verificar
@@ -13,41 +13,41 @@ EL MAPA DE "js/app.js"
   ----------------------------------------------------------------------------
 
     L  471  EL INGRESO PENDIENTE    288 regl.   16 fn.
-    L  759  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1797 regl.   70 fn.
-    L 2556  ASISTENCIA DIARIA DEL SUPERVISOR    522 regl.   23 fn.
-    L 3078  JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA    285 regl.    5 fn.
-    L 3363  CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ    207 regl.    4 fn.
-    L 3570  MARCAR Y AVISAR    134 regl.    3 fn.
-    L 3704  BITÁCORA DE ACCESO    221 regl.    5 fn.
-    L 3925  IMPORTAR MARCAJES DESDE EXCEL    503 regl.   19 fn.
-    L 4428  TARJA DE SUPERVISORES   1203 regl.   52 fn.
-    L 5631  INVITAR USUARIO DESDE LA APP    184 regl.    5 fn.
-    L 5815  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.
-    L 6036  DAR DE ALTA SIN CORREO    233 regl.    8 fn.
-    L 6269  MIS DATOS   1581 regl.   75 fn.
-    L 7850  KITS INICIALES POR ESPECIALIDAD    588 regl.   40 fn.
-    L 8438  MULTI-EMPRESA    217 regl.   13 fn.
-    L 8655  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.
-    L 9017  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    572 regl.   14 fn.
-    L 9589  BAJAR LA PLANTILLA EN WORD    275 regl.    5 fn.
-    L 9864  ROLES Y PERMISOS    255 regl.   11 fn.
-    L10119  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.
-    L10153  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)
-    L10181  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.
-    L12282  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.
-    L12992  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)
-    L13033  EL BLOQUEO REAL    170 regl.   11 fn.
-    L13203  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.
-    L13227  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.
-    L13336  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)
-    L13370  LO QUE NO HACE    269 regl.   11 fn.
-    L13639  KIT DE CONTRATACIÓN     34 regl.    0 fn.   (solo el banner)
-    L13673  LA ESPECIALIDAD DEL TRABAJADOR    472 regl.   22 fn.
-    L14145  LA BITÁCORA, PARA PODER LEERLA    140 regl.    5 fn.
-    L14285  ¿ESTÁ PUESTA LA BITÁCORA DE AUDITORÍA?    516 regl.   22 fn.
-    L14801  CONFIGURACIÓN DE PERMISOS POR ROL    136 regl.    5 fn.
-    L14937  EL ENCABEZADO SE ENCOGE AL BAJAR    111 regl.    3 fn.
-    L15048  EMPRESAS: CARGOS, GRUPOS Y PERMISOS    474 regl.   21 fn.
+    L  759  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1803 regl.   70 fn.
+    L 2562  ASISTENCIA DIARIA DEL SUPERVISOR    522 regl.   23 fn.
+    L 3084  JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA    285 regl.    5 fn.
+    L 3369  CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ    207 regl.    4 fn.
+    L 3576  MARCAR Y AVISAR    134 regl.    3 fn.
+    L 3710  BITÁCORA DE ACCESO    221 regl.    5 fn.
+    L 3931  IMPORTAR MARCAJES DESDE EXCEL    503 regl.   19 fn.
+    L 4434  TARJA DE SUPERVISORES   1203 regl.   52 fn.
+    L 5637  INVITAR USUARIO DESDE LA APP    184 regl.    5 fn.
+    L 5821  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.
+    L 6042  DAR DE ALTA SIN CORREO    233 regl.    8 fn.
+    L 6275  MIS DATOS   1595 regl.   75 fn.
+    L 7870  KITS INICIALES POR ESPECIALIDAD    588 regl.   40 fn.
+    L 8458  MULTI-EMPRESA    217 regl.   13 fn.
+    L 8675  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.
+    L 9037  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    572 regl.   14 fn.
+    L 9609  BAJAR LA PLANTILLA EN WORD    275 regl.    5 fn.
+    L 9884  ROLES Y PERMISOS    255 regl.   11 fn.
+    L10139  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.
+    L10173  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)
+    L10201  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.
+    L12302  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.
+    L13012  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)
+    L13053  EL BLOQUEO REAL    170 regl.   11 fn.
+    L13223  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.
+    L13247  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.
+    L13356  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)
+    L13390  LO QUE NO HACE    269 regl.   11 fn.
+    L13659  KIT DE CONTRATACIÓN     34 regl.    0 fn.   (solo el banner)
+    L13693  LA ESPECIALIDAD DEL TRABAJADOR    472 regl.   22 fn.
+    L14165  LA BITÁCORA, PARA PODER LEERLA    140 regl.    5 fn.
+    L14305  ¿ESTÁ PUESTA LA BITÁCORA DE AUDITORÍA?    516 regl.   22 fn.
+    L14821  CONFIGURACIÓN DE PERMISOS POR ROL    136 regl.    5 fn.
+    L14957  EL ENCABEZADO SE ENCOGE AL BAJAR    111 regl.    3 fn.
+    L15068  EMPRESAS: CARGOS, GRUPOS Y PERMISOS    474 regl.   21 fn.
 
   ----------------------------------------------------------------------------
   583 de 610 funciones (96%) caen dentro de una sección.
@@ -91,10 +91,10 @@ EL MAPA DE "js/app.js"
   Son un banner con el título y nada más: toda la función está en la de abajo.
   No están rotas. Se listan para no pensar que falta algo.
 
-    L10153  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
-    L12992  EL KIOSCO DEL RELOJ
-    L13336  LOS MARCAJES
-    L13639  KIT DE CONTRATACIÓN
+    L10173  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
+    L13012  EL KIOSCO DEL RELOJ
+    L13356  LOS MARCAJES
+    L13659  KIT DE CONTRATACIÓN
 
   Y LO QUE ESTO NO DICE
   ----------------------------------------------------------------------------
