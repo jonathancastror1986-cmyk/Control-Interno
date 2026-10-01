@@ -17,12 +17,12 @@
 <script src="../js/auth.js"></script>
 <script src="../js/theme.js"></script>
 <script src="../js/clima-reloj.js"></script>
-<link rel="stylesheet" href="../css/base.css?v=5">
+<link rel="stylesheet" href="../css/base.css?v=6">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=5">
-<link rel="stylesheet" href="../css/grupos.css?v=5">
+<link rel="stylesheet" href="../css/tokens.css?v=6">
+<link rel="stylesheet" href="../css/grupos.css?v=6">
 <link rel="stylesheet" href="../css/styles.css">
 <!--
 EL TEMA OSCURO DE WHATSAPP
@@ -59,11 +59,12 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=5">
-<link rel="stylesheet" href="../css/vistas.css?v=5">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=5">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=5">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=5">
+<link rel="stylesheet" href="../css/marca.css?v=6">
+<link rel="stylesheet" href="../css/vistas.css?v=6">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=6">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=6">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=6">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=6">
 <link rel="stylesheet" href="../css/movil.css" media="(max-width: 860px)">
 </head>
 <body>
@@ -1940,6 +1941,81 @@ obra sembradas por la migración 031.
     <div id="plantillasLista" style="margin-top:10px"></div>
   </div>
 
+  <!--
+  LOS CAMPOS PROPIOS
+  ==================
+  Las plantillas de arriba solo pueden poner datos que YA existen en el trabajador. Faltan
+  los que la empresa necesita y no estan: el numero de licencia, la talla, el centro de
+  costo, el sueldo del cargo.
+
+  Y son POR EMPRESA, porque "codigo de hazard" en una constructora y "codigo de patio" en
+  un depot no son la misma cosa. Un campo con dos significados es peor que no tenerlo.
+
+  Y la clave de cada uno lleva el numero de empresa adelante —"7-licencia"— para que dos
+  empresas puedan tener un campo que se llama igual sin pisarse. Ver [campos-01].
+  -->
+  <div class="card">
+    <h3>Campos propios de la empresa</h3>
+    <small>Los que agrega la empresa para sus plantillas, y que no existen en la ficha del
+      trabajador. Cada uno es de un tipo, y el tipo decide cómo se muestra y cómo se rellena.
+      Un campo <b>requerido</b> sin dato no deja descargar la plantilla: un documento con un
+      hueco es peor que no tener documento.</small>
+
+    <div class="plantillaEditor" style="margin-top:12px">
+      <div class="plantillaPanel">
+        <h4>Empresa</h4>
+        <select id="camposPropiosEmpresa" onchange="cargarCamposPropios()"></select>
+
+        <h4 style="margin-top:14px">Campos definidos</h4>
+        <div id="camposPropiosLista"><small style="color:var(--muted)">Cargando…</small></div>
+
+        <h4 style="margin-top:14px">Agregar un campo</h4>
+        <div class="campoForm">
+          <div>
+            <label for="cpClave" style="font-size:.78rem;display:block;margin-bottom:3px">Cómo se escribe dentro del documento</label>
+            <input id="cpClave" placeholder="licencia, talla, centro-costo">
+            <small style="display:block;color:var(--muted);font-size:.7rem;margin-top:2px">Queda como
+              <b>[CAMPO:&lt;empresa&gt;-<span id="cpVistaClave">clave</span>]</b></small>
+          </div>
+          <div>
+            <label for="cpEtiqueta" style="font-size:.78rem;display:block;margin-bottom:3px">Cómo se lo muestra en pantalla</label>
+            <input id="cpEtiqueta" placeholder="Licencia de conducir (si se escribe distinto)">
+          </div>
+          <div>
+            <label for="cpTipo" style="font-size:.78rem;display:block;margin-bottom:3px">Tipo</label>
+            <select id="cpTipo" onchange="cambiarTipoCampo()">
+              <option value="texto">Texto — una línea de texto libre</option>
+              <option value="numero">Número — solo cifras, se puede calcular</option>
+              <option value="fecha">Fecha — se escribe AAAA-MM-DD</option>
+              <option value="lista">Lista — se elige UNA de las opciones</option>
+              <option value="casillas">Casillas — se marcan VARIAS</option>
+              <option value="imagen">Imagen — una foto, como la del trabajador</option>
+              <option value="firma">Firma — una imagen, el hueco para firmar</option>
+            </select>
+          </div>
+          <div id="cpOpcionesCaja" style="display:none">
+            <label for="cpOpciones" style="font-size:.78rem;display:block;margin-bottom:3px">Opciones, separadas por <b>|</b></label>
+            <input id="cpOpciones" placeholder="A|B|C">
+          </div>
+          <div class="fila">
+            <label><input type="checkbox" id="cpRequerido"> es requerido</label>
+          </div>
+          <div>
+            <button class="btn primary" type="button" onclick="crearCampoPropio()">Crear el campo</button>
+            <span id="cpAviso" style="margin-left:8px"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plantillaPapel">
+        <div id="plantillaVariablesBox">
+          <h4 style="margin:0 0 8px 0;font:600 .78rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Variables para usar en cualquier plantilla</h4>
+          <div id="plantillaVariables" style="font-size:.8rem"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <h3>El timbre</h3>
     <small>El nombre y el RUT salen de la empresa, no se escriben de nuevo acá: si el timbre tuviera su propio
@@ -2338,16 +2414,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=5"></script>
-<script src="../js/componentes/escaner.js?v=5"></script>
+<script src="../js/nucleo.js?v=6"></script>
+<script src="../js/componentes/escaner.js?v=6"></script>
 
-<script src="../js/relojes.js?v=5"></script>
-<script src="../js/soporte.js?v=5"></script>
-<script src="../js/administracion.js?v=5"></script>
-<script src="../js/bodega.js?v=5"></script>
-<script src="../js/documentos.js?v=5"></script>
-<script src="../js/supervisores.js?v=5"></script>
-<script src="../js/app.js?v=5"></script>
+<script src="../js/relojes.js?v=6"></script>
+<script src="../js/soporte.js?v=6"></script>
+<script src="../js/administracion.js?v=6"></script>
+<script src="../js/bodega.js?v=6"></script>
+<script src="../js/documentos.js?v=6"></script>
+<script src="../js/supervisores.js?v=6"></script>
+<script src="../js/app.js?v=6"></script>
 
 <!--
 EL MOTIVO DEL CAMBIO

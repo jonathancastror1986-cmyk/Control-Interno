@@ -3358,3 +3358,238 @@ function descripcionFiltroMarcajes(){
 }
 
 // KIT DE CONTRATACIÓN
+
+// LOS CAMPOS PROPIOS DE LA EMPRESA
+// ==================================
+//
+// -------------------------------------------------------------------
+// QUÉ HACE
+// --------
+// El editor de plantillas que YA existía solo puede poner datos que ya están en
+// "trabajadores". Acá van los que la empresa define: licencia, talla, centro de costo.
+//
+// Y son POR EMPRESA, porque "código de hazard" en una constructora y "código de patio" en
+// un depot no son la misma cosa.
+//
+// -------------------------------------------------------------------
+// POR QUÉ UN ARCHIVO NUEVO Y NO EN "relojes.js"
+// ---------------------------------------------
+//
+// Porque el editor de plantillas está en "relojes.js" desde hace años, y esas son 74
+// menciones de "plantilla" que ya funcionan. Tocar ese archivo hoy, con lo que hemos
+// tocado, es mezclar dos cosas: lo que andaba y lo nuevo.
+//
+// Y en un archivo aparte, el que llega después sabe dónde está lo nuevo. Si el editor
+// viejo se rompe, se deshace este archivo y no se toca lo otro.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ UNA CLASE PROPIA EN EL CSS
+// ------------------------------------
+//
+// Mismo motivo: "css/componentes/plantillas.css" con ".plantillaEditor". Dos columnas, un
+// panel pegajoso y una lista de campos: eso es una pantalla, no un estilo suelto.
+//
+// -------------------------------------------------------------------
+// LOS SIETE TIPOS, Y POR QUÉ NO SON MÁS
+// --------------------------------------
+//
+// texto, numero, fecha, lista, casillas, imagen y firma. Los mismos siete que el "check" de
+// la tabla. Si se agrega un tipo, se agrega en los dos lados: en el "check" de la tabla y en
+// el "<select>" de esta pantalla.
+//
+// Y en el "SELECT" está escrito a mano a propósito, porque un tipo que la base acepta y la
+// pantalla no ofrece es un campo que se puede crear de otra forma y no se puede editar acá.
+const TIPOS_CAMPO = ['texto', 'numero', 'fecha', 'lista', 'casillas', 'imagen', 'firma'];
+
+// Y los que necesitan opciones. Para los demás, mandarlas es dato muerto: se guarda y no
+// se ve nunca.
+const TIPOS_CON_OPCIONES = ['lista', 'casillas'];
+
+function etiquetaTipoCampo(t) {
+  return ({
+    texto: 'texto',
+    numero: 'número',
+    fecha: 'fecha',
+    lista: 'lista',
+    casillas: 'casillas',
+    imagen: 'imagen',
+    firma: 'firma',
+  })[t] || t;
+}
+
+// -------------------------------------------------------------------
+// EL AVISO
+// -------------------------------------------------------------------
+// Y es el mismo del editor que ya existe, uno solo para los dos. Dos cajas de aviso en la
+// misma pantalla se contradicen, y el que se leyó último gana.
+function avisoCamposPropios(texto) {
+  const a = document.getElementById('cpAviso');
+  if (a) a.textContent = texto || '';
+}
+
+// -------------------------------------------------------------------
+// LA VISTA PREVIA DE LA CLAVE
+// -------------------------------------------------------------------
+// Muestra cómo va a quedar la clave DENTRO del documento mientras se escribe, porque la
+// clave que se usa es "[CAMPO:<empresa>-<clave>]" y esa transformación no es obvia: lo
+// que el usuario escribe no es lo que va en el documento.
+//
+// Y sin empresa elegida muestra solo "[CAMPO:…]", porque inventar el número de empresa
+// sería mostrar una clave que después no funciona.
+function verClaveCampo() {
+  const caja = document.getElementById('cpVistaClave');
+  if (!caja) return;
+  const emp = document.getElementById('camposPropiosEmpresa');
+  const inp = document.getElementById('cpClave');
+  const id = (emp && emp.value) ? emp.value : null;
+  const cruda = (inp && inp.value ? inp.value : '').trim();
+
+  if (!cruda) { caja.textContent = 'clave'; return; }
+
+  // Y la normalización es la misma que la de la base: minúsculas, sin tildes, todo lo que
+  // no sea letra o número a guion. Si acá se ve distinto de lo que guarda la base, el
+  // usuario copia una clave que no existe.
+  const clave = cruda
+    .toLowerCase()
+    .replace(/áéíóúü/g, 'aeiouu')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  caja.textContent = id ? (id + '-' + clave) : '…-' + clave;
+}
+
+// -------------------------------------------------------------------
+// EL TIPO, Y EL CAMPO DE OPCIONES
+// -------------------------------------------------------------------
+function cambiarTipoCampo() {
+  const t = document.getElementById('cpTipo');
+  const caja = document.getElementById('cpOpcionesCaja');
+  if (!t || !caja) return;
+  caja.style.display = TIPOS_CON_OPCIONES.indexOf(t.value) >= 0 ? '' : 'none';
+}
+
+// -------------------------------------------------------------------
+// CARGAR LOS CAMPOS DE LA EMPRESA
+// -------------------------------------------------------------------
+async function cargarCamposPropios() {
+  const lista = document.getElementById('camposPropiosLista');
+  const emp = document.getElementById('camposPropiosEmpresa');
+  if (!lista) return;
+
+  verClaveCampo();
+
+  // Y el selector de empresa. Se llena una sola vez, con la lista de empresas que ya se
+  // carga para otros usos: no se pide otra vez a la base.
+  if (emp && !emp.options.length) {
+    const empresas = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
+    emp.innerHTML = empresas
+      .map(e => '<option value="' + escHtml(String(e.id)) + '">' + escHtml(e.nombre || '') + '</option>')
+      .join('');
+    // Y sin empresa no hay nada que mostrar, porque los campos son de una.
+    if (!emp.options.length) {
+      lista.innerHTML = '<small style="color:var(--muted)">No hay empresas cargadas.</small>';
+      return;
+    }
+  }
+
+  if (!emp || !emp.value) {
+    lista.innerHTML = '<small style="color:var(--muted)">Elegí una empresa.</small>';
+    return;
+  }
+
+  const empresaId = parseInt(emp.value, 10);
+  const { data, error } = await window.supabaseClient.rpc('variables_de_plantilla', { p_empresa_id: empresaId });
+
+  if (error) {
+    lista.innerHTML = '<small style="color:var(--danger)">No se pudieron leer los campos: ' + escHtml(error.message) + '</small>';
+    return;
+  }
+
+  const propios = (data || []).filter(v => v.es_propio);
+
+  if (!propios.length) {
+    lista.innerHTML = '<small style="color:var(--muted)">Todavía no hay campos propios. Agregá el primero con el formulario de abajo.</small>';
+  } else {
+    lista.innerHTML = propios.map(v => {
+      // Y el nombre de la variable sale de la fila, que ya trae "[CAMPO:7-licencia]".
+      // Se lo saca de adentro para mostrar solo la clave: la llave completa va en otro
+      // lado, y mostrarla acá dos veces es ruido.
+      const clave = String(v.variable || '').replace(/^\[CAMPO:/, '').replace(/\]$/, '');
+      return '<div class="campoPropio">' +
+        '<span class="cod">' + escHtml(clave) + '</span>' +
+        '<span class="et">' + escHtml(v.etiqueta || '') + '</span>' +
+        '<span class="ti">' + escHtml(etiquetaTipoCampo(v.tipo)) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Y las variables fijas aparte, porque son muchas y no tienen nada que ver con los
+  // campos propios: mezclarlas en la misma lista hace que el que quiere ver "licencia"
+  // tenga que pasar por veinte renglones que no le sirven.
+  const fijas = (data || []).filter(v => !v.es_propio);
+  const cajaVar = document.getElementById('plantillaVariables');
+  if (cajaVar) {
+    cajaVar.innerHTML = fijas
+      .map(v => '<span class="campoPropio" style="padding:3px 0"><span class="cod">' + escHtml(v.variable) + '</span>' +
+                '<span class="et" style="font-size:.8rem">' + escHtml(v.etiqueta || '') + '</span></span>')
+      .join('');
+  }
+}
+
+// -------------------------------------------------------------------
+// CREAR UN CAMPO
+// -------------------------------------------------------------------
+async function crearCampoPropio() {
+  const emp = document.getElementById('camposPropiosEmpresa');
+  const clave = document.getElementById('cpClave');
+  const etiqueta = document.getElementById('cpEtiqueta');
+  const tipo = document.getElementById('cpTipo');
+  const opciones = document.getElementById('cpOpciones');
+  const requerido = document.getElementById('cpRequerido');
+
+  if (!emp || !emp.value) { avisoCamposPropios('Elegí una empresa.'); return; }
+
+  const cruda = (clave.value || '').trim();
+  if (!cruda) { avisoCamposPropios('Escribí cómo se llama el campo.'); clave.focus(); return; }
+
+  const t = tipo.value;
+  if (TIPOS_CAMPO.indexOf(t) < 0) { avisoCamposPropios('Ese tipo no existe.'); return; }
+
+  // Y si el tipo necesita opciones, se avisa ANTES de mandar nada. La base también lo
+  // avisa, pero con un error que llega con un código y hay que descifrarlo; acá es un
+  // mensaje que dice qué hacer.
+  const listaOpciones = (opciones.value || '').trim();
+  if (TIPOS_CON_OPCIONES.indexOf(t) >= 0 && !listaOpciones) {
+    avisoCamposPropios('Una lista necesita sus opciones, separadas por "|".');
+    opciones.focus();
+    return;
+  }
+
+  const { data, error } = await window.supabaseClient.rpc('gestionar_campo', {
+    p_empresa_id: parseInt(emp.value, 10),
+    p_clave: cruda,
+    p_etiqueta: (etiqueta.value || '').trim() || null,
+    p_tipo: t,
+    p_opciones: TIPOS_CON_OPCIONES.indexOf(t) >= 0 ? listaOpciones : null,
+    p_ayuda: null,
+    p_orden: 100,
+    p_requerido: !!requerido.checked,
+    p_activo: true,
+  });
+
+  if (error) {
+    avisoCamposPropios('No se pudo crear: ' + error.message);
+    return;
+  }
+
+  // Y el mensaje dice la clave FINAL, que es la que va a ir en el documento. Si el usuario
+  // escribió "Licencia de Conducir" y quedó "7-licencia-de-conducir", tiene que saberlo
+  // ahora, no cuando lo busque dentro del documento.
+  avisoCamposPropios('Creado. Se usa como [CAMPO:' + (data || '') + '].');
+  clave.value = '';
+  etiqueta.value = '';
+  opciones.value = '';
+  requerido.checked = false;
+
+  await cargarCamposPropios();
+}

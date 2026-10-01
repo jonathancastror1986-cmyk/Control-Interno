@@ -1,0 +1,143 @@
+/* ref: plantillas-01 - El editor de plantillas: la caja de dos columnas y el panel de campos
+   propios.
+   ------------------------------------------------------------------
+   POR QUÉ UNA CLASE PROPIA Y NO ESTILOS SUELTOS EN "styles.css"
+   ------------------------------------------------------------
+   Este editor es una pantalla con su propia forma: dos columnas, un panel que se queda
+   pegado, y una lista de campos. Todo eso no es un estilo, es la pantalla.
+
+   Y si vive suelto en "styles.css", pasa lo de siempre: los estilos se mezclan con los de
+   otras veinte pantallas y nadie encuentra los suyos. Con la clase ".plantillaEditor" el
+   que busca el editor lo encuentra por el nombre, y si mañana se saca la pantalla, se
+   borra un archivo y no hay que huntear reglas huérfanas.
+
+   ------------------------------------------------------------------
+   LAS DOS COLUMNAS
+   ---------------
+   El panel de la izquierda y el documento de la derecha. Y el ancho de cada uno está en
+   fracción, no en píxeles: el panel es siempre el mismo y el documento toma lo que queda.
+
+   Y el mínimo del documento es lo que impide que se vuelva ilegible en una pantalla
+   angosta: sin mínimo, el documento se estira hasta que las columnas de una tabla no
+   alcanzan. Ver [plantillas-02].
+   ------------------------------------------------------------------ */
+.plantillaEditor{
+  display:grid;
+  grid-template-columns:minmax(260px,320px) minmax(0,1fr);
+  gap:16px;
+  align-items:start;
+}
+
+/*
+  EL PANEL DE LOS CAMPOS
+  ---------------------
+  Y "sticky" con "top" para que la lista de campos no se vaya cuando el documento es largo
+  y hay que bajar. Con una plantilla larga, la lista de campos es la referencia con la que
+  se mira arriba y abajo.
+
+  Y el "top" lleva un margen chico, porque la barra de arriba queda pegada al borde y si el
+  panel arranca en cero queda debajo de ella.
+*/
+.plantillaPanel{
+  position:sticky;
+  top:14px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--panel);
+  padding:12px;
+  max-height:calc(100vh - 28px);
+  overflow:auto;
+}
+.plantillaPanel h4{
+  font:600 .78rem 'Montserrat',system-ui,sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--muted);
+  margin:0 0 8px 0;
+}
+.plantillaPanel .pe{
+  color:var(--secondary-text);
+  font-size:.78rem;
+  margin:0 0 10px 0;
+}
+
+/*
+  LOS CAMPOS, COMO SE LISTAN
+  -------------------------
+  Con el código a la izquierda en monoespaciada y la etiqueta al lado. El código es lo que
+  va dentro de "[CAMPO:...]" y por eso tiene que poder LEERSE de un vistazo: es lo que se
+  copia al documento, y escribirlo a mano es donde se equivocan.
+
+  Y el tipo sale como una etiqueta chica, no como un ícono: un ícono hay que aprenderlo, y
+  un ícono malgreat de "firma" y "casillas" son iguales.
+*/
+.campoPropio{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:7px 8px;
+  border-bottom:1px solid var(--line);
+}
+.campoPropio:last-child{border-bottom:0}
+.campoPropio .cod{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:.76rem;
+  color:var(--secondary-text);
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:1px 5px;
+  white-space:nowrap;
+}
+.campoPropio .et{font-size:.86rem;flex:1;min-width:0}
+.campoPropio .ti{
+  font-size:.68rem;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  white-space:nowrap;
+}
+.campoPropio .req{color:var(--warn);font-size:.7rem}
+
+/*
+  EL FORMULARIO DE DAR DE ALTO UN CAMPO
+  -------------------------------------
+  Y el campo de "opciones" aparece SOLO cuando el tipo es lista o casillas. Con un "check"
+  en la base, si se mandan opciones con un tipo que no las usa, se guardan y no se ven
+  nunca: es dato muerto.
+*/
+.campoForm{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.campoForm input,.campoForm select,.campoForm textarea{
+  width:100%;
+  font-size:.85rem;
+}
+.campoForm .fila{display:flex;gap:6px;align-items:center}
+.campoForm .fila label{font-size:.78rem;display:flex;gap:6px;align-items:center;margin:0}
+.campoForm .fila input[type=checkbox]{width:auto}
+.campoForm textarea{min-height:56px;resize:vertical;font-size:.82rem}
+
+/*
+  EL DOCUMENTO, AL LADO
+  --------------------
+  Con un fondo distinto del de la página, para que se vea dónde termina la pantalla y
+  empieza el papel. Y con un borde: un documento sin borde se confunde con un cuadro de
+  texto más.
+*/
+.plantillaPapel{
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:var(--panel);
+  padding:10px;
+}
+
+/*
+  Y EN PANTALLA ANGOSTA, UNA COLUMNA
+  ---------------------------------
+  Porque en una columna el panel queda arriba y el documento abajo, y el documento se lee
+  entero sin que el panel lo empuje. Y el panel deja de ser "sticky", porque pegado arriba
+  en una sola columna tapa el documento mientras se lee.
+*/
+@media (max-width:980px){
+  .plantillaEditor{grid-template-columns:1fr}
+  .plantillaPanel{position:static;max-height:none}
+}
