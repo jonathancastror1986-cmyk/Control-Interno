@@ -1287,5 +1287,3 @@ function cambiarDestinoPlantilla(){
   else if(v==='cargo')av.textContent='Solo a las personas que tienen ese cargo.';
   else av.textContent='Le toca a todo el mundo, sin importar el oficio. Es para seguridad general.';
 }
-// ===================================================================
-// EMPRESAS: CARGOS, GRUPOS Y PERMISOS

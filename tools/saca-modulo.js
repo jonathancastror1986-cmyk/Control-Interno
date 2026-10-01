@@ -76,13 +76,13 @@ const NL = '\r\n';
 // 0. QUÉ MÓDULO
 // -------------------------------------------------------------------
 const MODULOS = {
-  porteria: { rx: /PORTER|INGRESO PENDIENTE|DESPLEGABLES ANIDADOS|MARCAR Y AVISAR|BIT.CORA DE ACCESO|KIOSCO DEL RELOJ|EL BLOQUEO REAL/, secciones: 6, titulo: 'LA PORTER' },
-  administracion: { rx: /ASISTENCIA DIARIA DEL SUPERVISOR|TARJA DE SUPERVISORES|MULTI-EMPRESA|EMPRESAS: CARGOS/, secciones: 4, titulo: 'ADMINISTRACI' },
-  supervisores: { rx: /JUSTIFICACI.N DIARIA|CONCILIACI.N/, secciones: 2, titulo: 'LOS SUPERVISORES' },
-  documentos: { rx: /IMPORTAR MARCAJES|IMPORTAR WORD|BAJAR LA PLANTILLA/, secciones: 3, titulo: 'LOS DOCUMENTOS' },
-  bodega: { rx: /KITS INICIALES|KIT DE CONTRATACI.N|ESPECIALIDAD DEL TRABAJADOR/, secciones: 3, titulo: 'LA BODEGA' },
-  relojes: { rx: /RELOJES:|VENTANA ANTIRREBOTE|TRES N.MEROS DE LA BARRA|GENERAR Y ROTAR LA CLAVE|USUARIO RELOJ|LO QUE NO HACE|LOS MARCAJES/, secciones: 7, titulo: 'LOS RELOJES' },
-  soporte: { rx: /INVITAR USUARIO|INVITACI.N POR CORREO|DAR DE ALTA SIN CORREO|MIS DATOS|ROLES Y PERMISOS|COHERENCIA DE PERMISOS|PERMISOS POR ROL|QUE MIGRACI.N FALTA/, secciones: 8, titulo: 'SOPORTE' },
+  porteria: { rx: /PORTER|INGRESO PENDIENTE|DESPLEGABLES ANIDADOS|MARCAR Y AVISAR|BIT.CORA DE ACCESO|KIOSCO DEL RELOJ|EL BLOQUEO REAL/, titulo: 'LA PORTER' },
+  administracion: { rx: /ASISTENCIA DIARIA DEL SUPERVISOR|TARJA DE SUPERVISORES|MULTI-EMPRESA|EMPRESAS: CARGOS/, titulo: 'ADMINISTRACI' },
+  supervisores: { rx: /JUSTIFICACI.N DIARIA|CONCILIACI.N/, titulo: 'LOS SUPERVISORES' },
+  documentos: { rx: /IMPORTAR MARCAJES|IMPORTAR WORD|BAJAR LA PLANTILLA/, titulo: 'LOS DOCUMENTOS' },
+  bodega: { rx: /KITS INICIALES|KIT DE CONTRATACI.N|ESPECIALIDAD DEL TRABAJADOR/, titulo: 'LA BODEGA' },
+  relojes: { rx: /RELOJES:|VENTANA ANTIRREBOTE|TRES N.MEROS DE LA BARRA|GENERAR Y ROTAR LA CLAVE|USUARIO RELOJ|LO QUE NO HACE|LOS MARCAJES/, titulo: 'LOS RELOJES' },
+  soporte: { rx: /INVITAR USUARIO|INVITACI.N POR CORREO|DAR DE ALTA SIN CORREO|MIS DATOS|ROLES Y PERMISOS|COHERENCIA DE PERMISOS|PERMISOS POR ROL|QUE MIGRACI.N FALTA/, titulo: 'SOPORTE' },
 };
 
 const nombre = process.argv[2];
@@ -100,7 +100,7 @@ const NUEVO = path.join(raiz, 'js', nombre + '.js');
 const LINK = '<script src="../js/' + nombre + '.js?v=1"></script>';
 
 console.log('');
-console.log('    módulo: ' + nombre + '  (' + M.secciones + ' secciones, "' + M.titulo + '")');
+console.log('    módulo: ' + nombre + '  ("' + M.titulo + '")');
 
 // -------------------------------------------------------------------
 // 1. IDEMPOTENCIA
@@ -176,14 +176,25 @@ secciones.forEach((s, k) => { s.fin = (k < secciones.length - 1 ? secciones[k + 
 const mias = secciones.filter((s) => M.rx.test(sinAcentos(s.titulo)));
 
 console.log('');
-if (mias.length !== M.secciones) {
-  console.log('  *** SALIERON ' + mias.length + ' SECCIONES PARA "' + nombre + '", Y SON ' + M.secciones + ' ***');
-  console.log('    O el mapa cambió, o el patrón del módulo está mal.');
-  console.log('    Las que sí salieron:');
-  mias.forEach((s) => console.log('      L' + s.linea + ' | ' + s.titulo));
+// Y el guardia es de COBERTURA, no de cantidad esperada.
+//
+// O sea: tiene que haber AL MENOS una sección, y hay que ver cuáles son. Si el patrón del
+// módulo está mal, se ve en la lista; no hace falta un número escrito a mano que avise.
+//
+// Y la cobertura de verdad se comprueba DESPUÉS de cortar, más abajo: releer el mapa y ver
+// que no queda ninguna sección de este módulo. Eso es una propiedad del resultado.
+if (!mias.length) {
+  console.log('  *** NO SALIÓ NINGUNA SECCIÓN PARA "' + nombre + '" ***');
+  console.log('    El patrón del módulo no casa con ningún título del mapa.');
+  console.log('    Las secciones que hay:');
+  secciones.slice(0, 40).forEach((s) => console.log('      L' + s.linea + ' | ' + s.titulo));
   console.log('    No se escribe nada.');
   process.exit(1);
 }
+
+console.log('    ' + mias.length + ' secciones:');
+mias.forEach((s) => console.log('      L' + String(s.linea).padStart(6) + ' | ' + s.titulo.slice(0, 58)));
+console.log('');
 console.log('    ok  las ' + mias.length + ' secciones del módulo');
 
 const rangos = mias.map((s) => ({ desde: s.linea, hasta: s.fin, que: s.titulo }));

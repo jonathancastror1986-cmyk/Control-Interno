@@ -1,7 +1,7 @@
 EL MAPA DE "js/app.js"
 ======================
 
-  Medido el 2026-10-01 sobre 11368 renglones y 444 funciones.
+  Medido el 2026-10-01 sobre 4740 renglones y 190 funciones.
 
   Cómo se generó:  node tools/mapa-js.js
   Cómo se verifica que no esté viejo:  node tools/mapa-js.js --verificar
@@ -12,33 +12,20 @@ EL MAPA DE "js/app.js"
   LAS SECCIONES
   ----------------------------------------------------------------------------
 
-    L  289  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1803 regl.   70 fn.   abre Lundefined
-    L 2092  ASISTENCIA DIARIA DEL SUPERVISOR    522 regl.   23 fn.   abre Lundefined
-    L 2614  JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA    134 regl.    3 fn.   abre Lundefined
-    L 2748  BITÁCORA DE ACCESO    221 regl.    5 fn.   abre Lundefined
-    L 2969  IMPORTAR MARCAJES DESDE EXCEL   1203 regl.   52 fn.   abre Lundefined
-    L 4172  INVITAR USUARIO DESDE LA APP    184 regl.    5 fn.   abre Lundefined
-    L 4356  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.   abre Lundefined
-    L 4577  DAR DE ALTA SIN CORREO    233 regl.    8 fn.   abre Lundefined
-    L 4810  MIS DATOS   1595 regl.   75 fn.   abre Lundefined
-    L 6405  KITS INICIALES POR ESPECIALIDAD    217 regl.   13 fn.   abre Lundefined
-    L 6622  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.   abre Lundefined
-    L 6984  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    255 regl.   11 fn.   abre Lundefined
-    L 7239  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.   abre Lundefined
-    L 7273  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)   abre Lundefined
-    L 7301  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.   abre Lundefined
-    L 9402  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.   abre Lundefined
-    L10112  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)   abre Lundefined
-    L10153  EL BLOQUEO REAL    170 regl.   11 fn.   abre Lundefined
-    L10323  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.   abre Lundefined
-    L10347  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.   abre Lundefined
-    L10456  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)   abre Lundefined
-    L10490  LO QUE NO HACE    269 regl.   11 fn.   abre Lundefined
-    L10759  KIT DE CONTRATACIÓN    136 regl.    5 fn.   abre Lundefined
-    L10895  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.   abre Lundefined
+    L  289  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1797 regl.   70 fn.   abre L287
+    L 2086  ASISTENCIA DIARIA DEL SUPERVISOR    285 regl.    5 fn.   abre L2079
+    L 2371  CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ    134 regl.    3 fn.   abre L2369
+    L 2505  BITÁCORA DE ACCESO    221 regl.    5 fn.   abre L2503
+    L 2726  IMPORTAR MARCAJES DESDE EXCEL    588 regl.   40 fn.   abre L2724
+    L 3314  MULTI-EMPRESA    572 regl.   14 fn.   abre L3308
+    L 3886  BAJAR LA PLANTILLA EN WORD     41 regl.    0 fn.   (solo el banner)   abre L3884
+    L 3927  EL BLOQUEO REAL    170 regl.   11 fn.   abre L3927
+    L 4097  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     34 regl.    0 fn.   (solo el banner)   abre L4095
+    L 4131  LA ESPECIALIDAD DEL TRABAJADOR    136 regl.    5 fn.   abre L4131
+    L 4267  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.   abre L4265
 
   ----------------------------------------------------------------------------
-  428 de 444 funciones (96%) caen dentro de una sección.
+  174 de 190 funciones (92%) caen dentro de una sección.
 
 
   LAS 16 FUNCIONES QUE NO CAEN EN NINGUNA SECCIÓN
@@ -63,14 +50,13 @@ EL MAPA DE "js/app.js"
     L  239  aprobarIngresoPendiente
     L  270  rechazarIngresoPendiente
 
-  SECCIONES SIN FUNCIONES DENTRO (3)
+  SECCIONES SIN FUNCIONES DENTRO (2)
   ----------------------------------------------------------------------------
   Son un banner con el título y nada más: toda la función está en la de abajo.
   No están rotas. Se listan para no pensar que falta algo.
 
-    L 7273  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
-    L10112  EL KIOSCO DEL RELOJ
-    L10456  LOS MARCAJES
+    L 3886  BAJAR LA PLANTILLA EN WORD
+    L 4097  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES
 
   Y LO QUE ESTO NO DICE
   ----------------------------------------------------------------------------
