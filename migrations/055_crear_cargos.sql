@@ -142,6 +142,18 @@ begin
       translate(lower(v_nombre), 'áéíóúüÁÉÍÓÚÜñÑ', 'aeiouuaeiouunn'),
       ' ');
 
+    -- Y se saca lo que no puede ser parte de una clave: signos, parentesis, comillas.
+    --
+    -- Porque los grupos SÍ limpian: "Gastos Generales" y "Gastos generales" dan la misma
+    -- clave, y una sola fila. Un cargo con lo mismo dejaría "¿" y "!!" guardados como
+    -- claves, y el catálogo queda con basura que después nadie sabe qué es.
+    --
+    -- Se borran los signos y se dejan los espacios y los guiones, porque esos SÍ son
+    -- separadores de palabras: "Operador 3-A" tiene que quedar "operador 3-a" y no
+    -- "operador 3a".
+    v_clave := btrim(
+      regexp_replace(v_clave, '[^a-z0-9 -]+', '', 'g'));
+
     -- Y la forma en que se compara, que junta los espacios de más. Un nombre escrito
     -- "Jefe  Administrativo" y otro "Jefe Administrativo" son el mismo cargo, y si se
     -- comparan tal cual son dos textos distintos y sale un duplicado. Ver [clave-02].
