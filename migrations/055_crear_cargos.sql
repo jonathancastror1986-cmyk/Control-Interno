@@ -126,8 +126,14 @@ begin
     -- El orden importa y es el mismo que en "gestionar_grupo": primero minúsculas,
     -- después sin tildes. Al revés, la mayúscula inicial todavía no está en [a-z0-9] y
     -- se pierde.
+    --
+    -- Y las dos cadenas del "translate" tienen la MISMA cantidad de letras, a propósito.
+    -- Si el origen es más largo que el destino, las letras que se quedan sin pareja salen
+    -- con la PRIMERA del destino, sin error: 'Á' se volvería 'e'. Hoy eso no se ve, porque
+    -- "lower()" ya bajó las mayúsculas antes de que el "translate" las mire. O sea que el
+    -- acierto depende de una propiedad que no se lee en el código. Ver [clave-01].
     v_clave := btrim(
-      translate(lower(v_nombre), 'áéíóúüÁÉÍÓÚÜñÑ', 'aeiouueiouunn'),
+      translate(lower(v_nombre), 'áéíóúüÁÉÍÓÚÜñÑ', 'aeiouuaeiouunn'),
       ' ');
   end if;
 
@@ -149,7 +155,7 @@ begin
     select e.clave into v_clave
       from epp_especialidades e
      where lower(regexp_replace(
-             translate(e.clave, 'áéíóúüÁÉÍÓÚÜñÑ', 'aeiouueiouunn'),
+             translate(e.clave, 'áéíóúüÁÉÍÓÚÜñÑ', 'aeiouuaeiouunn'),
              '[-_]+', ' ', 'g')) = v_clave
      limit 1;
 
