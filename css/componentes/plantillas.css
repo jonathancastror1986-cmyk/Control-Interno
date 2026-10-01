@@ -141,3 +141,40 @@
   .plantillaEditor{grid-template-columns:1fr}
   .plantillaPanel{position:static;max-height:none}
 }
+
+/*
+  LOS CAMPOS DEL FORMULARIO, EN COLUMNAS IGUALES
+  ----------------------------------------------
+  ref: formularios-01
+
+  ".row" reparte con "flex:1", o sea que cada campo toma una parte IGUAL del ancho que sobra.
+  Y con un campo que tiene un texto de dos renglones abajo, ese campo es más alto, y como los
+  de arriba se alinean, los campos con texto quedan más arriba y los que no, más abajo. Con
+  trece campos eso se ve como una escalera.
+
+  Acá es una grilla con columnas iguales y un mínimo. El mínimo es lo que decide cuántas
+  entran por fila: angosto son más columnas, y como el mínimo es el mismo para todas, todas
+  quedan iguales de anchas.
+
+  Y el "align-items:start" es lo que evita que un campo con un enlace debajo estire a los de
+  al lado. Cada uno ocupa lo suyo y los demás no se mueven.
+
+  Con "auto-fill" y no "auto-fit": con "auto-fit" las columnas que sobren se ensanchan hasta
+  llenar la fila, y la última queda gigante. Con "auto-fill" quedan huecos y todas miden
+  igual.
+*/
+.w-campos{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:10px 12px;
+  align-items:start;
+}
+
+/*
+  Y el aire entre el rótulo y el campo.
+  -------------------------------------
+  Porque en una grilla el rótulo y el campo quedan pegados, y el rótulo va arriba con
+  mayúsculas y con tracking, que es lo que dice "esto es una etiqueta". Sin ese aire la fila
+  se ve apretada aunque los campos midan lo mismo.
+*/
+.w-campos label{display:block;margin-bottom:4px}
