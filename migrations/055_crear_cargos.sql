@@ -84,6 +84,12 @@ declare
   v_nombre text;
   v_clave  text;
   v_grupo  text;
+  -- Y estas dos. "v_clave_normalizada" es el nombre con la forma en que se COMPARA, que
+  -- no es la misma que se guarda: se guardan los espacios de uno, y se comparan juntos.
+  -- "v_existente" es la que usa el "SELECT INTO", y es una aparte a propósito. Ver
+  -- [clave-02] abajo, que es el bug que casi se va a producción.
+  v_clave_normalizada text;
+  v_existente        text;
 begin
   if not (es_usuario_activo()
           and (es_admin() or tiene_permiso('grupos.gestionar'))) then
@@ -135,6 +141,11 @@ begin
     v_clave := btrim(
       translate(lower(v_nombre), 'áéíóúüÁÉÍÓÚÜñÑ', 'aeiouuaeiouunn'),
       ' ');
+
+    -- Y la forma en que se compara, que junta los espacios de más. Un nombre escrito
+    -- "Jefe  Administrativo" y otro "Jefe Administrativo" son el mismo cargo, y si se
+    -- comparan tal cual son dos textos distintos y sale un duplicado. Ver [clave-02].
+    v_clave_normalizada := btrim(regexp_replace(v_clave, '\s+', ' ', 'g'));
   end if;
 
   if v_clave = '' then
@@ -151,16 +162,46 @@ begin
   --
   -- Y en ese caso se devuelve la clave que YA está, sin crear nada. La pantalla lo dice y
   -- el trabajador va a seguir viendo un cargo, que es lo que quería.
+  -- -----------------------------------------------------------------
+  -- EL NORMALIZADO, PARA COMPARAR
+  -- -----------------------------------------------------------------
+  -- Y se juntan los espacios: "Jefe  Administrativo" con dos espacios tiene que ser el
+  -- mismo cargo que "Jefe Administrativo" con uno. Si no, se comparan dos textos que se
+  -- ven iguales y no lo son, y el cargo se duplica sin que nadie lo note. Ver [clave-02].
+  --
+  -- Y ACA ESTÁ LA TRAMPA DE PLPGSQL, Y POR QUÉ ESTA VARIABLE
+  --
+  -- "SELECT ... INTO" deja la variable en NULL cuando no encuentra ninguna fila. No da
+  -- error: no hayexception, no aviso, simplemente la variable queda en NULL.
+  --
+  -- Y con "INTO v_clave" eso rompía el cargo entero: la clave se acababa de calcular en
+  -- "v_clave", el "select" no encontraba el cargo (porque era nuevo, que es lo normal),
+  -- le ponía NULL encima, el "if v_clave is not null" no entraba, y el "insert" iba con
+  -- NULL. La base contestaba:
+  --
+  --     null value in column "clave" violates not-null constraint
+  --
+  -- O sea que el caso NORMAL —crear un cargo que no existe— fallaba siempre, y el
+  -- error parecía de la base cuando era de acá.
+  --
+  -- Por eso la búsqueda va en "v_existente", que es una variable que no se usa para nada
+  -- más. Si el "select" la deja en NULL, lo único que pasa es que no había cargo con ese
+  -- nombre, que es exactamente lo que queríamos saber.
   if p_clave is null or btrim(p_clave) = '' then
-    select e.clave into v_clave
+    -- Y los dos lados se normalizan IGUAL: guion o raya a espacio, y espacios juntos a uno
+    -- solo. Si solo se normalizara uno de los dos, la comparación nunca calza y el cargo
+    -- nuevo se crea siempre, que es el bug que [clave-02] viene a evitar.
+    select e.clave into v_existente
       from epp_especialidades e
      where lower(regexp_replace(
-             translate(e.clave, 'áéíóúüÁÉÍÓÚÜñÑ', 'aeiouuaeiouunn'),
-             '[-_]+', ' ', 'g')) = v_clave
+             regexp_replace(
+               translate(e.clave, 'áéíóúüÁÉÍÓÚÜñÑ', 'aeiouuaeiouunn'),
+               '[-_]+', ' ', 'g'),
+             '\s+', ' ', 'g')) = v_clave_normalizada
      limit 1;
 
-    if v_clave is not null then
-      return v_clave;
+    if v_existente is not null then
+      return v_existente;
     end if;
   end if;
 
