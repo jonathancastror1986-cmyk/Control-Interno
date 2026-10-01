@@ -165,9 +165,44 @@
 */
 .w-campos{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  grid-template-columns:repeat(5,minmax(0,1fr));
   gap:10px 12px;
   align-items:start;
+}
+
+/*
+  Y en pantalla angosta, menos columnas y no más angostas.
+  -----------------------------------------------------
+  Porque con cinco columnas fijas en un teléfono, cada campo queda de 60 píxeles y no se
+  escribe nada. Y en una pantalla ancha, más de cinco deja los campos tan separados que se
+  pierde la relación entre "nombres", "apellido paterno" y "apellido materno", que son tres
+ Datos del mismo nombre.
+
+  O sea que bajan de a tres en tres, dos, y una. La cantidad la decide el ancho, y el mínimo
+  del campo no baja nunca de lo que se puede escribir.
+*/
+@media (max-width:1180px){ .w-campos{grid-template-columns:repeat(4,minmax(0,1fr))} }
+@media (max-width:900px){  .w-campos{grid-template-columns:repeat(3,minmax(0,1fr))} }
+@media (max-width:640px){  .w-campos{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:400px){  .w-campos{grid-template-columns:1fr} }
+
+/*
+  LOS CAMPOS OBLIGATORIOS
+  -----------------------
+  Y la marca no es un asterisco suelto, porque un asterisco sin leyenda obliga a ir a
+  buscarla. El asterisco va con el texto "obligatorio" en el mismo rótulo.
+
+  Y el color es el de "--danger", que es el mismo que usan los avisos de error de la
+  aplicación: si un campo obligatorio queda vacío, el mensaje de arriba usa ese mismo color, y
+  se ve que es lo mismo.
+*/
+.w-campos label.obl{display:flex;align-items:baseline;gap:5px}
+.w-campos label.obl .req{
+  font-size:.62rem;
+  color:var(--danger);
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  white-space:nowrap;
 }
 
 /*

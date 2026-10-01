@@ -17,12 +17,12 @@
 <script src="../js/auth.js"></script>
 <script src="../js/theme.js"></script>
 <script src="../js/clima-reloj.js"></script>
-<link rel="stylesheet" href="../css/base.css?v=14">
+<link rel="stylesheet" href="../css/base.css?v=15">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=14">
-<link rel="stylesheet" href="../css/grupos.css?v=14">
+<link rel="stylesheet" href="../css/tokens.css?v=15">
+<link rel="stylesheet" href="../css/grupos.css?v=15">
 <link rel="stylesheet" href="../css/styles.css">
 <!--
 EL TEMA OSCURO DE WHATSAPP
@@ -59,11 +59,11 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=14">
-<link rel="stylesheet" href="../css/vistas.css?v=14">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=14">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=14">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=14">
+<link rel="stylesheet" href="../css/marca.css?v=15">
+<link rel="stylesheet" href="../css/vistas.css?v=15">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=15">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=15">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=15">
 <link rel="stylesheet" href="../css/componentes/plantillas.css?v=6">
 <link rel="stylesheet" href="../css/movil.css" media="(max-width: 860px)">
 </head>
@@ -163,7 +163,7 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
       </div></details>
     </h2>
     <div class="row w-campos">
-      <div><label>Código</label><input id="w-code"></div>
+      <div><label class="obl">Código <span class="req">obligatorio</span></label><input id="w-code"></div>
       <!--
       LOS NOMBRES, PARTIDOS
       ====================
@@ -179,8 +179,8 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
       otros tres, y alguien lo editaría a mano y quedaría distinto de lo que dicen los
       campos de arriba. Un campo que no se ve no se puede desincronizar.
       -->
-      <div><label>Nombres</label><input id="w-nombres"></div>
-      <div><label>Apellido paterno</label><input id="w-apellido-paterno"></div>
+      <div><label class="obl">Nombres <span class="req">obligatorio</span></label><input id="w-nombres"></div>
+      <div><label class="obl">Apellido paterno <span class="req">obligatorio</span></label><input id="w-apellido-paterno"></div>
       <div><label>Apellido materno</label><input id="w-apellido-materno"></div>
       <input id="w-name" type="hidden">
       <div><label>Dirección</label><input id="w-direccion"></div>
@@ -191,12 +191,12 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
       <div><label>Grupo del cargo</label><select id="w-grupo" onchange="cambiarGrupoTrabajador()"><option value="">Sin asignar</option></select></div>
       <div><label>Cargo del kit</label><select id="w-cargo" onchange="completarCargoEnElTexto()"><option value="">Sin asignar (solo los papeles generales)</option></select>
        <small style="display:block;margin-top:6px"><a href="#" id="enlaceCrearEspecialidad" style="font-size:.78rem" onclick="irACrearEspecialidad(event)">No está el cargo? Crear uno</a></small></div>
-    <div><label>Teléfono</label><input id="w-phone"></div>
-      <div><label>RUT</label><input id="w-rut" placeholder="13.199.887-2"></div>
+      <div><label>Teléfono</label><input id="w-phone"></div>
+      <div><label class="obl">RUT <span class="req">obligatorio</span></label><input id="w-rut" placeholder="13.199.887-2"></div>
+      <div><label>Fecha de ingreso</label><input type="date" id="w-fecha-ingreso"></div>
     </div>
     <div class="row">
       <div><label><input type="checkbox" id="w-is-supervisor" style="width:auto;display:inline-block;margin-right:6px">Este trabajador es supervisor</label></div>
-      <div><label>Fecha de ingreso</label><input type="date" id="w-fecha-ingreso"></div>
       <div><label>Tipo de trabajador</label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="subcontrato">Subcontrato</option></select></div>
       <div><label>Empresa</label><select id="w-empresa"></select></div>
     </div>
@@ -2002,7 +2002,7 @@ obra sembradas por la migración 031.
             <label for="cpClave" style="font-size:.78rem;display:block;margin-bottom:3px">Cómo se escribe dentro del documento</label>
             <input id="cpClave" placeholder="licencia, talla, centro-costo">
             <small style="display:block;color:var(--muted);font-size:.7rem;margin-top:2px">Queda como
-              <b>[CAMPO:&lt;empresa&gt;-<span id="cpVistaClave">clave</span>]</b></small>
+              <b id="cpVistaClaveCompleta">[CLAVE]</b></small>
           </div>
           <div>
             <label for="cpEtiqueta" style="font-size:.78rem;display:block;margin-bottom:3px">Cómo se lo muestra en pantalla</label>
@@ -2486,16 +2486,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=14"></script>
-<script src="../js/componentes/escaner.js?v=14"></script>
+<script src="../js/nucleo.js?v=15"></script>
+<script src="../js/componentes/escaner.js?v=15"></script>
 
-<script src="../js/relojes.js?v=14"></script>
-<script src="../js/soporte.js?v=14"></script>
-<script src="../js/administracion.js?v=14"></script>
-<script src="../js/bodega.js?v=14"></script>
-<script src="../js/documentos.js?v=14"></script>
-<script src="../js/supervisores.js?v=14"></script>
-<script src="../js/app.js?v=14"></script>
+<script src="../js/relojes.js?v=15"></script>
+<script src="../js/soporte.js?v=15"></script>
+<script src="../js/administracion.js?v=15"></script>
+<script src="../js/bodega.js?v=15"></script>
+<script src="../js/documentos.js?v=15"></script>
+<script src="../js/supervisores.js?v=15"></script>
+<script src="../js/app.js?v=15"></script>
 
 <!--
 EL MOTIVO DEL CAMBIO

@@ -3433,21 +3433,20 @@ function avisoCamposPropios(texto) {
 // -------------------------------------------------------------------
 // LA VISTA PREVIA DE LA CLAVE
 // -------------------------------------------------------------------
-// Muestra cómo va a quedar la clave DENTRO del documento mientras se escribe, porque la
-// clave que se usa es "[CAMPO:<empresa>-<clave>]" y esa transformación no es obvia: lo
-// que el usuario escribe no es lo que va en el documento.
+// Muestra cómo va a quedar la clave DENTRO del documento mientras se escribe.
 //
-// Y sin empresa elegida muestra solo "[CAMPO:…]", porque inventar el número de empresa
-// sería mostrar una clave que después no funciona.
+// Y SIN el "empresa_id" adelante, que es lo que cambió: la forma se unificó a "[CLAVE]" y ya
+// no hay prefijo. Ver [nombres-02].
+//
+// Y el guion lo de acá: se muestra la clave sola, sin corchetes, porque los corchetes ya están
+// escritos alrededor en el HTML y ponerlos dos veces se ve como un error.
 function verClaveCampo() {
-  const caja = document.getElementById('cpVistaClave');
+  const caja = document.getElementById('cpVistaClaveCompleta');
   if (!caja) return;
-  const emp = document.getElementById('camposPropiosEmpresa');
   const inp = document.getElementById('cpClave');
-  const id = (emp && emp.value) ? emp.value : null;
   const cruda = (inp && inp.value ? inp.value : '').trim();
 
-  if (!cruda) { caja.textContent = 'clave'; return; }
+  if (!cruda) { caja.textContent = '[CLAVE]'; return; }
 
   // Y la normalización es la misma que la de la base: minúsculas, sin tildes, todo lo que
   // no sea letra o número a guion. Si acá se ve distinto de lo que guarda la base, el
@@ -3458,7 +3457,7 @@ function verClaveCampo() {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '');
 
-  caja.textContent = id ? (id + '-' + clave) : '…-' + clave;
+  caja.textContent = '[' + clave.toUpperCase() + ']';
 }
 
 // -------------------------------------------------------------------
@@ -3588,7 +3587,14 @@ async function crearCampoPropio() {
   // Y el mensaje dice la clave FINAL, que es la que va a ir en el documento. Si el usuario
   // escribió "Licencia de Conducir" y quedó "7-licencia-de-conducir", tiene que saberlo
   // ahora, no cuando lo busque dentro del documento.
-  avisoCamposPropios('Creado. Se usa como [CAMPO:' + (data || '') + '].');
+  // Y el mensaje dice la variable TAL COMO SE ESCRIBE, que es "[LICENCIA]" y no la clave
+  // sola. Porque si el mensaje dice "licencia" el usuario lo escribe sin corchetes, y el
+  // documento le sale con la palabra "licencia" suelta adentro en vez de con el dato.
+  //
+  // Y en MAYÚSCULAS, que es como la reemplaza el completador: la base guarda la clave en
+  // minúsculas, pero el completador la compara en mayúsculas, y si el mensaje dice una cosa
+  // y el completador busca otra, el campo queda con "[licencia]" escrito en el documento.
+  avisoCamposPropios('Creado. Se usa como [' + String(data || '').toUpperCase() + '].');
   clave.value = '';
   etiqueta.value = '';
   opciones.value = '';
