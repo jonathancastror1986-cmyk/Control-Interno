@@ -511,7 +511,28 @@ if (iNucleo < iLink && iLink < iApp) {
 // -------------------------------------------------------------------
 // 8. ESCRIBIR
 // -------------------------------------------------------------------
-fs.writeFileSync(NUEVO, nuevo, 'utf8');
+// Y el archivo sale con CRLF, como "js/nucleo.js" y "js/app.js".
+//
+// Porque los trozos se copian de "js/app.js", que tiene CRLF, y hay renglones que ya
+// traían un "\r" de más. Pegados, quedan CR sueltos, y el archivo sale con los dos saltos.
+//
+// Y es lo que pasó con "js/supervisores.js": 540 LF y 567 CR. El resto de los archivos
+// quedaron puros, porque la herramienta del núcleo SÍ normalizaba y esta no. Un olvido,
+// y el síntoma es que dos archivos que deberían ser iguales miden distinto.
+const nuevoCRLF = nuevo.replace(/\r\n/g, '\n').replace(/\n/g, '\r\n');
+
+// Y el guardia: ni un LF suelto, ni un CRLF de más.
+const nLF = (nuevoCRLF.match(/\n/g) || []).length;
+const nCRLF = (nuevoCRLF.match(/\r\n/g) || []).length;
+if (nLF !== nCRLF) {
+  console.log('  *** EL ARCHIVO NUEVO QUEDARÍA MEZCLADO ***');
+  console.log('    ' + nLF + ' saltos LF y ' + nCRLF + ' CRLF. Se espera que sean iguales.');
+  process.exit(1);
+}
+
+console.log('    ok  el archivo nuevo sale con ' + nCRLF + ' lineas CRLF, sin LF sueltos');
+
+fs.writeFileSync(NUEVO, nuevoCRLF, 'utf8');
 fs.writeFileSync(APPJS, app, 'utf8');
 fs.writeFileSync(APPHTML, html, 'utf8');
 
