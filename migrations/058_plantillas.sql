@@ -193,8 +193,8 @@ comment on function public.listar_plantillas(integer,text) is
   'Devuelve las plantillas activas. Con "empresa_id" NULL trae las de esa empresa y las de todas, que son el respaldo.';
 
 -- -------------------------------------------------------------------
-// GUARDAR
-// -------------------------------------------------------------------
+-- GUARDAR
+-- -------------------------------------------------------------------
 -- Con "upsert" por el nombre, porque el caso real es "editar la que ya existe" y sin eso
 -- cada guardado crearía una copia nueva con el mismo nombre.
 --
