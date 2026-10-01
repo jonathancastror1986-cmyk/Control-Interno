@@ -31,3 +31,16 @@
   max-height:min(70vh,620px);
   overflow:auto;
 }
+
+/* La fila de títulos queda fija mientras se baja dentro del scroll. Sin esto, con 2.700
+   píxeles de tabla uno pierde de vista en qué columna está parado.
+
+   Y el "box-shadow" es por el "border-collapse:collapse": el borde de un "th" pegajoso
+   desaparece al pegarse, porque el borde colapsado pertenece a la fila y la fila ya pasó.
+   El "inset" dibuja la misma línea de "--line" por abajo, así que se ve igual que quieta. */
+#bitacoraList thead th{
+  position:sticky;
+  top:0;
+  z-index:1;
+  box-shadow:inset 0 -1px 0 var(--line);
+}
