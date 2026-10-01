@@ -3593,3 +3593,188 @@ async function crearCampoPropio() {
 
   await cargarCamposPropios();
 }
+
+// BAJAR UNA PLANTILLA CON LOS DATOS DE UN TRABAJADOR
+// =====================================================
+//
+// -------------------------------------------------------------------
+// EL ORDEN DE LAS CUATRO COSAS, Y POR QUÉ NO ES EL DE UNO
+// -------------------------------------------------------------------
+//
+//   1. traer los datos        "datos_para_plantilla"
+//   2. ver qué falta          "campos_faltantes"
+//   3. recién ahí, completar  los "[CAMPO]" y los "[NOMBRE]"
+//   4. y recién ahí, bajar
+//
+// El paso 2 antes del 3 es lo importante. Si se completara primero y se bajara, el
+// documento saldría con un "[CAMPO:7-licencia]" literal adentro, que es peor que un hueco:
+// un hueco se ve, y un texto entre corchetes se archiva como si estuviera completo.
+//
+// Y el error dice QUÉ falta y de QUÉ tipo, no "faltan datos". El que tiene que ir a buscar
+// el dato es el usuario, y si el mensaje no dice cuál, vuelve a mirar la pantalla y no
+// encuentra nada.
+//
+// -------------------------------------------------------------------
+// POR QUÉ NO SE COMPLETA EN EL SERVIDOR
+// -------------------------------------------------------------------
+//
+// Porque el contenido de la plantilla es HTML libre que edita el usuario, y meterle
+// "replace" en el servidor significa escribir HTML con concatenación de cadenas, que es
+// justo donde aparecen los problemas de comillas que el editor viejo ya sufrió una vez.
+//
+// Y porque los datos ya vienen en un jsonb con los nombres puestos: la base ya hizo el
+// trabajo difícil. Acá solo se reemplazan "[NOMBRE]" y "[CAMPO:algo]", que es una operación
+// de texto, no de HTML.
+//
+// -------------------------------------------------------------------
+// Y LA VARIABLE QUE FALTA SE MARCA, NO SE BORRA
+// -------------------------------------------------
+//
+// Una variable que no existe en el documento queda como está, en vez de desaparecer. Un
+// "[NOMBRE]" que se queda es una pista de que falta algo. Un hueco en blanco no dice nada.
+function completarPlantilla(html, datos, faltantes) {
+  const nuevos = Object.assign({}, datos);
+
+  // Y las que faltan se ponen con una marca, para que se vean en la vista previa antes
+  // de bajar. Con "[falta]" el que abre el Word entiende al toque.
+  const nombresFaltantes = new Set((faltantes || []).map(f => f.clave));
+  const propiosFaltantes = Array.from(nombresFaltantes)
+    .filter(c => !Object.prototype.hasOwnProperty.call(nuevos, c))
+    .map(c => c.toUpperCase());
+
+  propiosFaltantes.forEach(c => { nuevos[c] = '[falta]'; });
+
+  let salida = html;
+
+  // Primero los "[CAMPO:algo]", que son más largos y tienen prefijo: si se buscara "[algo]"
+  // primero, "[CAMPO:7-licencia]" se partiría en "[7-licencia]" y "CAMPO:7-licencia]" queda
+  // colgado.
+  Object.keys(nuevos).forEach(k => {
+    const valor = nuevos[k] == null ? '' : String(nuevos[k]);
+    salida = salida.split('[CAMPO:' + k + ']').join(valor);
+    salida = salida.split('[CAMPO:' + k.toUpperCase() + ']').join(valor);
+  });
+
+  // Y después las fijas, sin prefijo.
+  Object.keys(nuevos).forEach(k => {
+    const valor = nuevos[k] == null ? '' : String(nuevos[k]);
+    salida = salida.split('[' + k.toUpperCase() + ']').join(valor);
+  });
+
+  return salida;
+}
+
+// -------------------------------------------------------------------
+// LA VISTA PREVIA
+// -------------------------------------------------------------------
+// Y muestra el texto ya completado, con los huecos marcados. Porque el que va a firmar tiene
+// que ver el documento antes de bajarlo, y ver que dice "[falta]" es mejor que descubrirlo
+// después de imprimirlo.
+function vistaPreviaPlantilla(html, datos, faltantes) {
+  const caja = document.getElementById('plantillaPrevia');
+  if (!caja) return;
+
+  const texto = completarPlantilla(html, datos, faltantes);
+  const quedan = (texto.match(/\[[A-Z_0-9:.\-]+\]/g) || []);
+  const unicas = [...new Set(quedan)];
+
+  caja.innerHTML =
+    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' +
+      (unicas.length
+        ? '<span class="pill" style="color:var(--warn);border-color:var(--warn)">Faltan: ' +
+          unicas.slice(0, 8).map(v => escHtml(v)).join(', ') +
+          (unicas.length > 8 ? ' y ' + (unicas.length - 8) + ' más' : '') + '</span>'
+        : '<span class="pill" style="color:var(--accent);border-color:var(--accent)">Completo</span>') +
+    '</div>' +
+    '<pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:.82rem;line-height:1.5">' +
+      escHtml(texto.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 900)) +
+    '</pre>';
+}
+
+// -------------------------------------------------------------------
+// BAJAR EL ARCHIVO
+// -------------------------------------------------------------------
+// Y es un "Blob" con tipo "application/msword": Word lo abre, se edita normal, y el usuario
+// le hace "Guardar como .docx" cuando quiere.
+//
+// Y NO es un ".docx" de verdad. Un ".docx" es un ZIP con archivos XML adentro, y si Word no
+// lo abre bien no hay ningún aviso: el usuario lo abre, ve que no sirve, y pierde el
+// trabajo. Un HTML que Word abre no tiene ese problema.
+async function descargarPlantillaConDatos() {
+  const code = document.getElementById('descargaTrabajador');
+  const sel = document.getElementById('descargaPlantilla');
+  const aviso = document.getElementById('descargaAviso');
+  const emp = document.getElementById('camposPropiosEmpresa');
+
+  const worker = code && code.value;
+  const pl = sel && sel.value;
+
+  if (!worker) { if (aviso) aviso.textContent = 'Elegí un trabajador.'; return; }
+  if (!pl) { if (aviso) aviso.textContent = 'Elegí una plantilla.'; return; }
+
+  const empresaId = emp && emp.value ? parseInt(emp.value, 10) : null;
+
+  // 1. Los datos.
+  const d = await window.supabaseClient.rpc('datos_para_plantilla', {
+    p_trabajador_code: worker,
+    p_empresa_id: empresaId,
+  });
+  if (d.error) { if (aviso) aviso.textContent = 'No se pudieron leer los datos: ' + d.error.message; return; }
+
+  const datos = d.data || {};
+
+  // 2. Qué falta. Y SOLO los requeridos: un campo opcional vacío no es un problema.
+  const f = await window.supabaseClient.rpc('campos_faltantes', {
+    p_trabajador_code: worker,
+    p_empresa_id: empresaId,
+  });
+  const faltantes = f.error ? [] : (f.data || []);
+
+  // 3. El contenido de la plantilla. La del editor viejo trae "contenido"; la nueva de la
+  // 058 trae "html". Se leen los dos porque un día hay plantillas de un origen y del otro.
+  const p = await window.supabaseClient.rpc('listar_plantillas', { p_empresa_id: empresaId });
+  let html = '';
+  if (!p.error && p.data) {
+    const fila = p.data.find(x => String(x.id) === String(pl));
+    if (fila) html = fila.html || '';
+  }
+  if (!html) {
+    const enMemoria = (typeof plantillasContratacion !== 'undefined' ? plantillasContratacion : [])
+      .find(x => String(x.code) === String(pl) || String(x.id) === String(pl));
+    if (enMemoria) html = enMemoria.contenido || '';
+  }
+  if (!html) {
+    if (aviso) aviso.textContent = 'Esa plantilla no tiene contenido todavía.';
+    return;
+  }
+
+  // 4. Y recién ahora, bajar. Con los campos requeridos faltantes, NO.
+  if (faltantes.length) {
+    if (aviso) aviso.textContent = 'Faltan datos requeridos: ' +
+      faltantes.map(x => x.etiqueta || x.clave).join(', ') + '. No se baja con huecos.';
+    vistaPreviaPlantilla(html, datos, faltantes);
+    return;
+  }
+
+  const texto = completarPlantilla(html, datos, faltantes);
+
+  // Y el archivo lleva un rótulo con el nombre del trabajador, porque "Contrato.doc" en la
+  // carpeta de descargas de veinte personas es un documento que no se encuentra.
+  const nombre = (typeof workers !== 'undefined' ? workers : []).find(w => w.code === worker);
+  const quien = nombre ? nombre.nombreCompleto || nombre.name : worker;
+  const archivo = String(quien).replace(/[\\/:*?"<>|]+/g, '-').trim() + '.doc';
+
+  const completo = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
+    '<title>Documento</title></head><body>' + texto + '</body></html>';
+
+  const url = URL.createObjectURL(new Blob([completo], { type: 'application/msword' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = archivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  if (aviso) aviso.textContent = 'Descargado: ' + archivo;
+}
