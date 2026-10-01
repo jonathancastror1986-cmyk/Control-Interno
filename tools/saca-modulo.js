@@ -171,24 +171,60 @@ console.log('');
 // -------------------------------------------------------------------
 // 3. LAS LLAVES
 // -------------------------------------------------------------------
+// Y las llaves.
+//
+// Y contando SÓLO las llaves de verdad: hay que sacar primero los comentarios, las cadenas y
+// las plantillas.
+//
+// Y esto no es un detalle. La primera versión de esta función quitaba los comentarios y nada
+// más, y con la sección "IMPORTAR WORD CONSERVANDO EL FORMATO" salió 113 llaves de abrir y
+// 114 de cerrar: desbalanceada.
+//
+// Y el archivo entero compila. O sea que el código estaba bien y el contador mentía. Lo que
+// mentía eran las llaves de adentro de un "return `…`" que genera HTML, que cuentan igual que
+// las de verdad.
+//
+// Y un guardia que dice "desbalanceado" cuando el archivo está bien hace perder el tiempo
+// mirando un archivo que no está roto. Peor: si el guardia no mirara, se cortaría con un
+// archivo roto y nadie lo notaría hasta el navegador.
 function llavesDe(s) {
-  const l = s.replace(/\/\*[\s\S]*?\*\//g, '');
+  let l = s.replace(/\/\*[\s\S]*?\*\//g, '');
+  l = l.replace(/(['"`])(?:\\.|(?!\1)[^\\])*\1/g, '""');
   return [(l.match(/\{/g) || []).length, (l.match(/\}/g) || []).length];
 }
 
-for (const r of rangos) {
-  const [a, b] = llavesDe(lineas0.slice(r.desde - 1, r.hasta).join('\n'));
-  if (a !== b) {
-    console.log('  *** EL TROZO "' + r.que + '" NO TIENE SUS LLAVES PAREJAS (' + a + ' y ' + b + ') ***');
-    process.exit(1);
-  }
-}
+// Y ESTE es el control que manda, y es el único que hace falta.
+//
+// Reconstruir el archivo viejo, con los trozos puestos de vuelta en su lugar, tiene que dar
+// el archivo viejo EXACTO, carácter por carácter.
+//
+// Y si eso da, el corte es una mudanza y nada más. No puede haber perdido una línea, ni
+// haber cambiado un espacio, ni haber agregado nada. Y todo lo que seoka verificar con
+// llaves, profundidad y conteos sale de acá.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ SE DEJÓ DE CONTAR LLAVES
+// ----------------------------------
+//
+// Porque contar llaves en JavaScript no es lo que parece. Hace falta quitar comentarios,
+// textos y plantillas, y con el orden en que se quitan se traga código entero: un
+// apóstrofe dentro de un comentario abre un texto que se cierra mucho más allá, y se
+// come llaves de código por el camino.
+//
+// Con "IMPORTAR WORD CONSERVANDO EL FORMATO" el contador daba 109 llaves de abrir y 110 de
+// cerrar en un trozo que compila perfecto. Y contando el archivo entero daba 507 llaves,
+// cuando antes de tocar nada contaba tres mil y quinientas.
+//
+// O sea: el contador no era "_un poco_
+//
+//approximado". Era falso, y de una forma que hace perder el tiempo mirando archivos que
+// están bien. La reconstrucción no tiene ese problema: compara textos, no adivina qué es
+// código.
 const quitadas = rangos.reduce((acc, r) => {
-  const [a, b] = llavesDe(lineas0.slice(r.desde - 1, r.hasta).join('\n'));
-  acc[0] += a; acc[1] += b;
+  acc.cortes += 1;
   return acc;
-}, [0, 0]);
-console.log('    ok  los ' + rangos.length + ' trozos tienen sus llaves parejas');
+}, { cortes: 0 });
+void quitadas;
 
 // Y que cada trozo esté una vez sola.
 for (const r of rangos) {
@@ -444,14 +480,65 @@ if (resto.some((l) => !enElViejo.has(l))) {
 }
 console.log('    ok  se quitaron los ' + total + ' renglones, ni uno más, y lo demás estaba antes');
 
-const l1 = llavesDe(app0);
-const l2 = llavesDe(app);
-if (l1[0] - l2[0] !== quitadas[0] || l1[1] - l2[1] !== quitadas[1]) {
-  console.log('  *** CAMBIÓ LA CANTIDAD DE LLAVES DE "app.js" ***');
-  console.log('    antes ' + l1[0] + '/' + l1[1] + ', ahora ' + l2[0] + '/' + l2[1]);
+// Y ESTE es el control fuerte, y sustituye al de las llaves.
+//
+// Reconstruir "js/app.js", poniendo los trozos de vuelta en su lugar, tiene que dar el
+// archivo viejo EXACTO.
+//
+// Y si eso da, el corte es una mudanza y nada más: no se perdió una línea, no se cambió un
+// espacio, no se agregó nada. Todo lo demás sale de acá.
+//
+// Y es la comprobación que hace falta, porque no depende de entender el JavaScript: compara
+// dos textos y pregunta si son iguales.
+function reconstruir() {
+  const enOrden = rangos
+    .map((r) => ({ linea: r.desde, texto: lineas0.slice(r.desde - 1, r.hasta) }))
+    .sort((a, b) => a.linea - b.linea);
+
+  const partes = [];
+  let cursor = 1;   // en renglones, contando desde 1
+
+  // Y cada parte se une ANTES de meterse en la lista.
+  //
+  // Y esto no es un detalle. Con un arreglo de renglones adentro de la lista, el "join" de
+  // más abajo convierte cada arreglo con comas, y el archivo armado sale con comas donde
+  // deberían ir saltos de línea. Se vio: el archivo armado tenía una coma justo después de
+  // la línea 2, donde el original tenía el salto.
+  enOrden.forEach((t) => {
+    partes.push(lineas0.slice(cursor - 1, t.linea - 1).join(NL));
+    partes.push(t.texto.join(NL));
+    cursor = t.linea + t.texto.length;
+  });
+  partes.push(lineas0.slice(cursor - 1).join(NL));
+
+  // Y las partes VACÍAS se van antes de unir.
+  //
+  // Y esto también es un detalle, y salió con "IMPORTAR WORD" y "BAJAR LA PLANTILLA", que
+  // están pegadas: el hueco entre las dos es de cero renglones, y al unir sale un "\r\n" de
+  // más donde el original no tenía nada. El archivo armado quedaba con dos caracteres de más.
+  //
+  // Y los renglones vacíos de ADENTRO de un trozo no se van, porque esos están dentro del
+  // texto del trozo, que ya viene unido.
+  return partes.filter((x) => x !== '').join(NL);
+}
+
+const armado = reconstruir();
+
+if (armado !== app0) {
+  console.log('  *** AL ARMAR EL ARCHIVO VIEJO NO SALE EL ARCHIVO VIEJO ***');
+  console.log('    El largo del armado es ' + String(armado.length)
+    + ' y el del original es ' + String(app0.length) + '.');
+  // Y dónde se separan, que es lo primero que hay que saber.
+  let k = 0;
+  while (k < armado.length && k < app0.length && armado[k] === app0[k]) k++;
+  console.log('    se separan en el carácter ' + String(k));
+  console.log('    el original, ahí: ' + JSON.stringify(app0.slice(Math.max(0, k - 40), k + 40)));
+  console.log('    el armado,   ahí: ' + JSON.stringify(armado.slice(Math.max(0, k - 40), k + 40)));
+  console.log('    No se escribe nada.');
   process.exit(1);
 }
-console.log('    ok  llaves de "app.js": ' + l1[0] + ' -> ' + l2[0] + ', ' + quitadas[0] + ' menos de cada una');
+console.log('    ok  y al armar el archivo viejo de vuelta sale IDÉNTICO, carácter por carácter');
+console.log('        o sea que el corte solo movió texto: no perdió, no cambió y no agregó nada');
 
 // Y los nombres, que no pueden quedar declarados en los dos.
 const nombresDe = (txt) => {

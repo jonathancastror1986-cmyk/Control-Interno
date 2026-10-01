@@ -1,7 +1,7 @@
 EL MAPA DE "js/app.js"
 ======================
 
-  Medido el 2026-10-01 sobre 13210 renglones y 491 funciones.
+  Medido el 2026-10-01 sobre 12718 renglones y 482 funciones.
 
   Cómo se generó:  node tools/mapa-js.js
   Cómo se verifica que no esté viejo:  node tools/mapa-js.js --verificar
@@ -14,36 +14,34 @@ EL MAPA DE "js/app.js"
 
     L  289  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1803 regl.   70 fn.
     L 2092  ASISTENCIA DIARIA DEL SUPERVISOR    522 regl.   23 fn.
-    L 2614  JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA    285 regl.    5 fn.
-    L 2899  CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ    207 regl.    4 fn.
-    L 3106  MARCAR Y AVISAR    134 regl.    3 fn.
-    L 3240  BITÁCORA DE ACCESO    221 regl.    5 fn.
-    L 3461  IMPORTAR MARCAJES DESDE EXCEL    503 regl.   19 fn.
-    L 3964  TARJA DE SUPERVISORES   1203 regl.   52 fn.
-    L 5167  INVITAR USUARIO DESDE LA APP    184 regl.    5 fn.
-    L 5351  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.
-    L 5572  DAR DE ALTA SIN CORREO    233 regl.    8 fn.
-    L 5805  MIS DATOS   1595 regl.   75 fn.
-    L 7400  KITS INICIALES POR ESPECIALIDAD    217 regl.   13 fn.
-    L 7617  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.
-    L 7979  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    572 regl.   14 fn.
-    L 8551  BAJAR LA PLANTILLA EN WORD    275 regl.    5 fn.
-    L 8826  ROLES Y PERMISOS    255 regl.   11 fn.
-    L 9081  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.
-    L 9115  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)
-    L 9143  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.
-    L11244  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.
-    L11954  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)
-    L11995  EL BLOQUEO REAL    170 regl.   11 fn.
-    L12165  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.
-    L12189  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.
-    L12298  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)
-    L12332  LO QUE NO HACE    269 regl.   11 fn.
-    L12601  KIT DE CONTRATACIÓN    136 regl.    5 fn.
-    L12737  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.
+    L 2614  JUSTIFICACIÓN DIARIA: QUIÉN TIENE QUE EXPLICAR SU ASISTENCIA    134 regl.    3 fn.
+    L 2748  BITÁCORA DE ACCESO    221 regl.    5 fn.
+    L 2969  IMPORTAR MARCAJES DESDE EXCEL    503 regl.   19 fn.
+    L 3472  TARJA DE SUPERVISORES   1203 regl.   52 fn.
+    L 4675  INVITAR USUARIO DESDE LA APP    184 regl.    5 fn.
+    L 4859  ENVIAR LA INVITACIÓN POR CORREO    221 regl.    9 fn.
+    L 5080  DAR DE ALTA SIN CORREO    233 regl.    8 fn.
+    L 5313  MIS DATOS   1595 regl.   75 fn.
+    L 6908  KITS INICIALES POR ESPECIALIDAD    217 regl.   13 fn.
+    L 7125  QUÉ MIGRACIÓN FALTA    362 regl.    9 fn.
+    L 7487  IMPORTAR WORD CONSERVANDO EL FORMATO, Y DESCARGAR LA PLANTILLA    572 regl.   14 fn.
+    L 8059  BAJAR LA PLANTILLA EN WORD    275 regl.    5 fn.
+    L 8334  ROLES Y PERMISOS    255 regl.   11 fn.
+    L 8589  COMPROBACIÓN DE COHERENCIA DE PERMISOS     34 regl.    1 fn.
+    L 8623  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE     28 regl.    0 fn.   (solo el banner)
+    L 8651  LA VENTANA ANTIRREBOTE NO ESTÁ ACÁ   2101 regl.   64 fn.
+    L10752  LOS TRES NÚMEROS DE LA BARRA    710 regl.   24 fn.
+    L11462  EL KIOSCO DEL RELOJ     41 regl.    0 fn.   (solo el banner)
+    L11503  EL BLOQUEO REAL    170 regl.   11 fn.
+    L11673  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     24 regl.    2 fn.
+    L11697  ¿ES UN USUARIO RELOJ?    109 regl.    6 fn.
+    L11806  LOS MARCAJES     34 regl.    0 fn.   (solo el banner)
+    L11840  LO QUE NO HACE    269 regl.   11 fn.
+    L12109  KIT DE CONTRATACIÓN    136 regl.    5 fn.
+    L12245  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.
 
   ----------------------------------------------------------------------------
-  475 de 491 funciones (97%) caen dentro de una sección.
+  466 de 482 funciones (97%) caen dentro de una sección.
 
 
   LAS 16 FUNCIONES QUE NO CAEN EN NINGUNA SECCIÓN
@@ -73,9 +71,9 @@ EL MAPA DE "js/app.js"
   Son un banner con el título y nada más: toda la función está en la de abajo.
   No están rotas. Se listan para no pensar que falta algo.
 
-    L 9115  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
-    L11954  EL KIOSCO DEL RELOJ
-    L12298  LOS MARCAJES
+    L 8623  RELOJES: CENTROS DE COSTO, CONFIGURACIÓN Y PANTALLA DE MARCAJE
+    L11462  EL KIOSCO DEL RELOJ
+    L11806  LOS MARCAJES
 
   Y LO QUE ESTO NO DICE
   ----------------------------------------------------------------------------
