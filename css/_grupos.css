@@ -1,0 +1,340 @@
+/* ===================================================================
+   css/_grupos.css - LA PALETA POR GRUPO DE MENÚ
+   ===================================================================
+
+   Los siete grupos: portería, administración, bodega, supervisores,
+   soporte, prevención y asistente social.
+
+   -------------------------------------------------------------------
+   SON CINCO SERIES, NO UNA. Y EL ORDEN ENTRE ELLAS ES EL COLOR
+   -------------------------------------------------------------------
+   Cada serie se pisa con la siguiente. Mover el orden de dos series
+   cambia la pantalla, aunque cada bloque siga exactamente igual.
+
+     1. "#mainNav button[data-group=…]"   el color del botón del menú
+     2. "[data-group=…]"                  "--cat" solo, para los tres
+                                           niveles de la sección
+     3. "[data-group=…]"                  "--cat" y "--cat-claro"
+     4. "[data-group=…]"                  el tema claro, con
+                                           "--fondo-seccion"
+     5. las dos de oscuro, al final del archivo
+
+   Y se leen de corrido, en ese orden, que es como estaban en "styles.css".
+
+   -------------------------------------------------------------------
+   LAS TRES PUERTAS AL TEMA OSCURO TIENEN QUE DECIR LO MISMO
+   -------------------------------------------------------------------
+   Porque si no, la pantalla cambia de paleta según de dónde se llegó:
+
+     4.  "[data-group=…]"                    la del tema claro
+     5a. ":root:not([data-theme=light]) …"    la del sistema en
+                                                oscuro, ADENTRO de un
+                                                "@media"
+     5b. ":root[data-theme=dark] …"           la del botón del
+                                                encabezado
+
+   La 5a va dentro de un "@media (prefers-color-scheme: dark)". Y el
+   "@media" se mueve ENTERO.
+
+   Y no sus reglas sueltas: si se sacan las reglas y se deja el
+   "@media", queda un "@media" vacío en un archivo y su contenido en
+   otro. Y el archivo queda contando una historia que ya no es
+   verdad, que es peor que estar feo.
+
+   -------------------------------------------------------------------
+   POR QUÉ ESTÁN EN SU PROPIO ARCHIVO, Y NO EN "styles.css"
+   -------------------------------------------------------------------
+   Porque son la paleta, y la paleta vive en "_tokens.css". Estos son
+   los mismos colores, pero por grupo de menú.
+
+   Se enlaza DESPUÉS de "_tokens.css" y ANTES de "styles.css". Porque
+   "[data-group="x"]" tiene especificidad (0,1,0), igual que ":root". Y
+   en empate gana el que se cargó después.
+
+   -------------------------------------------------------------------
+   POR QUÉ EL TEMA CLARO DECLARA MENOS, Y NO ES UN OLVIDO
+   -------------------------------------------------------------------
+   La serie 4 declara SOLO "--fondo-seccion". Le faltan "--fondo-nav"
+   y "--fondo-subnav".
+
+   Y eso es lo que hace que funcione, porque las reglas que las usan
+   tienen una cadena de respaldo:
+
+     #mainNav   background: var(--fondo-nav,    var(--fondo-seccion, #101a14))
+     #subNav    background: var(--fondo-subnav, var(--panel))
+
+   En tema claro, las dos barras usan el mismo color que el encabezado, y
+   el submenú usa "--panel". En tema oscuro hay tres colores distintos.
+
+   Y por eso hay que dejarlo como está. Si alguien "completa" el bloque
+   del claro con "--fondo-nav", la barra del menú deja de seguir al
+   encabezado y el submenú deja de ser claro: se cambia el tema claro
+   entero, y no se va a enterar nadie.
+
+   Es tentador porque "falta una variable" se lee como un error. No lo es.
+
+   -------------------------------------------------------------------
+   HAY UN "[data-group="soporte"]" DE MENOS QUE EN "styles.css"
+   -------------------------------------------------------------------
+   Estaba escrito dos veces en "styles.css", con los mismos tres valores.
+   La segunda no hacía nada. Por eso este archivo tiene siete y allá
+   había ocho.
+
+   -------------------------------------------------------------------
+   DE DÓNDE VIENE EL "data-group"
+   -------------------------------------------------------------------
+   De "tituloDeLaSeccion" en "js/app.js": lo pone en el "<body>", en el
+   "<h1>" del encabezado, y en "#subNav". El "<body>" para que exista en
+   toda la página y las barras la hereden; el "#subNav" para que tome el
+   color de la sección por la misma regla, y no por una tercera lista.
+
+   Ver la entrada [grupos-01]. */
+
+#mainNav button[data-group="porteria"] {
+  --cat: #5EE0C8;
+}
+
+#mainNav button[data-group="administracion"] {
+  --cat: #8AB4FF;
+}
+
+#mainNav button[data-group="bodega"] {
+  --cat: #FFC178;
+}
+
+#mainNav button[data-group="supervisores"] {
+  --cat: #86E0A0;
+}
+
+#mainNav button[data-group="soporte"] {
+  --cat: #C0AEF7;
+}
+
+#mainNav button[data-group="asistente-social"] {
+  --cat: #F7A8C4;
+}
+
+#mainNav button[data-group="prevencion"] {
+  --cat: #FF8A7A;
+}
+
+[data-group="porteria"] {
+  --cat: #5EE0C8;
+}
+
+[data-group="administracion"] {
+  --cat: #8AB4FF;
+}
+
+[data-group="bodega"] {
+  --cat: #FFC178;
+}
+
+[data-group="supervisores"] {
+  --cat: #86E0A0;
+}
+
+[data-group="soporte"] {
+  --cat: #C0AEF7;
+}
+
+[data-group="asistente-social"] {
+  --cat: #F7A8C4;
+}
+
+[data-group="prevencion"] {
+  --cat: #FF8A7A;
+}
+
+[data-group="porteria"] {
+  --cat: #5EE0C8;
+  --cat-claro: #0F7A6A;
+}
+
+[data-group="administracion"] {
+  --cat: #8AB4FF;
+  --cat-claro: #2F6FBF;
+}
+
+[data-group="bodega"] {
+  --cat: #FFC178;
+  --cat-claro: #B5651D;
+}
+
+[data-group="supervisores"] {
+  --cat: #86E0A0;
+  --cat-claro: #2E7D4F;
+}
+
+[data-group="soporte"] {
+  --cat: #C0AEF7;
+  --cat-claro: #6D4BC0;
+}
+
+[data-group="asistente-social"] {
+  --cat: #F7A8C4;
+  --cat-claro: #B03A6B;
+}
+
+[data-group="prevencion"] {
+  --cat: #FF8A7A;
+  --cat-claro: #C0392B;
+}
+
+[data-group="porteria"] {
+  --fondo-seccion: #173F42;
+  --cat: #EBF9FA;
+  --cat-claro: #173F42;
+}
+
+[data-group="administracion"] {
+  --fondo-seccion: #1A2330;
+  --cat: #EEF1F7;
+  --cat-claro: #1A2330;
+}
+
+[data-group="bodega"] {
+  --fondo-seccion: #4A2710;
+  --cat: #FCF0E9;
+  --cat-claro: #4A2710;
+}
+
+[data-group="supervisores"] {
+  --fondo-seccion: #14380C;
+  --cat: #ECFCE9;
+  --cat-claro: #14380C;
+}
+
+[data-group="soporte"] {
+  --fondo-seccion: #0C0D6B;
+  --cat: #E7E7FE;
+  --cat-claro: #0C0D6B;
+}
+
+[data-group="prevencion"] {
+  --fondo-seccion: #752112;
+  --cat: #FDEBE7;
+  --cat-claro: #752112;
+}
+
+[data-group="asistente-social"] {
+  --fondo-seccion: #55316E;
+  --cat: #F3ECF8;
+  --cat-claro: #55316E;
+}
+
+@media (prefers-color-scheme: dark) {
+
+:root:not([data-theme="light"]) [data-group="porteria"] {
+  --fondo-seccion: #2A666B;
+  --cat: #F7FDFD;
+  --cat-claro: #F7FDFD;
+  --fondo-nav: #24565A;
+  --fondo-subnav: #1F4749;
+}
+
+:root:not([data-theme="light"]) [data-group="administracion"] {
+  --fondo-seccion: #4B5F7A;
+  --cat: #F7F9FD;
+  --cat-claro: #F7F9FD;
+  --fondo-nav: #3F5166;
+  --fondo-subnav: #344252;
+}
+
+:root:not([data-theme="light"]) [data-group="bodega"] {
+  --fondo-seccion: #8D4D22;
+  --cat: #FDF9F7;
+  --cat-claro: #FDF9F7;
+  --fondo-nav: #76421E;
+  --fondo-subnav: #5F371A;
+}
+
+:root:not([data-theme="light"]) [data-group="supervisores"] {
+  --fondo-seccion: #39692E;
+  --cat: #F8FDF7;
+  --cat-claro: #F8FDF7;
+  --fondo-nav: #315928;
+  --fondo-subnav: #284922;
+}
+
+:root:not([data-theme="light"]) [data-group="soporte"] {
+  --fondo-seccion: #4F50BA;
+  --cat: #F7F7FD;
+  --cat-claro: #F7F7FD;
+  --fondo-nav: #43449B;
+  --fondo-subnav: #37397B;
+}
+
+:root:not([data-theme="light"]) [data-group="prevencion"] {
+  --fondo-seccion: #9E3F2E;
+  --cat: #FDF8F7;
+  --cat-claro: #FDF8F7;
+  --fondo-nav: #843728;
+  --fondo-subnav: #6B2E22;
+}
+
+:root:not([data-theme="light"]) [data-group="asistente-social"] {
+  --fondo-seccion: #79489A;
+  --cat: #FAF7FD;
+  --cat-claro: #FAF7FD;
+  --fondo-nav: #653E80;
+  --fondo-subnav: #513367;
+}
+
+}
+
+:root[data-theme="dark"] [data-group="porteria"] {
+  --fondo-seccion: #2A666B;
+  --cat: #F7FDFD;
+  --cat-claro: #F7FDFD;
+  --fondo-nav: #24565A;
+  --fondo-subnav: #1F4749;
+}
+
+:root[data-theme="dark"] [data-group="administracion"] {
+  --fondo-seccion: #4B5F7A;
+  --cat: #F7F9FD;
+  --cat-claro: #F7F9FD;
+  --fondo-nav: #3F5166;
+  --fondo-subnav: #344252;
+}
+
+:root[data-theme="dark"] [data-group="bodega"] {
+  --fondo-seccion: #8D4D22;
+  --cat: #FDF9F7;
+  --cat-claro: #FDF9F7;
+  --fondo-nav: #76421E;
+  --fondo-subnav: #5F371A;
+}
+
+:root[data-theme="dark"] [data-group="supervisores"] {
+  --fondo-seccion: #39692E;
+  --cat: #F8FDF7;
+  --cat-claro: #F8FDF7;
+  --fondo-nav: #315928;
+  --fondo-subnav: #284922;
+}
+
+:root[data-theme="dark"] [data-group="soporte"] {
+  --fondo-seccion: #4F50BA;
+  --cat: #F7F7FD;
+  --cat-claro: #F7F7FD;
+  --fondo-nav: #43449B;
+  --fondo-subnav: #37397B;
+}
+
+:root[data-theme="dark"] [data-group="prevencion"] {
+  --fondo-seccion: #9E3F2E;
+  --cat: #FDF8F7;
+  --cat-claro: #FDF8F7;
+  --fondo-nav: #843728;
+  --fondo-subnav: #6B2E22;
+}
+
+:root[data-theme="dark"] [data-group="asistente-social"] {
+  --fondo-seccion: #79489A;
+  --cat: #FAF7FD;
+  --cat-claro: #FAF7FD;
+  --fondo-nav: #653E80;
+  --fondo-subnav: #513367;
+}

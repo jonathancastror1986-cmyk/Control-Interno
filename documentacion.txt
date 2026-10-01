@@ -1369,3 +1369,137 @@ MODULOS
   Y el hueco, que no es 14: es "normal". Porque no hay separación. Que es más fácil de ver
   que un pixel de diferencia.
 ------------------------------------------------------------------------------
+[grupos-01]  La paleta por grupo de menú, en "css/_grupos.css"
+------------------------------------------------------------------------------
+
+QUÉ SE MUDÓ
+
+De "styles.css" salen 43 reglas de paleta: 36 bloques de primer nivel y 7 que estaban
+adentro de un "@media (prefers-color-scheme: dark)". En total 37 unidades, porque 7 de esas
+43 reglas viven dentro de un solo "@media".
+
+Se van a "css/_grupos.css", que se enlaza después de "_tokens.css" y antes de "styles.css".
+Y se borra un duplicado: "[data-group=\"soporte\"]" estaba escrito dos veces en el tema
+claro, con los mismos tres valores. La segunda no hacía nada.
+
+
+POR QUÉ ESTÁN EN UN ARCHIVO APARTE, Y NO EN "styles.css"
+
+Porque la paleta de "styles.css" no era una lista de colores: eran reglas que compiten
+entre sí y cuyo orden es el color. Eso es un archivo de paleta, y la paleta vive en
+"_tokens.css".
+
+Y de paso: los comentarios que decían qué era cada bloque se quedan con el bloque. Antes
+estaban en "styles.css", a cuatrocientas líneas de distancia de las reglas que
+describían.
+
+
+LAS CINCO SERIES, Y POR QUÉ EL ORDEN ES EL COLOR
+
+Cada serie se pisa con la siguiente. Cambiar el orden de dos cambia la pantalla, aunque
+cada bloque siga exactamente igual.
+
+  1. "#mainNav button[data-group=\"…\"]"   el color del botón del menú
+  2. "[data-group=\"…\"]"                  "--cat" solo, para los tres niveles
+  3. "[data-group=\"…\"]"                  "--cat" y "--cat-claro"
+  4. "[data-group=\"…\"]"                  el tema claro, con "--fondo-seccion"
+  5. las dos de oscuro, al final del archivo
+
+
+LAS TRES PUERTAS AL TEMA OSCURO, Y POR QUÉ TIENEN QUE DECIR LO MISMO
+
+  4.   "[data-group=\"…\"]"                    la del tema claro
+  5a.  ":root:not([data-theme=\"light\"]) …"    la del sistema, ADENTRO de un "@media"
+  5b.  ":root[data-theme=\"dark\"] …"           la del botón del encabezado
+
+Si las tres no dicen lo mismo, la pantalla cambia de paleta según de dónde se llegó.
+
+Y hay un detalle que hace la 5a inservible por sí sola: como "data-theme" está en
+"dark", la regla 5b también aplica, y las dos tienen especificidad (0,3,0). Gana la
+última, que es la 5b. O sea que la 5a no se ve NUNCA cuando hay una elección guardada.
+
+Eso no lo introdujo este trabajo: estaba así en "styles.css". Se comprobó aquí porque
+había que comprobar que las dos siguen diciendo lo mismo, y dicen lo mismo: las 5
+variables, en los 7 grupos.
+
+
+POR QUÉ EL TEMA CLARO DECLARA MENOS, Y NO ES UN OLVIDO
+
+La serie 4 declara SOLO "--fondo-seccion". Le faltan "--fondo-nav" y "--fondo-subnav".
+
+Y eso es lo que hace que funcione, porque las reglas que las usan tienen una cadena de
+respaldo:
+
+  #mainNav   background: var(--fondo-nav,    var(--fondo-seccion, #101a14))
+  #subNav    background: var(--fondo-subnav, var(--panel))
+
+En tema claro, las dos barras usan el mismo color que el encabezado, y el submenú usa
+"--panel". En tema oscuro hay tres colores distintos.
+
+Es tentador "completar" el bloque del claro con "--fondo-nav", porque "falta una variable"
+se lee como un error. No lo es, y hacerlo cambia el tema claro entero.
+
+
+LO QUE SE COMPROBÓ, Y CÓMO
+
+La huella ("tools/huella.js") contra la versión de antes del cambio, guardada con
+"git stash" para tener el antes sin volver a construirlo:
+
+  tema oscuro   78 elementos, la página igual elemento por elemento, y las zonas
+                nombradas igual
+  tema claro    87 elementos, igual, y los mismos valores de las variables
+
+Y la huella se vio ROJA primero: cambiando un solo dígito de "--fondo-seccion" de
+portería en la puerta que manda, avisó de 4 elementos y de 3 zonas nombradas. Un
+guardián que nunca se ha visto rojo no está mirando nada.
+
+Y además:
+
+  - que nadie más declara "--cat", "--cat-claro", "--fondo-seccion", "--fondo-nav" ni
+    "--fondo-subnav" en NINGÚN archivo del CSS. Con eso, mover la paleta no le cede el
+    turno a nadie, y por eso el traslado no cambia un color.
+  - que el archivo nuevo se relee entero, con las llaves cuadradas, 36 reglas de primer
+    nivel y 7 adentro del "@media".
+  - que cada uno de los 7 grupos tiene 6 bloques, ni uno más.
+
+
+HALLAZGOS QUE NO SE TOCARON
+
+Son cosas que se encontraron mirando y que quedan escritas. Ninguna se arregló, porque
+arreglarlas cambia la pantalla y nadie lo pidió.
+
+  a) Un comentario de "styles.css", arriba del bloque del tema oscuro, dice que ESE BLOQUE
+     NO TIENE UN SOLO COLOR ESCRITO A MANO y que los catorce fondos entran desde
+     "paleta-dos-temas.json". Y abajo hay más de setenta hex escritos a mano. O el
+     comentario quedó viejo, o hay un paso de generación que no existe. Averiguar cuál de
+     las dos es cosa de otro día.
+
+  b) En tema claro, el encabezado se queda con el color oscuro mientras el submenú sí pasa
+     a claro. "--fondo-seccion" en el "<body>" vale "#173F42", y sin embargo el fondo del
+     "header" es "#2A666B", que es el valor del oscuro. No se investigó por qué: no lo
+     introdujo este trabajo, y la huella dice que tampoco lo cambió.
+
+  c) "css/_marca.css" y "js/app.js" tienen finales de línea mezclados, de cuando se
+     sacaron de un archivo con CRLF y el encabezado se armó con LF. En un CSS no se nota;
+     en "js/app.js" hay una prueba que partía por "\\r\\n" y con 20 saltos sueltos esas
+     líneas quedaban pegadas con la de arriba.
+
+
+LA HERRAMIENTA
+
+"tools/saca-grupos.js" mueve los bloques y borra el duplicado. Tiene nueve guardias, y
+cada uno responde a algo que pasó de verdad:
+
+  - el archivo nuevo tiene que contener, carácter por carácter, lo que se saca
+  - cada rango tiene sus llaves parejas ANTES de cortar
+  - las llaves que se van se CUENTAN en el trozo, no se suponen
+  - el texto cortado se relee, y tiene que quedar con profundidad 0
+  - no queda ninguna regla de paleta en "styles.css"
+  - no queda NINGUNA otra regla con "[data-group=", y se lee con el lector, no buscando
+    la palabra en el texto crudo
+  - el "<link>" queda entre "_tokens.css" y "styles.css"
+  - el archivo sale con CRLF, sin LF sueltos
+  - un "@media" con reglas de paleta y reglas que no lo son frena todo, y avisa en qué
+    renglón
+
+La herramienta se puede volver a correr: si ya no hay bloques, lo dice y no escribe nada.

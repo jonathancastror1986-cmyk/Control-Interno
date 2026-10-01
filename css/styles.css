@@ -181,76 +181,6 @@ small{color:var(--muted)}
 .list-item:hover{background:var(--surface-hover)}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 @media (max-width:700px){
 
   .totem-barra{flex-wrap:wrap}
@@ -267,69 +197,6 @@ small{color:var(--muted)}
    distinguen al apretar. */
 
 .lista-iconos{display:flex;gap:6px;align-items:center;flex:0 0 auto}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* Un usuario reloj no ve el panel: la pantalla de marcaje es todo. */
@@ -489,10 +356,6 @@ Las proporciones son de la más ancha a la más chica: nombre del trabajador
 }
 
 .marcajes-atajos .btn.activo:hover { filter: brightness(1.08); }
-
-
-
-
 
 
 /* El aviso de que no se pudo hablar con la base.
@@ -885,33 +748,6 @@ que uno dude de cómo va a salir impreso.
 .idcard-back .sec{margin-bottom:1.5mm}
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* -------------------------------------------------------------------
 
    LA VENTANA DEL AVISO
@@ -1120,42 +956,6 @@ que uno dude de cómo va a salir impreso.
   }
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* ======================= LA FICHA PERSONAL (2026-09-29) ======================= */
@@ -1947,33 +1747,7 @@ que uno dude de cómo va a salir impreso.
    de seleccionado lean el mismo token. Si el color viviera en un selector
    aparte, un dia uno de los dos estados se olvida de usarlo.
    ------------------------------------------------------------------- */
-#mainNav button[data-group="porteria"] {
-  --cat: #5EE0C8;
-}
 
-#mainNav button[data-group="administracion"] {
-  --cat: #8AB4FF;
-}
-
-#mainNav button[data-group="bodega"] {
-  --cat: #FFC178;
-}
-
-#mainNav button[data-group="supervisores"] {
-  --cat: #86E0A0;
-}
-
-#mainNav button[data-group="soporte"] {
-  --cat: #C0AEF7;
-}
-
-#mainNav button[data-group="asistente-social"] {
-  --cat: #F7A8C4;
-}
-
-#mainNav button[data-group="prevencion"] {
-  --cat: #FF8A7A;
-}
 
 /* -------------------------------------------------------------------
    LOS TRES ESTADOS
@@ -2063,33 +1837,7 @@ que uno dude de cómo va a salir impreso.
    Sin "#mainNav button" adelante a proposito: la barra de submenu lleva el
    mismo data-group y tiene que recibir el mismo color.
    ------------------------------------------------------------------- */
-[data-group="porteria"] {
-  --cat: #5EE0C8;
-}
 
-[data-group="administracion"] {
-  --cat: #8AB4FF;
-}
-
-[data-group="bodega"] {
-  --cat: #FFC178;
-}
-
-[data-group="supervisores"] {
-  --cat: #86E0A0;
-}
-
-[data-group="soporte"] {
-  --cat: #C0AEF7;
-}
-
-[data-group="asistente-social"] {
-  --cat: #F7A8C4;
-}
-
-[data-group="prevencion"] {
-  --cat: #FF8A7A;
-}
 
 /* -------------------------------------------------------------------
    EL DIBUJO, IGUAL QUE EN EL MENU PRINCIPAL
@@ -2234,40 +1982,6 @@ button[role="tab"][aria-selected="true"] .ico {
    el correcto se nota; un icono invisible, no.
    =================================================================== */
 
-[data-group="porteria"] {
-  --cat: #5EE0C8;
-  --cat-claro: #0F7A6A;
-}
-
-[data-group="administracion"] {
-  --cat: #8AB4FF;
-  --cat-claro: #2F6FBF;
-}
-
-[data-group="bodega"] {
-  --cat: #FFC178;
-  --cat-claro: #B5651D;
-}
-
-[data-group="supervisores"] {
-  --cat: #86E0A0;
-  --cat-claro: #2E7D4F;
-}
-
-[data-group="soporte"] {
-  --cat: #C0AEF7;
-  --cat-claro: #6D4BC0;
-}
-
-[data-group="asistente-social"] {
-  --cat: #F7A8C4;
-  --cat-claro: #B03A6B;
-}
-
-[data-group="prevencion"] {
-  --cat: #FF8A7A;
-  --cat-claro: #C0392B;
-}
 
 /* -------------------------------------------------------------------
    CADA LUGAR DICE QUE TONO NECESITA
@@ -2865,47 +2579,7 @@ button[role="tab"][aria-selected="true"] .ico {
    --cat-claro       el color elegido otra vez, para los títulos de las
                      tarjetas, que están sobre blanco.
    ------------------------------------------------------------------- */
-[data-group="porteria"] {
-  --fondo-seccion: #173F42;
-  --cat: #EBF9FA;
-  --cat-claro: #173F42;
-}
 
-[data-group="administracion"] {
-  --fondo-seccion: #1A2330;
-  --cat: #EEF1F7;
-  --cat-claro: #1A2330;
-}
-
-[data-group="bodega"] {
-  --fondo-seccion: #4A2710;
-  --cat: #FCF0E9;
-  --cat-claro: #4A2710;
-}
-
-[data-group="supervisores"] {
-  --fondo-seccion: #14380C;
-  --cat: #ECFCE9;
-  --cat-claro: #14380C;
-}
-
-[data-group="soporte"] {
-  --fondo-seccion: #0C0D6B;
-  --cat: #E7E7FE;
-  --cat-claro: #0C0D6B;
-}
-
-[data-group="prevencion"] {
-  --fondo-seccion: #752112;
-  --cat: #FDEBE7;
-  --cat-claro: #752112;
-}
-
-[data-group="asistente-social"] {
-  --fondo-seccion: #55316E;
-  --cat: #F3ECF8;
-  --cat-claro: #55316E;
-}
 
 /* -------------------------------------------------------------------
    EL FONDO DEL ENCABEZADO Y DEL MENU
@@ -2930,39 +2604,6 @@ header {
     transition: none;
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* ======================= SOPORTE EN AZUL MARINO, Y EL TEXTO CLARO AL SELECCIONAR (2026-09-29) ======================= *//* ===================================================================
@@ -2999,11 +2640,6 @@ header {
    otras.
    =================================================================== */
 
-[data-group="soporte"] {
-  --fondo-seccion: #0C0D6B;
-  --cat: #E7E7FE;
-  --cat-claro: #0C0D6B;
-}
 
 /* -------------------------------------------------------------------
    EL TEXTO DE LA SECCIÓN ELEGIDA
@@ -3117,65 +2753,7 @@ header {
    ------------------------------------------------------------------
    Los valores de tema claro NO se tocan: ya están en el archivo, con el color
    elegido, y en tema claro separan bien de la página. */
-@media (prefers-color-scheme: dark) {
 
-:root:not([data-theme="light"]) [data-group="porteria"] {
-  --fondo-seccion: #2A666B;
-  --cat: #F7FDFD;
-  --cat-claro: #F7FDFD;
-  --fondo-nav: #24565A;
-  --fondo-subnav: #1F4749;
-}
-
-:root:not([data-theme="light"]) [data-group="administracion"] {
-  --fondo-seccion: #4B5F7A;
-  --cat: #F7F9FD;
-  --cat-claro: #F7F9FD;
-  --fondo-nav: #3F5166;
-  --fondo-subnav: #344252;
-}
-
-:root:not([data-theme="light"]) [data-group="bodega"] {
-  --fondo-seccion: #8D4D22;
-  --cat: #FDF9F7;
-  --cat-claro: #FDF9F7;
-  --fondo-nav: #76421E;
-  --fondo-subnav: #5F371A;
-}
-
-:root:not([data-theme="light"]) [data-group="supervisores"] {
-  --fondo-seccion: #39692E;
-  --cat: #F8FDF7;
-  --cat-claro: #F8FDF7;
-  --fondo-nav: #315928;
-  --fondo-subnav: #284922;
-}
-
-:root:not([data-theme="light"]) [data-group="soporte"] {
-  --fondo-seccion: #4F50BA;
-  --cat: #F7F7FD;
-  --cat-claro: #F7F7FD;
-  --fondo-nav: #43449B;
-  --fondo-subnav: #37397B;
-}
-
-:root:not([data-theme="light"]) [data-group="prevencion"] {
-  --fondo-seccion: #9E3F2E;
-  --cat: #FDF8F7;
-  --cat-claro: #FDF8F7;
-  --fondo-nav: #843728;
-  --fondo-subnav: #6B2E22;
-}
-
-:root:not([data-theme="light"]) [data-group="asistente-social"] {
-  --fondo-seccion: #79489A;
-  --cat: #FAF7FD;
-  --cat-claro: #FAF7FD;
-  --fondo-nav: #653E80;
-  --fondo-subnav: #513367;
-}
-
-}
 
 /* ------------------------------------------------------------------
    TEMA OSCURO, CUANDO LA PERSONA LO ELIGE
@@ -3183,61 +2761,7 @@ header {
    Los mismos valores que arriba. No es duplicación por descuido: es la otra
    puerta, y si a una se le olvidara un valor, la misma pantalla se vería
    distinto según si se eligió oscuro o el sistema ya lo estaba. */
-:root[data-theme="dark"] [data-group="porteria"] {
-  --fondo-seccion: #2A666B;
-  --cat: #F7FDFD;
-  --cat-claro: #F7FDFD;
-  --fondo-nav: #24565A;
-  --fondo-subnav: #1F4749;
-}
 
-:root[data-theme="dark"] [data-group="administracion"] {
-  --fondo-seccion: #4B5F7A;
-  --cat: #F7F9FD;
-  --cat-claro: #F7F9FD;
-  --fondo-nav: #3F5166;
-  --fondo-subnav: #344252;
-}
-
-:root[data-theme="dark"] [data-group="bodega"] {
-  --fondo-seccion: #8D4D22;
-  --cat: #FDF9F7;
-  --cat-claro: #FDF9F7;
-  --fondo-nav: #76421E;
-  --fondo-subnav: #5F371A;
-}
-
-:root[data-theme="dark"] [data-group="supervisores"] {
-  --fondo-seccion: #39692E;
-  --cat: #F8FDF7;
-  --cat-claro: #F8FDF7;
-  --fondo-nav: #315928;
-  --fondo-subnav: #284922;
-}
-
-:root[data-theme="dark"] [data-group="soporte"] {
-  --fondo-seccion: #4F50BA;
-  --cat: #F7F7FD;
-  --cat-claro: #F7F7FD;
-  --fondo-nav: #43449B;
-  --fondo-subnav: #37397B;
-}
-
-:root[data-theme="dark"] [data-group="prevencion"] {
-  --fondo-seccion: #9E3F2E;
-  --cat: #FDF8F7;
-  --cat-claro: #FDF8F7;
-  --fondo-nav: #843728;
-  --fondo-subnav: #6B2E22;
-}
-
-:root[data-theme="dark"] [data-group="asistente-social"] {
-  --fondo-seccion: #79489A;
-  --cat: #FAF7FD;
-  --cat-claro: #FAF7FD;
-  --fondo-nav: #653E80;
-  --fondo-subnav: #513367;
-}
 
 /* ------------------------------------------------------------------
    LA PARTE DERECHA DEL ENCABEZADO
@@ -3345,33 +2869,6 @@ label[for="empresaSel"] {
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* En pantallas angostas la grilla de tres se vuelve de una columna, porque
    tres columnas en un teléfono de bolsillo dejan cada una de 40 píxeles. */
 @media (max-width:760px){
@@ -3432,21 +2929,6 @@ header{z-index:30}
    de una franja, porque entonces no se le puede hacer clic. */
 #subNav .nav-dropdown-menu,
 #subNav .nav-dropdown-nested{z-index:40}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* ===================================================================
@@ -3759,20 +3241,6 @@ input:focus,select:focus,textarea:focus{
   button,.btn{transition:none}
   button:active,.btn:active{transform:none}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 /* -------------------------------------------------------------------
@@ -4554,7 +4022,6 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    Y el crecimiento al pasar el mouse también es una animación, así que en este
    modo aparece del tamaño normal al instante, sin agrandarse.
    ------------------------------------------------------------------- */
-
 
 
 /* ===================================================================
