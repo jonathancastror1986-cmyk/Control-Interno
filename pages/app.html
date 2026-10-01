@@ -160,6 +160,21 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
         <input type="file" accept="image/*" id="w-safety">
       </div>
     </div>
+    <!--
+    LA LUPA DE LAS FOTOS
+    ====================
+    Una sola, para todas las fotos, en vez de una por caja. Y se pone una vez acá, en el
+    cuerpo, y no dentro de cada ".photoBox": si estuviera adentro habría que volver a
+    ponerla cada vez que alguien agrega un lugar donde se toma una foto, y la forgets.
+
+    Sale con "hidden" y no con "display:none" en el estilo, porque "display" lo pisa el
+    "display:flex" de "#lupaFoto" y la lupa quedaría abierta siempre, invisible pero
+    tapando los clics de toda la página. Eso ya pasó con otra cosa en este proyecto.
+    -->
+    <div id="lupaFoto" hidden>
+      <img id="lupaFotoImg" alt="">
+      <div class="lupa-pie">Clic en cualquier parte para cerrar</div>
+    </div>
     <small id="photoHint"></small>
 
     <fieldset>

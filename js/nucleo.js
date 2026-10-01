@@ -1287,3 +1287,103 @@ function cambiarDestinoPlantilla(){
   else if(v==='cargo')av.textContent='Solo a las personas que tienen ese cargo.';
   else av.textContent='Le toca a todo el mundo, sin importar el oficio. Es para seguridad general.';
 }
+
+// LA LUPA DE LAS FOTOS
+// =====================
+//
+// -------------------------------------------------------------------
+// QUÉ HACE
+// --------
+// Un clic en cualquier foto de una ".photoBox" la abre grande, y un clic en cualquier
+// parte la cierra.
+//
+// -------------------------------------------------------------------
+// POR QUÉ UN SOLO ESCUCHADOR Y NO UNO POR FOTO
+// ---------------------------------------------
+//
+// Porque las fotos cambian de lugar. Hoy son dos en el ingreso del trabajador, y mañana
+// hay una en la ficha del EPP y otra en el historial. Si el clic se engancha a cada
+// "<img>" por su id, cada foto nueva hay que acordarse de engancharla, y la que se
+// olvide no hace nada sin avisar.
+//
+// Con un escuchador en el documento que pregunta "¿esto es una foto?", toda foto que
+// aparezca después funciona sola. Y preguntar por la clase es lo que hace que no
+// grewen fotos que no deben crecer: si mañana se pone una foto de un logo o de un
+// sello, no se abre, porque no está dentro de una ".photoBox".
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ SE ESCUCHA EN EL DOCUMENTO Y NO EN LAS CAJAS
+// ------------------------------------------------------
+//
+// Las cajas se reemplazan: al guardar un trabajador se vuelve a pintar el formulario y la
+// foto que tenía el escuchador deja de estar en la pantalla. El escuchador del documento
+// sobrevive a eso.
+//
+// -------------------------------------------------------------------
+// Y LA MANITA
+// -----------
+// El "cursor" lo pone el estilo, no acá. Si la lupa abre y el puntero sigue siendo una
+// flecha, parece que la imagen está rota.
+const lupa = {
+  caja: null,
+  img: null,
+};
+
+function prepararLupaFotos() {
+  lupa.caja = document.getElementById('lupaFoto');
+  lupa.img = document.getElementById('lupaFotoImg');
+  if (!lupa.caja || !lupa.img) return false;
+  return true;
+}
+
+// Y abrir, cerrar y cambiar. Separadas, porque "cambiar" es lo que se usa para el
+// carrusel de la ficha y abrir es lo que se usa para el clic.
+function abrirFotoGrande(src) {
+  if (!prepararLupaFotos() || !src) return;
+  lupa.img.src = src;
+  lupa.caja.hidden = false;
+}
+
+function cerrarFotoGrande() {
+  if (prepararLupaFotos()) lupa.caja.hidden = true;
+}
+
+function cambiarFotoGrande(src) {
+  if (!prepararLupaFotos() || !src) return;
+  lupa.img.src = src;
+}
+
+// -------------------------------------------------------------------
+// EL ESCUCHADOR
+// -------------------------------------------------------------------
+document.addEventListener('click', (e) => {
+  // Y primero la lupa: si está abierta, cualquier clic la cierra, incluso el que fue
+  // sobre la foto grande. Y hay que mirar eso ANTES de lo de las fotos chicas, porque si
+  // no, un clic sobre la foto grande la cerraría y la volvería a abrir en el mismo clic.
+  const cajaAbierta = document.getElementById('lupaFoto');
+  if (cajaAbierta && !cajaAbierta.hidden) {
+    cerrarFotoGrande();
+    return;
+  }
+
+  const img = e.target;
+  if (!img || img.tagName !== 'IMG') return;
+
+  // Y tiene que estar dentro de una ".photoBox". Sin esto, cualquier "<img>" de la
+  // página abriría la lupa: los logos, los iconos dibujados en CSS, lo que sea.
+  if (!img.closest('.photoBox')) return;
+
+  // Y con foto cargada. Un "<img>" sin "src" muestra el ícono de imagen rota del
+  // navegador, y abrir eso en grande es una pantalla negra que no se cierra sola.
+  if (!img.getAttribute('src')) return;
+
+  abrirFotoGrande(img.getAttribute('src'));
+});
+
+// Y con el teclado también, porque la lupa es un "<div>", no un botón, y el tabulador no
+// la encuentra. Escape es lo que uno prueba sin que le digan.
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const c = document.getElementById('lupaFoto');
+  if (c && !c.hidden) cerrarFotoGrande();
+});
