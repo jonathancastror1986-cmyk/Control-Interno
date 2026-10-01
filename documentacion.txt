@@ -53,10 +53,15 @@ MODULOS
                 porque usarlos en varias pantallas es lo más común: de las 29 reglas que
                 tocan la portería, 28 son compartidas.
 
-  Y en "js/componentes/", los módulos de JavaScript, con la misma regla: un archivo por
-  módulo, y el nombre dice a quién le afecta cambiarlo. Hoy hay uno, "escaner.js", que
-  usan diez pantallas. Se llaman así y no "porteria.js" por lo mismo: si el archivo dijera
-  "porteria", el que lo tocara creería que no afecta a nadie más.
+      Y en "js/componentes/", los módulos de JavaScript, con la misma regla: un archivo por
+      módulo, y el nombre dice a quién le afecta cambiarlo. Hoy hay uno, "escaner.js", que
+      usan diez pantallas. Se llaman así y no "porteria.js" por lo mismo: si el archivo dijera
+      "porteria", el que lo tocara creería que no afecta a nadie más.
+
+      Y en "js/", el código de la página entera: "app.js". Este NO es un módulo todavía: son
+      las 15.521 líneas de la página, que se movieron del "<script>" en línea. Y se llama
+      "app.js" y no "vistas.js" o "principal.js" porque lo usa el 100%: no hay forma de
+      decir a quién le afecta cambiarlo. Ver [codigo-01].
 
 ------------------------------------------------------------------------------
 [marca-01]  Las dos escalas van en variables porque son la misma propiedad, y el crecimiento ya no va acá
@@ -1181,3 +1186,94 @@ MODULOS
 
   Y eso importa, porque un guardián que nunca se ha visto en rojo no es un guardián: es un
   texto que dice "ok".
+
+------------------------------------------------------------------------------
+[codigo-01]  El JavaScript de la página vive en "js/app.js"
+------------------------------------------------------------------------------
+
+  Archivo: js/app.js
+  Lo que hizo: pages/app.html
+  Dónde estaba: líneas 2.671 hasta 18.191 del archivo viejo
+
+  ------------------------------------------------------------------
+  QUE SE HIZO
+  ------------------------------------------------------------------
+  El bloque "<script>" en línea de "pages/app.html", que eran 15.520 líneas y 608
+  funciones, se movió tal cual a "js/app.js". Y en su lugar quedó una etiqueta:
+
+      <script src="../js/app.js?v=1"></script>
+
+  Sin "defer" ni "async", que es lo importante, y está en el mismo lugar donde estaba el
+  bloque. O sea que se sigue ejecutando en el mismo punto del documento, bloqueando el
+  análisis como bloqueaba antes. Si se le hubiera puesto "defer", la página arrancaría
+  DESPUÉS de estar dibujada, y el orden de todo cambiaría.
+
+  "pages/app.html" pasó de 18.296 líneas a 2.704.
+
+  ------------------------------------------------------------------
+  POR QUÉ NO SE CONCATENÓ CON LO QUE YA HABÍA EN "app.html"
+  ------------------------------------------------------------------
+  Porque se intentó, y se rompió.
+
+  La idea era dejar los 15.520 renglones pegados dentro del texto que leen las pruebas, y
+  que las siete pruebas que buscan JavaScript siguieran funcionando sin tocarlas. Y cinco de
+  siete se rompieron.
+
+  Y no fue por el contenido: fue por la POSICIÓN. Al concatenar, todos los renglones se
+  corren, y "test-pestanas.js" lee números de línea. Dejó de dar verde.
+
+  Y el guion no mintió: el código de la aplicación SÍ estaba en los dos archivos. Lo que no
+  servía era pegarlos.
+
+  Así que las siete pruebas se migraron una por una, y cada una usa ahora dos textos:
+
+      app / html    el HTML. El marcado de las vistas, los atributos.
+      codigo        el JavaScript. Las funciones y los comentarios que las explican.
+
+  Y "codigo" cae en "app" si "js/app.js" no existe, para que la prueba sirva en los dos
+  estados del proyecto.
+
+  ------------------------------------------------------------------
+  Y UNA COMPROBACIÓN QUE SE PERDIÓ EN EL CAMINO
+  ------------------------------------------------------------------
+  Mientras se migraban aparecieron 23 rojos en "test-contadores-totem.js", y la causa era
+  el guion de migración, no el código: buscaba "app." y lo cambiaba por "codigo.", y eso
+  también encontraba el "app." de "pages/app.html" y de "js/app.js".
+
+  O sea que la prueba iba a leer un archivo que no existe. Y no daba ningún error: daba
+  resultados, 23 de ellos en rojo, que se leían como "el código está roto".
+
+  Y el patrón original tenía una segunda falla: "re.source" de una expresión regular es el
+  PATRÓN CON BARRAS DE ESCAPE, no el texto. Buscar con "split" eso es buscar barras que no
+  están, así que el guion decía "cambié 17 usos" y había cambiado uno.
+
+  Los dos se detuvieron porque el guion tenía un guardia que pregunta por el ESTADO antes de
+  escribir: si esas dos líneas exactas ya no están, no escribe. Un guardián que pregunta
+  "¿todavía está lo que encontré?" y no "¿dije que lo haría?".
+
+  ------------------------------------------------------------------
+  Y CÓMO SE COMPROBÓ QUE NO ROMPIÓ NADA
+  ------------------------------------------------------------------
+  Con una sonda que lee el estado de la página en texto plano: si arrancó, qué funciones
+  existen, las cajas de nueve zonas nombradas con sus estilos calculados, y las cuentas de
+  elementos.
+
+  Y se comparó en los dos estados, con el código adentro y afuera. Salieron IDÉNTICAS
+  carácter por carácter: 2.681 en los dos.
+
+  Y después se rompió el camino a propósito, en la copia de prueba, para ver que la sonda se
+  pone roja. Se puso: "showView AUSENTE", 148 botones en vez de 213, y un 404 en la consola.
+
+  Eso es lo que hace que la comparación valga: una comprobación que nunca se ha visto en
+  rojo no es una comprobación, es un texto que dice "ok".
+
+  ------------------------------------------------------------------
+  Y LO QUE FALTA HACER CON ESTE ARCHIVO
+  ------------------------------------------------------------------
+  "js/app.js" sigue siendo un solo archivo de 15.521 líneas. Este movimiento lo deja en un
+  lugar que se puede editar sin tocar el HTML, que era el objetivo.
+
+  Pero no es un módulo todavía: es la página entera junta. El camino ya está probado con
+  "js/componentes/escaner.js", que usan diez pantallas. El orden de la cascada del
+  JavaScript importa menos que el del CSS: si dos archivos definen lo mismo, gana el que se
+  carga último, y eso sí hay que medirlo.
