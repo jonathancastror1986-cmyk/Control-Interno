@@ -86,7 +86,27 @@
 --
 -- Con NULL es "de todas", y es la que se usa si la empresa no tiene una propia.
 --
-alter table if not exists public.plantillas (
+-- -------------------------------------------------------------------
+-- POR QUÉ "CREATE TABLE IF NOT EXISTS" Y NO "ALTER TABLE IF NOT EXISTS"
+-- -------------------------------------------------------------------
+--
+-- Porque "alter table if not exists" NO EXISTE en PostgreSQL. Es lo primero que se
+-- escribe, por la costumbre de "create table if not exists" y "create index if not exists",
+-- que SÍ existen. Y PostgreSQL contesta:
+--
+--     ERROR: 42601: syntax error at or near "exists"
+--
+-- La diferencia: "create" y "create index" pueden crear o no; "alter" MODIFICA algo que
+-- tiene que estar, y si no está hay que crearlo primero. Por eso no tiene la forma.
+--
+-- Lo que se comprobó: en las otras migraciones hay 46 usos de "alter table ... add column
+-- if not exists", y ESOS son válidos. El que no existe es el "alter table if not exists" a
+-- secas, sin "add column".
+--
+-- -------------------------------------------------------------------
+-- LA TABLA
+-- -------------------------------------------------------------------
+create table if not exists public.plantillas (
   id         uuid primary key default gen_random_uuid(),
   nombre     text not null,
   tipo       text not null default 'doc'
