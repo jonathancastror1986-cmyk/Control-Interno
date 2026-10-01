@@ -17,12 +17,12 @@
 <script src="../js/auth.js"></script>
 <script src="../js/theme.js"></script>
 <script src="../js/clima-reloj.js"></script>
-<link rel="stylesheet" href="../css/base.css?v=13">
+<link rel="stylesheet" href="../css/base.css?v=14">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=13">
-<link rel="stylesheet" href="../css/grupos.css?v=13">
+<link rel="stylesheet" href="../css/tokens.css?v=14">
+<link rel="stylesheet" href="../css/grupos.css?v=14">
 <link rel="stylesheet" href="../css/styles.css">
 <!--
 EL TEMA OSCURO DE WHATSAPP
@@ -59,11 +59,11 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=13">
-<link rel="stylesheet" href="../css/vistas.css?v=13">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=13">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=13">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=13">
+<link rel="stylesheet" href="../css/marca.css?v=14">
+<link rel="stylesheet" href="../css/vistas.css?v=14">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=14">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=14">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=14">
 <link rel="stylesheet" href="../css/componentes/plantillas.css?v=6">
 <link rel="stylesheet" href="../css/movil.css" media="(max-width: 860px)">
 </head>
@@ -127,7 +127,41 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
 
 <section class="view active v-administracion" id="v-nuevo-trabajador">
   <div class="card">
-    <h2>Nuevo trabajador</h2>
+    <h2 class="con-ayuda">Nuevo trabajador
+      <!--
+      LAS AYUDAS, EN EL ICONO Y NO EN LA PANTALLA
+      ===========================================
+      Con trece campos, un renglón de explicación debajo de cada uno empuja la fila y la
+      convierte en una escalera: los que tienen texto quedan más arriba y los que no, más
+      abajo. Y encima eran casi todos para decir "esto es lo que hace", que es lo que dice
+      el nombre del campo.
+      -->
+      <details class="ayuda"><summary class="ayuda-ico" title="Qué se llena acá y qué se deduce">i</summary>
+      <div class="ayuda-caja">
+      <b>Los tres nombres.</b> Van separados a propósito: es lo que permite ordenar por
+      apellido y armar planillas con columnas. El nombre entero se arma solo con los tres, y
+      si una importación trae el nombre entero y no los tres, se parte solo.
+      <br><br>
+      <b>El apellido materno es opcional.</b> No todo el mundo tiene dos.
+      <br><br>
+      <b>Correo y RUT.</b> Los dos sirven para reconocer al trabajador en una importación
+      desde Excel, aunque el nombre no coincida. Por eso conviene tener los dos.
+      <br><br>
+      <b>AFP código y nombre.</b> Van los dos porque cada papel usa uno distinto: las
+      planillas y las importaciones usan el código, y la hoja de life, el contrato y las
+      cartas usan el nombre.
+      <br><br>
+      <b>Cargo para las planillas.</b> Es el texto que sale impreso y en la credencial. Se
+      completa solo con el cargo que elijas abajo, y se puede editar a mano.
+      <br><br>
+      <b>Grupo del cargo y Cargo del kit</b> son dos desplegables porque hay más de doscientos
+      cargos: primero se elige el grupo, y después el cargo de ese grupo.
+      <br><br>
+      El cargo es el que decide el kit y las charlas. El grupo se deduce de él, y por eso no
+      se guarda dos veces. Y quedan vacíos a propósito: adivinarlo desde el texto del cargo
+      es la forma fácil de mandarle a alguien la charla del oficio equivocado.
+      </div></details>
+    </h2>
     <div class="row w-campos">
       <div><label>Código</label><input id="w-code"></div>
       <!--
@@ -2452,16 +2486,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=13"></script>
-<script src="../js/componentes/escaner.js?v=13"></script>
+<script src="../js/nucleo.js?v=14"></script>
+<script src="../js/componentes/escaner.js?v=14"></script>
 
-<script src="../js/relojes.js?v=13"></script>
-<script src="../js/soporte.js?v=13"></script>
-<script src="../js/administracion.js?v=13"></script>
-<script src="../js/bodega.js?v=13"></script>
-<script src="../js/documentos.js?v=13"></script>
-<script src="../js/supervisores.js?v=13"></script>
-<script src="../js/app.js?v=13"></script>
+<script src="../js/relojes.js?v=14"></script>
+<script src="../js/soporte.js?v=14"></script>
+<script src="../js/administracion.js?v=14"></script>
+<script src="../js/bodega.js?v=14"></script>
+<script src="../js/documentos.js?v=14"></script>
+<script src="../js/supervisores.js?v=14"></script>
+<script src="../js/app.js?v=14"></script>
 
 <!--
 EL MOTIVO DEL CAMBIO
