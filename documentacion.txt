@@ -1966,3 +1966,143 @@ Y eso es lo correcto: "_base.css" pone la base, y "styles.css" y "componentes/*"
 encima. Una regla "parcialmente tapada" es el estado normal de una hoja de base.
 
 Se cierra. No hay nada que hacer.
+
+
+[h2-01]  El "*" suelto que le daba el estilo del encabezado a los 69 titulos de la pagina
+------------------------------------------------------------------------------
+
+QUÉ PASÓ
+
+En "css/base.css" estaba esta lista de selectores:
+
+    *
+    html
+    body
+    h1,h2,h3
+    header{padding:16px;border-bottom:1px solid var(--line);position:sticky;
+            top:0;background:var(--accent2);top:env(safe-area-inset-top,0px);z-index:5}
+
+Y "css/base.css" se llama así porque se partio de "css/styles.css". El nombre de archivo
+no dice nada del origen, asi que hay que buscar la regla, no el archivo. Y la regla esta
+en "base.css", junto con ":root" y "header".
+
+La intencion era "header{...}" y sola. El "*" de la primera linea no hace falta para
+nada: "*" no aporta especificidad que "header" no tenga ya, y como selector no aporta
+nada. Lo unico que hace es ampliar el alcance de la regla a TODO el documento.
+
+
+QUÉ SE VEÍA
+
+Cada titulo de tarjeta salia con una franja oscura detras: fondo "--accent2", que en
+tema claro es casi negro. Ademas con "padding:16px" y "border-bottom", o sea que el
+titulo tenia un recuadro. Y con "position:sticky", o sea que ademas se pegaba al
+hacer scroll.
+
+Medido en el navegador, antes y despues:
+
+                       antes                 despues
+    fondo del h2       rgb(64,64,64)         transparente
+    position           sticky               static
+    padding            16px                 0px
+    borde inferior     1px                  0px
+
+La pagina tiene 69 <h2>. Todos afectados.
+
+
+POR QUÉ NO LO PARTI YO AL SEPARAR LOS ESTILOS
+------------------------------------------------
+Porque no estaba ahi antes de este trabajo. Esta identico en "css/_base.css" del commit
+"5e3272f", que es de antes de la separacion. Se comparo con "git show" y salio el mismo
+selector, con el mismo "*" y en la misma posicion.
+
+Eso importa para no buscar el error donde no era. Un defecto viejo se ve igual que uno
+nuevo, y si se asume que lo introdujo el trabajo de hoy, se "arregla" una cosa que ya
+funcionaba y se rompe otra que no se estaba mirando.
+
+
+POR QUÉ EL ENCABEZADO REAL NO CAMBIÓ
+-------------------------------------
+Porque "<header>" ya estaba cubierto por reglas mas especificas, y una de ellas lo deja
+en "position:static" a PROPOSITO:
+
+    #barrasSuperiores{position:sticky;top:0;z-index:30}
+    #barrasSuperiores header, #barrasSuperiores #mainNav,
+    #barrasSuperiores #subNav{position:static;top:auto}
+
+Lo pegajoso es el DIV que contiene las tres filas, no el "<header>". Asi que la regla
+de "header" no estaba haciendo nada por el encabezado real, y borrarla no le quita
+nada.
+
+Medido despues del arreglo, en el encabezado real: fondo "rgb(42,102,107)" y "padding"
+"8px 20px", los mismos de antes, porque salen de "#barrasSuperiores header".
+
+
+Y POR QUÉ QUEDÓ ASÍ, CON "header" SOLO
+--------------------------------------
+La opcion de dejar "*" y poner "header" con "!important" seria peor: "!important" es
+para casos donde no hay otra salida, y aca hay una salida limpia. La regla queria
+decir "header" y decia "todo".
+
+Lo que se hizo fue borrar las cuatro lineas de selectores que no le pertenecían. No
+se toco ni una declaracion.
+
+
+[bitacora-01]  La tabla de la bitacora de acceso, con scroll propio
+------------------------------------------------------------------------------
+
+QUÉ SE PIDIO
+
+Que la tabla quedara adentro del div, con scroll, para no alargar tanto la pagina.
+
+
+LO QUE SE MEDIO
+
+Con las herramientas de desarrollo abiertas, sobre el elemento "table" de la pantalla
+de administracion:
+
+    1190 x 2738
+
+2.738 pixeles de alto. Es mas del triple de una pantalla, y arrastraba todo lo que
+venia abajo.
+
+
+LA REGLA
+
+En "css/vistas.css":
+
+    #bitacoraList{
+      max-height:min(70vh,620px);
+      overflow:auto;
+    }
+
+Por que "min(70vh,620px)" y no un numero fijo: con "620px" en una pantalla chica la
+tarjeta seria mas alta que la pantalla, y con "70vh" sola en una pantalla grande seria
+una tabla interminable. El minimo de las dos toma la que manda.
+
+
+Y POR QUÉ "#bitacoraList" Y NO UNA REGLA GENERAL DE TABLAS
+---------------------------------------------------
+Porque hay otras tablas en otras pantallas que hoy se ven bien. Y una regla general
+tipo "table{overflow:auto}" no haria parte, porque "overflow" en una tabla no hace lo
+que uno espera: la tabla crece con su contenido y el scroll queda en el "table", no en
+la celda.
+
+Y "overflow" necesita un limite de alto al lado, o no hay nada que hacer
+scroll. Por eso van los dos en la misma regla.
+
+
+Y POR QUÉ ESTÁ EN "css/vistas.css"
+-------------------------------
+Porque es una regla de UNA pantalla, y ese archivo es el de las reglas por pantalla.
+Va despues de "styles.css" en el orden de carga, asi que gana sin "!important".
+
+
+LO QUE NO SE HIZO, Y POR QUÉ
+----------------------------
+No se hizo que la fila de encabezados quede fija dentro del scroll.
+
+Se puede con "thead th{position:sticky;top:0}", pero los encabezados usan
+"var(--panel)" y hay que confirmar que sea opaco. Si es transparente, se ve la fila de
+abajo por detras de los titulos y se ve peor que sin nada.
+
+Es un cambio de una regla, pero es un cambio de ver, asi que primero se mide.
