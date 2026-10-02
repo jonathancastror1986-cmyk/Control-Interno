@@ -45,10 +45,17 @@ const RAIZ = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-as
 // LOS ARCHIVOS QUE SE REVISAN
 // --------------------------
 //
-// Y solo los de "pages/", porque son los que se cargan en el navegador. El resto del proyecto
-// son textos, datos y copias de trabajo, donde un "id" repetido no hace nada porque no se
-// los abre nadie.
-const CARPETAS = ['pages'];
+// Y se revisan las de "pages/", que son las de la aplicación, y las de "tools/pruebas/",
+// que son copias con una sesión de mentira. Las dos se abren en el navegador y las dos
+// tienen que estar sanas.
+//
+// Y la de la copia importa más de lo que parece: es una copia COMPLETA de "app.html", y
+// por lo tanto todos los "id" duplicados de "app.html" aparecen duplicados ahí también. Es
+// como se encontraron los tres bloques del turno pasado. Ver [tarja-12].
+//
+// Y lo que NO se revisa es el resto del proyecto: textos, datos y copias de trabajo, donde
+// un "id" repetido no hace nada porque no los abre nadie.
+const CARPETAS = ['pages', 'tools/pruebas'];
 
 function htmlDe(carpeta) {
   const salida = [];

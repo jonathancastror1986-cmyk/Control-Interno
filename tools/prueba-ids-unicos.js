@@ -25,7 +25,10 @@ const { execFileSync } = require('child_process');
 
 const RAIZ = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-asistencia-web/';
 const GUARDIAN = RAIZ + 'tools/comprueba-ids-unicos.js';
-const PROBETA = RAIZ + 'pages/_prueba-ids.html';
+// Y la prueba va en "tools/pruebas/" y NO en "pages/". Si se deja en "pages/", el propio
+// archivo de prueba se cuela en la revisión y el guardián se queja de su propia sonda.
+// Ver [pruebas-02].
+const PROBETA = RAIZ + 'tools/pruebas/_prueba-ids.html';
 const TEMP = 'C:/Users/mrj0t/AppData/Local/Temp/opencode/';
 
 function correr(etiqueta) {

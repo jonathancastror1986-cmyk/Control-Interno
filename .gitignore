@@ -11,7 +11,14 @@ _arnas-*.html
 # Las páginas de prueba. Son copias de la aplicación con una sesión de mentira adentro,
 # y la de contadores la regenera "copia-sin-login.js" en cada corrida de pruebas.
 #
+# Y NO están en "pages/". Antes lo estaban, y ahí molestaban: se servían en el mismo
+# espacio de direcciones que la aplicación de verdad, se abrían con un clic de más, y uno
+# acababa mirando una copia vieja —con los botones duplicados— creyendo que era la real.
+# Ver [pruebas-01].
+#
+# En "tools/pruebas/" siguen a un clic de distancia y son lo que son: archivos de trabajo.
+#
 # Y los guardianes de "tools/" NO entran acá: esos van al repositorio, porque son los
 # que comprueban que nada se rompió antes de commitear.
-pages/prueba-*.html
+tools/pruebas/*.html
 mapa-vistas.txt

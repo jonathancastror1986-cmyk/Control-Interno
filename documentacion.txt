@@ -2915,7 +2915,7 @@ archivo para verificar que el título no se está sacando del flujo. Con una seg
 leía la nueva en vez de la del diseño.
 
 O sea que la prueba hizo exactamente lo que tiene que hacer: leer lo que hay. Y una regla que
-no cambia nada ocupa lugar, obliga a leerla, y rompe cosas. Ver [barra-11].
+no cambia nada ocupa lugar, obliga a leerla, y rompe cosas.
 
 
 [barra-07] POR QUÉ LAS REGLAS DEL LOGO VAN EN "marca.css"
@@ -3542,4 +3542,134 @@ guiones de ese turno se escribió antes: una dejó "nucleo.js" con 1.645 renglon
 La última de esas —las dos propiedades de PREVIRED fuera del objeto— la vio el
 usuario en el editor, en el turno en que preguntó por las 5.000 líneas. Ese es el
 costo de saltarse el paso 4.
+
+
+================================================================================
+[pruebas-01] LAS PRUEBAS NO VIVEN EN "pages/"
+--------------------------------------------------------------------------------
+
+En "pages/" había tres archivos de prueba. Uno era una COPIA COMPLETA de "app.html",
+de 159 KB, con un nombre que ya no decía lo que era: "prueba-totem-contadores", de
+cuando eso era una prueba del totem de contadores. Hoy es la aplicación entera con una
+sesión de mentira adentro, que genera "copia-sin-login.js".
+
+Estaban ahí porque "pages/" es donde alguien abre una página y ve la lista de archivos.
+Y ahí estar no costaba nada... hasta que costó:
+
+    · Se servían en el MISMO espacio de direcciones que la aplicación de verdad. La
+      copia y la aplicación eran dos respuestas a "/pages/..." y no había forma de
+      saber cuál era cuál.
+
+    · La copia arrastraba los "id" duplicados de "app.html". Abrirla era ver cuatro
+      veces los botones de imprimir tarjetas. Y no hay forma de saber que uno está
+      mirando un borrador: se ve como un error de la aplicación.
+
+    · El guardián de "id" revisaba las ocho. Y el que fallaba era el archivo que nadie
+      iba a arreglar, porque nadie lo sabe mantener.
+
+Ahora están en "tools/pruebas/", siguen a un clic de distancia, y el guardián las revisa
+a propósito: es la copia que se abre en el navegador, así que sus "id" tienen que estar
+sanos.
+
+Y la copia ahora se llama "app-sin-login.html", que es lo que es.
+
+
+[pruebas-02] LA SONDA DEL GUARDIÁN, FUERA DE LO QUE EL GUARDIÓN MIRA
+--------------------------------------------------------------------------------
+
+"prueba-ids-unicos.js" escribía su archivo de sonda en "pages/_prueba-ids.html".
+
+Y el guardián revisaba "pages/". O sea que la sonda se cuelaba en la revisión del
+guardián que la estaba probando, y le decía que tenía dos "id" repetidos. No es que
+estuviera mal: es que el comprobador se estaba midiendo a sí mismo.
+
+La sonda va en "tools/pruebas/", que es donde viven los archivos de trabajo. Y se
+borra al terminar, porque dejarla ahí es dejar una bomba de reloj para el próximo que
+corra el guion.
+
+
+[pruebas-03] MOVER UNA PÁGINA CAMBIA QUÉ SIGNIFICAN SUS RUTAS RELATIVAS
+--------------------------------------------------------------------------------
+
+Al mover la copia a "tools/pruebas/" la rompí, y la rompí de la peor manera.
+
+"app.html" está en "pages/", a un nivel de la raíz, así que "../css/base.css" sube uno
+y llega a "css/base.css". La copia quedó en "tools/pruebas/", a DOS niveles, así que
+subía uno y llegaba a "tools/css/base.css", que no existe.
+
+Y el síntoma:
+
+    · la página CARGA
+    · se ven las 41 pantallas
+    · "document.readyState" dice "complete"
+    · hay 13 hojas de estilo en "document.styleSheets"
+    · y no hay NINGUNA hoja de estilo, y NINGUNA función
+
+Doce 404 en la consola. "showView" no estaba definida. Todo lo que se puede mirar desde
+un guion de archivos dice que está bien, y la página está muerta.
+
+Y es la razón de por qué estas comprobaciones existen: un archivo puede estar impecable
+y hacer algo distinto de lo que dice. La única forma de verlo es abrirlo.
+
+
+[pruebas-04] Y EL ARREGLO ES CONTAR, NO ESCRIBIR "../../" A MANO
+--------------------------------------------------------------------------------
+
+El número de niveles depende de dónde esté la copia. Si algún día la copia se mueve
+otra vez, el "../../" escrito a mano queda corto otra vez, y el fallo es el mismo de
+nuevo.
+
+Así que "copia-sin-login.js" cuenta los niveles de las DOS rutas y arma el prefijo.
+
+Y en el camino hubo tres errores, que quedan porque son la clase de error que se
+repite:
+
+    1. La etiqueta que se busca decía "../js/app.js". Después de reescribir las rutas el
+       archivo dice "../../js/app.js", así que la etiqueta no se encontraba, el guion
+       creía que "app.html" había cambiado de forma, y decía que no encontraba nada.
+       Es el error de siempre: escribir el texto como uno se lo imagina. Ver [afp-22].
+
+    2. El prefijo nuevo era "../".repeat(NIVEL_COPIA - NIVEL_ORIGEN), que da "../":
+       o sea, el mismo prefijo de antes. Reemplazar "../" por "../" no cambia nada, y
+       el guion anunciaba "28 rutas arregladas" sin arreglar ninguna.
+       La cuenta es otra: para llegar a la raíz hay que subir NIVEL_COPIA. Da igual de
+       dónde vino el texto.
+
+    3. La función de contar pegaba la raíz DOS veces, porque la ruta ya venía con la
+       raíz adelante. La copia.deepía NUEVE niveles en vez de dos.
+
+Y el 3 es el que más enseña: la diferencia entre origen y copia SALÍA bien —9 menos 8
+es 1—, así que el mensaje "está un nivel más hondo" era cierto y el prefijo estaba mal.
+Dos números bien pareados con uno malo en el medio es exactamente donde se cuelan los
+errores.
+
+Por eso ahora hay un tope: si los niveles salen entre 1 y 4, es una carpeta real; si no,
+es una cuenta mala. Y el guion se niega a escribir.
+
+
+[pruebas-05] LO QUE ESTA HERRAMIENTA DICE Y LO QUE NO
+--------------------------------------------------------------------------------
+
+Dice: la copia se generó, tiene 41 vistas, no le queda ninguna llamada a "requireAuth",
+declara la sesión de mentira, y "js/app.js" —el de verdad— no fue tocado.
+
+NO dice: que la copia funcione. Eso hay que abrirlo.
+
+Y por eso el guion mismo termina con una línea que dice "FALTA LO IMPORTANTE: abrir la
+copia y que la aplicación arranque de verdad". No es un trámite: es el reconocimiento de que
+el guion se queda corto, escrita donde se lee todos los días.
+
+
+[pruebas-06] TRES PESTAÑAS VIEJAS CON EL MISMO NOMBRE
+--------------------------------------------------------------------------------
+
+Al medir las pestañas del navegador para la captura, dos estaban bien (0 hojas rotas)
+y una tenía 12 rotas.
+
+Las tres se llamaban "app-sin-login", y la vieja era de ANTES del arreglo de rutas. No
+se distinguían por el nombre: la distinguishing es cuánto CSS había cargado.
+
+La lección es la del [tarja-12] pero al revés: un nombre único NO alcanza si hay copias
+de la misma versión. Al verificar, hay que preguntar algo del ESTADO —cuántas hojas de
+estilo tienen, cuántos 404— y no algo del NOMBRE.
 
