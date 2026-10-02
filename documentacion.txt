@@ -2106,3 +2106,265 @@ Se puede con "thead th{position:sticky;top:0}", pero los encabezados usan
 abajo por detras de los titulos y se ve peor que sin nada.
 
 Es un cambio de una regla, pero es un cambio de ver, asi que primero se mide.
+
+================================================================================
+EL CACHE: POR QUE SE VEIAN PANTALLAS VIEJAS
+================================================================================
+
+Que se vieran pantallas viejas no era un problema de cache del navegador. Era que el HTML
+no tenia con que distinguirse de su propia version anterior, y nadie lo habia notado.
+
+
+[cache-01] POR QUE app.html NO SE PUEDE VERSIONAR CON "?v="
+-------------------------------------------------------------
+
+La version va en la direccion: "styles.css?v=19". Y a "app.html" se llega con
+"window.location.href", que no lleva ningun parametro.
+
+O sea que el "?v=" sirve para los CSS y el JS, y para el HTML no hay nada. El navegador
+guarda el HTML, recargar no siempre lo vuelve a pedir, y el sintoma es que se escribe una
+pantalla nueva, se recarga, y sigue la anterior.
+
+No da ningun error. Abre, se ve bien, y ejecuta el codigo de hace tres commits. Eso es lo
+que hace que un problema de cache sea dificil de reportar: no se ve como error.
+
+
+[cache-02] RED PRIMERO PARA EL HTML, CACHE PRIMERO PARA LOS ASSETS
+-----------------------------------------------------------------
+
+Las dos reglas son distintas porque los dos casos son distintos.
+
+El HTML va a la red PRIMERO y al cache solo si la red no responde. Al reves es lo rapido, pero
+es justamente lo que pasaba sin querer.
+
+El CSS y el JS van al cache PRIMERO, porque esos si llevan "?v=", y con el "?v=" el archivo
+con numero distinto es un archivo distinto. La direccion cambia, el cache no lo tiene, y se
+va a la red. Cuando cambia la version, cambia la direccion, y no hay que acordarse de
+invalidar nada.
+
+
+[cache-03] LO DE OTROS SITIOS NO SE TOCA
+----------------------------------------
+
+Las librerias de CDN y las consultas a Supabase son de otro origen. El service worker no las
+guarda: lo que no es del proyecto, no se cachea desde aca.
+
+Guardar una consulta a Supabase seria el peor error posible: guardar una respuesta de
+"trABAJADORES" y devolverla al usuario siguiente, que veria una lista de personal que no es
+suya.
+
+
+[cache-04] EL GUARDIAN DE VERSIONES MENTIA
+-------------------------------------------
+
+El guion anterior llevaba escrita a mano la lista de los archivos que se versionan. Esa lista
+no tenia a "css/componentes/plantillas.css", que es de ESTE refactor.
+
+Resultado: "plantillas.css" se quedo en "?v=6" mientras todo lo demas subio a "?v=18", y el
+guardiAN imprimio:
+
+    ok  y no queda ninguno de este refactor sin subir
+
+Y no era verdad. Porque el que comprobaba la lista era la misma lista que se habia quedado
+corta: si el archivo no esta en la lista, no hay nada que comprobar, y eso sale igual que
+"esta todo bien".
+
+Un informe que mira el lugar equivocado es peor que no mirar: hace perder el rato buscando un
+problema que ya se resolvio.
+
+
+[cache-05] LOS ARCHIVOS "PREVIOS" TAMBIEN SE VERSIONAN
+-------------------------------------------------------
+
+La regla anterior era "los archivos que ya existian antes no se tocan, son de otra gente". Con
+"css/styles.css" y "css/movil.css" eso es falso: los dos los edito este refactor.
+"styles.css" bajo de 7.882 a 3.961 lineas.
+
+Sin version, un cambio a esos dos no llega nunca. Y no da ningun error.
+
+El costo de ponerles version es uno: se vuelven a pedir una vez por subida. El costo de no
+ponerla es otro: un cambio puede no llegar nunca.
+
+Ahora los 26 archivos locales de "css/" y "js/" llevan version, incluidos los que ya
+existian. Los tres que nunca tuvieron fueron "styles.css", "movil.css" y "whatsapp.css".
+
+
+[cache-06] EL ESCANER LEIA UN SOLO ARCHIVO
+-------------------------------------------
+
+"scan-rotos.js" hacia "process.argv[2]", o sea que leia el primer argumento y se acababa.
+Cuando se le pasaban tres rutas, revisaba la primera, que estaba limpia, e imprimia:
+
+    sin caracteres rotos
+
+El archivo que uno queria revisar era el segundo, y nadie lo miro. Tres archivos, dos sin
+revisar, y un "ok" que no significaba nada.
+
+Un escaner que dice que paso es peor que no tener escaner, porque ocupa el lugar del
+escaner que uno ya no busca.
+
+Ahora lee todos los argumentos, y al final imprime cuantos leyo. Si el numero no es el que se
+le paso, el "ok" de arriba no era de este trabajo.
+
+
+[cache-07] EL REGISTRO VA AL FINAL DEL "<body>"
+-----------------------------------------------
+
+Un service worker recien instalado no controla la pagina que lo instalo hasta la siguiente.
+O sea que si se registra temprano, el HTML viejo se sirve una vez mas.
+
+Va pegado al final del "<body>", despues del ultimo "<script>". Y el "<script>" de
+"js/app.js" tiene que seguir siendo el ultimo con etiqueta, porque el registro se pega
+despues de ese y si aparece otro despues el bloque queda en el medio. Eso lo comprueba el
+guion que lo pega.
+
+
+[cache-08] EL "sw.js" TAMBIEN LLEVA VERSION
+-------------------------------------------
+
+El navegador relee el service worker con una comprobacion de bytes, y con eso alcanza. Pero
+si en algun momento se sirve desde el cache, la version es lo que permite distinguir.
+
+Por eso el registro apunta a "'../sw.js?v=19'", y es el unico "?v=" que no lo pone el
+guardiAN de versiones, porque el guardiani solo mira "css/" y "js/".
+
+Y cuando se cambia el "sw.js" hay que subirle el numero a mano. Si no, el navegador puede
+seguir con el service worker viejo sirviendo cache primero para siempre, y eso es
+justamente el bug que se demostro en [cache-17].
+
+
+[cache-09] NO SE REGISTRA EN LOCALHOST
+--------------------------------------
+
+Si el service worker se instala en la maquina donde se desarrolla, sirve lo viejo en el
+navegador donde se prueba, y hace falta Ctrl+Shift+R para todo. Que es exactamente el
+problema que se esta resolviendo.
+
+Por eso el registro no corre en "localhost" ni en "127.0.0.1". El script tiene que poder
+probarse a mano registrando el service worker desde el navegador, que es como se comprobo
+esto.
+
+
+[cache-10] LA COMPROBACION DE MOJIBAKE MARCABA LOS ARCHIVOS SANOS
+-----------------------------------------------------------------
+
+La comprobacion era /[À-ÿ][ -ÿ]/.test(h), escrita con los caracteres LITERALES.
+
+Es malo por dos cosas a la vez:
+
+  1. El primer rango, À a ÿ, INCLUYE la coma y la tilde. Son acentos normales. Cualquier
+     linea con un acento la marcaba como rota.
+
+  2. El segundo rango empieza en el espacio. "(a) (b)" con un espacio entre los parentesis da
+     un positivo falso. "correo electronico" tambien.
+
+Y un guardian que marca todo es lo mismo que un guardian roto: nadie lo mira, porque aprendio
+que siempre dice que hay un problema.
+
+
+[cache-11] LA REGEX SE ARMA CON "String.fromCharCode"
+----------------------------------------------------
+
+Porque la barra invertida se rompe por capas: yo la escribo, la herramienta la transmite, y
+entre una capa y otra se puede convertir en una barra doble, que en una expresion regular
+deja de ser un escape y pasa a ser un caracter literal.
+
+Ya paso: la comprobacion quedo "/[\\u00c3][\\u00a1-\\u00ff]/" con barras dobles, que
+busca una barra invertida seguida de la palabra "u00c3". No compara nada. Y como no
+comparaba nada, daba "sin mojibake" siempre.
+
+Con "String.fromCharCode" no hay barra invertida en el archivo: hay un numero. Y el numero
+es el numero, no se puede equivocar de camino.
+
+
+[cache-12] LA CADENA "ROTA" SE CONSTRUYE, NO SE ESCRIBE
+-------------------------------------------------------
+
+La autoprueba de la comprobacion de mojibake empezo con la MISMA cadena en los dos casos: se
+escribio una "ñ" con "ñ" en el caso que debia estar roto. O sea que la autoprueba no probaba
+nada, y ademas decia que la comprobacion estaba rota.
+
+El mojibake es lo que pasa cuando los bytes UTF-8 de una letra se leen como Latin-1. La "ñ"
+son dos bytes, C3 B1, y leidos mal dan U+00C3 seguido de U+00B1.
+
+Asi que la cadena rota se arma con esos dos numeros. Y el "á" tambien sirve: son C3 A1.
+
+Ahora la autoprueba corre en cada uso y se prueba en los dos sentidos: tiene que ver el roto
+y tiene que dejar pasar el sano.
+
+
+[cache-13] UNA SUITE PELEABA CONTRA EL MECANISMO QUE LA SUITE QUERIA CAZAR
+---------------------------------------------------------------------------
+
+"test-movil-totem.js" buscaba 'href="../css/movil.css"' con el cierre pegado al nombre. Con
+"?v=19" el cierre ya no esta pegado, y la suite se ponia roja.
+
+El mensaje de la suite era "!se toca movil.css". O sea que de verdad estaba diciendo "!movil.css
+esta sin version", que es al reves de lo que queria: que al usuario le llegue el CSS viejo.
+
+Se arreglo midiendo la POSICION de la etiqueta con un patron que acepta la version
+opcional. El orden es lo que decide quien gana, y asi sigue valiendo haya "?v=" o no.
+
+Las otras once suites tienen el mismo patron fragil en algun punto. No se tocaron porque hoy
+no se rompieron, y tocarlas a ciegas es cómo se rompen.
+
+
+[cache-14] LA COPIA DE LA EXPRESION SE DESACTUALIZA
+----------------------------------------------------
+
+La prueba de que la comprobacion de movil puede fallar copia la MISMA expresion que usa la
+suite. Si manana cambia la suite y no esta copia, la prueba pasa a medir la expresion vieja
+y deja de servir.
+
+Es un problema real, y no resuelto: hoy la copia esta al dia. Lo que faltaria es que la
+prueba importara la expresion de la suite, y eso exige que la suite la exporte.
+
+
+[cache-15] UN PATRON QUE NO BAJA A SUBCARPETAS COMPRA POR CANTIDAD
+--------------------------------------------------------------------
+
+Para quitar los "?v=" de todas las referencias se uso un patron que solo aceptaba letras y
+guiones en el nombre del archivo. Ocho archivos viven en "componentes/", y no los tocaba.
+
+Los contaba como "sin version" sin haberlos tocado, y la comprobacion pasaba sin comprobar.
+
+El aviso era el numero: quedaron 8, despues 1. Un numero que no es 0 tiene que hacer ruido.
+
+
+[cache-16] EL INFORME DECIA "SUBIO 26 ARCHIVOS" SIN QUE HUBIERA CAMBIADO NADA
+------------------------------------------------------------------------------
+
+"tools/sube-versiones.js" reportaba los 26 archivos aunque ya estuvieran todos en la version
+nueva, con lineas de la forma "v19 -> v19".
+
+El que lo lee no sabe si cambio algo, y termina sin leer el final, que es donde esta la
+comprobacion buena: que no queda ninguna referencia sin version y que las librerias de CDN
+siguen ahi.
+
+
+[cache-17] SE DEMOSTRO QUE EL SERVICE WORKER PUEDE FALLAR
+---------------------------------------------------------
+
+La prueba del service worker comprueba que el HTML llega nuevo: se le pone una marca al
+archivo en disco, se recarga, y la marca tiene que estar en pantalla.
+
+Para saber si eso es verdad, se hizo lo contrario. Se cambio el "sw.js" de red-primero a
+cache-primero, que es el bug que existia antes de este trabajo.
+
+Secuencia, con el bug puesto:
+
+    1. cache vacia, disco limpio       -> el cache guarda la version limpia
+    2. se le pone la marca al disco
+    3. recarga                          -> NO LLEGA
+
+O sea que con cache primero el cambio del disco no llega nunca, que es el sintoma exacto que
+se vio durante horas.
+
+La primera vez que se intento esto NO se reprodujo, porque la cache todavia tenia la version
+con la marca. Un bug que no se reproduce porque la prueba estaba mal montada es peor que un
+bug que no se busca.
+
+Restaurado el "sw.js" bueno y vuelto a registrar con version nueva: LLEGA.
+
+
+================================================================================

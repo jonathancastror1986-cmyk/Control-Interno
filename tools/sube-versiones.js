@@ -1,0 +1,199 @@
+// EL GUARDIÁN DE LAS VERSIONES, QUE AHORA DESCUBRE Y NO SUPONE
+// ============================================================
+//
+// -------------------------------------------------------------------
+// EL AGUARDIÁN ANTECEDENTE MENTÍA
+// -------------------------------
+//
+// El guion anterior llevaba una lista escrita a mano de los archivos que se versionan:
+//
+//     DE_ESTE = /(?:css\/(?:base|tokens|...)\.css|css\/componentes\/(?:tarjeta|porteria|totem)\.css|...)/g
+//
+// Y esa lista no tenía a "css/componentes/plantillas.css", que es de ESTE refactor.
+//
+// El resultado: "plantillas.css" se quedó en "?v=6" mientras todo lo demás subió a "?v=18",
+// y el guardiáncompleto imprimió:
+//
+//     ok  y no queda ninguno de este refactor sin subir
+//
+// Y no era verdad. Porque el que comprobaba la lista era la misma lista que se había quedado
+// corta: si el archivo no está en la lista, no hay nada que comprobar, y eso sale igual que
+// "está todo bien". Ver [cache-04].
+//
+// Es el mismo error que ya tenía una vez este guion, con los grupos de captura: un informe
+// que mira el lugar equivocado es peor que no mirar, porque hace perder el rato buscando un
+// problema que ya se arreglado.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ SE CAMBIA A DESCUBRIR
+// --------------------------------
+//
+// Porque una lista escrita a mano hay que acordarse de ampliarla cada vez que se crea un
+// archivo, y la lista es la que decide qué se comprueba. Si el que decide y el que
+// comprueba son el mismo, un archivo nuevo es invisible hasta que alguien se da cuenta.
+//
+// Ahora la lista sale del disco: se listan "css/" y "js/", y se comprueba que cada uno de
+// esos archivos que esté enlazado en "app.html" tenga la versión. Un archivo nuevo entra solo,
+// sin que nadie se acuerde.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ AHORA SE VERSIONAN LOS "PREVIOS"
+// -------------------------------------------
+//
+// La regla anterior era: "los archivos que ya existían antes no se tocan, son de otra gente".
+// Y con "css/styles.css" y "css/movil.css" eso es falso: los dos los editó este refactor
+// —"styles.css" bajó de 7.882 a 3.961 líneas— y sin versión no llegan nunca.
+//
+// El costo de ponerles versión es uno: se vuelven a pedir una vez por subida. El costo de
+// no ponerla es otro: un cambio puede no llegar nunca, y no da ningún error. Ver [cache-05].
+//
+const fs = require('fs');
+const path = require('path');
+
+const RAIZ = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-asistencia-web/';
+const ALVO = RAIZ + 'pages/app.html';
+const NUEVA = process.argv[2] || '1';
+
+// -------------------------------------------------------------------
+// DESCUBRIR, NO SUPONER
+// -------------------------------------------------------------------
+function archivosDe(carpeta, salida) {
+  salida = salida || [];
+  const llena = path.join(RAIZ, carpeta);
+  if (!fs.existsSync(llena)) return salida;
+  fs.readdirSync(llena, { withFileTypes: true }).forEach((e) => {
+    const rel = carpeta + '/' + e.name;
+    if (e.isDirectory()) {
+      // Y "componentes" adentro de "css" y de "js", y los "_" son copias de trabajo.
+      if (e.name.charAt(0) === '_') return;
+      archivosDe(rel, salida);
+    } else if (/\.(css|js)$/.test(e.name)) {
+      salida.push(rel);
+    }
+  });
+  return salida;
+}
+
+const LOCALES = archivosDe('css').concat(archivosDe('js'));
+
+if (LOCALES.length < 15) {
+  console.log('  *** SE DESCUBRIERON SOLO ' + LOCALES.length + ' ARCHIVOS, SE ESPERABAN MAS ***');
+  console.log('    Sin la lista completa, la comprobación no cubre nada.');
+  process.exit(1);
+}
+
+let t = fs.readFileSync(ALVO, 'utf8');
+const NL = t.indexOf('\r\n') >= 0 ? '\r\n' : '\n';
+
+// -------------------------------------------------------------------
+// SUBIR
+// -------------------------------------------------------------------
+const cambiados = [];
+LOCALES.forEach((archivo) => {
+  // Con "escape" en el nombre, porque un "archivo" puede traer "." que en una expresión
+  // regular es "cualquier carácter". Y con los grupos adentro "(?:...)" a propósito: con
+  // grupos de captura, el número del grupo no es el número de versión.
+  const esc = archivo.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp('((?:href|src)="\\.\\./' + esc + ')(\\?v=(\\d+))?(")', 'g');
+  if (!re.test(t)) return;                       // no está enlazado: no se toca
+  re.lastIndex = 0;
+  // Y el número viejo se saca del enlace, antes de reescribirlo: dentro del "replace" solo
+  // vive durante la llamada, y afuera no existe.
+  const antes = (t.match(new RegExp('(?:href|src)="\\.\\./' + esc + '\\?v=(\\d+)"')) || [])[1];
+
+  // Y si ya está en esta versión, no se cuenta como cambio. Sin esto el informe decía
+  // "subidos a v19 (26)" con veintiséis líneas de "v19 -> v19", que es ruido: el que lo lee
+  // no sabe si cambió algo o no, y termina sin leer el final, que es donde está la
+  // comprobación buena. Ver [cache-16].
+  if (antes === NUEVA) return;
+
+  t = t.replace(re, (m, hasta) => hasta + '?v=' + NUEVA + '"');
+  cambiados.push(archivo + '  (v' + (antes || 'SIN v') + ' -> v' + NUEVA + ')');
+});
+
+// -------------------------------------------------------------------
+// COMPROBAR, Y QUE LA COMPROBACIÓN SEA DE OTRO TIPO
+// -------------------------------------------------------------------
+// Y no con el patrón que ya se usó, sino con el inverso: se busca una referencia local SIN
+// versión. Si el patrón de comprobación fuera el mismo que el de escritura, entonces un
+// error en el de escritura aparecería también en el de comprobación y los dos pasarían.
+//
+// Este es el punto entero del cambio: el guardián anterior se comprobaba a sí mismo.
+const SIN = [];
+const RE_SIN = /(?:href|src)="(\.\.\/(?:css|js)\/[^"?]+)"/g;
+let m;
+while ((m = RE_SIN.exec(t)) !== null) {
+  const rel = m[1].replace('../', '');
+  if (LOCALES.indexOf(rel) >= 0) SIN.push(rel);
+}
+
+if (SIN.length) {
+  console.log('');
+  console.log('  *** ESTAS REFERENCIAS NO TIENEN VERSION ***');
+  Array.from(new Set(SIN)).forEach((x) => console.log('      ' + x));
+  console.log('    Un archivo sin "?v=" no llega nunca al navegador. Ver [cache-05].');
+  process.exit(1);
+}
+console.log('');
+console.log('    ok  ninguna referencia local sin versión');
+
+// Y que esten TODOS los del disco enlazados. Un archivo en disco que no está enlazado es un
+// archivo muerto, y se reporta aparte porque es otro problema: no es caché, es que no se usa.
+const NO_ENLAZADOS = LOCALES.filter((a) => t.indexOf('../' + a) < 0);
+if (NO_ENLAZADOS.length) {
+  console.log('');
+  console.log('    ojo  en disco pero NO enlazados en app.html: ' + NO_ENLAZADOS.join(', '));
+  console.log('    No es un error de caché. Puede que se carguen desde otro archivo.');
+}
+
+// -------------------------------------------------------------------
+// Y QUE NO SE ROMPIERA NADA
+// -------------------------------------------------------------------
+if (cambiados.length) fs.writeFileSync(ALVO, t, 'utf8');
+
+console.log('');
+if (cambiados.length) {
+  console.log('    subidos a v' + NUEVA + ' (' + cambiados.length + '):');
+  cambiados.forEach((x) => console.log('      ' + x));
+} else {
+  console.log('    nada nuevo que subir: ya estaba todo en v' + NUEVA);
+}
+
+const RAW = fs.readFileSync(ALVO, 'utf8');
+
+// Los que tienen que seguir ahí, o la página ni abre.
+['../js/auth.js', '../js/theme.js', '../js/clima-reloj.js', '../js/supabaseConfig.js',
+ '../js/supabaseClient.js', '../js/app.js', '../js/nucleo.js', 'app.js'].forEach((x) => {
+  if (RAW.indexOf(x) < 0) {
+    console.log('');
+    console.log('  *** DESAPARECIÓ ' + x + ' ***');
+    process.exit(1);
+  }
+});
+console.log('    ok  y los que tienen que estar, están');
+
+// Y los "<script>" de CDN siguen igual: si se les toca el nombre, no cargan y no hay error
+// visible, la página abre y no hace nada.
+const CDN = ['qrcode.min.js', 'JsBarcode.all.min.js', 'xlsx.full.min.js',
+ 'html5-qrcode.min.js', 'html2canvas.min.js', 'jspdf.umd.min.js'];
+const faltan = CDN.filter((x) => RAW.indexOf(x) < 0);
+if (faltan.length) {
+  console.log('');
+  console.log('  *** FALTAN LIBRERAS DE CDN: ' + faltan.join(', ') + ' ***');
+  process.exit(1);
+}
+console.log('    ok  y las 6 librerías de CDN siguen enlazadas');
+
+if (RAW.indexOf('\r\n') >= 0 && NL !== '\r\n') {
+  console.log('  *** CAMBIARON LOS SALTOS DE LÍNEA ***');
+  process.exit(1);
+}
+console.log('    ok  y los saltos de línea siguen como estaban');
+
+if (/[\u00c3][\u00a1-\u00ff]/.test(RAW)) {
+  console.log('  *** MOJIBAKE ***');
+  process.exit(1);
+}
+console.log('    ok  y sin mojibake');
+console.log('');
+console.log('    y ahora el guardián mira ' + LOCALES.length + ' archivos, y los cuenta desde el disco');
