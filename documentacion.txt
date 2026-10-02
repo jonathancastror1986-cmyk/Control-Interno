@@ -3349,3 +3349,197 @@ y el guardián lo dice en vez de quedarse callado.
 Lo que SÍ se comprueba son los códigos, que es lo que va a la planilla. Y el nombre es
 lo único que se puede leer de más de una forma, porque el nombre lo escribe una persona.
 
+
+================================================================================
+[tarja-07] LA GUARDA MIRABA EL ARCHIVO EQUIVOCADO
+--------------------------------------------------------------------------------
+
+La barra de "Imprimir tarjetas" salía CUATRO VECES en el listado. Y no por un error de
+escritura: por un error de diseño del guion que la puso.
+
+La guarda del guion era:
+
+    if (fs.readFileSync(APP).indexOf('tarjetasSeleccionadas') >= 0) return;
+
+donde APP es "js/app.js". Y la barra vive en "pages/app.html". La guarda miraba un
+archivo donde esa palabra NO aparece nunca, así que no frenaba nada, y cada corrida
+pegaba otra copia. Cuatro corridas, cuatro barras.
+
+Es la quinta vez que una guarda mira el lugar equivocado:
+
+    · "botones[length-2]" en vez del índice del botón
+    · "i===5" en vez del nombre del campo
+    · "thead th" en vez de la tabla concreta
+    · "termina en +, ya está"
+    · esta: app.js en vez de app.html
+
+La forma que no falla: que la guarda mire LA MISMA COSA que la operación, en el MISMO
+archivo. Un "indexOf" que devuelve -1 no es una guarda, es decorado.
+
+
+[tarja-08] NO ERAN CUATRO COPIAS IGUALES
+--------------------------------------------------------------------------------
+
+El guion que las quitó comparaba las cuatro bloques línea por línea, y=no son
+idénticos:
+
+    · la última barra tenía el "<div id='workerList'>" PEGADO al "</div>"
+    · la copia de los filtros de la bitácora estaba un renglón más indentada
+    · el aviso duplicado terminaba en "\r\r", un doble retorno de carro
+
+Y el guion se negaba a borrar, y decía "no son copias, son cosas distintas". Peor que
+borrar de más: un guardián que se niega a actuar porque el whitespace no calza.
+
+La forma que funciona: normalizar PRIMERO, y comparar sin espacios ni al principio ni
+al final. Y partir lo que está pegado ANTES de buscar los bloques, porque si se borra
+la barra sin partir antes, el "<div id='workerList'>" se va con ella y desaparece la
+tabla del listado entera.
+
+
+[tarja-09] Y [tarja-10] LOS TRES FALLOS DEL GUION QUE LAS QUITÓ
+--------------------------------------------------------------------------------
+
+El guion que quitó las copias falló tres veces antes de acertar, y las tres son la
+misma clase de error:
+
+1) La "cola" —lo pegado después del cierre— se medía desde el principio del "</div>" y
+   no desde después. Toda copia parecía "contenido pegado" y no se borraba nada.
+
+2) La cola se comparaba sin quitar el "\r". Como el archivo tiene finales CRLF, la
+   cola era SIEMPRE "\r", que en JavaScript es verdadero, y el "if (cola)" disparaba
+   siempre. Un "\r" no es contenido.
+
+3) Cuando dos bloques NO eran iguales, decía "distinto" y nada más. Sin decir cuál
+   línea ni por qué, no hay manera de saber qué mirar.
+
+La regla: un "if" que compara tiene que decir QUÉ comparó y POR QUÉ no calza.
+
+
+[tarja-11] LAS TRES DUPLICACIONES, Y POR QUÉ SOLO SE VEÍA UNA
+--------------------------------------------------------------------------------
+
+Eran tres, no una:
+
+    · la barra de tarjetas ............. 4 veces   <-- la que se ve
+    · los 4 filtros de la bitácora .... 2 veces
+    · el aviso del centro de costo .... 2 veces
+
+Las otras dos NO se veían porque una tiene "hidden" y la otra vive en otra pantalla.
+Y las dos estaban rotas igual: "getElementById" se queda con la PRIMERA y la segunda
+queda muerta sin avisar.
+
+Eso en la bitácora significaba que se veían DOS renglones de filtros y que el segundo
+no filtraba nada. No era que se viera feo: era un control que no funcionaba, y que
+alguien podía usar creyendo que sí.
+
+
+[tarja-12] POR QUÉ HACE FALTA UN GUARDIÁN Y NO SÓLO ARREGLAR
+--------------------------------------------------------------------------------
+
+Porque un "id" repetido NO da error. El HTML es válido, el JavaScript compila, la
+pantalla carga, y no aparece ni un error en la consola. El navegador lo tolera.
+
+Y un formulario con dos "name" iguales es lo mismo: es válido, y manda los dos valores.
+
+Por eso existe "tools/comprueba-ids-unicos.js": no para arreglar, que eso lo hizo un
+guion, sino para que la próxima vez que un guion se pase se note antes de que alguien
+lo use.
+
+
+[tarja-13] EL GUARDIÁN SE PRUEBA ROMPIÉNDOSE
+--------------------------------------------------------------------------------
+
+"tools/prueba-ids-unicos.js" inyecta seis casos:
+
+    1. un "id" dos veces
+    2. un "id" TRES veces, y que diga "3 veces" y no solo "repetido"
+    3. dos "id" repetidos a la vez
+    4. "audEmpresa", "audEmpresa2" y "audEmpresaX": parecidos, NO el mismo
+    5. nada repetido
+    6. un "id=" dentro de un "onclick", que no es un "id"
+
+El caso 2 importa porque borrar uno y dejar dos sigue roto. El caso 4 importa porque
+un guardián que confunde "audEmpresa" con "audEmpresa2" se queja de algo que está
+bien, y uno que se acostumbra a quejarse deja de mirar el archivo.
+
+Y al final se vuelve a correr sobre el código real, para que las pruebas no dejen
+nada roto.
+
+
+[tarja-14] POR QUÉ SE COMPARA EL NÚMERO Y NO SOLO SI HAY REPETIDO
+--------------------------------------------------------------------------------
+
+Porque "está repetido" no dice cuánto hay que borrar. El guardián cuenta y dice las
+líneas: "id=audEmpresa, 2 veces, en L2618, L2625". Con eso se va a mirar la línea, sin
+adivinar.
+
+
+[tarja-15] "curl" EN WINDOWS DEVUELVE VACÍO SIN AVISAR
+--------------------------------------------------------------------------------
+
+El guion que comprobaba qué sirve el servidor usaba "curl", y le devolvieron cero bytes
+en las cinco direcciones. Dio por hecho que el servidor estaba mal.
+
+El servidor estaba bien: "Invoke-WebRequest" de PowerShell devolvía los 156.257
+bytes, y el navegador cargaba la página sin problema.
+
+Un comprobador que dice "el servidor está mal" cuando lo que está mal es cómo pregunta
+es peor que no comprobar: hace perder el rato buscando un problema que no existe.
+Por eso ahora usa "http" de Node... y si tampoco funciona, se dice que falla el guion y
+no el servidor.
+
+
+[tarja-16] Y LO QUE HAY QUE HACER CON ESTE ERROR
+--------------------------------------------------------------------------------
+
+Todavía no está hecho, y conviene dejarlo escrito:
+
+    En esta máquina, "http.get" de Node NO llega a 127.0.0.1:5500. Devuelve la conexión
+    y cuerpo vacío. "Invoke-WebRequest" de PowerShell sí llega. No se sabe por qué, y
+    no conviene investigar porque no bloquea nada: lo que importa es que el
+    COMPROBADOR diga cuál de los dos falló.
+
+La regla para cualquier comprobador de aquí en adelante:
+
+    · si no pudo comprobar, que lo diga y NO lo cuente como "todo bien"
+    · que nombre la herramienta que usó, para que el error se ubique
+    · queCompruebe algo que se sepa que funciona, antes de acusar al servidor
+
+
+[afp-22] Y [afp-23] DOS ANCLAS QUE NO SE ENCONTRARON
+--------------------------------------------------------------------------------
+
+Las dos del mismo turno, y las dos por escribir el texto como se piensa uno, no como está:
+
+    · "afp_nombre: document.getElementById(...)"  con un espacio de más. La línea real
+      es "afp_nombre:document.getElementById(...)", sin espacio.
+
+    · el fin de línea buscado con el próximo ";". Pero esa línea termina en COMA: es
+      una propiedad más del objeto que se está armando. Buscando el ";" siguiente se
+      comía el resto del objeto y las propiedades nuevas quedaban FUERA, y el archivo
+      no compilaba.
+
+La forma que no falla: buscar lo mínimo inequívoco y CONTAR que aparezca una vez. Si
+aparece dos, es que el ancla es más corta de lo que parecía, y eso también es un
+error: se editaría el lugar equivocado.
+
+
+[afp-24] COMPROBAR LA TEMPORAL, Y SOLO DESPUÉS ESCRIBIR
+--------------------------------------------------------------------------------
+
+El orden que nunca falla:
+
+    1. comprobar el estado de ENTRADA, antes de leer una sola línea
+    2. armar todo en memoria
+    3. escribirlo en una TEMPORAL
+    4. compilar la temporal, y contar que estén todas las piezas
+    5. y SOLO AHORA escribir el archivo de verdad
+
+Escribir y después comprobar NO es comprobar. Es avisar tarde. Y en cinco de los ocho
+guiones de ese turno se escribió antes: una dejó "nucleo.js" con 1.645 renglones de
+"\r\r\n", dos dejaron archivos que no compilaban, y una llegó a rotura de pantalla.
+
+La última de esas —las dos propiedades de PREVIRED fuera del objeto— la vio el
+usuario en el editor, en el turno en que preguntó por las 5.000 líneas. Ese es el
+costo de saltarse el paso 4.
+
