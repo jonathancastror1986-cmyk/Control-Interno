@@ -2592,3 +2592,104 @@ palabra: "i", igual que los demas. El detalle va adentro, en la caja.
 
 
 ================================================================================
+
+================================================================================
+LAS CUATRO FORMAS DE ESCRIBIR UN CAMPO
+================================================================================
+
+
+[forma-01] UNA MIGRACIÓN, NO UN RETOQUE A LA 058
+------------------------------------------------
+
+"campos_de_plantilla" despeja los campos con "{{nombre}}". Y "completarPlantilla", en el
+navegador, reemplaza "[NOMBRE]".
+
+Son dos idiomas. Y el documento tiene que estar en los dos para funcionar: uno lo revisa y el
+otro lo llena.
+
+Una plantilla escrita con "{{nombre}}" pasa la revisión — la lista de "Reconocidas" la llena, y
+por eso parece que anda — y NUNCA se completa. El documento baja con las llaves adentro y sin
+ningún error.
+
+Y eso se vio: una plantilla con "{{nombre_completo}}" en el encabezado, en el cuerpo y en la
+firma, que el editor decía reconocer y que no iba a llenar nadie.
+
+La 060 hace que los dos lados acepten las cuatro formas:
+
+    [CAMPO:7-licencia]    campo propio de la empresa
+    [NOMBRE]              la que se escribe de nuevo
+    {{nombre}}            la que usaban los documentos de antes
+    {nombre}              la que se escribe por error
+
+Y NO se borra "{{}}", porque hay documentos que ya la usan, y un documento que deja de llenarse
+a mitad es peor que un documento con una sintaxis de más.
+
+Es una MIGRACIÓN y no un retoque a la 058 porque las migraciones ya corrieron: editar el
+archivo 058 cambia lo que se lee al crear de cero, y no cambia nada en la base de quien ya la
+corrió, que es justo donde está el problema.
+
+
+[forma-02] EXTRAER Y REEMPLAZAR SON DOS COSAS DISTINTAS
+---------------------------------------------------------
+
+Con "[CAMPO:7-licencia]" el ORDEN importa en un caso y en el otro no, y por eso me enredé.
+
+REEMPLAZAR (el navegador). Se busca "[...]" y se cambia por el dato. Si se buscara "[...]"
+primero, "[CAMPO:7-licencia]" se partiría en "[7-licencia]" y "CAMPO:7-licencia]" quedaría
+suelto adentro del documento. Por eso ahí "[CAMPO:...]" va primero.
+
+EXTRAER (la base). Cada patrón mira el texto entero por separado y se unen los resultados. Y
+"[CAMPO:7-licencia]" NO matchea el patrón de los corchetes solos, porque ese pide "[", luego
+letras o dígitos o guion bajo, y "]": adentro hay una ":" que no está en esa clase. Así que no
+se cuenta dos veces y el orden no importa.
+
+Escribí una función espejo que encadenaba los cuatro patrones, como si el SQL los encadenara.
+No los encadena. La función daba bien los casos simples y mal el resto, y el motivo de que
+fuera mal era mío.
+
+
+[forma-03] LA BARRA INVERTIDA SE PIERDE EN EL CAMINO
+----------------------------------------------------
+
+La migración 060 se escribió primero con un guion de JavaScript, con el SQL adentro de una
+cadena. Y la cadena se comió las barras invertidas:
+
+    '\[\s*([a-z0-9_-]+)\s*\]'   en el guion
+    '[s*([a-z0-9_-]+)s*]'            en el archivo
+
+En PostgreSQL, "[" sin barra abre un rango de caracteres y "s" es una letra. La función que
+quedaba instalada no buscaba un corchete: buscaba una letra "s". Devolvía la lista vacía.
+
+Y devolver la lista vacía NO DA ERROR: es exactamente lo que pasa cuando de verdad no hay
+campos que llenar. Un diagnóstico que no se distingue del resultado normal no sirve para
+diagnosticar nada. Si esa migración se hubiera instalado, el editor habría seguido diciendo
+"Reconocidas" con una lista siempre vacía, y nadie habría sabido por qué.
+
+Lo que lo atrapó: revisar el archivo y ver que la alternativa de "llave simple" no estaba. Ese
+"no está" apuntaba a un archivo roto y no a un marcador mal escrito, que fue el error
+siguiente.
+
+Regla que queda: EL SQL DE UNA MIGRACIÓN SE ESCRIBE DIRECTO, no generado por un guion. Y
+"tools/comprueba-060.js" revisa que las cuatro alternativas sigan con su barra.
+
+
+[forma-04] EL COMENTARIO DE LA TABLA MIENTE Y ESO CUESTA UN DÍA
+----------------------------------------------------------------
+
+"comment on column public.plantillas.html" decía:
+
+    'Los campos van como {{nombre}}, {{apellido_paterno}}, {{empresa}}, etc.'
+
+Que es la forma que el navegador NO reemplaza.
+
+Un comentario de tabla es lo que alguien lee cuando está frente al error, y si dice la forma
+equivocada lo manda a buscar por el lado equivocado. La 060 lo corrige, y también el de la
+tabla y el de "campos_de_trabajador".
+
+Y "{{nombre}}" sigue apareciendo en el comentario, en la frase que dice que ya no se escribe.
+La comprobación prohíbe la frase MENTIRA —"Los campos van como {{nombre}}"— y no la cadena
+entera: prohibir la cadena entera marcaría el comentario correcto como error. Y eso pasó con
+la primera versión de la comprobación, que daba un falso positivo sobre el texto bien escrito.
+
+
+================================================================================
