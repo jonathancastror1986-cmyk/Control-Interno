@@ -12,19 +12,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supabaseConfig.js?v=38"></script>
-<script src="../js/supabaseClient.js?v=38"></script>
-<script src="../js/auth.js?v=38"></script>
-<script src="../js/theme.js?v=38"></script>
-<script src="../js/clima-reloj.js?v=38"></script>
-<link rel="stylesheet" href="../css/base.css?v=38">
+<script src="../js/supabaseConfig.js?v=41"></script>
+<script src="../js/supabaseClient.js?v=41"></script>
+<script src="../js/auth.js?v=41"></script>
+<script src="../js/theme.js?v=41"></script>
+<script src="../js/clima-reloj.js?v=41"></script>
+<link rel="stylesheet" href="../css/base.css?v=41">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=38">
-<link rel="stylesheet" href="../css/grupos.css?v=38">
-<link rel="stylesheet" href="../css/styles.css?v=38">
-<link rel="stylesheet" href="../css/componentes/asistencia.css?v=38">
+<link rel="stylesheet" href="../css/tokens.css?v=41">
+<link rel="stylesheet" href="../css/grupos.css?v=41">
+<link rel="stylesheet" href="../css/styles.css?v=41">
+<link rel="stylesheet" href="../css/componentes/asistencia.css?v=41">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -42,7 +42,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=38"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=41"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -60,13 +60,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=38">
-<link rel="stylesheet" href="../css/vistas.css?v=38">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=38">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=38">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=38">
-<link rel="stylesheet" href="../css/componentes/plantillas.css?v=38">
-<link rel="stylesheet" href="../css/movil.css?v=38" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=41">
+<link rel="stylesheet" href="../css/vistas.css?v=41">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=41">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=41">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=41">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=41">
+<link rel="stylesheet" href="../css/movil.css?v=41" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -289,14 +289,49 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
     <div class="row">
       <div><label>Buscar</label><input id="workerSearch" placeholder="Código o nombre" oninput="renderList()"></div>
       <div><label>Estado</label><select id="workerStatusFilter" onchange="renderList()"><option value="">Todos</option><option value="activo">Activos</option><option value="desvinculado">Desvinculados</option></select></div>
-      <div><label>Supervisor</label><select id="workerSupervisorFilter" onchange="renderList()"><option value="">Todos</option></select></div>
+      <div><label>Empresa</label><select id="workerEmpresaFilter" onchange="renderList()">
+<option value="">Todas</option><option value="__none__">Sin empresa</option>
+</select></div>
+        <div><label>Supervisor</label><select id="workerSupervisorFilter" onchange="renderList()"><option value="">Todos</option></select></div>
       <div><label>Ordenar por</label><select id="workerSort" onchange="renderList()">
         <option value="nombre">Nombre</option>
         <option value="codigo">Código</option>
       </select>
       <small>Por código se ordena numéricamente: 0007 antes que 0021, no al revés.</small></div>
     </div>
-    <div id="workerList"></div>
+    
+      <div class="barraTarjetas">
+        <button class="btn primary" type="button" id="btnImprimirTarjetas"
+                onclick="imprimirTarjetasSeleccionadas()" disabled>Imprimir tarjetas</button>
+        <label class="marcarTodo"><input type="checkbox" class="marcarTodasFuera"
+                onchange="alternarTodasLasVisibles(this.checked)">Marcar los que se ven</label>
+        <button class="btn secondary" type="button" onclick="tarjetasSeleccionadas.clear();renderList()">Quitar todas las marcas</button>
+        <small id="tarjetasAviso"></small>
+      </div>
+      <div class="barraTarjetas">
+        <button class="btn primary" type="button" id="btnImprimirTarjetas"
+                onclick="imprimirTarjetasSeleccionadas()" disabled>Imprimir tarjetas</button>
+        <label class="marcarTodo"><input type="checkbox" class="marcarTodasFuera"
+                onchange="alternarTodasLasVisibles(this.checked)">Marcar los que se ven</label>
+        <button class="btn secondary" type="button" onclick="tarjetasSeleccionadas.clear();renderList()">Quitar todas las marcas</button>
+        <small id="tarjetasAviso"></small>
+      </div>
+      <div class="barraTarjetas">
+        <button class="btn primary" type="button" id="btnImprimirTarjetas"
+                onclick="imprimirTarjetasSeleccionadas()" disabled>Imprimir tarjetas</button>
+        <label class="marcarTodo"><input type="checkbox" class="marcarTodasFuera"
+                onchange="alternarTodasLasVisibles(this.checked)">Marcar los que se ven</label>
+        <button class="btn secondary" type="button" onclick="tarjetasSeleccionadas.clear();renderList()">Quitar todas las marcas</button>
+        <small id="tarjetasAviso"></small>
+      </div>
+      <div class="barraTarjetas">
+        <button class="btn primary" type="button" id="btnImprimirTarjetas"
+                onclick="imprimirTarjetasSeleccionadas()" disabled>Imprimir tarjetas</button>
+        <label class="marcarTodo"><input type="checkbox" class="marcarTodasFuera"
+                onchange="alternarTodasLasVisibles(this.checked)">Marcar los que se ven</label>
+        <button class="btn secondary" type="button" onclick="tarjetasSeleccionadas.clear();renderList()">Quitar todas las marcas</button>
+        <small id="tarjetasAviso"></small>
+      </div><div id="workerList"></div>
   </div>
 </section>
 
@@ -2608,16 +2643,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=38"></script>
-<script src="../js/componentes/escaner.js?v=38"></script>
+<script src="../js/nucleo.js?v=41"></script>
+<script src="../js/componentes/escaner.js?v=41"></script>
 
-<script src="../js/relojes.js?v=38"></script>
-<script src="../js/soporte.js?v=38"></script>
-<script src="../js/administracion.js?v=38"></script>
-<script src="../js/bodega.js?v=38"></script>
-<script src="../js/documentos.js?v=38"></script>
-<script src="../js/supervisores.js?v=38"></script>
-<script src="../js/app.js?v=38"></script>
+<script src="../js/relojes.js?v=41"></script>
+<script src="../js/soporte.js?v=41"></script>
+<script src="../js/administracion.js?v=41"></script>
+<script src="../js/bodega.js?v=41"></script>
+<script src="../js/documentos.js?v=41"></script>
+<script src="../js/supervisores.js?v=41"></script>
+<script src="../js/app.js?v=41"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================

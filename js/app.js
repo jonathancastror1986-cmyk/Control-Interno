@@ -447,7 +447,7 @@ function initView(v){
   if(v==='alertas-prevencion'){renderWorkerAlerts('prevencion');}
   if(v==='indicaciones-sociales'){initWorkerInstructions('social');}
   if(v==='indicaciones-prevencion'){initWorkerInstructions('prevencion');}
-  if(v==='listado-trabajadores'){fillWorkerSupervisorFilter();renderList();}
+  if(v==='listado-trabajadores'){fillWorkerEmpresaFilter();fillWorkerSupervisorFilter();renderList();}
   if(v==='asignar-supervisor'){initAsignarSupervisor();}
   if(v==='carga-csv-trabajadores')document.getElementById('workersCsvMsg').textContent='';
   if(v==='bodega-epp'||v==='bodega-historial'||v==='bodega-catalogo'||v==='bodega-asignar'){initBodega();}
@@ -910,6 +910,29 @@ function fillSupervisorSelect(id,excludeCode){
   document.getElementById(id).innerHTML='<option value="">Sin asignar</option>'+
     sups.map(s=>`<option value="${escHtml(s.code)}">${escHtml(etiquetaSupervisor(s,vis))}</option>`).join('');
 }
+// ------------------------------------------------------------------
+// EL FILTRO DE EMPRESA
+// ------------------------------------------------------------------
+//
+// Y solo las empresas que puede ver quien está mirando, igual que el formulario del
+// trabajador. Un filtro que ofrece una empresa a la que uno no tiene acceso es un filtro
+// que promete una lista y entrega otra. Ver [filtro-02].
+//
+function fillWorkerEmpresaFilter(){
+  const select=document.getElementById('workerEmpresaFilter');
+  if(!select)return;
+  const selected=select.value;
+  // Y se calcula una vez, porque se usa dos veces y "empresas" tiene 47 elementos.
+  const permitidas=empresas.filter(e=>veTodasLasEmpresas()||misEmpresas.includes(e.id));
+  select.innerHTML='<option value="">Todas</option>'+
+    '<option value="__none__">Sin empresa</option>'+
+    permitidas.map(e=>'<option value="'+e.id+'">'+escHtml(e.nombre)+'</option>').join('');
+  // Y se conserva la que estaba, si es que sigue existiendo: al cambiar de empresa desde la
+  // cabecera la lista cambia, y sin esto el filtro se queda apuntando a algo que ya no
+  // está y no avisa.
+  if([...select.options].some(function(o){return o.value===selected;}))select.value=selected;
+}
+
 function fillWorkerSupervisorFilter(){
   const select=document.getElementById('workerSupervisorFilter');
   const selected=select.value;
@@ -1395,7 +1418,10 @@ function fillWorkerEmpresaSelect(){
     :'<option value="">Sin empresa asignada</option>';
   if(empresaActual&&permitidas.some(e=>e.id===empresaActual))sel.value=String(empresaActual);
   else if(permitidas.some(e=>String(e.id)===previo))sel.value=previo;
-}
+}// Y el filtro del listado también, porque las empresas que puede ver dependen de cuáles
+// tiene asignadas. Ver [filtro-03].
+fillWorkerEmpresaFilter();
+
 
 // ------------------------------------------------------------------
 // LOS CENTROS DE COSTO DEL TRABAJADOR
@@ -1973,6 +1999,90 @@ function resumenDeFicha(w){
     '<span class="faltaCuenta" aria-hidden="true">'+f.length+'</span>';
 }
 
+// ------------------------------------------------------------------
+// LAS TARJETAS MARCADAS
+// ------------------------------------------------------------------
+//
+// Y un "Set" de códigos y no de objetos: la fila se repinta cada vez que cambia un filtro,
+// y un objeto guardado sería una COPIA del trabajador de ese momento. Si después se le
+// cambia el nombre, la copia sigue con el nombre viejo y se imprime la tarjeta vieja.
+// Guardando el código siempre se recupera el dato vivo. Ver [imp-03].
+//
+var tarjetasSeleccionadas=new Set();
+
+// Y el botón, que dice cuántas hay. Un botón que no dice cuántas hace marcado a ciegas.
+function actualizarBotonTarjetas(){
+  const btn=document.getElementById('btnImprimirTarjetas');
+  if(!btn)return;
+  const n=tarjetasSeleccionadas.size;
+  btn.textContent=n?('Imprimir '+n+' tarjeta'+(n===1?'':'s')):'Imprimir tarjetas';
+  btn.disabled=!n;
+}
+
+function alternarTarjeta(code,marcar){
+  if(marcar)tarjetasSeleccionadas.add(code);
+  else tarjetasSeleccionadas.delete(code);
+  actualizarBotonTarjetas();
+}
+
+// Y "seleccionar todos" marca SOLO lo que se está viendo. Ver [imp-02].
+function alternarTodasLasVisibles(marcar){
+  document.querySelectorAll('.trabTabla tbody input.marcarTarjeta').forEach(function(c){
+    c.checked=marcar;
+    if(marcar)tarjetasSeleccionadas.add(c.value);
+    else tarjetasSeleccionadas.delete(c.value);
+  });
+  actualizarBotonTarjetas();
+}
+
+// Y el botón de imprimir. Ver [imp-04].
+async function imprimirTarjetasSeleccionadas(){
+  const elegidos=workers.filter(function(w){return tarjetasSeleccionadas.has(w.code);});
+  if(!elegidos.length){alert('No hay ninguna tarjeta marcada.');return;}
+
+  // Y se avisa de las que NO se van a poder imprimir bien, antes de abrir el diálogo de
+  // impresión. Después ya no se puede volver atrás: la impresora ya arrancó.
+  const sinFoto=elegidos.filter(function(w){return !w.casual&&!w.safety;});
+  if(sinFoto.length&&!confirm(sinFoto.length+' no tienen foto. Sus tarjetas saldrán con el recuadro de la foto vacío.\n\n¿Seguir igual?'))return;
+
+  const win=document.getElementById('tarjetasPrintArea')
+    ||(()=>{const d=document.createElement('div');d.id='tarjetasPrintArea';d.style.display='none';document.body.appendChild(d);return d;})();
+  const sufijo=Date.now();
+  win.innerHTML=elegidos.map(function(w,i){
+    return '<div class="temp-card-pair">'+cardFrontHtml(w,'imp'+sufijo+'-'+i+'-front',false)
+      +cardBackHtml(w,'imp'+sufijo+'-'+i+'-back',false)+'</div>';
+  }).join('');
+
+  document.body.classList.add('printing-temporary');
+  document.body.querySelectorAll('.view,#mainNav,#subNav,header,#camModal').forEach(function(x){x.style.display='none';});
+  win.style.display='block';
+
+  // Y los codigos se dibujan ANTES de imprimir. Es lo que hace "printTemp" también:
+  // "window.print()" es síncrono y si se llama antes de que los canvas estén dibujados,
+  // salen en blanco. Ver [imp-05].
+  try{
+    for(let i=0;i<elegidos.length;i++){
+      const w=elegidos[i];
+      const cardId=await getOrIssueCard(w.code,'definitiva');
+      drawCardCodes(cardId,'imp'+sufijo+'-'+i+'-front',{barcodeHeight:26,barcodeWidth:2,fontSize:7,margin:10});
+      drawCardCodes(cardId,'imp'+sufijo+'-'+i+'-back',{qrSize:220,barcodeHeight:24,barcodeWidth:2,fontSize:7,margin:10});
+    }
+  }catch(e){
+    // Y si un código falla, se sigue con los demás: 40 tarjetas no se pierden porque una
+    // dé error. Ver [imp-06].
+    console.warn('No se pudo dibujar un código de tarjeta',e);
+  }
+
+  setTimeout(function(){
+    try{window.print();}
+    finally{
+      document.body.classList.remove('printing-temporary');
+      document.body.querySelectorAll('.view,#mainNav,#subNav,header,#camModal').forEach(function(x){x.style.display='';});
+      win.style.display='none';
+    }
+  },400);
+}
+
 function renderList(filter){
   const el=document.getElementById('workerList');
   const searchValue=filter===undefined?document.getElementById('workerSearch').value:filter;
@@ -1986,9 +2096,17 @@ function renderList(filter){
     const cod=String(w.code||'');
     const codLlenado=codigoMostrar(cod);
     const matchesSearch=!f||cod.toLowerCase().includes(f)||codLlenado.toLowerCase().includes(f)||w.name.toLowerCase().includes(f);
+  // Y la empresa. Y con "mismoId", no con "===", porque el id puede venir como texto de una
+  // fila y como número de un desplegable, y el filtro tiene que emparejar en los dos casos.
+  // Es el mismo criterio que usa "empresaData".
+  const empresaFilter=(document.getElementById('workerEmpresaFilter')||{}).value;
+  // Y si el select todavía no está en el DOM —que pasa si se llama a "renderList" antes de
+  // que la vista exista— no se filtra por empresa en vez de filtrar todo.
+  const matchesEmpresa=!empresaFilter
+    ||(empresaFilter==='__none__'?!w.empresa_id:mismoId(w.empresa_id,empresaFilter));
     const matchesStatus=!statusFilter||w.status===statusFilter;
     const matchesSupervisor=!supervisorFilter||(supervisorFilter==='__none__'?!w.supervisor_code:w.supervisor_code===supervisorFilter);
-    return matchesSearch&&matchesStatus&&matchesSupervisor;
+    return matchesSearch&&matchesStatus&&matchesSupervisor&&matchesEmpresa;
   });
   // Por nombre se ordena con acentos y todo, como estaba. Por código se
   // ordena NUMÉRICAMENTE, que es el motivo de este cambio: "7" tiene que
@@ -1999,14 +2117,25 @@ function renderList(filter){
   el.innerHTML='';
   if(!filteredWorkers.length){el.innerHTML='<small>No hay trabajadores que coincidan con estos filtros.</small>';return;}
   // Y el encabezado, una sola vez por tabla y no una por fila.
-  const NOMBRES=['C\u00f3digo','Nombre','Cargo','RUT','Supervisor','Centro de costo','Estado','Falta',''];
+  const NOMBRES=['','C\u00f3digo','Nombre','Cargo','RUT','Supervisor','Centro de costo','Estado','Falta',''];
   el.innerHTML='<div class="trabTablaCaja"><table class="trabTabla"><thead><tr>'+
-    NOMBRES.map((n,i)=>'<th'+(n?(' class="'+('thCentro'===n?'thCentro':'thFalta'===n?'thFalta':'')+'"'):' class="thOpciones"')+'>'+escHtml(n)+'</th>').join('')+
+    // Y ahora decide por POSICIÓN: la primera es la casilla y la última es el menú. Antes
+// decidía por "si el texto está vacío", y con una casilla al principio hay DOS columnas
+// sin texto. Ver [imp-01].
+NOMBRES.map(function(n,i){
+  const clase=i===0?' class="thSel"':(i===NOMBRES.length-1?' class="thOpciones"':'');
+  const contenido=i===0
+    ?'<input type="checkbox" class="marcarTodas" title="Marcar las que se ven" onchange="alternarTodasLasVisibles(this.checked)">'
+    :escHtml(n);
+  return '<th'+clase+'>'+contenido+'</th>';
+}).join('')+
     '</tr></thead><tbody></tbody></table></div>';
   const cuerpo=el.querySelector('tbody');
 
   filteredWorkers.forEach(w=>{
     const fila=document.createElement('tr');
+
+
 
     const desvinculado=w.status==='desvinculado';
 
@@ -2120,6 +2249,26 @@ function renderList(filter){
     fila.className='filaTabla';
     fila.querySelectorAll('td')[1].className='colNombre';
     fila.onclick=function(){editWorker(w.code);};
+
+    // Y LA CASILLA, ACÁ Y NO ANTES. El "innerHTML=" de arriba REEMPLAZA todo lo que haya
+    // adentro, así que una casilla puesta antes desaparece sin avisar. Ver [imp-10].
+    //
+    // Y el manejador va con "stopPropagation" porque la fila entera abre el formulario de
+    // edición: marcar una casilla no es editar a nadie. Ver [imp-07].
+    const celdaSel=document.createElement('td');
+    celdaSel.className='colSel';
+    const casilla=document.createElement('input');
+    casilla.type='checkbox';
+    casilla.className='marcarTarjeta';
+    casilla.value=w.code;
+    casilla.checked=tarjetasSeleccionadas.has(w.code);
+    casilla.title='Marcar para imprimir la tarjeta de '+String(w.name||w.code);
+    casilla.onclick=function(ev){
+      ev.stopPropagation();
+      alternarTarjeta(casilla.value,casilla.checked);
+    };
+    celdaSel.appendChild(casilla);
+    fila.insertBefore(celdaSel,fila.firstElementChild);
 
     cuerpo.appendChild(fila);
   });

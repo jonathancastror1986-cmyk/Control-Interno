@@ -68,6 +68,22 @@
 .trabTabla .colSup{min-width:160px;color:var(--secondary-text)}
 /* Y el centro de costo, que es texto largo y no código: se le da el mismo ancho que el cargo. */
 .trabTabla .colCentro{min-width:170px}
+/* Y la casilla de la tabla. Es una columna más y va primera, porque es la que se usa. */
+.trabTabla .colSel{width:1%;white-space:nowrap;text-align:center;padding-left:10px}
+.trabTabla th.thSel{width:1%;text-align:center}
+.trabTabla .marcarTarjeta{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
+.trabTabla .marcarTodas{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
+
+/* Y la barra de las tarjetas. */
+.barraTarjetas{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  flex-wrap:wrap;
+  margin:10px 0;
+}
+.barraTarjetas .marcarTodo{display:flex;align-items:center;gap:6px;margin:0;white-space:nowrap}
+.barraTarjetas .marcarTodo input{width:16px;height:16px;cursor:pointer}
 .trabTabla th.thCentro{text-align:left}
 /*
   QUÉ LE FALTA A CADA TRABAJADOR
