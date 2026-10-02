@@ -18,7 +18,10 @@ _arnas-*.html
 #
 # En "tools/pruebas/" siguen a un clic de distancia y son lo que son: archivos de trabajo.
 #
+# Y TODO lo que hay adentro, no solo los ".html": la carpeta tiene también ".js" de prueba,
+# y dejarlos fuera a medias hace que uno se pregunte si son parte de la aplicación o no.
+#
 # Y los guardianes de "tools/" NO entran acá: esos van al repositorio, porque son los
 # que comprueban que nada se rompió antes de commitear.
-tools/pruebas/*.html
+tools/pruebas/
 mapa-vistas.txt
