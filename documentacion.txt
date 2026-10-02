@@ -4075,3 +4075,142 @@ código, lo ejecuta en la consola… y aparece, porque en la consola no hubo nin
 La regla general: en JavaScript, lo que se crea con "createElement" y se cuelga de un
 contenedor se pierde en el primer "innerHTML =" que se le haga a ese contenedor. Por eso
 el "appendChild" va SIEMPRE después del "innerHTML", nunca antes.
+
+
+================================================================================
+LA FAMILIA "arq": DECISIONES DE ESTRUCTURA QUE EL CÓDIGO HACE Y NO EXPLICABA
+================================================================================
+
+Cinco referencias al reorganizar los módulos en carpetas. Son de un turno corto y se
+documentan porque las decisiones se tomaron Midiendo, no opinando —y dentro de un año los
+números no se van a poder repetir si no están escritos.
+
+[arq-07] LAS ENTIDADES ESTÁN PARTIDAS EN DOS ARCHIVOS, Y POR ESO NO SE PUEDE "MOVER" UNA
+--------------------------------------------------------------------------------
+El plan para llenar "/models" decía, textualmente: "juntar las 107 y las 18 referencias
+de la empresa y decidir cuál de las dos copias es la buena".
+
+Y sonaba razonable. Al medirlo resultó falso.
+
+Lo que hay son 107 MENCIONES de la palabra "empresa" en "js/app.js". Y una mención puede
+ser el nombre de una columna, el de una variable local, el de una opción de un menú, o el
+identificador de una pantalla. De 107 menciones, unas cuántas son lógica de la entidad.
+
+Peor con "marcaje": sus 81 apariciones son una tabla, una columna, tres variables locales
+y un identificador de pantalla. CERO declaraciones de nivel superior se llaman
+"marcaje*". Filtrar por nombre no encuentra la entidad: encuentra palabras.
+
+Y el dato del que había que partir —"nueve entidades repartidas en dos archivos"— salió
+de contar menciones, no de encontrar declaraciones. El número era real y la conclusión
+que se sacaba de él, no.
+
+EL CAMINO QUE SÍ FUNCIONA es partir de la CONSULTA, no del nombre. Cada vez que el
+código dice ".from('empresa')" está tocando la tabla "empresa", y esa línea es un ancla
+que no depende de cómo se llamen las funciones de arriba. Después hay que subir: en qué
+FUNCIÓN está esa línea, porque la función es la unidad que se mueve, no la línea.
+
+Es lo mismo que [firma-12], donde una migración nombraba una tabla que no existía: el
+problema nunca fue escribir el nombre, fue no comprobar contra lo que hay.
+
+[arq-09] UN PATRÓN DE BUSQUEDA CON LA CARPETA ESCRITA DENTRO DEJA DE ENCONTRAR COSAS
+--------------------------------------------------------------------------------
+"tools/compila-juntos.js" leía los archivos del navegador con este patrón:
+
+    /<script src="\.\.\/(js\/[^"?]+)\??[^"]*"/g
+
+Y el "js\/" es el nombre de una carpeta. El día que los módulos se movieron a
+"config/", "controllers/" y "views/<módulo>/", ese patrón dejó de encontrar doce
+archivos.
+
+Y lo que pasó después es lo que importa: el guion imprimió
+
+    ok  y ningún nombre está declarado dos veces
+
+SIN HABER MIRADO UN SOLO ARCHIVO. Cuarenta y cuatro de los cincuenta y seis archivos del
+proyecto no se comprobaron, y el guardián dijo que todo estaba bien.
+
+El error es peor que una lista escrita a mano, y el propio archivo lo dice más arriba,
+con otro ejemplo: *"la lista escrita a mano es la que se queda vieja"*. Una lista se ve
+cuando está vieja. Un patrón no.
+
+Ahora el patrón toma cualquier carpeta del proyecto: "/<script src=\"\.\.\/(?!\/)([^"?]+)/".
+Y no hay que tocarlo la próxima vez que se cree un módulo.
+
+[arq-10] UN ARCHIVO QUE EL HTML NO PIDE NO LO COMPRUEBA NADIE
+--------------------------------------------------------------------------------
+El guardián de nombres duplicados comprueba los archivos que "pages/app.html" pide. Y esa
+es exactamente su vantage
+
+Lo que NO hace es mirar lo que hay en el disco y no está en el HTML. Un archivo así no
+lo comprueba nadie, y no avisa.
+
+Hoy, con "/models" y "/controllers" armándose, ese es el caso NORMAL y no la excepción:
+cualquier archivo nuevo que se escriba y todavía no se enlace está sin comprobar, sin
+avisar, y con el guardián en verde.
+
+Por eso ahora el guardián recorre "js", "config", "models", "controllers" y "views",
+compara con lo que el HTML pide, y falla si sobra alguno:
+
+    *** 2 ARCHIVO(S) DEL PROYECTO QUE EL HTML NO PIDE ***
+
+Y larazón por la que el mensaje es largo es que el síntoma es invisible. Un nombre
+duplicado en un archivo que nadie carga no rompe nada hoy. Rompe el día que alguien lo
+enlaza, y para entonces ya no se parece en nada al cambio que lo causó.
+
+La regla: un comprobador que solo mira lo que se le pide, no sabe si le pidieron todo.
+
+[arq-14] EL TERCER GUARDIÁN CON LA MISMA FALLA, EN EL MISMO MOMENTO
+--------------------------------------------------------------------------------
+Mover los módulos a carpetas rompió tres guardianes de una, y los tres por lo mismo:
+tenían el nombre de las carpetas del día en que se hicieron.
+
+    archivo              qué tenía                     qué pasó
+    compila-juntos.js    regex "../js/"                 dejó de ver 12 archivos
+    sube-versiones.js    archivosDe(css)+archivosDe(js)  18 archivos sin "?v="
+    prueba-movil.js      regex "../(?:css|js)/"         "QUEDARON 18 VERSIONES"
+
+El segundo es el más caro de los tres, y merece su propia frase: "sube-versiones.js"
+arma su lista con
+
+    const LOCALES = archivosDe('css').concat(archivosDe('js'));
+
+Con las carpetas nuevas, los 18 archivos mudados NO están en esa lista. Así que no les
+sube la versión: se sirven sin "?v=" y el navegador los guarda para siempre.
+
+Y el síntoma es el peor posible: la aplicación funciona, no hay ningún error, y un
+archivo que se cambió NUNCA llega al usuario. Es [cache-04], que ya está escrito en los
+comentarios de ese guion, con la explicación de por qué una lista escrita a mano es peor
+que un error: ocupa el lugar del que avisa.
+
+Los tres se arreglaron para que DESCUBRAN, no para que repitan una lista.
+
+[arq-15] UN NOMBRE DE ARCHIVO CON PUNTO ES LEGAL, Y EL PATRÓN TENÍA QUE APRENDERLO
+--------------------------------------------------------------------------------
+El guardián de móvil quita el "?v=" para poder comprobar el CSS sin la versión:
+
+    const sinVersion = ORIGINAL.replace(/(\.\.\/[a-z][\w\-/]*\.(?:css|js))\?v=\d+/g, '$');
+
+La clase de caracteres no incluía el punto. Y con eso el patrón andaba con los nombres
+que había —"relojes.js", "styles.css", "administracion.js"— y no con
+"supabase.config.js", que tiene un punto en medio.
+
+La coincidencia terminaba en "supabase" y buscaba un ".js" que no estaba. Y el guardián
+dijo:
+
+    *** QUEDARON 2 VERSIONES, y se esperaba 0 o 1 ***
+
+Sin decir cuáles. Un número sin el nombre es un trabajo pendiente para el que lee.
+
+Y la tentación era cambiar el archivo: "supabase.config.js" a "supabase-config.js", que
+es como se llama en JavaScript y no tiene punto. Habría funcionado. Pero el nombre no
+era el problema: el patrón era. Un nombre con punto es perfectamente legal, y el día que
+aparezca otro archivo con punto el fallo vuelve.
+
+El patrón ahora acepta puntos en el nombre Y exige al menos una carpeta. La segunda
+parte es lo que SALVA a "sw.js": "../sw.js" no tiene carpeta, vive en la raíz, y su "?v="
+tiene que quedarse porque no es un asset como los otros. Ver [cache-08].
+
+Y con la "\*" en vez de la "\+" el patrón le quitaba la versión al "sw.js" también, y
+el guardián decía "QUEDARON 0 VERSIONES, y se esperaba 0 o 1" —que parece casi un
+acierto, y es el fallo entero. Un acierto parcial es peor que un fallo: no da nada que
+buscar.
