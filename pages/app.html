@@ -12,18 +12,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supabaseConfig.js?v=20"></script>
-<script src="../js/supabaseClient.js?v=20"></script>
-<script src="../js/auth.js?v=20"></script>
-<script src="../js/theme.js?v=20"></script>
-<script src="../js/clima-reloj.js?v=20"></script>
-<link rel="stylesheet" href="../css/base.css?v=20">
+<script src="../js/supabaseConfig.js?v=21"></script>
+<script src="../js/supabaseClient.js?v=21"></script>
+<script src="../js/auth.js?v=21"></script>
+<script src="../js/theme.js?v=21"></script>
+<script src="../js/clima-reloj.js?v=21"></script>
+<link rel="stylesheet" href="../css/base.css?v=21">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=20">
-<link rel="stylesheet" href="../css/grupos.css?v=20">
-<link rel="stylesheet" href="../css/styles.css?v=20">
+<link rel="stylesheet" href="../css/tokens.css?v=21">
+<link rel="stylesheet" href="../css/grupos.css?v=21">
+<link rel="stylesheet" href="../css/styles.css?v=21">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -41,7 +41,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=20"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=21"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -59,13 +59,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=20">
-<link rel="stylesheet" href="../css/vistas.css?v=20">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=20">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=20">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=20">
-<link rel="stylesheet" href="../css/componentes/plantillas.css?v=20">
-<link rel="stylesheet" href="../css/movil.css?v=20" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=21">
+<link rel="stylesheet" href="../css/vistas.css?v=21">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=21">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=21">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=21">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=21">
+<link rel="stylesheet" href="../css/movil.css?v=21" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -162,45 +162,62 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
       es la forma fácil de mandarle a alguien la charla del oficio equivocado.
       </div></details>
     </h2>
-    <div class="row w-campos">
-      <div><label class="obl">Código <span class="req">obligatorio</span></label><input id="w-code"></div>
-      <!--
-      LOS NOMBRES, PARTIDOS
-      ====================
-      Antes había un solo campo "Nombre" con el nombre entero escrito a mano, y era un texto
-      que no se podía ordenar ni partir después.
-
-      Ahora se escriben los tres y el nombre entero se arma solo en "w-name", que queda
-      escondido. "w-name" NO se saca porque es lo que usan las exportaciones, las
-      importaciones desde Excel y las búsquedas, y esos ya funcionan: si se rompe ese
-      campo, se rompen tres cosas que hoy andan.
-
-      Y escondido a propósito: si se mostrara, sería un cuarto campo con lo mismo que los
-      otros tres, y alguien lo editaría a mano y quedaría distinto de lo que dicen los
-      campos de arriba. Un campo que no se ve no se puede desincronizar.
-      -->
-      <div><label class="obl">Nombres <span class="req">obligatorio</span></label><input id="w-nombres"></div>
-      <div><label class="obl">Apellido paterno <span class="req">obligatorio</span></label><input id="w-apellido-paterno"></div>
-      <div><label>Apellido materno</label><input id="w-apellido-materno"></div>
-      <input id="w-name" type="hidden">
-      <div><label>Dirección</label><input id="w-direccion"></div>
-      <div><label>Correo</label><input id="w-correo" type="email" placeholder="nombre@correo.cl"></div>
-      <div><label>AFP código</label><input id="w-afp-codigo" placeholder="AFPH"></div>
-      <div><label>AFP nombre</label><input id="w-afp-nombre" placeholder="AFP Habitat"></div>
-      <div><label>Cargo para las planillas</label><input id="w-spec"></div>
-      <div><label>Grupo del cargo</label><select id="w-grupo" onchange="cambiarGrupoTrabajador()"><option value="">Sin asignar</option></select></div>
-      <div><label>Cargo del kit</label><select id="w-cargo" onchange="completarCargoEnElTexto()"><option value="">Sin asignar (solo los papeles generales)</option></select>
-       <small style="display:block;margin-top:6px"><a href="#" id="enlaceCrearEspecialidad" style="font-size:.78rem" onclick="irACrearEspecialidad(event)">No está el cargo? Crear uno</a></small></div>
-      <div><label>Teléfono</label><input id="w-phone"></div>
-      <div><label class="obl">RUT <span class="req">obligatorio</span></label><input id="w-rut" placeholder="13.199.887-2"></div>
-      <div><label>Fecha de ingreso</label><input type="date" id="w-fecha-ingreso"></div>
+    <div class="w-seccion">
+      <h4>Datos personales</h4>
+      <div class="row w-campos">
+        <div><label class="obl">Código <span class="req">obligatorio</span></label><input id="w-code"></div>
+        <div><label class="obl">RUT <span class="req">obligatorio</span></label><input id="w-rut" placeholder="13.199.887-2"></div>
+        <div><label class="obl">Nombres <span class="req">obligatorio</span></label><input id="w-nombres"></div>
+        <div><label class="obl">Apellido paterno <span class="req">obligatorio</span></label><input id="w-apellido-paterno"></div>
+        <div><label>Apellido materno</label><input id="w-apellido-materno"></div>
+        <div class="ancho2"><label>Dirección</label><textarea id="w-direccion" rows="2" placeholder="Calle, número, comuna. O villa o población."></textarea></div>
+        <div><label>Teléfono</label><input id="w-phone"></div>
+        <div><label>Correo</label><input id="w-correo" type="email" placeholder="nombre@correo.cl"></div>
+        <input id="w-name" type="hidden">
+      </div>
     </div>
-    <div class="row">
-      <div><label><input type="checkbox" id="w-is-supervisor" style="width:auto;display:inline-block;margin-right:6px">Este trabajador es supervisor</label></div>
-      <div><label>Tipo de trabajador</label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="subcontrato">Subcontrato</option></select></div>
-      <div><label>Empresa</label><select id="w-empresa"></select></div>
+    <div class="w-seccion">
+      <h4>Datos de contratación</h4>
+      <div class="row w-campos">
+        <div><label>Empresa</label><select id="w-empresa"></select></div>
+        <div><label>Fecha de ingreso</label><input type="date" id="w-fecha-ingreso"></div>
+        <div><label>Grupo del cargo</label><select id="w-grupo" onchange="cambiarGrupoTrabajador()"><option value="">Sin asignar</option></select></div>
+        <div>
+          <label>Cargo <details class="ayuda"><summary class="ayuda-ico" title="Qué es el cargo y qué hace">i</summary>
+          <div class="ayuda-caja">
+          <b>El cargo decide el kit.</b> Según el cargo se asigna el kit de inicio: los elementos
+          de seguridad y las charlas que corresponden a ese oficio.
+          <br><br>
+          <b>El grupo se deduce del cargo.</b> Por eso no se escribe aparte: si se escribiera,
+          el cargo podría ser de una cosa y el grupo de otra, y nadie sabría cuál manda.
+          <br><br>
+          <b>Si no hay un cargo igual al de la persona, créalo abajo.</b> Un cargo inventado con
+          el mismo nombre de otro oficio mandaría el kit equivocado.
+          </div></details></label>
+          <select id="w-cargo" onchange="completarCargoEnElTexto()"><option value="">Sin asignar (solo los papeles generales)</option></select>
+          <small style="display:block;margin-top:6px"><a href="#" id="enlaceCrearEspecialidad" style="font-size:.78rem" onclick="irACrearEspecialidad(event)">No está el cargo? Crear uno</a></small>
+        </div>
+        <!--
+        AFP Y SALUD
+        ===========
+        Piden que se elijan de una lista, con el codigo PREVIRED que se guarda solo. Eso se
+        hace cuando esten los codigos, y no antes.
+
+        Y NO se quitan los campos actuales mientras tanto: "workerToDb" y "dbToWorker" los leen,
+        y las exportaciones tambien. Un campo que se saca del HTML y queda en el JavaScript no
+        da error: simplemente deja de guardar ese dato, en silencio. Ver [orden-03].
+        -->
+        <div><label>AFP código</label><input id="w-afp-codigo" placeholder="AFPH"></div>
+        <div><label>AFP nombre</label><input id="w-afp-nombre" placeholder="AFP Habitat"></div>
+        <div><label>Tipo de trabajador</label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="subcontrato">Subcontrato</option></select></div>
+        <div><label>Cargo para las planillas</label><input id="w-spec"></div>
+      </div>
+      <div class="row">
+        <div><label><input type="checkbox" id="w-is-supervisor" style="width:auto;display:inline-block;margin-right:6px">Este trabajador es supervisor</label></div>
+      </div>
     </div>
-    <div class="photoRow">
+    
+<div class="photoRow">
       <div class="photoBox">
         <label>Foto casual (ingreso)</label>
         <img id="pre-casual" alt="">
@@ -2486,16 +2503,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=20"></script>
-<script src="../js/componentes/escaner.js?v=20"></script>
+<script src="../js/nucleo.js?v=21"></script>
+<script src="../js/componentes/escaner.js?v=21"></script>
 
-<script src="../js/relojes.js?v=20"></script>
-<script src="../js/soporte.js?v=20"></script>
-<script src="../js/administracion.js?v=20"></script>
-<script src="../js/bodega.js?v=20"></script>
-<script src="../js/documentos.js?v=20"></script>
-<script src="../js/supervisores.js?v=20"></script>
-<script src="../js/app.js?v=20"></script>
+<script src="../js/relojes.js?v=21"></script>
+<script src="../js/soporte.js?v=21"></script>
+<script src="../js/administracion.js?v=21"></script>
+<script src="../js/bodega.js?v=21"></script>
+<script src="../js/documentos.js?v=21"></script>
+<script src="../js/supervisores.js?v=21"></script>
+<script src="../js/app.js?v=21"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================

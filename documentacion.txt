@@ -2493,3 +2493,102 @@ que hay adentro. Y cuando falla, dice que busco.
 
 
 ================================================================================
+
+================================================================================
+EL ORDEN DE LOS CAMPOS DEL TRABAJADOR
+================================================================================
+
+
+[orden-01] MOVER NO ES RENOMBRAR
+---------------------------------
+
+El formulario se ordena en dos secciones, "Datos personales" y "Datos de contratacion", y los
+campos quedan en el orden pedido.
+
+Y NO se toco ningun identificador. "w-code" sigue siendo "w-code", "w-rut" sigue siendo
+"w-rut". Mover el "<div>" que envuelve un campo no cambia su "id", y como los "id" no cambian,
+"workerToDb", "dbToWorker", las exportaciones desde Excel y las busquedas siguen leyendo los
+mismos nombres.
+
+El guion que hace el cambio comprueba eso antes de escribir: los identificadores de la region
+vieja y los de la nueva tienen que ser la misma lista. No los mismos en cantidad: la misma
+lista.
+
+
+[orden-02] DIRECCION ES UN "<textarea>", Y NO TRES CAMPOS
+--------------------------------------------------------
+
+Pedia texto largo, para poner comuna y villa o poblacion. Con un "<input>" de una linea hay que
+abreviar, y un "<textarea>" de dos lineas no obliga.
+
+Y ocupa dos columnas de la grilla: en una sola queda en 228 pixeles y no entra nada. Medido:
+442 pixeles.
+
+Y NO se parto en campos separados de calle, de comuna y de villa. No hay una lista oficial de
+comunas en esta aplicacion, y escribirla a mano seria inventar datos. Un campo de texto con
+una linea deSugerencia es menos preciso, pero no miente.
+
+
+[orden-03] LOS CAMPOS DE AFP NO SE SACARON TODAVIA
+--------------------------------------------------
+
+Piden que AFP y Salud se elijan de una lista, con el codigo PREVIRED que se guarde solo.
+
+Los dos campos de AFP SIGUEN ESTANDO como texto. No se quitaron.
+
+Y la razon no es que falten los codigos: es que "workerToDb" y "dbToWorker" los leen, y las
+exportaciones tambien. Un campo que se saca del HTML y queda nombrado en el JavaScript no da
+ningun error: simplemente deja de guardar ese dato, en silencio. El peor de los fallos, porque
+se descubre cuando alguien necesita el dato y hace meses.
+
+Un campo se saca cuando su reemplazo esta listo y anda, no antes.
+
+
+[orden-04] ESCRIBIR PRIMERO Y COMPROBAR DESPUES
+------------------------------------------------
+
+La primera version de este guion escribia el archivo y despues lo comprobaba.
+
+Dos veces dejo el formulario a medias: una vez sin los dos campos de AFP, y otra vez con ocho
+identificadores repetidos. Las dos veces el guion informs el error con toda claridad, y las dos
+veces el archivo quedo roto.
+
+O sea que el aviso era cierto y el archivo estaba mal a la vez, que es la peor combinacion: el
+que lee el aviso confía en que no se escribio nada.
+
+Ahora se arma el texto en memoria, se comprueba, y recien ahi se escribe. Cada fallo dice
+"NO SE ESCRIBIO NADA".
+
+Y sirve: la tercera vez que se rompio el guion, la tercera vez el archivo quedo entero. Con el
+orden viejo, ese mismo error lo habria roto por tercera vez.
+
+
+[orden-05] COMPARAR UNA PORCION CONTRA TODO EL ARCHIVO
+------------------------------------------------------
+
+La comprobacion de identificadores comparaba "el trozo viejo del formulario" contra "el
+archivo entero".
+
+Y en el archivo entero hay mas formularios: las fotos, los datos de emergencia y los datos de
+salud. El guion reportaba ocho campos "de mas" que no son de este formulario y que estaban ahi
+desde antes.
+
+Se comparan las dos porciones: la region vieja contra la region nueva. Como con como.
+
+
+[orden-06] UN "<button title>" NO ES UN AYUDA
+----------------------------------------------
+
+La ayuda del cargo se hizo primero como "<button class="ayuda-ico" title="...">".
+
+En la prueba de escritorio se ve bien. En un celular no hay mouse, y "title" no aparece nunca:
+la ayuda es inalcanzable justo donde se usa.
+
+Los demas ayudas del proyecto usan "<details>" con "<summary>", que abre con el dedo. Se copio
+ese patron en vez de inventar uno nuevo.
+
+Y el texto del "<title>", que es lo unico que se ve en el escritorio, paso a ser una sola
+palabra: "i", igual que los demas. El detalle va adentro, en la caja.
+
+
+================================================================================

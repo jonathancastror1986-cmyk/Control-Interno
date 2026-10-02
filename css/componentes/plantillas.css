@@ -241,6 +241,39 @@
   llenar la fila, y la última queda gigante. Con "auto-fill" quedan huecos y todas miden
   igual.
 */
+/*
+  LAS SECCIONES DEL FORMULARIO DEL TRABAJADOR
+  ------------------------------------------------
+  "Datos personales" y "Datos de contratación". El titulo va chico y con mayusculas, como
+  los otros rotulos, para que no pese mas que los campos que explica.
+*/
+.w-seccion{margin-top:16px}
+.w-seccion:first-of-type{margin-top:10px}
+.w-seccion h4{
+  font:600 .74rem 'Montserrat',system-ui,sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.09em;
+  color:var(--muted);
+  margin:0 0 8px 0;
+  padding-bottom:5px;
+  border-bottom:1px solid var(--line);
+}
+
+/* Y la direccion toma dos columnas, porque en una no entra calle, numero y comuna. */
+.w-campos .ancho2{grid-column:span 2}
+.w-campos .ancho2 textarea{
+  width:100%;
+  box-sizing:border-box;
+  min-height:52px;
+  resize:vertical;
+  font-size:.85rem;
+  line-height:1.35;
+}
+
+/* Y en una sola columna, la direccion vuelve a ocupar lo que hay, sin dejar un hueco. */
+@media (max-width:640px){ .w-campos .ancho2{grid-column:span 2} }
+@media (max-width:400px){ .w-campos .ancho2{grid-column:span 1} }
+
 .w-campos{
   display:grid;
   grid-template-columns:repeat(5,minmax(0,1fr));
