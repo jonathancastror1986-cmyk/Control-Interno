@@ -2613,6 +2613,7 @@ function renderPlantillas(){
       (vacio?' <span class="pill" style="color:var(--warn);border-color:var(--warn)">Sin contenido</span>':'')+
       '<br><small>'+escHtml(textoDestinoPlantilla(p))+
       (p.firmas==='ninguno'?'':' · firma'+(p.firmas==='trabajador_supervisor'?' del trabajador y del supervisor':' del trabajador'))+
+      (p.requiere_aprobacion ? ' · requiere aprobación' : '')+
       (hechas?' · '+hechas+' firmada(s)':'')+'</small></div>'+
       '<span style="display:flex;gap:6px;flex:0 0 auto">'+
       '<button class="btn" style="padding:4px 8px;font-size:.8rem" type="button" onclick="abrirEditorPlantilla(\''+escHtml(p.code)+'\')">Editar</button>'+
@@ -2680,7 +2681,12 @@ async function abrirEditorPlantilla(code){
   // Antes era una caja de sí/no. Con la columna nueva hay tres casos, y
   // una caja de dos no alcanza: el caso "nadie firma" se confundía con
   // "solo el trabajador".
-  document.getElementById('plantillaFirmas').value=
+    const cajaAprueba=document.getElementById('plantillaAprueba');
+  // Y con "!!(p&&...)": una plantilla vieja sin la columna, o una nueva que no tiene la fila
+  // todavía, da falso. Que es lo correcto: no estar marcado no es "requiere aprobación".
+  if(cajaAprueba)cajaAprueba.checked=!!(p&&p.requiere_aprobacion);
+
+document.getElementById('plantillaFirmas').value=
     p?(p.firmas||'trabajador_supervisor'):'trabajador_supervisor';
   llenarDestinoPlantilla(p);
   document.getElementById('plantillaEditor').innerHTML=p?(p.contenido||''):
@@ -2720,6 +2726,10 @@ async function guardarPlantilla(){
       ?(document.getElementById('plantillaCargo').value||null):null,
     orden:Number(document.getElementById('plantillaOrden').value)||100,
     firmas:document.getElementById('plantillaFirmas').value||'trabajador_supervisor',
+  // Y "¿requiere aprobación?" es un booleano de verdad, no un texto: se manda el checkbox
+  // leido, y el "!!" porque un checkbox unchecked devuelve false y checked devuelve true,
+  // que es justo lo que se quiere guardar.
+  requiere_aprobacion:!!(document.getElementById('plantillaAprueba')||{}).checked,
     contenido
   };
   btn.disabled=true;btn.textContent='Guardando…';

@@ -12,18 +12,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supabaseConfig.js?v=25"></script>
-<script src="../js/supabaseClient.js?v=25"></script>
-<script src="../js/auth.js?v=25"></script>
-<script src="../js/theme.js?v=25"></script>
-<script src="../js/clima-reloj.js?v=25"></script>
-<link rel="stylesheet" href="../css/base.css?v=25">
+<script src="../js/supabaseConfig.js?v=26"></script>
+<script src="../js/supabaseClient.js?v=26"></script>
+<script src="../js/auth.js?v=26"></script>
+<script src="../js/theme.js?v=26"></script>
+<script src="../js/clima-reloj.js?v=26"></script>
+<link rel="stylesheet" href="../css/base.css?v=26">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=25">
-<link rel="stylesheet" href="../css/grupos.css?v=25">
-<link rel="stylesheet" href="../css/styles.css?v=25">
+<link rel="stylesheet" href="../css/tokens.css?v=26">
+<link rel="stylesheet" href="../css/grupos.css?v=26">
+<link rel="stylesheet" href="../css/styles.css?v=26">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -41,7 +41,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=25"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=26"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -59,13 +59,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=25">
-<link rel="stylesheet" href="../css/vistas.css?v=25">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=25">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=25">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=25">
-<link rel="stylesheet" href="../css/componentes/plantillas.css?v=25">
-<link rel="stylesheet" href="../css/movil.css?v=25" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=26">
+<link rel="stylesheet" href="../css/vistas.css?v=26">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=26">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=26">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=26">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=26">
+<link rel="stylesheet" href="../css/movil.css?v=26" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -2203,7 +2203,21 @@ no se pueden editar con la barra.
           <option value="trabajador_supervisor">El trabajador y el supervisor</option>
           <option value="trabajador">Solo el trabajador</option>
           <option value="ninguno">Nadie (es un aviso)</option>
-        </select></div>
+        </select>
+<!--
+  ¿REQUIERE APROBACIÓN?
+  ---------------------
+  Junto a "Quién lo firma" y no mezclado con eso: son dos preguntas distintas. "Quién lo
+  firma" tiene TRES respuestas posibles, y este es un sí o no. Ver [aprob-01].
+
+  Y el rótulo no promete quién aprueba ni qué pasa si no aprueba, porque eso todavía no está
+  decidido. Promete solo lo que el campo hace. Ver [aprob-05].
+  -->
+  <div>
+    <label><input type="checkbox" id="plantillaAprueba" style="width:auto;display:inline-block;margin-right:6px">
+      Este papel requiere aprobación antes de entregarse</label>
+    <small style="display:block;margin-top:4px">Sin marcar, el papel se firma y se entrega directo.</small>
+  </div></div>
     </div>
     <div id="plantillaAyuda" class="small" style="margin-top:8px"></div>
   <!-- Importar desde Word y la lista de variables -->
@@ -2565,16 +2579,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=25"></script>
-<script src="../js/componentes/escaner.js?v=25"></script>
+<script src="../js/nucleo.js?v=26"></script>
+<script src="../js/componentes/escaner.js?v=26"></script>
 
-<script src="../js/relojes.js?v=25"></script>
-<script src="../js/soporte.js?v=25"></script>
-<script src="../js/administracion.js?v=25"></script>
-<script src="../js/bodega.js?v=25"></script>
-<script src="../js/documentos.js?v=25"></script>
-<script src="../js/supervisores.js?v=25"></script>
-<script src="../js/app.js?v=25"></script>
+<script src="../js/relojes.js?v=26"></script>
+<script src="../js/soporte.js?v=26"></script>
+<script src="../js/administracion.js?v=26"></script>
+<script src="../js/bodega.js?v=26"></script>
+<script src="../js/documentos.js?v=26"></script>
+<script src="../js/supervisores.js?v=26"></script>
+<script src="../js/app.js?v=26"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
