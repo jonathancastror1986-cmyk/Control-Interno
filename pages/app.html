@@ -12,19 +12,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supabaseConfig.js?v=41"></script>
-<script src="../js/supabaseClient.js?v=41"></script>
-<script src="../js/auth.js?v=41"></script>
-<script src="../js/theme.js?v=41"></script>
-<script src="../js/clima-reloj.js?v=41"></script>
-<link rel="stylesheet" href="../css/base.css?v=41">
+<script src="../js/supabaseConfig.js?v=46"></script>
+<script src="../js/supabaseClient.js?v=46"></script>
+<script src="../js/auth.js?v=46"></script>
+<script src="../js/theme.js?v=46"></script>
+<script src="../js/clima-reloj.js?v=46"></script>
+<link rel="stylesheet" href="../css/base.css?v=46">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=41">
-<link rel="stylesheet" href="../css/grupos.css?v=41">
-<link rel="stylesheet" href="../css/styles.css?v=41">
-<link rel="stylesheet" href="../css/componentes/asistencia.css?v=41">
+<link rel="stylesheet" href="../css/tokens.css?v=46">
+<link rel="stylesheet" href="../css/grupos.css?v=46">
+<link rel="stylesheet" href="../css/styles.css?v=46">
+<link rel="stylesheet" href="../css/componentes/asistencia.css?v=46">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -42,7 +42,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=41"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=46"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -60,13 +60,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=41">
-<link rel="stylesheet" href="../css/vistas.css?v=41">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=41">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=41">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=41">
-<link rel="stylesheet" href="../css/componentes/plantillas.css?v=41">
-<link rel="stylesheet" href="../css/movil.css?v=41" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=46">
+<link rel="stylesheet" href="../css/vistas.css?v=46">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=46">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=46">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=46">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=46">
+<link rel="stylesheet" href="../css/movil.css?v=46" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -2483,13 +2483,29 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
       <div><label>Desde</label><input type="date" id="audDesde" onchange="renderAuditoria()"></div>
       <div><label>Hasta</label><input type="date" id="audHasta" onchange="renderAuditoria()"></div>
       <div><label>Quién lo hizo</label><select id="audUsuario" onchange="renderAuditoria()"></select></div>
-      <div><label>Tipo</label><select id="audAccion" onchange="renderAuditoria()">
+              <div><label>Buscar código</label>
+          <input id="audCodigo" placeholder="0021 o 21" oninput="renderAuditoria()">
+          <small style="display:block;margin-top:2px;font-size:.68rem">El código con o sin ceros.</small>
+        </div>
+        <div><label>Empresa</label><select id="audEmpresa" onchange="renderAuditoria()"><option value="">Todas</option></select></div>
+        <div><label>Centro de costo</label><select id="audCentro" onchange="renderAuditoria()"><option value="">Todos</option></select></div>
+        <div><label>Grupo del cargo</label><select id="audGrupo" onchange="renderAuditoria()"><option value="">Todos</option></select></div>
+                <div><label>Buscar código</label>
+          <input id="audCodigo" placeholder="0021 o 21" oninput="renderAuditoria()">
+          <small style="display:block;margin-top:2px;font-size:.68rem">El código con o sin ceros.</small>
+        </div>
+        <div><label>Empresa</label><select id="audEmpresa" onchange="renderAuditoria()"><option value="">Todas</option></select></div>
+        <div><label>Centro de costo</label><select id="audCentro" onchange="renderAuditoria()"><option value="">Todos</option></select></div>
+        <div><label>Grupo del cargo</label><select id="audGrupo" onchange="renderAuditoria()"><option value="">Todos</option></select></div>
+        <div><label>Tipo</label><select id="audAccion" onchange="renderAuditoria()">
         <option value="">Todos</option>
         <option value="inserta">Altas</option>
         <option value="actualiza">Cambios</option>
         <option value="borra">Borrados</option>
       </select></div>
     </div>
+    <div class="audNota">La <b>empresa</b>, el <b>centro de costo</b> y el <b>grupo</b> son los de la ficha <b>hoy</b>, no los del día del cambio. La bitácora guarda el código de la persona y nada más, así que si después se le cambió de empresa, el movimiento viejo aparece con la empresa nueva. Ver [bit-01].</div>
+    <div class="audNota">La <b>empresa</b>, el <b>centro de costo</b> y el <b>grupo</b> son los de la ficha <b>hoy</b>, no los del día del cambio. La bitácora guarda el código de la persona y nada más, así que si después se le cambió de empresa, el movimiento viejo aparece con la empresa nueva. Ver [bit-01].</div>
     <div id="audResumen" style="margin-top:12px"></div>
     <div id="audAviso" style="margin-top:10px"></div>
     <div id="audLista" style="margin-top:12px"></div>
@@ -2643,16 +2659,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=41"></script>
-<script src="../js/componentes/escaner.js?v=41"></script>
+<script src="../js/nucleo.js?v=46"></script>
+<script src="../js/componentes/escaner.js?v=46"></script>
 
-<script src="../js/relojes.js?v=41"></script>
-<script src="../js/soporte.js?v=41"></script>
-<script src="../js/administracion.js?v=41"></script>
-<script src="../js/bodega.js?v=41"></script>
-<script src="../js/documentos.js?v=41"></script>
-<script src="../js/supervisores.js?v=41"></script>
-<script src="../js/app.js?v=41"></script>
+<script src="../js/relojes.js?v=46"></script>
+<script src="../js/soporte.js?v=46"></script>
+<script src="../js/administracion.js?v=46"></script>
+<script src="../js/bodega.js?v=46"></script>
+<script src="../js/documentos.js?v=46"></script>
+<script src="../js/supervisores.js?v=46"></script>
+<script src="../js/app.js?v=46"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================

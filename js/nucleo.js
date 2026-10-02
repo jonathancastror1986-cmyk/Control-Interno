@@ -759,7 +759,94 @@ async function loadAuditoria(){
   fillAuditoriaFiltros();
   renderAuditoria();
 }
+// ------------------------------------------------------------------
+// LA BITÁCORA COMO TABLA
+// ------------------------------------------------------------------
+//
+// Y "w" puede ser null: una traza de alguien que ya no está en "workers", porque se
+// desvinculó o porque la persona que la está viendo no tiene acceso a su empresa. Y en ese
+// caso la fila sale igual, con guiones en vez de datos inventados. Ver [bit-03].
+//
+function filaAuditoriaHtml(t,nombreDe,w){
+  const fecha=t.fecha?String(t.fecha).slice(0,10):'—';
+  const etiqueta={inserta:'Alta',actualiza:'Cambio',borra:'Borrado'}[t.accion]||t.accion;
+  const cambios=[];
+  if(String(t.estado_anterior)!==String(t.estado_nuevo)){
+    cambios.push('estado <b>'+escHtml(estadoTexto(t.estado_anterior))+'</b> → <b>'+escHtml(estadoTexto(t.estado_nuevo))+'</b>');
+  }
+  if(String(t.hora_llegada_anterior||'')!==String(t.hora_llegada_nuevo||'')){
+    cambios.push('hora '+(t.hora_llegada_anterior?escHtml(String(t.hora_llegada_anterior).slice(0,5)):'—')
+      +' → '+(t.hora_llegada_nuevo?escHtml(String(t.hora_llegada_nuevo).slice(0,5)):'—'));
+  }
+  if(String(t.origen_anterior)!==String(t.origen_nuevo)){
+    cambios.push('origen '+escHtml(t.origen_anterior||'—')+' → '+escHtml(t.origen_nuevo||'—'));
+  }
+  if(!cambios.length)cambios.push('<span class="audSinCambio">se guardó el mismo valor</span>');
+  const emp=w?empresaData(w).nombre:null;
+  const centro=w?nombreCentroCosto(w.centro_costo_id):null;
+  const grupo=w?nombreDeGrupo(grupoDeCargo(w.especialidad_clave||'')):'';
+  return '<tr>'+
+    '<td class="audFecha">'+escHtml(fecha)+'</td>'+
+    '<td class="audCod"><b>'+escHtml(codigoMostrar(t.code))+'</b></td>'+
+    '<td class="audNombre">'+escHtml(nombreDe(t.code))+'</td>'+
+    '<td class="audEmp">'+escHtml(emp||'—')+'</td>'+
+    '<td class="audCentro">'+escHtml(centro||'—')+'</td>'+
+    '<td class="audGrupo">'+escHtml(grupo||'—')+'</td>'+
+    '<td><span class="audAccion audAccion_'+escHtml(t.accion)+'">'+escHtml(etiqueta)+'</span></td>'+
+    '<td class="audCambio">'+cambios.join('<br>')+'</td>'+
+    '<td class="audMotivo">'+escHtml(t.motivo)+'</td>'+
+    '<td class="audQuien">'+escHtml(t.usuario_nombre||'(sin nombre)')+
+      (t.usuario_rol?" <small>("+escHtml(t.usuario_rol)+")</small>":"")+'</td>'+
+  '</tr>';
+}
+
+// Y el encabezado de la tabla, una vez. Se cuenta y se dice: si el filtro cortó a la mitad,
+// saber cuántas hay de las que se ven y cuántas de todas es lo primero que se pregunta.
+function audTablaHtml(filas,nombreDe){
+  return '<div class="audTablaCaja"><table class="audTabla"><thead><tr>'+
+    ['Día','Código','Trabajador','Empresa','Centro de costo','Grupo','Tipo','Qué cambió','Motivo','Quién']
+      .map(function(h){return '<th>'+escHtml(h)+'</th>';}).join('')+
+    '</tr></thead><tbody>'+
+    filas.map(function(t){return filaAuditoriaHtml(t,nombreDe,workers.find(function(x){return x.code===t.code;})||null);}).join('')+
+  '</tbody></table></div>';
+}
+
+// Y los tres desplegables nuevos de la bitácora. Se llenan acá y no en el HTML porque
+// dependen de lo que hay cargado.
+function llenarFiltrosAuditoria(){
+  const selEmpresas=document.getElementById('audEmpresa');
+  if(selEmpresas){
+    const previo=selEmpresas.value;
+    const permitidas=(Array.isArray(empresas)?empresas:[]).filter(function(e){return veTodasLasEmpresas()||misEmpresas.includes(e.id);});
+    selEmpresas.innerHTML='<option value="">Todas</option>'
+      +'<option value="__none__">Sin empresa</option>'
+      +permitidas.map(function(e){return '<option value="'+e.id+'">'+escHtml(e.nombre)+'</option>';}).join('');
+    if([...selEmpresas.options].some(function(o){return o.value===previo;}))selEmpresas.value=previo;
+  }
+  const centro=document.getElementById('audCentro');
+  if(centro){
+    const previo=centro.value;
+    centro.innerHTML='<option value="">Todos</option>'
+      +'<option value="__none__">Sin centro</option>'
+      +(Array.isArray(centrosCosto)?centrosCosto:[]).filter(function(c){return c.activo!==false;})
+        .map(function(c){return '<option value="'+c.id+'">'+escHtml(c.nombre)+'</option>';}).join('');
+    if([...centro.options].some(function(o){return o.value===previo;}))centro.value=previo;
+  }
+  const grupo=document.getElementById('audGrupo');
+  if(grupo){
+    const previo=grupo.value;
+    const vistos=[];
+    (Array.isArray(jerarquiaCargos)?jerarquiaCargos:[]).forEach(function(h){
+      if(h.grupo&&vistos.indexOf(h.grupo)<0)vistos.push(h.grupo);
+    });
+    grupo.innerHTML='<option value="">Todos</option>'
+      +vistos.map(function(g){return '<option value="'+escHtml(g)+'">'+escHtml(nombreDeGrupo(g))+'</option>';}).join('');
+    if([...grupo.options].some(function(o){return o.value===previo;}))grupo.value=previo;
+  }
+}
+
 function renderAuditoria(){
+  llenarFiltrosAuditoria();
   if(!auditoriaCargada)return;
   const worker=document.getElementById('audWorker').value;
   const usuario=document.getElementById('audUsuario').value;
@@ -769,8 +856,39 @@ function renderAuditoria(){
     const w=workers.find(x=>x.code===c);
     return w?((vis.get(c)||codigoMostrar(c))+' — '+w.name):codigoMostrar(c);
   };
-  const filas=auditoriaTrazas.filter(t=>
-    (!worker||t.code===worker)&&(!usuario||(t.usuario_nombre||'(sin nombre)')===usuario)&&(!accion||t.accion===accion));
+  // Y los cuatro nuevos. El código acepta el número con y sin ceros, igual que el listado
+  // de trabajadores: si la columna muestra 0021, escribir "21" tiene que encontrarlo.
+  const codBusca=((document.getElementById('audCodigo')||{}).value||'').trim().toLowerCase();
+  const audEmpresa=(document.getElementById('audEmpresa')||{}).value||'';
+  const audCentro=(document.getElementById('audCentro')||{}).value||'';
+  const audGrupo=(document.getElementById('audGrupo')||{}).value||'';
+
+  const filas=auditoriaTrazas.filter(function(t){
+    if(worker&&t.code!==worker)return false;
+    if(usuario&&(t.usuario_nombre||'(sin nombre)')!==usuario)return false;
+    if(accion&&t.accion!==accion)return false;
+    if(codBusca){
+      const c=String(t.code||'').toLowerCase();
+      const cl=codigoMostrar(t.code).toLowerCase();
+      const w=workers.find(function(x){return x.code===t.code;});
+      if(!(c.includes(codBusca)||cl.includes(codBusca)||(w&&String(w.name||'').toLowerCase().includes(codBusca))))return false;
+    }
+    // Y los tres que salen de la ficha, y por eso el aviso de arriba. Ver [bit-01].
+    if(audEmpresa||audCentro||audGrupo){
+      const w=workers.find(function(x){return x.code===t.code;});
+      if(!w)return false;   // y sin ficha no hay con qué comparar: no entra
+      if(audEmpresa){
+        if(audEmpresa==='__none__'){if(w.empresa_id)return false;}
+        else if(!mismoId(w.empresa_id,audEmpresa))return false;
+      }
+      if(audCentro){
+        if(audCentro==='__none__'){if(w.centro_costo_id)return false;}
+        else if(!mismoId(w.centro_costo_id,audCentro))return false;
+      }
+      if(audGrupo&&grupoDeCargo(w.especialidad_clave||'')!==audGrupo)return false;
+    }
+    return true;
+  });
   auditoriaTotal=filas.length;
 
   // El resumen cuenta lo que se ve, y el total de lo que se cargó. Sin el
@@ -786,29 +904,7 @@ function renderAuditoria(){
     document.getElementById('audMas').innerHTML='';
     return;
   }
-  const etiqueta=e=>({inserta:'Alta',actualiza:'Cambio',borra:'Borrado'}[e]||e);
-  document.getElementById('audLista').innerHTML=filas.map(t=>{
-    const fecha=t.fecha?String(t.fecha).slice(0,10):'—';
-    const cambios=[];
-    if(String(t.estado_anterior)!==String(t.estado_nuevo)){
-      cambios.push('estado <b>'+escHtml(estadoTexto(t.estado_anterior))+'</b> → <b>'+escHtml(estadoTexto(t.estado_nuevo))+'</b>');
-    }
-    if(String(t.hora_llegada_anterior||'')!==String(t.hora_llegada_nuevo||'')){
-      cambios.push('hora '+(t.hora_llegada_anterior?escHtml(String(t.hora_llegada_anterior).slice(0,5)):'—')
-        +' → '+(t.hora_llegada_nuevo?escHtml(String(t.hora_llegada_nuevo).slice(0,5)):'—'));
-    }
-    if(String(t.origen_anterior)!==String(t.origen_nuevo)){
-      cambios.push('origen '+escHtml(t.origen_anterior||'—')+' → '+escHtml(t.origen_nuevo||'—'));
-    }
-    if(!cambios.length)cambios.push('<small>(se guardó el mismo valor)</small>');
-    return '<div class="list-item" style="cursor:default;display:block">'+
-      '<div><b>'+escHtml(nombreDe(t.code))+'</b> — '+escHtml(fecha)+' — <b>'+escHtml(etiqueta(t.accion))+'</b>'+
-      '<small style="display:block;margin-top:2px">'+cambios.join(' · ')+'</small>'+
-      '<small style="display:block;margin-top:4px"><b>Motivo:</b> '+escHtml(t.motivo)+'</small>'+
-      '<small style="display:block;color:var(--secondary-text)">Por '+escHtml(t.usuario_nombre||'(sin nombre)')+
-      (t.usuario_rol?' ('+escHtml(t.usuario_rol)+')':'')+' el '+escHtml(new Date(t.created_at).toLocaleString('es-CL'))+
-      '</small></div></div>';
-  }).join('');
+  document.getElementById('audLista').innerHTML=audTablaHtml(filas,nombreDe);
   document.getElementById('audMas').innerHTML=auditoriaTrazas.length>=AUD_PAGINA
     ?'<small>Para ver más, acotá el rango de fechas.</small>':'';
 }

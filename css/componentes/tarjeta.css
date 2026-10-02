@@ -70,6 +70,81 @@
 .trabTabla .colCentro{min-width:170px}
 /* Y la casilla de la tabla. Es una columna más y va primera, porque es la que se usa. */
 .trabTabla .colSel{width:1%;white-space:nowrap;text-align:center;padding-left:10px}
+/*
+  LA BITÁCORA COMO TABLA
+  ------------------------------------------
+  Y con el "overflow" propio, porque con muchas trazas la tabla crece más que la pantalla y
+  termina empujando la página entera. Ver [bit-04].
+*/
+.audTablaCaja{
+  overflow:auto;
+  max-height:min(66vh,720px);
+  border:1px solid var(--line);
+  border-radius:10px;
+}
+.audTabla{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:.8rem;
+}
+.audTabla th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:var(--panel);
+  text-align:left;
+  font:600 .7rem 'Montserrat',system-ui,sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--muted);
+  padding:9px 10px;
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
+}
+.audTabla td{
+  padding:7px 10px;
+  border-bottom:1px solid var(--line);
+  vertical-align:top;
+}
+.audTabla tbody tr:last-child td{border-bottom:none}
+
+/* Y las columnas que se leen de a una, en fijo y en monoespaciada. */
+.audTabla .audFecha{white-space:nowrap}
+.audTabla .audCod{white-space:nowrap;font-family:Consolas,'Courier New',monospace}
+.audTabla .audNombre{min-width:190px}
+.audTabla .audEmp,.audTabla .audCentro{min-width:150px}
+.audTabla .audGrupo{min-width:110px}
+.audTabla .audCambio{min-width:210px;font-size:.76rem}
+.audTabla .audMotivo{min-width:230px;font-size:.78rem}
+.audTabla .audQuien{white-space:nowrap;font-size:.76rem}
+.audTabla .audSinCambio{color:var(--muted);font-style:italic}
+
+/* Y el tipo, que se distingue por color Y por palabra: en una tabla de diez columnas,
+   un color solo no se lee. Mismo criterio que el de la columna "Falta". Ver [bit-05]. */
+.audAccion{
+  display:inline-block;
+  padding:1px 7px;
+  border:1px solid currentColor;
+  border-radius:20px;
+  font:600 .68rem/1.6 inherit;
+  white-space:nowrap;
+}
+.audAccion_inserta{color:var(--accent)}
+.audAccion_actualiza{color:var(--warn)}
+.audAccion_borra{color:var(--danger)}
+
+/* Y el aviso del criterio, que va a la vista y no escondido. */
+.audNota{
+  margin-top:10px;
+  padding:8px 10px;
+  border:1px solid var(--line);
+  border-left:3px solid var(--warn);
+  border-radius:8px;
+  background:var(--panel);
+  color:var(--secondary-text);
+  font-size:.76rem;
+}
 .trabTabla th.thSel{width:1%;text-align:center}
 .trabTabla .marcarTarjeta{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
 .trabTabla .marcarTodas{width:16px;height:16px;cursor:pointer;accent-color:var(--accent)}
