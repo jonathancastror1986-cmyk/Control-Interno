@@ -12,19 +12,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supabaseConfig.js?v=46"></script>
-<script src="../js/supabaseClient.js?v=46"></script>
-<script src="../js/auth.js?v=46"></script>
-<script src="../js/theme.js?v=46"></script>
-<script src="../js/clima-reloj.js?v=46"></script>
-<link rel="stylesheet" href="../css/base.css?v=46">
+<script src="../js/supabaseConfig.js?v=47"></script>
+<script src="../js/supabaseClient.js?v=47"></script>
+<script src="../js/auth.js?v=47"></script>
+<script src="../js/theme.js?v=47"></script>
+<script src="../js/clima-reloj.js?v=47"></script>
+<link rel="stylesheet" href="../css/base.css?v=47">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=46">
-<link rel="stylesheet" href="../css/grupos.css?v=46">
-<link rel="stylesheet" href="../css/styles.css?v=46">
-<link rel="stylesheet" href="../css/componentes/asistencia.css?v=46">
+<link rel="stylesheet" href="../css/tokens.css?v=47">
+<link rel="stylesheet" href="../css/grupos.css?v=47">
+<link rel="stylesheet" href="../css/styles.css?v=47">
+<link rel="stylesheet" href="../css/componentes/asistencia.css?v=47">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -42,7 +42,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=46"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=47"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -60,13 +60,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=46">
-<link rel="stylesheet" href="../css/vistas.css?v=46">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=46">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=46">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=46">
-<link rel="stylesheet" href="../css/componentes/plantillas.css?v=46">
-<link rel="stylesheet" href="../css/movil.css?v=46" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=47">
+<link rel="stylesheet" href="../css/vistas.css?v=47">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=47">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=47">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=47">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=47">
+<link rel="stylesheet" href="../css/movil.css?v=47" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -180,8 +180,45 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
     <div class="w-seccion">
       <h4>Datos de contratación</h4>
       <div class="row w-campos">
-        <div><label>Empresa</label><select id="w-empresa" onchange="llenarCentroCostoTrabajador()"></select></div>
-        <div><label>Centro de costo</label>
+        <div><label>Empresa <details class="ayuda"><summary class="ayuda-ico" title="A qué empresa pertenece y por qué importa">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>Cada trabajador pertenece a una empresa.</b> Quien usa el sistema solo ve a los
+trabajadores de las empresas que tiene asignadas, así que esta lista no es la misma
+para todos.
+<br><br>
+<b>Cambiarla después mueve a la persona.</b> No es un dato decorativo: al guardarla
+cambian su planilla, sus permisos y su centro de costo. Si la duda es si corresponde
+a esta empresa, se pregunta antes de guardar.
+
+
+  </div>
+
+
+</details></label><select id="w-empresa" onchange="llenarCentroCostoTrabajador()"></select></div>
+        <div><label>Centro de costo <details class="ayuda"><summary class="ayuda-ico" title="Contra qué centro se justifica su asistencia">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>Es contra qué centro se justifica y se paga la asistencia.</b> No es lo mismo que el
+centro del reloj: ese es el del aparato, y puede ser distinto.
+<br><br>
+<b>Es obligatorio en esta pantalla.</b> Sin él, el aviso dice "Falta elegir el centro
+de costo" y no guarda nada.
+<br><br>
+<b>Si la empresa tiene uno solo, ya viene puesto.</b> Si tiene varios, hay que elegirlo:
+el sistema no adivina a cuál centro se le imputa a una persona.
+
+
+  </div>
+
+
+</details></label>
           <select id="w-centro-costo" required>
             <option value="">— sin centro de costo —</option>
           </select>
@@ -189,8 +226,44 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
           <small id="w-centro-costoAviso" hidden style="display:block;margin-top:4px;color:var(--warn-ink);background:var(--warn-surface,rgba(220,150,20,.10));border:1px solid var(--warn);border-radius:6px;padding:6px 8px"></small>
           <small id="w-centro-costoAviso" hidden style="display:block;margin-top:4px;color:var(--warn-ink);background:var(--warn-surface,rgba(220,150,20,.10));border:1px solid var(--warn);border-radius:6px;padding:6px 8px"></small>
         </div>
-      <div><label>Fecha de ingreso</label><input type="date" id="w-fecha-ingreso"></div>
-        <div><label>Grupo del cargo</label><select id="w-grupo" onchange="cambiarGrupoTrabajador()"><option value="">Sin asignar</option></select></div>
+      <div><label>Fecha de ingreso <details class="ayuda"><summary class="ayuda-ico" title="El día que empezó, y para qué se usa">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>El día que empezó.</b> Con ella se calcula la antigüedad y cuentan las licencias.
+<br><br>
+<b>No es obligatoria y no avisa si falta.</b> Por eso queda vacía a veces. El efecto se
+ve recién cuando alguien necesita la antigüedad, que es cuando ya no se puede
+retroceder en el tiempo.
+
+
+  </div>
+
+
+</details></label><input type="date" id="w-fecha-ingreso"></div>
+        <div><label>Grupo del cargo <details class="ayuda"><summary class="ayuda-ico" title="Por qué se deduce del cargo y se deja vacío">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>No se escribe: se deduce del cargo.</b> Por eso queda vacío a propósito, y no es un
+error.
+<br><br>
+<b>Para qué sirve.</b> Hay más de doscientos cargos, y no se pueden listar todos en
+un desplegable. El grupo los agrupa —obra, oficina, bodega— y es lo que permite armar
+los kits y las charlas sin una lista interminable.
+<br><br>
+<b>Si se escribe aparte, puede contradecir al cargo.</b> El cargo es el que manda; el
+grupo se lee de él.
+
+
+  </div>
+
+
+</details></label><select id="w-grupo" onchange="cambiarGrupoTrabajador()"><option value="">Sin asignar</option></select></div>
         <div>
           <label>Cargo <details class="ayuda"><summary class="ayuda-ico" title="Qué es el cargo y qué hace">i</summary>
           <div class="ayuda-caja">
@@ -216,9 +289,64 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
         y las exportaciones tambien. Un campo que se saca del HTML y queda en el JavaScript no
         da error: simplemente deja de guardar ese dato, en silencio. Ver [orden-03].
         -->
-        <div><label>AFP código</label><input id="w-afp-codigo" placeholder="AFPH"></div>
-        <div><label>AFP nombre</label><input id="w-afp-nombre" placeholder="AFP Habitat"></div>
-        <div><label>Tipo de trabajador</label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="subcontrato">Subcontrato</option></select></div>
+        <div><label>AFP código <details class="ayuda"><summary class="ayuda-ico" title="El código corto, y que no es el del PREVIRED">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>El código corto de la AFP, con el que se empareja.</b> Es texto de tres a seis
+letras, como "AFPH".
+<br><br>
+<b>NO es el código del PREVIRED.</b> Ese es numérico —03, 05, 08— y es otra columna
+distinta. Se guardan los dos porque el Excel empareja con este y la planilla necesita
+el otro.
+<br><br>
+<b>Si se escribe mal, no se avisa.</b> Las importaciones simply no encuentran la AFP y
+dejan la columna vacía en la planilla, sin error. Por eso conviene escribirlo tal como
+lo trae la AFP.
+
+
+  </div>
+
+
+</details></label><input id="w-afp-codigo" placeholder="AFPH"></div>
+        <div><label>AFP nombre <details class="ayuda"><summary class="ayuda-ico" title="El nombre largo, y para qué se usa">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>El nombre largo</b>, como "AFP Habitat". Es el que va en la hoja de life, el
+contrato y las cartas, porque es el que el trabajador reconoce.
+<br><br>
+<b>Se piden los dos.</b> Con solo el nombre, las importaciones desde Excel no emparejan;
+con solo el código, las cartas quedan con algo que el trabajador no reconoce.
+
+
+  </div>
+
+
+</details></label><input id="w-afp-nombre" placeholder="AFP Habitat"></div>
+        <div><label>Tipo de trabajador <details class="ayuda"><summary class="ayuda-ico" title="Interno o subcontrato, y qué cambia">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>Interno Empresa o Subcontrato.</b> No es un dato del trabajador: es a quién se le
+imputa el costo.
+<br><br>
+<b>Cambia el kit que le corresponde</b> y sale impreso en la credencial.
+<br><br>
+<b>No se guarda junto con los datos de salud.</b> Son cosas distintas, en columnas
+distintas, y por eso no se mezclan.
+
+
+  </div>
+
+
+</details></label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="subcontrato">Subcontrato</option></select></div>
         <div><label>Cargo para las planillas</label><input id="w-spec"></div>
       </div>
       <div class="row">
@@ -2659,16 +2787,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=46"></script>
-<script src="../js/componentes/escaner.js?v=46"></script>
+<script src="../js/nucleo.js?v=47"></script>
+<script src="../js/componentes/escaner.js?v=47"></script>
 
-<script src="../js/relojes.js?v=46"></script>
-<script src="../js/soporte.js?v=46"></script>
-<script src="../js/administracion.js?v=46"></script>
-<script src="../js/bodega.js?v=46"></script>
-<script src="../js/documentos.js?v=46"></script>
-<script src="../js/supervisores.js?v=46"></script>
-<script src="../js/app.js?v=46"></script>
+<script src="../js/relojes.js?v=47"></script>
+<script src="../js/soporte.js?v=47"></script>
+<script src="../js/administracion.js?v=47"></script>
+<script src="../js/bodega.js?v=47"></script>
+<script src="../js/documentos.js?v=47"></script>
+<script src="../js/supervisores.js?v=47"></script>
+<script src="../js/app.js?v=47"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
