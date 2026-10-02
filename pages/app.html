@@ -12,18 +12,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supabaseConfig.js?v=21"></script>
-<script src="../js/supabaseClient.js?v=21"></script>
-<script src="../js/auth.js?v=21"></script>
-<script src="../js/theme.js?v=21"></script>
-<script src="../js/clima-reloj.js?v=21"></script>
-<link rel="stylesheet" href="../css/base.css?v=21">
+<script src="../js/supabaseConfig.js?v=22"></script>
+<script src="../js/supabaseClient.js?v=22"></script>
+<script src="../js/auth.js?v=22"></script>
+<script src="../js/theme.js?v=22"></script>
+<script src="../js/clima-reloj.js?v=22"></script>
+<link rel="stylesheet" href="../css/base.css?v=22">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=21">
-<link rel="stylesheet" href="../css/grupos.css?v=21">
-<link rel="stylesheet" href="../css/styles.css?v=21">
+<link rel="stylesheet" href="../css/tokens.css?v=22">
+<link rel="stylesheet" href="../css/grupos.css?v=22">
+<link rel="stylesheet" href="../css/styles.css?v=22">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -41,7 +41,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=21"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=22"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -59,13 +59,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=21">
-<link rel="stylesheet" href="../css/vistas.css?v=21">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=21">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=21">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=21">
-<link rel="stylesheet" href="../css/componentes/plantillas.css?v=21">
-<link rel="stylesheet" href="../css/movil.css?v=21" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=22">
+<link rel="stylesheet" href="../css/vistas.css?v=22">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=22">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=22">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=22">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=22">
+<link rel="stylesheet" href="../css/movil.css?v=22" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -2267,7 +2267,69 @@ no se pueden editar con la barra.
       <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertOrderedList')">1. Lista</button>
       <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertParagraph')">Párrafo</button>
       <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('removeFormat')">Sin formato</button>
+      <!--
+            BAJAR Y SUBIR
+            ===========
+            Sin esto el flujo era: bajar el archivo, abrirlo en Word, COPIAR EL CÓDIGO FUENTE a mano y
+            pegarlo en el editor. Y pegar el código fuente no es editar el documento: en la pantalla
+            sale escrito "<td width="64" valign="top" style="width: 48.15pt;...". Ver [word-01].
+      
+            Y el ".docx" NO se acepta, porque es un archivo comprimido y desde el navegador no se
+            puede abrir sin una librería de ZIP que este proyecto no tiene. Aceptarlo y no poder leerlo
+            es peor que rechazarlo. Ver [word-02].
+            -->
+            <button type="button" class="btn" style="padding:3px 9px" onclick="descargarPlantillaModelo()"
+              title="Baja un .doc con el esqueleto del documento y las variables">Bajar en blanco</button>
+            <label class="btn" style="padding:3px 9px;cursor:pointer"
+              title="Elige el .doc que guardaste desde Word">
+              Subir desde Word
+              <input type="file" id="plantillaArchivo" accept=".doc,.htm,.html,text/html"
+                onchange="subirPlantillaArchivo()" style="display:none">
+            </label>
     </div>
+    <!--
+EL MANUAL, A LA VISTA
+====================
+Y dentro de un "<details>", cerrado. Porque son varios renglones de instrucciones que solo
+interesan mientras se está haciendo una plantilla, y abiertos de entrada taparían el editor.
+
+Y el mismo texto viaja dentro del archivo que se descarga. Ver [word-01].
+-->
+<details class="ayuda" style="margin-bottom:10px">
+  <summary class="ayuda-ico" title="Cómo se hace una plantilla paso a paso">i</summary>
+  <div class="ayuda-caja">
+  <b>El flujo es: Word primero.</b>
+  <br><br>
+  1. Aprieta <b>"Bajar en blanco"</b>. Abre el archivo en Word.
+  <br>
+  2. En Word, borra el bloque de instrucciones y la lista de variables, y arma el documento.
+  <br>
+  3. Donde va un dato, escribe el nombre del campo <b>entre corchetes y en mayúsculas</b>:
+  <br><span style="font-family:Consolas,monospace">Sr. [APELLIDO_PATERNO] [APELLIDO_MATERNO]</span>
+  <br><br>
+  4. <b>Guarda como "Word 97-2003 (.doc)"</b>, no como ".docx". Un ".docx" es un archivo
+  comprimido y desde acá no se puede abrir.
+  <br>
+  5. Vuelve, aprieta <b>"Subir desde Word"</b>, elige el archivo, y después <b>Guardar</b>.
+  <br><br>
+  <b>Las tres trampas de Word.</b>
+  <br><br>
+  <b>a) La corrección automática.</b> Word cambia los corchetes y las mayúsculas mientras se
+  escribe, y "[NOMBRE]" se vuelve "[Nombre]" y deja de reconocerse. Si pasa: escríbelo en otro
+  lado, cópialo y pégalo donde va.
+  <br><br>
+  <b>b) No partas una variable en dos.</b> Si "[APELLIDO_PATERNO]" queda cortado entre dos
+  párrafos, el corchete de cierre cae en otro lado y no se reconoce. Va entera, en un solo
+  pedazo de texto.
+  <br><br>
+  <b>c) Sin espacios adentro.</b> "[ NOMBRE ]" no sirve. "[NOMBRE]" sí.
+  <br><br>
+  <b>Y ya no se usan las llaves.</b> Antes se escribía "{{nombre}}" y la base la reconocía pero el
+  navegador no la reemplazaba: el documento salía con las llaves escritas y sin ningún dato. Si
+  tenés una plantilla armada así, en "Reconocidas" la vas a ver igual, y el papel no la va a
+  reemplazar.
+  </div>
+</details>
     <div id="plantillaEditor" class="editor-hoja" contenteditable="true" spellcheck="true"></div>
     <div id="plantillaError" style="color:var(--danger);margin-top:6px" role="alert"></div>
     <div class="row" style="margin-top:12px;justify-content:flex-end">
@@ -2503,16 +2565,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=21"></script>
-<script src="../js/componentes/escaner.js?v=21"></script>
+<script src="../js/nucleo.js?v=22"></script>
+<script src="../js/componentes/escaner.js?v=22"></script>
 
-<script src="../js/relojes.js?v=21"></script>
-<script src="../js/soporte.js?v=21"></script>
-<script src="../js/administracion.js?v=21"></script>
-<script src="../js/bodega.js?v=21"></script>
-<script src="../js/documentos.js?v=21"></script>
-<script src="../js/supervisores.js?v=21"></script>
-<script src="../js/app.js?v=21"></script>
+<script src="../js/relojes.js?v=22"></script>
+<script src="../js/soporte.js?v=22"></script>
+<script src="../js/administracion.js?v=22"></script>
+<script src="../js/bodega.js?v=22"></script>
+<script src="../js/documentos.js?v=22"></script>
+<script src="../js/supervisores.js?v=22"></script>
+<script src="../js/app.js?v=22"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================

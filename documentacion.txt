@@ -2693,3 +2693,128 @@ la primera versión de la comprobación, que daba un falso positivo sobre el tex
 
 
 ================================================================================
+
+================================================================================
+EL FLUJO DE LAS PLANTILLAS: WORD PRIMERO
+================================================================================
+
+
+[word-01] LO QUE PASABA: PEGAR EL CÓDIGO FUENTE
+-------------------------------------------------
+
+El editor de plantillas es un "<div contenteditable>". Al pegarle el HTML que sale de un
+documento de Word, el navegador lo mete como TEXTO: en la pantalla sale escrito
+"<td width="64" valign="top" style="width: 48.15pt;...".
+
+Y no había forma de subir un archivo. Los "<input type=file>" que había en todo el HTML eran
+las dos fotos del trabajador, el CSV de trabajadores, el Excel de marcajes y el logo de la
+empresa. Ninguno de plantillas.
+
+O sea que el flujo era: bajar el archivo, abrirlo en Word, COPIAR EL CÓDIGO FUENTE a mano, y
+pegarlo en una caja. Y pegar el código fuente no es editar el documento.
+
+Ahora hay tres cosas:
+
+  BAJAR EN BLANCO     baja un ".doc" con el esqueleto y las variables ya escritas
+  SUBIR DESDE WORD    elige el ".doc" que se guardó y queda en el editor
+  EL MANUAL           en un "<details>" en el editor, y ADENTRO del archivo que se baja
+
+Y el manual va en los dos lados a propósito. El de la pantalla sirve mientras se está en la
+pantalla; el que viaja en el archivo sirve cuando alguien se lo pasa a otro, y ese es el
+momento en que alguien lo necesita y no tiene la pantalla.
+
+
+[word-02] POR QUÉ ".DOC" Y NO ".DOCX"
+-------------------------------------
+
+Un ".doc" de Word ES un HTML con otra extensión. Por eso se puede generar desde el navegador
+sin ninguna librería, que es lo único que hay en el proyecto.
+
+Un ".docx" es un archivo ZIP. El navegador no lo descomprime solo, y no hay ninguna librería de
+ZIP acá. Aceptarlo en el campo de archivo y no poder leerlo es peor que rechazarlo: el usuario
+elige el archivo, no pasa nada, y no sabe si se equivocó de nombre o si la página anda mal.
+
+Así que el campo de archivo NO acepta ".docx". Y si lo elige igual, se lo explica por pantalla y
+le dice el camino exacto en Word: Archivo, Guardar como, "Word 97-2003 (.doc)".
+
+
+[word-03] LAS VARIABLES DENTRO DEL ARCHIVO, Y POR QUÉ SE BORRAN
+-----------------------------------------------------------------
+
+El archivo que se baja trae arriba la lista de las 23 variables con una explicación de cada una,
+y arriba del esqueleto una línea que dice "FIN DE LAS INSTRUCCIONES".
+
+Se borra todo eso antes de usar la plantilla. Es un paso más, y está explícito porque el
+contraste es que sin la lista hay que acordarse de cómo se llaman y con la lista queda un bloque
+impreso en cada documento.
+
+El manual dice en el paso 1 que se borre, y el archivo lo dice con la línea de fin. Los dos.
+
+
+[word-04] UN NOMBRE PUEDE ESTAR DECLARADO DOS VECES, Y NO SE VE
+---------------------------------------------------------------
+
+"VARIABLES_PLANTILLA" ya estaba declarado en "js/app.js". Y la comprobación de sintaxis concatena
+los ocho archivos y los compila como uno, porque así es como los ejecuta el navegador: son
+"<script>" en la misma página y comparten el ámbito.
+
+O sea que dos "const" con el mismo nombre en archivos distintos no son dos variables: es un error
+que rompe la página entera.
+
+Y el detalle que lo hace peligroso: cuando el NOMBRE no choca pero el contenido sí, no hay error.
+Queda una sola función, la del último archivo que carga, y la del primero no corre nunca. Nadie
+se entera salvo que el nombre se repita.
+
+En este caso el choque fue de nombre, y recien se vio. Y en el mismo archivo había OTRO choque que
+venía de antes: "insertarVariableEnPlantilla" estaba en "relojes.js" y en "documentos.js". Como
+"documentos.js" carga después, la que ganaba era la suya, que inserta "{{nombre}}". O sea que
+los dos clics insertaban la forma VIEJA, y la unificación a "[NOMBRE]" no se había aplicado.
+
+Ahora hay una sola función, en "relojes.js", que inserta "[NOMBRE]". Y el aviso que muestra si el
+navegador no deja escribir dice la forma que de verdad inserta, que antes decía la otra.
+
+"tools/compila-juntos.js" revisa esto: toma el orden de los "<script src>" DEL HTML, compila todo
+junto, y avisa si algún nombre está declarado dos veces. El orden sale del HTML y no de una lista
+escrita a mano, porque una lista escrita a mano es la que se queda vieja.
+
+
+[word-05] COMPROBAR EL ARCHIVO SIN HABERLO ESCRITO
+----------------------------------------------------
+
+El guion que quita la función duplicada armaba el texto nuevo en memoria y lo revisaba ahí. Una
+de las comprobaciones leía el archivo DEL DISCO para ver si quedaba un texto viejo.
+
+Y el disco todavía tenía el archivo entero, porque en ese punto no se había escrito nada. O sea
+que la comprobación era al revés de lo que decía: reportaba que quedaba el texto viejo cuando lo
+que quedaba era el archivo sin tocar.
+
+Un aviso que dice lo contrario de lo que pasa hace perder el rato. Y es peor cuando el guion es
+de los que escriben: uno lee "quedó algo" y busca en el archivo.
+
+Ahora todas las comprobaciones miran la versión en memoria, y el último paso es comparar lo que
+se escribió con lo que se comprobó.
+
+
+[word-06] UNA PRUEBA ROMPIÓ EL CÓDIGO, Y EL AVISO APUNTABA AL ARCHIVO EQUIVOCADO
+------------------------------------------------------------------------------------
+
+"test-escaner.js" compila el código con un cambio: reemplaza "<!--" por "//". Eso existe porque
+en el camino viejo el guion era el "<script>" suelto del HTML, y adentro puede abrirse un
+comentario HTML que en JavaScript no cierra nunca.
+
+Ese cambio se aplicaba a TODO el texto, y con archivos ".js" no hace falta. Rompió la expresión
+regular que limpia comentarios de Word:
+
+    /<!--[\s\S]*?-->/g   -->   ////[\s\S]*?-->/g
+
+Que es un regex vacío seguido de una división. Y el error que reportaba Node aparecía en la
+línea SIGUIENTE, en un renglón que no tenía nada que ver: "t = t.replace(/<\/?[a-z]+:[^>]*>/gi, '')".
+
+O sea que el aviso apuntaba a un renglón sano y culpaba al archivo del regex. Y el código
+funcionaba perfecto.
+
+La transformación ahora se aplica solo en el camino donde hace falta, que es el del "<script>"
+suelto. Y "tools/compila-juntos.js" compila sin transformar, que es lo que tiene que compilar.
+
+
+================================================================================

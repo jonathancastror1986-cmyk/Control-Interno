@@ -784,26 +784,7 @@ function pintarListaVariables(){
   });
 }
 
-// Poner una variable en el cursor, con un clic. Para quien no quiere
-// acordarse de los nombres.
-function insertarVariableEnPlantilla(clave){
-  const editor=document.getElementById('plantillaEditor');
-  if(!editor)return;
-  const texto='{{'+clave+'}}';
-  // execCommand está obsoleto y sigue siendo la única forma de insertar
-  // en el punto del cursor sin reescribir el contenido entero y perder el
-  // cursor. Se usa dentro de un try: si el navegador ya no lo soporta, se
-  // avisa en vez de fallar en silencio.
-  try{
-    editor.focus();
-    if(!document.execCommand('insertText',false,texto)){
-      throw new Error('no');
-    }
-  }catch(error){
-    alert('Este navegador no deja escribir en el cursor.\n\nPegá la variable a mano: {{'+clave+'}}');
-  }
-  try{marcarContenidoCambiado();}catch(e){}
-}
+
 
 // Si el navegador no deja leer el portapapeles, el botón lo dice al
 // apretarlo en vez de no hacer nada. Se consulta una vez al cargar.

@@ -3893,6 +3893,240 @@ async function descargarPlantillaConDatos() {
   if (aviso) aviso.textContent = 'Descargado: ' + archivo;
 }
 
+// BAJAR LA PLANTILLA EN BLANCO
+// ====================================================================
+//
+// Un ".doc" de Word es un HTML con otra extensión. Por eso se puede generar desde el navegador
+// sin ninguna librería, que es lo único que hay acá.
+//
+// Y el manual viaja DENTRO del archivo. Un manual que está solo en la pantalla sirve mientras se
+// está en la pantalla; el que va en el archivo sirve cuando alguien se lo pasa a otro.
+// Ver [word-01].
+//
+// Y la lista de variables queda arriba para que nadie tenga que acordarse de cómo se llaman, y se
+// borra con la línea que dice "FIN DE LAS INSTRUCCIONES". Ver [word-03].
+
+// -------------------------------------------------------------------
+// EL ESQUELETO DEL DOCUMENTO
+// -------------------------------------------------------------------
+// Va en una constante y no adentro de la función, porque es una constante: no cambia nunca. Y
+// afuera se puede leer sin ejecutar nada, que es lo que hace la comprobación.
+//
+// Y con estilos dentro, porque Word los respeta. Sin estilo el documento sale como texto pelado
+// y la persona tiene que armarlo entero, que es al revés de lo que se pidió.
+const ESQUELETO_PLANTILLA = [
+  '<h1 style="text-align:center;font-size:16pt;font-family:Calibri,Arial,sans-serif">[NOMBRE]</h1>',
+  '<p style="text-align:center;font-size:11pt;font-family:Calibri,Arial,sans-serif">[CARGO] &mdash; [EMPRESA]</p>',
+
+  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">1. IDENTIFICACIÓN</h2>',
+  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">El trabajador <b>[NOMBRE]</b>, cédula de identidad [RUT],',
+  'con domicilio en [DIRECCION], teléfono [TELEFONO], correo [CORREO], presta servicios a',
+  '<b>[EMPRESA]</b>, RUT [RUT_EMPRESA], con domicilio en [DIRECCION_EMPRESA].</p>',
+  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">Su cargo es [CARGO], y corresponde al grupo',
+  '[ESPECIALIDAD]. Ingresó el [FECHA_INGRESO], en el centro de costo [CENTRO].</p>',
+  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">Se encuentra afiliado a [AFP_NOMBRE],',
+  'código [AFP_CODIGO]. Es trabajador de tipo [TIPO_TRABAJADOR].</p>',
+
+  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">2. DECLARACIÓN</h2>',
+  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">El trabajador declara que los datos anteriores son ciertos,',
+  'y que cualquier cambio de ellos será oportunamente comunicado a [EMPRESA]. Declara además',
+  'haber leído y aceptado el reglamento interno de la empresa.</p>',
+
+  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">3. FIRMA</h2>',
+  '<p style="margin-top:44pt;font-family:Calibri,Arial,sans-serif;font-size:11pt">_______________________________<br>',
+  '[CODIGO] &mdash; [NOMBRE]<br>[EMPRESA], [FECHA]</p>',
+].join('');
+
+// -------------------------------------------------------------------
+// LAS VARIABLES QUE PUEDEN PONERSE
+// -------------------------------------------------------------------
+// Y es la lista completa, con lo que se eligió que existe: nombre entero [NOMBRE] y no
+// [NOMBRE_COMPLETO]. Ver [nombres-01].
+const VARIABLES_DEL_MODELO = [
+  ['[CODIGO]', 'Código de 4 dígitos'],
+  ['[RUT]', 'RUT del trabajador'],
+  ['[NOMBRES]', 'Nombres'],
+  ['[APELLIDO_PATERNO]', 'Apellido paterno'],
+  ['[APELLIDO_MATERNO]', 'Apellido materno'],
+  ['[NOMBRE]', 'El nombre entero, armado con los cuatro de arriba'],
+  ['[DIRECCION]', 'Dirección'],
+  ['[TELEFONO]', 'Teléfono'],
+  ['[CORREO]', 'Correo'],
+  ['[EMPRESA]', 'Nombre de la empresa'],
+  ['[RUT_EMPRESA]', 'RUT de la empresa'],
+  ['[DIRECCION_EMPRESA]', 'Dirección de la empresa'],
+  ['[TELEFONO_EMPRESA]', 'Teléfono de la empresa'],
+  ['[CORREO_EMPRESA]', 'Correo de la empresa'],
+  ['[GIRO_EMPRESA]', 'A qué se dedica la empresa'],
+  ['[CARGO]', 'Cargo'],
+  ['[ESPECIALIDAD]', 'Cargo del kit'],
+  ['[CENTRO]', 'Centro de costo o nombre de la obra'],
+  ['[FECHA_INGRESO]', 'Fecha de ingreso'],
+  ['[TIPO_TRABAJADOR]', 'Interno o subcontrato'],
+  ['[AFP_CODIGO]', 'Código de la AFP'],
+  ['[AFP_NOMBRE]', 'Nombre de la AFP'],
+  ['[FECHA]', 'Fecha de hoy'],
+];
+
+// -------------------------------------------------------------------
+// EL MANUAL, QUE VIAJA EN EL ARCHIVO
+// -------------------------------------------------------------------
+const MANUAL_PLANTILLA = [
+  '<!--',
+  'COMO SE USA ESTA PLANTILLA',
+  '==========================',
+  '',
+  '1. BORRAR TODO DESDE ACÁ HASTA LA LÍNEA "FIN DE LAS INSTRUCCIONES". Incluye este bloque y',
+  '   la lista de variables de más abajo. Se borra porque si queda, sale impreso en cada',
+  '   documento que se arme con esta plantilla.',
+  '',
+  '2. ARMAR EL DOCUMENTO COMO UN DOCUMENTO NORMAL.',
+  '',
+  '3. DONDE VA UN DATO DEL TRABAJADOR, ESCRIBIR EL NOMBRE DEL CAMPO ENTRE CORCHETES Y EN',
+  '   MAYÚSCULAS. Por ejemplo:',
+  '',
+  '       Sr. [APELLIDO_PATERNO] [APELLIDO_MATERNO], RUT [RUT]',
+  '',
+  '   Y NO con llaves. Antes se usaba {{nombre}} y ya no: la base reconocía esa forma y el',
+  '   navegador no la reemplazaba, así que el documento salía con las llaves escritas y sin',
+  '   ningún dato.',
+  '',
+  '4. GUARDAR COMO "Word 97-2003 (.doc)". NO como ".docx": un ".docx" es un archivo comprimido',
+  '   y desde el sistema no se puede abrir.',
+  '',
+  '5. VOLVER, ABRIR LA PLANTILLA, ELEGIR EL ARCHIVO, Y GUARDAR.',
+  '',
+  'CUIDADO CON TRES COSAS DE WORD',
+  '------------------------------',
+  '',
+  'a) LA CORRECCIÓN AUTOMÁTICA. Word cambia los corchetes y las mayúsculas mientras se escribe,',
+  '   y "[NOMBRE]" se vuelve "[Nombre]" y deja de reconocerse. Si pasa: escribirlo en otro',
+  '   lado, copiarlo, y pegarlo donde va.',
+  '',
+  'b) NO PARTIR UNA VARIABLE EN DOS. Si "[APELLIDO_PATERNO]" queda cortado entre dos párrafos,',
+  '   el corchete de cierre cae en otro lado y no se reconoce. Va entera, en un solo pedazo.',
+  '',
+  'c) SIN ESPACIOS ADENTRO. "[ NOMBRE ]" no sirve. "[NOMBRE]" sí.',
+  '',
+  'FIN DE LAS INSTRUCCIONES',
+  '-->',
+  '',
+].join('\n');
+
+function descargarPlantillaModelo() {
+  const lista = VARIABLES_DEL_MODELO.map(function (v) {
+    return '  <tr><td style="width:34%;font-family:Consolas,monospace">' + v[0] +
+           '</td><td>' + v[1] + '</td></tr>';
+  }).join('\n');
+
+  const documento = MANUAL_PLANTILLA +
+    '<h2 style="font-family:Calibri,Arial,sans-serif;font-size:13pt">Variables disponibles: borrar antes de usar la plantilla</h2>\n' +
+    '<table style="width:100%;border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:11pt">\n' +
+    lista + '\n</table>\n' +
+    '<p style="font-family:Calibri,Arial,sans-serif;font-weight:bold">FIN DE LAS INSTRUCCIONES</p>\n' +
+    '<hr>\n' +
+    ESQUELETO_PLANTILLA;
+
+  const completo = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
+    '<title>Plantilla</title></head><body style="font-family:Calibri,Arial,sans-serif">' +
+    documento + '</body></html>';
+
+  const url = URL.createObjectURL(new Blob([completo], { type: 'application/msword' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'plantilla.doc';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  const aviso = document.getElementById('plantillaError');
+  if (aviso) aviso.textContent = 'Descargada plantilla.doc. Ábrela en Word, edítala y vuelve a subirla.';
+}
+
+// -------------------------------------------------------------------
+// LEER UN ARCHIVO QUE SALIÓ DE WORD
+// -------------------------------------------------------------------
+// Word guarda un documento dentro de un HTML entero: con su "<head>", con sus estilos "mso-" y
+// con su "<body>" lleno de atributos larguísimos. Si eso entra tal cual en el editor, el editor
+// muestra la cabeza del documento en lugar del documento.
+//
+// Y hay basura que Word agrega y que no significa nada: las etiquetas del espacio de nombres de
+// Office, que son "<o:p>" con dos puntos y sin cierre, y los comentarios condicionales. Las dos
+// cosas se quitan antes, porque se ven en pantalla y no le hacen nada al formato.
+function htmlDesdeArchivoDeWord(texto) {
+  let t = String(texto || '');
+
+  // Y la cabeza: los estilos se guardan aparte, y al editor entra solo el cuerpo.
+  let estilos = '';
+  t = t.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, function (_, css) { estilos += css; return ''; });
+  t = t.replace(/<link[^>]*>/gi, '').replace(/<meta[^>]*>/gi, '');
+
+  // Y el cuerpo, si viene envuelto.
+  const cuerpo = t.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (cuerpo) t = cuerpo[1];
+
+  // Y los comentarios condicionales de Word, primero: a veces traen "<style>" adentro que el
+  // paso anterior no vio, y al quitarlos se van.
+  t = t.replace(/<!--[\s\S]*?-->/g, '');
+  t = t.replace(/<\/?[a-z]+:[^>]*>/gi, '');
+  t = t.replace(/<o:p\s*\/?>/gi, '');
+
+  // Y los "\r" sueltos: en Windows Word los mete entre "<p>" y "</p>", y en el editor salen
+  // como un renglón en blanco de más.
+  t = t.replace(/\r/g, '');
+
+  return { html: t.trim(), css: estilos.trim() };
+}
+
+function subirPlantillaArchivo() {
+  const archivo = document.getElementById('plantillaArchivo');
+  const editor = document.getElementById('plantillaEditor');
+  const aviso = document.getElementById('plantillaError');
+  if (!archivo || !archivo.files || !archivo.files[0]) {
+    if (aviso) aviso.textContent = 'Elegí primero un archivo.';
+    return;
+  }
+  const f = archivo.files[0];
+
+  // Y el ".docx" se dice que no, en vez de aceptarlo y no poder leerlo.
+  if (/\.docx$/i.test(f.name)) {
+    aviso.textContent = 'Un ".docx" no se puede abrir desde acá. En Word: Archivo, Guardar como, ' +
+      '"Word 97-2003 (.doc)". Es el mismo documento pero se puede leer.';
+    archivo.value = '';
+    return;
+  }
+
+  const lector = new FileReader();
+  lector.onload = function () {
+    const salida = htmlDesdeArchivoDeWord(lector.result);
+    if (!salida.html) {
+      aviso.textContent = 'El archivo está vacío, o no tiene contenido dentro.';
+      return;
+    }
+    editor.innerHTML = salida.html;
+    aviso.textContent = 'Cargado: ' + f.name + '. Revisá cómo quedó, y después apretá Guardar.';
+    archivo.value = '';
+  };
+  lector.onerror = function () {
+    aviso.textContent = 'No se pudo leer el archivo.';
+  };
+  lector.readAsText(f);
+}
+
+// -------------------------------------------------------------------
+// Y CUÁNTAS VARIABLES QUEDARON ESCRITAS
+// -------------------------------------------------------------------
+// Y al subir, avisar cuántas hay. Un archivo que sube con una variable mal escrita se guarda sin
+// que nadie se entere, y el día que se baja el documento aparecen los corchetes en el papel.
+function contarVariablesDelEditor() {
+  const editor = document.getElementById('plantillaEditor');
+  if (!editor) return 0;
+  const encontradas = editor.innerHTML.match(/\[(?:CAMPO:)?[A-Za-z0-9_-]+\]/g) || [];
+  return [...new Set(encontradas)].length;
+}
+
+
 // LAS SEIS FUENTES DE LAS PLANTILLAS
 // =====================================
 //
@@ -4162,8 +4396,15 @@ function pintarVariablesConDatos(datos, empresa) {
 function insertarVariableEnPlantilla(clave) {
   const ed = document.getElementById('plantillaEditor');
   if (!ed) return;
-  ed.focus();
-  document.execCommand('insertText', false, '[' + clave + ']');
+  const texto = '[' + clave + ']';
+  // Y en un "try": si el navegador ya no lo soporta, se avisa en vez de fallar en silencio.
+  try {
+    ed.focus();
+    if (!document.execCommand('insertText', false, texto)) throw new Error('no');
+  } catch (e) {
+    alert('Este navegador no deja escribir en el cursor.\n\nPegá la variable a mano: ' + texto);
+  }
+  try { marcarContenidoCambiado(); } catch (e) {}
 }
 
 // -------------------------------------------------------------------
