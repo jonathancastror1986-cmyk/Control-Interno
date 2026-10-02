@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>prueba de ancho: la tarjeta</title>
+<!--
+  POR QUÉ ESTE ARCHIVO
+
+  Porque el "@media(max-width:700px)" de la tarjeta solo se activa en una pantalla angosta, y la
+  pestaña del navegador no se puede angostar.
+
+  Y el marco de 640 píxeles es lo que hace de pantalla angosta: dentro de un "iframe", el
+  navegador calcula el "max-width" contra el ancho del marco, no contra el de la ventana.
+
+  Y eso hay que decirlo, porque es lo contrario de lo que uno supondría. Cambiar el ancho de la
+  ventana NO cambia el "max-width" de lo que hay dentro de un marco.
+
+  Es un archivo de trabajo: no se sube a git.
+-->
+<style>
+  body { margin: 0; background: #222; color: #ddd; font: 14px sans-serif; }
+  .rotulo { padding: 6px 10px; font-weight: 700; }
+  iframe { display: block; border: 0; height: 900px; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="rotulo">marco de 640 px (angosto: el "@media(max-width:700px)" deberia aplicar)</div>
+<iframe id="chico" src="prueba-totem-contadores.html?v=903" width="640"></iframe>
+
+<div class="rotulo">marco de 1280 px (ancho: el "@media" NO deberia aplicar)</div>
+<iframe id="grande" src="prueba-totem-contadores.html?v=904" width="1280"></iframe>
+
+<script>
+// -------------------------------------------------------------------
+// LA MEDICIÓN
+// -------------------------------------------------------------------
+//
+// Y mide UNA SOLA COSA: la dirección de la fila de fotos.
+//
+// Porque en la pantalla angosta las dos fotos se apilan ("column"), y en la ancha van al lado
+// ("row"). Si el "@media" se movió mal, o si la condición quedó distinta, esta es la que se
+// entera.
+//
+// Y las dos dentro de la misma página, porque comparar una pantalla angosta contra una ancha
+// medidas en momentos distintos no dice nada: el navegador puede haber aplicado otra cosa
+// mientras tanto.
+window.addEventListener('load', function () {
+  setTimeout(function () {
+    var salida = [];
+
+    [['chico', 640], ['grande', 1280]].forEach(function (par) {
+      var marco = document.getElementById(par[0]);
+      var fila = marco.contentDocument.querySelector('.photoRow');
+      if (!fila) {
+        salida.push(par[1] + 'px: NO HAY .photoRow');
+        return;
+      }
+      // Y la pantalla que la contiene, porque si está cerrada el estilo no se ve aunque exista.
+      var vista = fila;
+      while (vista && vista !== marco.contentDocument.body) {
+        var cl = vista.className && typeof vista.className === 'string'
+          ? vista.className.split(/\s+/) : [];
+        if (cl.some(function (c) { return /^v-/.test(c); })) break;
+        vista = vista.parentElement;
+      }
+      var visible = vista && getComputedStyle(vista).display !== 'none';
+      var s = getComputedStyle(fila);
+      salida.push(par[0] + ' (' + par[1] + 'px): flex-direction=' + s.flexDirection
+        + '  display=' + s.display
+        + '  gap=' + s.gap
+        + '  ancho=' + fila.getBoundingClientRect().width.toFixed(2)
+        + '  pantalla=' + (vista ? (vista.id || 'v-?') + (visible ? ' VISIBLE' : ' CERRADA') : 'no encontrada'));
+    });
+
+    document.title = 'LISTO';
+    var caja = document.createElement('pre');
+    caja.id = 'resultado';
+    caja.style.color = '#fff';
+    caja.textContent = salida.join('\n');
+    document.body.appendChild(caja);
+  }, 3500);
+});
+</script>
+</body>
+</html>

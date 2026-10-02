@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>prueba: la bitacora con scroll</title>
+<!--
+PAGINA DE PRUEBA, SIN VERSIONAR
+===============================
+
+Para ver la tabla de la bitacora sin tener que iniciar sesion y esperar a que entren datos.
+
+Trae los mismos "<link>" que "app.html", en el mismo orden, y la misma marca: un "div.card"
+con su "h2", su "small" y el "div#bitacoraList" adentro. Lo unico que se agrega son las
+filas, porque si no el div queda vacio y no hay nada que medir.
+
+Los "?v=" se suben con "Date.now()" al final del guion, asi que recargar siempre trae el
+CSS recien escrito y no el que esta en cache. Sin eso, el navegador sirve la version vieja
+y uno mide el arreglo que todavia no escribio.
+-->
+<link rel="stylesheet" href="../css/base.css?v=1">
+<link rel="stylesheet" href="../css/tokens.css?v=1">
+<link rel="stylesheet" href="../css/grupos.css?v=1">
+<link rel="stylesheet" href="../css/styles.css">
+<link rel="stylesheet" href="../css/marca.css?v=1">
+<link rel="stylesheet" href="../css/vistas.css?v=1">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=1">
+<link rel="stylesheet" href="../css/componentes/totem.css?v=1">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=1">
+<link rel="stylesheet" href="../css/movil.css" media="(max-width: 860px)">
+</head>
+<body>
+<main style="padding:16px">
+  <section class="view active v-administracion">
+    <div class="card">
+      <h2>Bitácora de acceso al sistema</h2>
+      <small>Quién abrió la aplicación, cuándo y cuánto tiempo estuvo. Esto <b>no</b> es la asistencia
+        del trabajador: es el uso del sistema por parte de quien lo opera. No se guarda la dirección IP
+        porque el navegador no la puede leer y es un dato personal que no hace falta para esto.</small>
+      <div id="bitacoraList" style="margin-top:10px"></div>
+    </div>
+  </section>
+</main>
+<script>
+// Y las filas, que es lo unico que no se puede ver sin datos.
+// eslint-disable-next-line
+(function(){
+  var cols = ['Quién','Qué pasó','Cuándo','Duración','Desde'];
+  var h = '<table><thead><tr>';
+  cols.forEach(function(c){ h += '<th>' + c + '</th>'; });
+  h += '</tr></thead><tbody>';
+  var equipo = ['Chrome en Windows','Chrome en Android - móvil','Safari en iPad'];
+  for (var i = 1; i <= 60; i++) {
+    h += '<tr><td><b>mrrj0ta.jc@gmail.com</b><br><small>mrrj0ta.jc@gmail.com</small></td>'
+       + '<td>Entró</td>'
+       + '<td>1/10, 10:' + (i < 10 ? '0' : '') + i + ' a.m.</td>'
+       + '<td>—</td>'
+       + '<td>' + equipo[i % 3] + '</td></tr>';
+  }
+  document.getElementById('bitacoraList').innerHTML = h + '</tbody></table>';
+  // Y el "v=" en los CSS, para que recargar traiga el archivo recien escrito.
+  var v = Date.now();
+  Array.prototype.forEach.call(document.querySelectorAll('link[rel=stylesheet]'), function(l){
+    l.href = l.href.replace(/\?v=\d+/, '?v=' + v);
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+mapa de vistas
+===================
+
+porteria  (1 en el menú)
+  v-porteria
+
+administracion  (17 en el menú)
+  v-nuevo-trabajador
+  v-listado-trabajadores
+  v-asignar-supervisor
+  v-carga-csv-trabajadores
+  v-buscar-tarjeta
+  v-imprimir-tarjetas
+  v-asistencia
+  v-just-diaria
+  v-auditoria
+  v-exportar
+  v-aprobar-cambio
+  v-solicitar-cambio
+  v-relojes
+  v-marcajes
+  v-kit
+  v-plantillas-kit
+  v-porteria
+
+soporte  (9 en el menú)
+  v-soporte
+  v-invitar-usuario
+  v-mi-perfil
+  v-usuarios
+  v-permisos
+  v-empresa
+  v-empresas-cargos
+  v-alertas-sociales
+  v-indicaciones-sociales
+
+prevencion  (2 en el menú)
+  v-alertas-prevencion
+  v-indicaciones-prevencion
+
+bodega  (8 en el menú)
+  v-bodega-epp
+  v-bodega-historial
+  v-bodega-epp-catalogo
+  v-bodega-kits
+  v-bodega-kits-admin
+  v-bodega-catalogo
+  v-bodega-asignar
+  v-bodega-qr
+
+supervisores  (3 en el menú)
+  v-supervisores
+  v-sup-diaria
+  v-solicitar-ingreso
+
+vistas que no salen en el menú: 2
+  v-ficha-trabajador
+  v-ingresos-cola
+

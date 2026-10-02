@@ -1,0 +1,2636 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Control de Asistencia</title>
+<link rel="icon" href="../img/favicon.svg" type="image/svg+xml">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../js/supabaseConfig.js?v=25"></script>
+<script src="../js/supabaseClient.js?v=25"></script>
+<script src="../js/auth.js?v=25"></script>
+<script src="../js/theme.js?v=25"></script>
+<script src="../js/clima-reloj.js?v=25"></script>
+<link rel="stylesheet" href="../css/base.css?v=25">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../css/tokens.css?v=25">
+<link rel="stylesheet" href="../css/grupos.css?v=25">
+<link rel="stylesheet" href="../css/styles.css?v=25">
+<!--
+EL TEMA OSCURO DE WHATSAPP
+
+Está escrito y listo, en css/whatsapp.css. Va comentado a propósito.
+
+Hace dos mensajes se pidió conservar el diseño que había, y aplicar una
+paleta nueva es cambiar el diseño por definición. Con las dos cosas
+pedidas a la vez, la forma de que las dos sean verdad es que el archivo
+exista y no se cargue.
+
+Para usarlo, sacá el comentario de la línea de abajo. Va después de
+styles.css, así que gana por orden, y para volver atrás se saca la línea.
+
+Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
+#005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
+#53BDEB.
+-->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=25"> -->
+<!--
+LA CAPA MÓVIL
+
+Va en un archivo aparte, y con el atributo media. Eso significa que por
+debajo de 860px se carga este archivo y por encima NO SE CARGA. No es que
+"no gane la cascada": es que no existe. El escritorio queda intocable por
+construcción, no por cuidado.
+
+El límite es 860 y no 700 a propósito. Con 700, una tablet en vertical
+—768 pixels— queda afuera, y ahí la vista de Supervisores se salía 10
+pixels. La de escritorio arranca bastante más arriba de 860, así que el
+margen es amplio.
+
+Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
+en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
+quiere correr.
+-->
+<link rel="stylesheet" href="../css/marca.css?v=25">
+<link rel="stylesheet" href="../css/vistas.css?v=25">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=25">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=25">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=25">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=25">
+<link rel="stylesheet" href="../css/movil.css?v=25" media="(max-width: 860px)">
+</head>
+<body>
+<!--
+LAS TRES BARRAS, EN UN SOLO PEGAJOSO
+
+Antes cada barra era pegajosa por su cuenta y cada una decía "me pego en
+y=algo", y esos "algo" se medían en JavaScript. Con eso, cualquier cambio de
+alto las separa: se ve una franja de contenido entre el encabezado y el menú, y
+las barras quedan pegadas a la posición de la medición anterior.
+
+En vez de eso, las tres van DENTRO de un solo elemento pegajoso. Las de
+adentro están en su flujo normal, se apilan solas y no se pueden separar. Y
+que el encabezado se encoja al bajar ya no recalcula nada: el contenedor se
+achica con él y las tres bajan juntas.
+
+Un solo elemento pegajoso en vez de tres medidos es la diferencia entre que
+funcione siempre y que funcione hasta que alguien cambia una fuente.
+-->
+<div id="barrasSuperiores">
+<header><button type="button" id="btnMenuMovil" class="menu-movil-boton" onclick="alternarMenuMovil()" aria-label="Abrir el menú" aria-expanded="false" aria-controls="mainNav"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 6h18v2H3zM3 11h18v2H3zM3 16h18v2H3z"/></svg></button><div class="marca-bloque"><a class="marca-jc" href="#v-nuevo-trabajador" onclick="irAlInicio(event)" title="JC Solutions — ir a la pantalla principal" aria-label="JC Solutions, ir a la pantalla principal"><span class="marca-jc-dibujo" aria-hidden="true"></span></a><span class="marca-jc-letras" aria-hidden="true"></span><h1 id="tituloSeccion">Control de Asistencia y Portería</h1></div><div class="header-actions"><div class="clima-reloj">
+
+  <button type="button" class="tema-boton" data-theme-toggle>
+    <span class="tema-ico" aria-hidden="true">
+      <svg class="ico tema-sol" viewBox="0 0 24 24" focusable="false"><circle cx="12" cy="12" r="4.4"/><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1.6v2.9"/><path d="M12 19.5v2.9"/><path d="M22.4 12h-2.9"/><path d="M4.5 12H1.6"/><path d="M19.4 4.6l-2 2"/><path d="M6.6 17.4l-2 2"/><path d="M19.4 19.4l-2-2"/><path d="M6.6 6.6l-2-2"/></g></svg>
+      <svg class="ico tema-luna" viewBox="0 0 24 24" focusable="false"><path d="M20.6 14.7A8.7 8.7 0 0 1 9.3 3.4a8.7 8.7 0 1 0 11.3 11.3z"/></svg>
+    </span>
+    <span class="tema-palabra" data-tema-palabra>Modo oscuro</span>
+  </button>
+
+  <span class="reloj" tabindex="0">
+    <span class="reloj-corto">
+      <span class="clima" data-clima>
+        <span class="clima-ico" data-clima-ico aria-hidden="true"></span>
+        <span class="clima-grados" data-clima-grados></span>
+      </span>
+      <span class="reloj-punto" data-reloj-punto aria-hidden="true"></span>
+      <span class="reloj-hora" data-reloj-hora>--:--</span>
+    </span>
+    <span class="reloj-largo" data-reloj-detalle></span>
+  </span>
+
+</div><div class="row" style="margin:0 0 0 12px;align-items:center;flex-wrap:nowrap">
+        <label for="empresaSel" style="margin:0;white-space:nowrap">Empresa</label>
+        <select id="empresaSel" onchange="cambiarEmpresa(this.value)" style="width:auto;min-width:170px"></select>
+      </div>
+      <button class="btn secondary boton-salir" onclick="logout()">Cerrar sesión</button></div></header>
+<nav id="mainNav">
+  <button data-group="porteria" class="active"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg> Portería</button>
+  <button data-group="administracion"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M9 12h6"/><path d="M9 16h4"/></svg> Administración</button>
+  <button data-group="bodega"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg> Bodega</button>
+  <button data-group="supervisores"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Supervisores</button>
+  <button data-group="soporte"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Soporte</button>
+  <button data-group="asistente-social"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> Asistente Social</button>
+  <button data-group="prevencion"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg> Prevención</button>
+</nav>
+<nav id="subNav"></nav>
+</div>
+<main>
+
+<section class="view active v-administracion" id="v-nuevo-trabajador">
+  <div class="card">
+    <h2 class="con-ayuda">Nuevo trabajador
+      <!--
+      LAS AYUDAS, EN EL ICONO Y NO EN LA PANTALLA
+      ===========================================
+      Con trece campos, un renglón de explicación debajo de cada uno empuja la fila y la
+      convierte en una escalera: los que tienen texto quedan más arriba y los que no, más
+      abajo. Y encima eran casi todos para decir "esto es lo que hace", que es lo que dice
+      el nombre del campo.
+      -->
+      <details class="ayuda"><summary class="ayuda-ico" title="Qué se llena acá y qué se deduce">i</summary>
+      <div class="ayuda-caja">
+      <b>Los tres nombres.</b> Van separados a propósito: es lo que permite ordenar por
+      apellido y armar planillas con columnas. El nombre entero se arma solo con los tres, y
+      si una importación trae el nombre entero y no los tres, se parte solo.
+      <br><br>
+      <b>El apellido materno es opcional.</b> No todo el mundo tiene dos.
+      <br><br>
+      <b>Correo y RUT.</b> Los dos sirven para reconocer al trabajador en una importación
+      desde Excel, aunque el nombre no coincida. Por eso conviene tener los dos.
+      <br><br>
+      <b>AFP código y nombre.</b> Van los dos porque cada papel usa uno distinto: las
+      planillas y las importaciones usan el código, y la hoja de life, el contrato y las
+      cartas usan el nombre.
+      <br><br>
+      <b>Cargo para las planillas.</b> Es el texto que sale impreso y en la credencial. Se
+      completa solo con el cargo que elijas abajo, y se puede editar a mano.
+      <br><br>
+      <b>Grupo del cargo y Cargo del kit</b> son dos desplegables porque hay más de doscientos
+      cargos: primero se elige el grupo, y después el cargo de ese grupo.
+      <br><br>
+      El cargo es el que decide el kit y las charlas. El grupo se deduce de él, y por eso no
+      se guarda dos veces. Y quedan vacíos a propósito: adivinarlo desde el texto del cargo
+      es la forma fácil de mandarle a alguien la charla del oficio equivocado.
+      </div></details>
+    </h2>
+    <div class="w-seccion">
+      <h4>Datos personales</h4>
+      <div class="row w-campos">
+        <div><label class="obl">Código <span class="req">obligatorio</span></label><input id="w-code"></div>
+        <div><label class="obl">RUT <span class="req">obligatorio</span></label><input id="w-rut" placeholder="13.199.887-2"></div>
+        <div><label class="obl">Nombres <span class="req">obligatorio</span></label><input id="w-nombres"></div>
+        <div><label class="obl">Apellido paterno <span class="req">obligatorio</span></label><input id="w-apellido-paterno"></div>
+        <div><label>Apellido materno</label><input id="w-apellido-materno"></div>
+        <div class="ancho2"><label>Dirección</label><textarea id="w-direccion" rows="2" placeholder="Calle, número, comuna. O villa o población."></textarea></div>
+        <div><label>Teléfono</label><input id="w-phone"></div>
+        <div><label>Correo</label><input id="w-correo" type="email" placeholder="nombre@correo.cl"></div>
+        <input id="w-name" type="hidden">
+      </div>
+    </div>
+    <div class="w-seccion">
+      <h4>Datos de contratación</h4>
+      <div class="row w-campos">
+        <div><label>Empresa</label><select id="w-empresa"></select></div>
+        <div><label>Fecha de ingreso</label><input type="date" id="w-fecha-ingreso"></div>
+        <div><label>Grupo del cargo</label><select id="w-grupo" onchange="cambiarGrupoTrabajador()"><option value="">Sin asignar</option></select></div>
+        <div>
+          <label>Cargo <details class="ayuda"><summary class="ayuda-ico" title="Qué es el cargo y qué hace">i</summary>
+          <div class="ayuda-caja">
+          <b>El cargo decide el kit.</b> Según el cargo se asigna el kit de inicio: los elementos
+          de seguridad y las charlas que corresponden a ese oficio.
+          <br><br>
+          <b>El grupo se deduce del cargo.</b> Por eso no se escribe aparte: si se escribiera,
+          el cargo podría ser de una cosa y el grupo de otra, y nadie sabría cuál manda.
+          <br><br>
+          <b>Si no hay un cargo igual al de la persona, créalo abajo.</b> Un cargo inventado con
+          el mismo nombre de otro oficio mandaría el kit equivocado.
+          </div></details></label>
+          <select id="w-cargo" onchange="completarCargoEnElTexto()"><option value="">Sin asignar (solo los papeles generales)</option></select>
+          <small style="display:block;margin-top:6px"><a href="#" id="enlaceCrearEspecialidad" style="font-size:.78rem" onclick="irACrearEspecialidad(event)">No está el cargo? Crear uno</a></small>
+        </div>
+        <!--
+        AFP Y SALUD
+        ===========
+        Piden que se elijan de una lista, con el codigo PREVIRED que se guarda solo. Eso se
+        hace cuando esten los codigos, y no antes.
+
+        Y NO se quitan los campos actuales mientras tanto: "workerToDb" y "dbToWorker" los leen,
+        y las exportaciones tambien. Un campo que se saca del HTML y queda en el JavaScript no
+        da error: simplemente deja de guardar ese dato, en silencio. Ver [orden-03].
+        -->
+        <div><label>AFP código</label><input id="w-afp-codigo" placeholder="AFPH"></div>
+        <div><label>AFP nombre</label><input id="w-afp-nombre" placeholder="AFP Habitat"></div>
+        <div><label>Tipo de trabajador</label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="subcontrato">Subcontrato</option></select></div>
+        <div><label>Cargo para las planillas</label><input id="w-spec"></div>
+      </div>
+      <div class="row">
+        <div><label><input type="checkbox" id="w-is-supervisor" style="width:auto;display:inline-block;margin-right:6px">Este trabajador es supervisor</label></div>
+      </div>
+    </div>
+    
+<div class="photoRow">
+      <div class="photoBox">
+        <label>Foto casual (ingreso)</label>
+        <img id="pre-casual" alt="">
+        <label class="fileLabel" for="w-casual">Elegir foto casual</label>
+        <input type="file" accept="image/*" id="w-casual">
+      </div>
+      <div class="photoBox">
+        <label>Foto con implementos de seguridad</label>
+        <img id="pre-safety" alt="">
+        <label class="fileLabel" for="w-safety">Elegir foto de seguridad</label>
+        <input type="file" accept="image/*" id="w-safety">
+      </div>
+    </div>
+    <!--
+    LA LUPA DE LAS FOTOS
+    ====================
+    Una sola, para todas las fotos, en vez de una por caja. Y se pone una vez acá, en el
+    cuerpo, y no dentro de cada ".photoBox": si estuviera adentro habría que volver a
+    ponerla cada vez que alguien agrega un lugar donde se toma una foto, y la forgets.
+
+    Sale con "hidden" y no con "display:none" en el estilo, porque "display" lo pisa el
+    "display:flex" de "#lupaFoto" y la lupa quedaría abierta siempre, invisible pero
+    tapando los clics de toda la página. Eso ya pasó con otra cosa en este proyecto.
+    -->
+    <div id="lupaFoto" hidden>
+      <img id="lupaFotoImg" alt="">
+      <div class="lupa-pie">Clic en cualquier parte para cerrar</div>
+    </div>
+    <small id="photoHint"></small>
+
+    <fieldset>
+      <legend>Contacto de emergencia</legend>
+      <div class="row">
+        <div><label>Nombre del contacto</label><input id="w-emerg-name"></div>
+        <div><label>Teléfono</label><input id="w-emerg-phone"></div>
+        <div><label>Relación</label><input id="w-emerg-rel" placeholder="ej. cónyuge, madre"></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Información de prevención (uso interno)</legend>
+      <label>Condiciones de salud relevantes (ej. hipertensión, diabetes, alergias)</label>
+      <textarea id="w-salud"></textarea>
+      <label>Medicamentos que toma</label>
+      <textarea id="w-medicamentos"></textarea>
+      <label>Precauciones a considerar en obra</label>
+      <textarea id="w-precauciones"></textarea>
+    </fieldset>
+
+    <button class="btn" onclick="saveWorker()">Guardar trabajador</button>
+    <button class="btn secondary" onclick="printTemp()">Imprimir temporal (frente y reverso)</button>
+    <small>La temporal usa la foto casual y los datos ingresados. Imprime frente y reverso juntos, dobla por la línea central y plastifica. La definitiva se genera en "Tarjeta" con la foto de EPP.</small>
+  </div>
+</section>
+
+<section class="view v-administracion" id="v-listado-trabajadores">
+  <div class="card">
+    <h2>Listado de trabajadores</h2>
+    <div id="dupNamesWarn"></div>
+    <div class="row">
+      <div><label>Buscar</label><input id="workerSearch" placeholder="Código o nombre" oninput="renderList()"></div>
+      <div><label>Estado</label><select id="workerStatusFilter" onchange="renderList()"><option value="">Todos</option><option value="activo">Activos</option><option value="desvinculado">Desvinculados</option></select></div>
+      <div><label>Supervisor</label><select id="workerSupervisorFilter" onchange="renderList()"><option value="">Todos</option></select></div>
+      <div><label>Ordenar por</label><select id="workerSort" onchange="renderList()">
+        <option value="nombre">Nombre</option>
+        <option value="codigo">Código</option>
+      </select>
+      <small>Por código se ordena numéricamente: 0007 antes que 0021, no al revés.</small></div>
+    </div>
+    <div id="workerList"></div>
+  </div>
+</section>
+
+<section class="view v-administracion" id="v-asignar-supervisor">
+  <div class="card">
+    <h2>Asignar supervisor</h2>
+    <div class="row">
+      <div><label>Trabajador</label><select id="trans-worker" onchange="updateSupervisorAssignment()"></select></div>
+      <div><label>Supervisor responsable</label><select id="trans-supervisor"></select></div>
+    </div>
+    <button class="btn" onclick="trasladarTrabajador()">Guardar asignación</button>
+  </div>
+</section>
+
+<!--
+LA FICHA PERSONAL
+=================
+Todos los datos de un trabajador en una pantalla, cada uno con su boton
+para copiarlo.
+
+POR QUE EXISTE, Y POR QUE NO ES SOLO "EXPORTAR"
+---------------------------------------------
+Porque hay dos clases de sistema de remuneraciones, y para uno de los dos
+no hay boton de exportar que sirva:
+
+  - los que aceptan importar un archivo: se le da el archivo
+  - los que NO aceptan: hay que abrir el sistema, buscar el campo, y
+    escribir el dato a mano
+
+Para el segundo, copiar el campo y pegarlo es la unica manera. Y para
+que eso sirva, el boton tiene que estar al lado del dato, no en una
+barra de herramientas arriba: si hay que buscarlo, se deja de usar a las
+veces.
+
+ADEMAS SIRVE PARA ARCHIVAR
+-------------------------
+Una hoja con todo el papel de una persona junta: sus datos, su contrato,
+su induccion, su derecho a saber. Eso es lo que se guarda en la carpeta
+del trabajador, y lo que se pide cuando hay que ver que paso con una
+persona hace tres años.
+
+LA LISTA DE CAMPOS ESTA EN UN SOLO LADO
+--------------------------------------
+En CAMPOS_FICHA, en el codigo. La pantalla la usa para pintarse, y la
+descarga la usa para escribir el archivo. No hay dos listas, y por eso no
+pueden separarse: si un campo esta en la pantalla, esta en el archivo,
+porque salen del mismo lugar.
+-->
+<section class="view v-administracion" id="v-ficha-trabajador">
+  <div class="card">
+    <h2 id="fichaTitulo">Ficha del trabajador</h2>
+    <div class="fichaHerramientas">
+      <select id="fichaSelector" onchange="abrirFichaTrabajador(this.value)"></select>
+      <button type="button" class="btn primary" onclick="copiarFichaCompleta(this)">Copiar todo</button>
+      <button type="button" class="btn secondary" onclick="descargarFichaFormato()">Descargar ficha</button>
+    </div>
+    <p id="fichaResumen"></p>
+    <div id="fichaCuerpo"></div>
+    <div id="fichaAviso" role="status" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="view v-administracion" id="v-carga-csv-trabajadores">
+  <div class="card">
+    <h2>Carga masiva de trabajadores</h2>
+    <small>Cada campo debe ocupar su propia columna. Se aceptan archivos separados por coma o punto y coma. Las columnas obligatorias son <b>codigo</b> y <b>nombre</b>; también puedes incluir cargo, telefono, fecha_ingreso, es_supervisor, codigo_supervisor y datos de emergencia.</small>
+    <div class="row">
+      <div><label>Archivo CSV</label><input type="file" id="workersCsvFile" accept=".csv,text/csv"></div>
+    </div>
+    <button class="btn" onclick="importWorkersCsv()">Importar trabajadores</button>
+    <button class="btn secondary" onclick="downloadWorkersCsvTemplate()">Descargar plantilla CSV</button>
+    <div id="workersCsvMsg" role="status" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="view v-soporte" id="v-empresa">
+  <div class="card">
+    <h2>Empresas</h2>
+    <small>Cada trabajador pertenece a una empresa. Quien usa el sistema solo ve los trabajadores de las empresas que tenga asignadas.</small>
+    <div id="empNuevaWrap"><button class="btn" type="button" onclick="nuevaEmpresa()">+ Nueva empresa</button></div>
+    <div id="empList" style="margin-top:12px"></div>
+  </div>
+  <div class="card" id="empForm">
+    <h2 id="empFormTitle">Nueva empresa</h2>
+    <div class="row">
+      <div><label>Nombre de la empresa</label><input id="emp-name"></div>
+      <div><label>RUT</label><input id="emp-rut" placeholder="76.543.210-9"></div>
+    </div>
+    <div class="row">
+      <div><label>Giro / a qué se dedica</label><input id="emp-giro" placeholder="Construcción, montaje industrial…"></div>
+      <div><label>Dirección</label><input id="emp-direccion"></div>
+    </div>
+    <div class="row">
+      <div><label>Teléfono</label><input id="emp-telefono"></div>
+      <div><label>Email</label><input id="emp-email" type="email"></div>
+      <div><label>Sitio web</label><input id="emp-web"></div>
+    </div>
+    <div class="row">
+      <div><label>Hora de entrada</label><input type="time" id="emp-hora-entrada"></div>
+      <div><label>Hora de salida</label><input type="time" id="emp-hora-salida">
+        <small style="display:block;color:var(--muted);font-size:.72rem">Sin hora de salida solo se puede medir el atraso, no la salida. Vacío = no se controla.</small></div>
+      <div><label>Tolerancia (minutos)</label><input type="number" min="0" step="1" id="emp-tolerancia"></div>
+      <div><label>Inicio de la colación</label><input type="time" id="emp-colacion-inicio">
+        <small style="display:block;color:var(--muted);font-size:.72rem">Vacío = la empresa no controla la colación y el reporte lo dice así, en vez de inventar una.</small></div>
+      <div><label>Duración de la colación (min)</label><input type="number" min="0" max="240" step="5" id="emp-colacion-duracion"></div>
+    </div>
+    <div class="row">
+      <div style="flex:1">
+        <label>Logo</label>
+        <input type="file" accept="image/*" id="emp-logo" onchange="avisarTamanoLogo()">
+        <div id="emp-logo-aviso"></div>
+        <small style="display:block;margin-top:3px">
+          Aparece en las credenciales nuevas. Las ya impresas no cambian.
+        </small>
+      </div>
+      <div style="display:flex;align-items:flex-end">
+        <label style="width:auto;display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <input type="checkbox" id="emp-activa" style="width:auto" checked> Empresa activa
+        </label>
+      </div>
+    </div>
+    <img id="emp-logo-preview" style="max-height:60px;margin-top:8px">
+    <input type="hidden" id="emp-id">
+    <div class="row">
+      <button class="btn" type="button" onclick="saveEmpresa()">Guardar empresa</button>
+      <button class="btn secondary" type="button" onclick="revisarMigraciones()">Revisar migraciones</button>
+    </div>
+    <div id="empDiag" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>Empresas por usuario del sistema</h2>
+    <small>Marca qué empresas puede ver cada persona. Quien tenga el rol Administración ve todas sin necesidad de asignarlas.</small>
+    <div id="perfilEmpresasList"></div>
+  </div>
+</section>
+
+<section class="view v-soporte" id="v-usuarios">
+  <div class="card">
+    <h2>Usuarios del sistema</h2>
+    <small>Para agregar un usuario nuevo, invítalo desde el panel de Supabase
+      (Authentication → Users → Invite user). En cuanto acepte (o incluso antes,
+      apenas se le invita) aparecerá aquí para que le asignes su rol y lo actives.</small>
+    <div id="usuariosList" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<section class="view v-soporte" id="v-invitar-usuario">
+  <div class="card">
+    <h2>Invitar usuario</h2>
+    <small>Escribes el correo y le dejas los permisos. La persona recibe un enlace, se registra con su
+      contraseña y entra con lo que le hayas marcado: no hay que tocar el panel de Supabase ni buscar
+      su cuenta a mano después.</small>
+
+    <div class="row" style="margin-top:14px">
+      <div><label>Correo</label><input type="email" id="inv-correo" placeholder="persona@empresa.cl"></div>
+      <div><label>Nombre completo</label><input id="inv-nombre" placeholder="Como aparecerá en la app"></div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label>Permisos (puedes marcar más de uno)</label>
+      <div id="inv-roles" style="border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:5px"></div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label>Ficha del trabajador <small style="color:var(--muted)">(opcional)</small></label>
+        <select id="inv-ficha">
+          <option value="">Sin ficha — ve todos los trabajadores</option>
+        </select>
+        <small style="display:block;color:var(--muted);font-size:.75rem;margin-top:3px">
+          Con ficha de supervisor, solo ve su equipo. Con ficha de cualquier otro trabajador, la app
+          puede mostrarle su propia asistencia.
+        </small>
+      </div>
+      <div><label>Empresa</label><select id="inv-empresa"></select>
+        <small style="display:block;color:var(--muted);font-size:.75rem;margin-top:3px">A qué empresa tendrá acceso.</small></div>
+      <div><label>Vence en</label><select id="inv-vence">
+        <option value="30">30 días</option>
+        <option value="15">15 días</option>
+        <option value="7">7 días</option>
+        <option value="">Sin vencimiento</option>
+      </select>
+        <small style="display:block;color:var(--muted);font-size:.75rem;margin-top:3px">Después de esa fecha el enlace deja de servir.</small></div>
+    </div>
+
+    <div style="margin-top:12px">
+      <label>Nota interna <small style="color:var(--muted)">(opcional)</small></label>
+      <input id="inv-notas" placeholder="Por ejemplo: entra a partir del lunes">
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <button class="btn" type="button" onclick="crearInvitacion()">Generar invitación</button>
+      <small id="invMsg" role="status" aria-live="polite"></small>
+    </div>
+
+    <div id="invResultado" style="margin-top:14px"></div>
+
+    <div class="card" style="margin-top:18px;border:1px dashed var(--line);background:transparent">
+      <h2 style="font-size:1rem">Correo de la obra</h2>
+      <small>Si configuraste el SMTP de Supabase, Soporte puede mandar la invitación por correo
+        con un clic. Sin eso, igual funciona: copias el enlace y se lo mandas por WhatsApp, correo
+        o en persona.</small>
+      <div class="row" style="margin-top:10px">
+        <button class="btn secondary" type="button" id="btnEnviarInv" onclick="enviarInvitacionPorCorreo()">
+          ✉ Enviar invitación por correo
+        </button>
+        <small id="invEnvioMsg" role="status" aria-live="polite"></small>
+      </div>
+      <div id="avisoSiteUrl" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Dar de alta sin correo</h2>
+    <small>La invitación por correo choca con el límite del proveedor de correos de Supabase: después
+      de unos pocos por hora responde <b>email rate limit exceeded</b> y la cuenta queda creada pero
+      <b>sin verificar</b>, con lo cual esa persona no puede entrar ("Email not confirmed"). Para dar
+      de alta a treinta personas eso no es lento, es bloqueado.</small>
+    <small style="display:block;margin-top:8px;color:var(--muted)">Esto no manda ningún correo: escribe
+      directo en la cuenta de Supabase y la deja verificada. <b>La clave se la entregas tú, en
+      persona</b>, y la persona debería cambiarla al entrar. Ten presente qué significa eso: la app
+      está afirmando que el correo es correcto sin que nadie lo compruebe. En una obra, donde el
+      jefe de turno le entrega el usuario en mano, es lo que corresponde; en un sistema abierto al
+      mundo, no lo sería.</small>
+
+    <div class="row" style="margin-top:14px">
+      <div><label>Correo</label><input type="email" id="alta-correo" placeholder="persona@empresa.cl"></div>
+      <div><label>Nombre completo</label><input id="alta-nombre" placeholder="Como aparecerá en la app"></div>
+    </div>
+
+    <div class="row" style="margin-top:12px;align-items:flex-end">
+      <div style="flex:1">
+        <label>Clave provisional <small style="color:var(--muted)">(mínimo 8 caracteres)</small></label>
+        <div class="pwdWrap">
+          <input type="text" id="alta-clave" placeholder="La que le vas a entregar en persona"
+                 autocomplete="off" style="font-family:ui-monospace,Consolas,monospace">
+          <button type="button" class="pwdToggle" onclick="generarClaveProvisional()">Generar</button>
+        </div>
+      </div>
+      <div style="flex:1">
+        <label>Correo nuevo <small style="color:var(--muted)">(solo si el de arriba está mal)</small></label>
+        <input type="email" id="alta-correo-nuevo" placeholder="El correcto, con la dirección real">
+      </div>
+    </div>
+    <small style="display:block;margin-top:6px;color:var(--muted);font-size:.78rem">Si el correo
+      estaba mal escrito, ningún correo de confirmación va a llegar nunca —esa dirección no existe—,
+      así que reenviar el enlace tampoco ayuda. Pon el correcto acá y pulsa
+      <b>Corregir correo</b>: la cuenta queda verificada con la nueva dirección y
+      <b>la clave sigue siendo la misma</b>. Avísale por otro medio, porque al cambiar el correo no se
+      le manda nada.</small>
+
+    <div class="row" style="margin-top:14px">
+      <button class="btn" type="button" id="btnAltaVerificar" onclick="verificarCuentaExistente()">✓ Verificar cuenta existente</button>
+      <button class="btn" type="button" id="btnAltaCrear" onclick="crearCuentaConClave()">🔑 Crear cuenta con clave</button>
+      <button class="btn secondary" type="button" id="btnAltaClave" onclick="reiniciarClaveCuenta()">♻ Cambiar clave</button>
+      <button class="btn secondary" type="button" id="btnAltaCorreo" onclick="corregirCorreoCuenta()">✉ Corregir correo</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <small id="altaMsg" role="status" aria-live="polite"></small>
+    </div>
+
+    <div id="funcionesAviso" style="margin-top:12px"></div>
+
+    <div id="altaHistorial" style="margin-top:16px"></div>
+  </div>
+
+  <div class="card">
+    <h2>Invitaciones</h2>
+    <div id="invLista"></div>
+  </div>
+</section>
+
+<section class="view v-soporte" id="v-mi-perfil">
+  <div class="card">
+    <h2>Mis datos</h2>
+    <small>Así te ven los demás en el sistema. Si algo está mal, corrígelo tú mismo: no necesitas
+      pedirle permiso a un administrador.</small>
+    <div class="row" style="margin-top:12px">
+      <div><label>Nombre completo</label><input id="perfil-nombre"></div>
+      <div><label>Teléfono</label><input id="perfil-telefono" placeholder="Opcional"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn" type="button" onclick="guardarMiPerfil()">Guardar</button>
+      <small id="perfilMsg" role="status" aria-live="polite"></small>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Mis permisos</h2>
+    <div id="perfilPermisos"></div>
+  </div>
+</section>
+
+<section class="view v-soporte" id="v-soporte">
+  <div class="card">
+    <h2>Soporte del sistema</h2>
+    <div class="row">
+      <button class="btn" type="button" onclick="checkSupportConnection()">Comprobar conexión</button>
+      <button class="btn secondary" type="button" onclick="mostrarVersionDeLaApp()">Qué versión estoy viendo</button>
+      <small id="supportStatus" role="status" aria-live="polite">Estado de conexión no comprobado.</small>
+      <small id="soporteVersion" style="display:block;margin-top:6px;color:var(--muted);font-size:.72rem"></small>
+    </div>
+  </div>
+</section>
+
+<section class="view v-soporte" id="v-alertas-sociales">
+  <div class="card">
+    <h2>Alertas de Asistencia Social</h2>
+    <div id="socialAlertsList"></div>
+  </div>
+</section>
+
+<section class="view v-soporte" id="v-indicaciones-sociales">
+  <div class="card">
+    <h2>Indicaciones para trabajadores</h2>
+    <label for="socialInstructionWorker">Trabajador</label>
+    <select id="socialInstructionWorker" onchange="loadWorkerInstructions('social')"></select>
+    <label for="socialInstructionText">Indicación de Asistencia Social</label>
+    <textarea id="socialInstructionText" placeholder="Escribe las indicaciones para este trabajador"></textarea>
+    <button class="btn" onclick="saveWorkerInstructions('social')">Guardar indicación</button>
+    <div id="socialInstructionStatus" role="status" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="view v-prevencion" id="v-alertas-prevencion">
+  <div class="card">
+    <h2>Alertas de Prevención</h2>
+    <div id="preventionAlertsList"></div>
+  </div>
+</section>
+
+<section class="view v-prevencion" id="v-indicaciones-prevencion">
+  <div class="card">
+    <h2>Indicaciones para trabajadores</h2>
+    <label for="preventionInstructionWorker">Trabajador</label>
+    <select id="preventionInstructionWorker" onchange="loadWorkerInstructions('prevencion')"></select>
+    <label for="preventionInstructionText">Indicación de Prevención</label>
+    <textarea id="preventionInstructionText" placeholder="Escribe las indicaciones para este trabajador"></textarea>
+    <button class="btn" onclick="saveWorkerInstructions('prevencion')">Guardar indicación</button>
+    <div id="preventionInstructionStatus" role="status" aria-live="polite"></div>
+  </div>
+</section>
+
+<section class="view v-administracion" id="v-buscar-tarjeta">
+  <div class="card">
+    <label>Seleccionar trabajador</label>
+    <select id="cardSelect" onchange="renderCard()"></select>
+  </div>
+  <div class="card cardWrap" id="cardArea"></div>
+</section>
+
+<section class="view v-administracion" id="v-imprimir-tarjetas">
+  <div class="card">
+    <h2>Exportar PDF de tarjetas (varias a la vez)</h2>
+    <small>Las temporales salen por parejas, frente y reverso lado a lado, con línea central para doblar. Imprime al 100 %, dobla y corta cada tarjeta. Las definitivas mantienen la impresión dúplex por caras.</small>
+    <div class="row">
+      <div><label>Tipo</label><select id="pdf-tipo"><option value="definitiva">Definitiva (foto EPP)</option><option value="temporal">Temporal (foto casual)</option></select></div>
+    </div>
+    <div id="pdf-worker-checks" style="max-height:180px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;padding:8px;margin-top:6px"></div>
+    <button class="btn secondary" onclick="toggleAllPdfChecks(true)">Seleccionar todos</button>
+    <button class="btn secondary" onclick="toggleAllPdfChecks(false)">Ninguno</button>
+    <button class="btn" onclick="exportCardsPdf()">Generar PDF</button>
+    <div id="pdfMsg"></div>
+  </div>
+</section>
+
+
+<section class="view v-administracion v-porteria" id="v-porteria">
+  <div class="card">
+    <h2>Escaneo / búsqueda</h2>
+    <small>Escanea con el lector conectado (funciona como teclado), usa la cámara, o escribe el código y presiona Enter.</small>
+    <label>Código escaneado</label>
+    <input id="scanCode" onkeydown="if(event.key==='Enter')doScan()">
+    <div class="row">
+      <button class="btn" onclick="doScan()">Buscar</button>
+      <button class="btn secondary" id="camBtn" onclick="openQrCamera()">📷 Escanear con cámara</button>
+    </div>
+    <div id="scanResult"></div>
+  </div>
+</section>
+
+<section class="view v-administracion" id="v-solicitar-cambio">
+  <div id="solAviso" style="display:none;margin-bottom:12px"></div>
+  <div class="card">
+    <h2>Solicitar cambio de estado en la tarja</h2>
+    <small>Los supervisores y técnicos no modifican la tarja directamente: piden el cambio y RRHH lo aprueba. Ejemplo: pedir cambiar una <b>F</b> (falta) por <b>P</b> (permiso).</small>
+    <div class="row">
+      <div><label>Trabajador</label><select id="sol-worker" onchange="actualizarEstadoActual()"></select></div>
+      <div><label>Fecha</label><input type="date" id="sol-fecha" onchange="actualizarEstadoActual()"></div>
+      <div><label>Solicitar estado</label><select id="sol-estado"></select></div>
+    </div>
+    <div id="sol-estadoActual" class="kitResumen"></div>
+    <div class="row">
+      <div><label>Motivo (obligatorio)</label><input id="sol-motivo" placeholder="Ej. el trabajador presentó licencia médica"></div>
+      <div><label>Nota (opcional)</label><input id="sol-nota" placeholder="Ej. certificado en portería"></div>
+    </div>
+    <button class="btn" type="button" onclick="crearSolicitud()">Enviar solicitud a RRHH</button>
+    <div id="solPermisoHint" class="kitResumen"></div>
+  </div>
+  <div class="card" id="solAprobarWrap" style="display:none">
+    <h2>Aprobar aquí mismo</h2>
+    <small>Tienes permiso de aprobación, así que desde esta misma vista puedes resolver las solicitudes pendientes.</small>
+    <div id="solList"></div>
+  </div>
+  <div class="card">
+    <h2>Estado de las solicitudes</h2>
+    <div id="misSolList"></div>
+  </div>
+</section>
+
+<section class="view v-administracion" id="v-aprobar-cambio">
+  <div id="solAviso2" style="display:none;margin-bottom:12px"></div>
+  <div class="card">
+    <h2>Solicitudes pendientes de aprobación</h2>
+    <small>Al aprobar, el cambio se aplica a la tarja. Al rechazar queda registrado el motivo.</small>
+    <div id="solList2"></div>
+  </div>
+  <div class="card">
+    <h2>Historial de solicitudes resueltas</h2>
+    <div id="solResueltas"></div>
+  </div>
+  <div class="card">
+    <h2>Avisos de ingreso por confirmar</h2>
+    <small>Un supervisor marcó a un trabajador que no había fichado y dejó escrita la indicación.
+      Mientras no se confirme, es la palabra de una sola persona. Al confirmar queda registrado quién
+      lo revisó y cuándo, y el supervisor lo ve en su pantalla.</small>
+    <div id="avisosIngresoBandeja" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>Bitácora de acceso al sistema</h2>
+    <small>Quién abrió la aplicación, cuándo y cuánto tiempo estuvo. Esto <b>no</b> es la asistencia
+      del trabajador: es el uso del sistema por parte de quien lo opera. No se guarda la dirección IP
+      porque el navegador no la puede leer y es un dato personal que no hace falta para esto.</small>
+    <div id="bitacoraList" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<section class="view v-soporte" id="v-empresas-cargos">
+  <h2 class="con-ayuda">Empresas: cargos, grupos y permisos
+  <details class="ayuda"><summary class="ayuda-ico" title="Qué son el grupo y el cargo">i</summary>
+  <div class="ayuda-caja">
+  El <b>grupo</b> es el área (Obra, Oficina, Bodega) y el <b>cargo</b> es el oficio (Maestro, Jorna, Ventas).
+  Un trabajador pertenece a un cargo, y el cargo se elige en dos desplegables: primero el grupo, después el cargo de ese grupo.
+  <br><br>
+  <b>Por qué el grupo no se guarda en el trabajador:</b> porque se deduce del cargo. Guardar los dos sería
+  guardar el mismo dato dos veces, y el día que alguien moviera un cargo de grupo sin actualizar a la gente que
+  lo tenía, el trabajador quedaría en un grupo con un cargo que no es de ese grupo. Eso no se ve hasta que la
+  persona recibe el EPP de otra área.
+  </div></details>
+  </h2>
+
+  <div class="card">
+    <div class="row" style="align-items:flex-end">
+      <div style="flex:1">
+        <label for="ecEmpresa">Empresa</label>
+        <select id="ecEmpresa" onchange="cargarEmpresasCargos()"></select>
+      </div>
+      <div>
+        <button class="btn" type="button" onclick="abrirImportarCargos()">Cargar lista de cargos</button>
+        <button class="btn secondary" type="button" onclick="cargarJerarquiaCargos(true).then(renderEmpresasCargos)">Actualizar</button>
+      </div>
+    </div>
+    <div id="ecAviso" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 class="con-ayuda">Grupos
+    <details class="ayuda"><summary class="ayuda-ico" title="Qué son los grupos">i</summary>
+    <div class="ayuda-caja">
+    Los grupos del catálogo. Se pueden agregar y dar de baja; los que se usan no se borran, quedan desactivados.
+    <br><br>Si un grupo desaparece de la lista es porque no hay ningún cargo en él, que es distinto
+    de que el grupo no exista.
+    </div></details></h3>
+    <div id="ecGrupos" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px;align-items:flex-end">
+      <div><label for="ecGrupoNombre">Nombre del grupo nuevo</label>
+        <input id="ecGrupoNombre" placeholder="Ej. Taller, Bodega, Servicios"></div>
+      <div><button class="btn secondary" type="button" onclick="crearGrupoDesdePantalla()">Crear grupo</button></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 class="con-ayuda">Cargos de esta empresa
+    <details class="ayuda"><summary class="ayuda-ico" title="Qué pasa al activar un cargo">i</summary>
+    <div class="ayuda-caja">
+    Lo que esta empresa ofrece. Los cargos de la lista maestra se pueden activar o desactivar por empresa.
+    <br><br>Lo que determina el EPP y las charlas es el <b>cargo</b>, no el grupo.
+    <br><br>Desactivar un cargo lo saca del desplegable del ingreso, pero no borra a nadie: los trabajadores
+    que lo tienen lo conservan, y el EPP y las charlas ya entregadas siguen en el historial.
+    </div></details></h3>
+    <div id="ecCargos" style="margin-top:10px"></div>
+    <!--
+    EL ALTA DE UN CARGO
+    ===================
+    El grupo se podía crear en línea y el cargo no. Y el cargo es lo que decide el EPP y las
+    charlas, así que un cargo que no existe es un trabajador con el EPP de otro.
+
+    Por eso el grupo NO es un campo libre: es un desplegable con los que ya están, más una
+    entrada para crear uno. Con campo libre, un error de tipeo deja un grupo basura en el
+    catálogo, y ese grupo basura aparece después en el primer desplegable del ingreso como si
+    fuera un área real.
+
+    Y la clave la arma la base, no la pantalla: el mismo nombre escrito de dos formas tiene
+    que dar el mismo cargo, no dos.
+    -->
+    <div class="row" style="margin-top:10px;align-items:flex-end">
+      <div><label for="ecCargoGrupo">Grupo del cargo nuevo</label>
+        <select id="ecCargoGrupo" onchange="alCambiarGrupoDelCargoNuevo()"></select></div>
+      <div id="ecGrupoNuevoCaja" style="display:none">
+        <label for="ecGrupoNuevo">Nombre del grupo nuevo</label>
+        <input id="ecGrupoNuevo" placeholder="Ej. Taller, Servicios,Bodega"></div>
+      <div><label for="ecCargoNombre">Nombre del cargo nuevo</label>
+        <input id="ecCargoNombre" placeholder="Ej. Soldador, Maestro de obra"
+          onkeydown="if(event.key==='Enter'){crearCargoDesdePantalla();return false;}"></div>
+      <div><button class="btn secondary" type="button" onclick="crearCargoDesdePantalla()">Crear cargo</button></div>
+    </div>
+    <small style="color:var(--muted)">El cargo se guarda con su nombre en minúsculas como clave,
+      igual que los que ya están. El EPP y las charlas se eligen por cargo, así que conviene
+      nombrarlo como lo llaman en la obra.</small>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3>Permisos de esta empresa</h3>
+    <small>Qué puede ver y hacer esta empresa. Se marca por rol; un usuario con
+    variosRoles tiene la unión de todos. El rol Administración siempre tiene
+    acceso total.</small>
+    <div id="ecPermisos" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!--
+LA VENTANA DE CARGA DE CARGOS
+============================
+Un textarea y no un botón de archivo, porque la lista casi siempre viene de
+una columna de un Excel que ya está pegado en un correo o en una hoja. Y
+porque desde un teléfono, que es desde donde se configura esto muchas veces, no
+se puede elegir un archivo.
+
+Un hecho por línea, o separadas por punto y coma:
+
+    maestro
+    jorna
+    ayudante
+    ventas;ventas
+
+La clave sale del nombre siempre igual, sin tildes y en minúsculas, así que
+"Gasfitería" y "GASFIT" dan la misma clave. Y volver a cargar la misma lista no
+duplica nada: la base lo sabe y lo cuenta.
+-->
+<div id="dlgCargos" class="dialog">
+  <div class="dialog-caja" style="max-width:620px">
+    <h3>Cargar la lista de cargos</h3>
+    <small>Un cargo por línea. Si pones "nombre;clave" la clave se respeta.
+    Si la dejas, se arma sola y siempre igual.</small>
+    <textarea id="cargosTexto" rows="10" style="width:100%;margin-top:8px"
+      placeholder="maestro&#10;jorna&#10;ayudante&#10;ventas"></textarea>
+    <div id="cargosAviso" style="margin-top:8px;min-height:1.4em"></div>
+    <div class="row" style="margin-top:10px;justify-content:flex-end">
+      <button class="btn secondary" type="button" onclick="cerrarDialogoCargos()">Cancelar</button>
+      <button class="btn" type="button" id="cargosGuardar" onclick="importarCargosDesdePantalla()">Cargar</button>
+    </div>
+  </div>
+</div>
+
+<section class="view v-soporte" id="v-permisos">
+  <div class="card">
+    <h2>Permisos por rol</h2>
+    <small>Marca qué puede ver y hacer cada rol. El rol <b>Administración</b> siempre tiene acceso total. Un usuario puede tener varios roles, y sus permisos son la unión de todos.</small>
+    <div id="permisosGrid"></div>
+  </div>
+</section>
+
+<section class="view v-administracion" id="v-asistencia">
+  <div class="attendance-tabs" role="tablist" aria-label="Opciones de asistencia">
+<button type="button" class="active" role="tab" aria-selected="true" data-attendance-tab="tarja"><span class="pest-txt">Tarja mensual</span></button>
+<button type="button" role="tab" aria-selected="false" data-attendance-tab="marcaje"><span class="pest-txt">Registrar marcaje</span></button>
+<button type="button" role="tab" aria-selected="false" data-attendance-tab="justificar"><span class="pest-txt">Justificar inasistencia / permiso / licencia</span></button>
+<button type="button" role="tab" aria-selected="false" data-attendance-tab="excel"><span class="pest-txt">Cargar asistencia desde Excel</span></button>
+  </div>
+  <div class="card attendance-panel active" role="tabpanel" data-attendance-panel="tarja">
+    <h2>Tarja mensual</h2>
+    <div class="row">
+      <div><label>Año</label><input type="number" id="matYear"></div>
+      <div><label>Mes</label><select id="matMonth" onchange="renderMatrix()">
+        <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+        <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select></div>
+    </div>
+    <div class="row">
+      <div><label>Filtrar supervisor</label><select id="matSupervisorFilter" onchange="updateAttendanceWorkerFilter()"><option value="">Todos los supervisores</option></select></div>
+      <div><label>Filtrar trabajador</label><select id="matWorkerFilter" onchange="renderMatrix()"><option value="">Todos los trabajadores</option></select></div>
+      <div><label>Mostrar solo quienes tienen</label><select id="matEstadoFiltro" onchange="renderMatrix()">
+        <option value="">Todo el equipo</option>
+        <option value="F">Faltas (F)</option>
+        <option value="P">Permisos o licencias (P, L, A, PP, V)</option>
+        <option value="vacio">Días vacíos sin marcar</option>
+        <option value="todoX">Todo en X, sin huecos</option>
+      </select>
+      <small id="matEstadoFiltroMsg" style="font-size:.75rem;color:var(--muted)"></small></div>
+    </div>
+    <div class="row">
+      <button class="btn secondary" type="button" onclick="openQrCamera('attendance-supervisor')">Escanear QR supervisor</button>
+      <button class="btn secondary" type="button" onclick="openQrCamera('attendance-worker')">Escanear QR trabajador</button>
+      <div><label>Generar tarja</label><button class="btn secondary" type="button" onclick="renderMatrix()">Generar tarja</button></div>
+    </div>
+    <div class="kitResumen" id="tarjaPermisoHint"></div>
+    <label>Agregar feriado adicional (fecha)</label>
+    <input type="date" id="addHoliday">
+    <button class="btn secondary" onclick="addHoliday()">Agregar feriado</button>
+    <div class="overflow"><div id="matrixArea"></div></div>
+  </div>
+  <div class="card attendance-panel" role="tabpanel" data-attendance-panel="marcaje">
+    <h2>Registrar marcaje manual</h2>
+    <small>La fecha y la hora se ponen solas: hoy, y la hora que sea en ese momento. Si necesitas otra hora, cámbiala a mano.</small>
+    <label>Escanear tarjeta, o escribir código o nombre</label>
+    <input id="man-buscar" onkeydown="if(event.key==='Enter'){event.preventDefault();buscarParaMarcajeManual();}" placeholder="Escaneá la tarjeta, o escribí 021 o parte del nombre" autocomplete="off">
+    <div class="row">
+      <button class="btn secondary" type="button" onclick="buscarParaMarcajeManual()">Buscar</button>
+      <button class="btn secondary" type="button" onclick="openQrCamera('marcaje-manual')">📷 Escanear con cámara</button>
+    </div>
+    <div id="man-buscar-msg"></div>
+    <div class="row">
+      <div><label>Trabajador</label><select id="man-worker"></select></div>
+      <div><label>Fecha</label><input type="date" id="man-fecha"></div>
+      <div><label>Hora de llegada</label><input type="time" id="man-hora"></div>
+    </div>
+    <div class="row">
+      <button class="btn" onclick="marcajeManual()">Registrar marcaje</button>
+      <button class="btn secondary" type="button" onclick="prepararMarcajeManual()">Poner la hora de ahora</button>
+    </div>
+  </div>
+  <div class="card attendance-panel" role="tabpanel" data-attendance-panel="justificar">
+    <h2>Justificar inasistencia / permiso / licencia</h2>
+    <small>Úsalo después del marcaje masivo para justificar a quien no marcó, o para cargar de una vez un permiso/licencia de varios días.</small>
+    <div class="row">
+      <div><label>Trabajador</label><select id="just-worker" onchange="showJustSupervisor()"></select></div>
+      <div><label>Estado</label><select id="just-estado">
+        <option value="LL">LL — Día lluvia</option>
+        <option value="F">F — Falla</option>
+        <option value="P">P — Permiso</option>
+        <option value="L">L — Licencia</option>
+        <option value="A">A — Accidente Mutual</option>
+        <option value="PP">PP — Permiso Pagado</option>
+        <option value="V">V — Vacaciones</option>
+      </select></div>
+    </div>
+    <div id="just-supervisor-info"></div>
+    <div class="row">
+      <div><label>Desde</label><input type="date" id="just-desde"></div>
+      <div><label>Hasta</label><input type="date" id="just-hasta"></div>
+    </div>
+    <label>Nota (opcional)</label>
+    <input id="just-nota">
+    <!-- El aviso de "ya puse el trabajador y la fecha". El código lo escribía
+         desde antes de que este elemento existiera, así que nunca se vio: la
+         función comprueba que esté y, si no está, no pasa nada. -->
+    <div id="justMsg"></div>
+    <button class="btn" onclick="justificar()">Justificar rango</button>
+  </div>
+  <div class="card attendance-panel" role="tabpanel" data-attendance-panel="excel">
+    <h2>Cargar asistencia desde Excel</h2>
+    <small>Columnas esperadas: codigo, fecha (AAAA-MM-DD), estado (X/F/P/L/A/PP/V) u hora_llegada, nota (opcional). Si viene un permiso/licencia de varios días ya cargado así, quedan justificados automáticamente.</small>
+    <input type="file" id="attFile" accept=".xlsx,.xls,.csv">
+    <button class="btn" onclick="loadAttendance()">Cargar registros</button>
+    <div id="loadMsg"></div>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-epp">
+  <div class="card">
+    <h2>Entrega de EPP / materiales</h2>
+    <small>Busca al trabajador (escribe el código, usa el lector o escanea la tarjeta con la cámara), agrega los elementos entregados y pídele que firme en el recuadro.</small>
+    <div class="row">
+      <div><label>Trabajador</label><select id="epp-worker"></select></div>
+      <div><label>Fecha</label><input type="date" id="epp-fecha"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn secondary" type="button" onclick="openQrCamera('epp-worker')">📷 Escanear tarjeta</button></div>
+    </div>
+    <div id="eppWorkerHint"></div>
+
+    <div class="eppInicialBar">
+      <label><input type="checkbox" id="epp-inicial"> <b>Es entrega inicial</b> (kit completo del oficio)</label>
+      <span class="cargoTag" id="eppCargoTag"></span>
+      <button class="btn secondary" type="button" id="eppKitBtn" onclick="addEppCargoKit()" style="display:none">Agregar kit del cargo</button>
+    </div>
+
+    <label>Dónde se entrega (opcional)</label>
+    <div class="row" style="gap:8px">
+      <div><label>Pasillo</label><input id="epp-pasillo" placeholder="Ej. P-4"></div>
+      <div><label>Sector</label><input id="epp-sector" placeholder="Ej. Taller de gasfitería"></div>
+      <div><label>Nivel</label><input id="epp-nivel" placeholder="Ej. Planta baja"></div>
+    </div>
+    <div id="eppScanAviso"></div>
+    <small>Estos tres campos se pueden dejar vacíos: hay entregas que no son en un punto fijo, como una entrega inicial que se hace en la propia obra.</small>
+
+    <div class="eppItemsCabecera">
+      <span class="eppItemsTitulo">Elementos entregados
+        <details class="ayuda"><summary class="ayuda-ico" title="Cómo se agrega un elemento">i</summary>
+        <div class="ayuda-caja">
+        Cada fila es un elemento con su <b>talla</b> y su <b>cantidad</b>. La cantidad es
+        cuántos se entregan de ese elemento, no cuántas filas son.
+        <br><br>
+        <b>Escanear</b> pone el elemento en la <b>primera fila que esté vacía</b>, y si
+        todas tienen algo, agrega una fila nueva. No pregunta en qué fila va: la fila
+        vacía es la que se está usando de todas maneras.
+        <br><br>
+        Un elemento que no está en el catálogo entra igual, como carga manual, y
+        avisa arriba para que se dé de alta en el catálogo.
+        </div></details>
+      </span>
+      <button class="btn secondary eppScanBtn" type="button"
+        data-dato="Escanear el código de un elemento y ponerlo en la primera fila vacía"
+        onclick="openQrCamera('epp-item:nueva')">
+        <svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M3 5v14"/><path d="M8 5v14"/><path d="M12 5v14"/><path d="M17 5v14"/><path d="M21 5v14"/><line x1="6" y1="12" x2="6" y2="12.01"/><line x1="14" y1="12" x2="14" y2="12.01"/></svg>
+        Escanear
+      </button>
+    </div>
+    <div class="eppItems">
+      <div class="eppItemRow eppItemHead">
+        <div>Elemento (código)</div><div>Detalle</div><div>Talla</div><div>Cantidad</div><div></div>
+      </div>
+      <div id="eppItemRows"></div>
+    </div>
+    <button class="btn secondary" type="button" onclick="addEppItemRow()">+ Agregar otro elemento</button>
+
+    <div class="eppFirma">
+      <div>
+        <label>Firma del trabajador</label>
+        <div class="sigPadWrap" id="sigPadWrap">
+          <canvas id="sigPad"></canvas>
+          <div class="sigPadHint">Firme aquí con el dedo o el mouse<br><small>Confirma recibir los elementos indicados</small></div>
+        </div>
+        <div class="sigPadBar">
+          <button class="btn secondary" type="button" onclick="clearSignature()">Limpiar firma</button>
+          <button class="btn secondary" type="button" onclick="captureGps()">📍 Capturar ubicación de nuevo</button>
+          <span id="sigStamp" style="font-size:.75rem;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div>
+        <label>Ubicación y hora de la firma</label>
+        <div class="gpsBox">
+          <div id="gpsStatus" style="font-size:.8rem;color:var(--muted)">Se toma sola cuando el trabajador empieza a firmar.</div>
+          <div class="gpsVal" id="gpsVal" style="margin-top:6px">—</div>
+        </div>
+        <label>Observación (opcional)</label>
+        <input id="epp-obs" placeholder="Ej. entrega en obra, recambio por talla">
+        <small>La firma y la ubicación quedan respaldadas en el PDF de cada entrega.</small>
+      </div>
+    </div>
+
+    <button class="btn" type="button" onclick="saveEpp()" id="eppSaveBtn">Guardar entrega y generar PDF</button>
+    <span id="eppSaveMsg" style="margin-left:10px;font-size:.8rem"></span>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-kits">
+  <div class="card">
+    <h2>1. Asignar kit al ingresar un trabajador</h2>    <small>Al contratar a alguien se le asigna un kit de su especialidad. Queda una lista de control con el estado de cada elemento para poder entregarlos de a uno, de varios o de todos.</small>
+    <div class="row">
+      <div><label>Trabajador</label><select id="kit-worker"></select></div>
+      <div><label>Especialidad</label><select id="kit-esp" onchange="fillKitSelects()"></select></div>
+      <div><label>Kit</label><select id="kit-select"></select></div>
+      <div><label>Fecha de asignación</label><input type="date" id="kit-fecha"></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn secondary" type="button" onclick="openQrCamera('kit-worker')">📷 Escanear tarjeta</button>
+        <button class="btn" type="button" onclick="asignarKit()">Asignar kit</button>
+      </div>
+    </div>
+    <div id="kitWorkerHint"></div>
+    <div id="kitPreview"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Entregar elementos del kit</h2>
+    <small>Marca los elementos pendientes que se entregan ahora y el trabajador firma. Puedes entregar de a uno o de varios; el kit queda completo cuando todos están entregados.</small>
+    <div class="row">
+      <div><label>Asignación abierta</label><select id="kitAsigSel" onchange="renderKitEntrega()"></select></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn secondary" type="button" onclick="marcarTodosPendientes(true)">Marcar todos</button>
+        <button class="btn secondary" type="button" onclick="marcarTodosPendientes(false)">Ninguno</button>
+      </div>
+    </div>
+    <div id="kitProgreso"></div>
+    <div class="eppItems">
+      <!-- la cabecera usa la misma rejilla que las filas (kitFila, 6 columnas)
+           para que cada rótulo caiga sobre su columna -->
+      <div class="kitFila kitHead">
+        <div style="width:34px">✓</div><div>Elemento</div><div>Talla</div>
+        <div>Cant.</div><div style="text-align:center">Total</div><div>Estado</div>
+      </div>
+      <div id="kitEntregaRows"></div>
+    </div>
+
+    <div class="eppFirma">
+      <div>
+        <label>Firma del trabajador</label>
+        <div class="sigPadWrap" id="sigPadWrapKit">
+          <canvas id="sigPadKit"></canvas>
+          <div class="sigPadHint">Firme aquí con el dedo o el mouse<br><small>Confirma recibir los elementos marcados</small></div>
+        </div>
+        <div class="sigPadBar">
+          <button class="btn secondary" type="button" onclick="clearSignature('Kit')">Limpiar firma</button>
+          <button class="btn secondary" type="button" onclick="captureGps('Kit')">📍 Capturar ubicación</button>
+          <span id="sigStampKit" style="font-size:.75rem;color:var(--muted)"></span>
+        </div>
+      </div>
+      <div>
+        <label>Ubicación de la entrega</label>
+        <div class="gpsBox">
+          <div id="gpsStatusKit" style="font-size:.8rem;color:var(--muted)">Sin ubicación capturada.</div>
+          <div class="gpsVal" id="gpsValKit" style="margin-top:6px">—</div>
+        </div>
+        <label>Observación (opcional)</label>
+        <input id="kit-obs" placeholder="Ej. entrega parcial, recambio por talla">
+      </div>
+    </div>
+
+    <label>Dónde se entrega (opcional)</label>
+    <div class="row" style="gap:8px">
+      <div><label>Pasillo</label><input id="kit-pasillo" placeholder="Ej. P-4"></div>
+      <div><label>Sector</label><input id="kit-sector" placeholder="Ej. Bodega central"></div>
+      <div><label>Nivel</label><input id="kit-nivel" placeholder="Ej. Planta baja"></div>
+    </div>
+    <button class="btn" type="button" onclick="entregarKitItems()" id="kitSaveBtn">Entregar marcados y generar PDF</button>
+    <span id="kitSaveMsg" style="margin-left:10px;font-size:.8rem"></span>
+  </div>
+
+  <div class="card">
+    <h2>3. Asignaciones de kit</h2>
+    <small>Historial de quién tiene qué kit asignado y cuánto lleva entregado.</small>
+    <div id="kitAsigList"></div>
+  </div>
+
+</section>
+
+<section class="view v-bodega" id="v-bodega-kits-admin">
+  <div class="card">
+    <h2>Administrar kits por especialidad</h2>
+    <small>Una especialidad puede tener varios kits (por ejemplo <b>Pintor A</b> y <b>Pintor B</b>). Define qué EPP lleva cada uno. Esto es solo configuración: la entrega y la firma van en "Asignar y entregar".</small>
+    <div class="row">
+      <div><label>Nombre de la especialidad</label><input id="esp-nombre" placeholder="Ej. Enlucidor, Hormigón"></div>
+      <div><label>Descripción</label><input id="esp-desc" placeholder="A qué se dedica"></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn" type="button" onclick="addEspecialidad()">Crear especialidad</button></div>
+    </div>
+    <div class="row" style="align-items:flex-start;margin-top:6px">
+      <div style="flex:0 0 260px;min-width:220px">
+        <label>Especialidades</label>
+        <div class="espList" id="espList"></div>
+      </div>
+      <div style="flex:0 0 230px;min-width:200px">
+        <label>Kits de la especialidad</label>
+        <div class="espList" id="kitAdminList"></div>
+        <div class="row" style="margin-top:8px">
+          <div><input id="kitNombre" placeholder="Nombre del kit (Pintor A)"></div>
+          <div style="display:flex;align-items:flex-end"><button class="btn secondary" type="button" onclick="addKitAdmin()">+ Kit</button></div>
+        </div>
+      </div>
+      <div>
+        <div id="kitDetalleAdmin"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-epp-catalogo">
+  <div class="card">
+    <h2>Catálogo de EPP</h2>
+    <small>Elementos que se pueden entregar. Se entrega precargado; agrega los que falten con un código corto y they'll disponibles en el formulario de entrega.</small>
+    <div class="row">
+      <div><label>Código</label><input id="cat-codigo" placeholder="CASCO-003"></div>
+      <div><label>Nombre</label><input id="cat-nombre"></div>
+      <div><label>Detalle</label><input id="cat-detalle"></div>
+      <div style="display:flex;align-items:flex-end"><label style="margin:0 0 8px;width:100%">Talla
+        <select id="cat-tipo-talla">
+          <option value="">No usa talla</option>
+          <option value="calzado">Calzado (tallas chilenas 35-45)</option>
+          <option value="ropa">Ropa (S a XXXL)</option>
+          <option value="general">General (Única)</option>
+        </select>
+      </label></div>
+    </div>
+    <button class="btn" type="button" onclick="addEppCatalogItem()">Agregar al catálogo</button>
+    <div id="eppCatalogList" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-historial">
+  <div class="card">
+    <h2>Historial de entregas EPP</h2>
+    <small>Una fila por trabajador. <b>Ver detalle</b> abre las entregas con sus ítems, la firma, el PDF y la ubicación.</small>
+    <div class="eppFiltros">
+      <div class="eppBuscar"><label>Buscar</label><input id="epp-buscar" placeholder="Nombre o código del trabajador" oninput="renderEppHistory()"></div>
+      <div><label>Trabajador</label><select id="epp-filter" onchange="renderEppHistory()"><option value="">Todos</option></select></div>
+      <div><label>Elemento EPP</label><select id="epp-filtro-item" onchange="renderEppHistory()"><option value="">Todos</option></select></div>
+      <div><label>Firma</label><select id="epp-filtro-firma" onchange="renderEppHistory()">
+        <option value="">Todas</option>
+        <option value="firmadas">Solo firmadas</option>
+        <option value="sinfirma">Solo sin firma</option>
+      </select></div>
+      <div><label>Desde</label><input type="date" id="epp-filtro-desde" onchange="renderEppHistory()"></div>
+      <div><label>Hasta</label><input type="date" id="epp-filtro-hasta" onchange="renderEppHistory()"></div>
+      <div style="display:flex;align-items:flex-end;gap:6px">
+        <button class="btn secondary" type="button" onclick="limpiarFiltrosEpp()">Limpiar</button>
+        <button class="btn secondary" type="button" onclick="openQrCamera('epp-historial')">📷 Escanear tarjeta</button>
+      </div>
+    </div>
+    <div id="eppHistory" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-catalogo">
+  <div class="card">
+    <h2>Catálogo de herramientas</h2>
+    <small>El código identifica el <b>tipo</b> de herramienta. Cada unidad física lleva su propio QR, que se emite en <b>QR / Etiquetas</b>.</small>
+    <div class="row">
+      <div><label>Código</label><input id="tool-codigo" placeholder="HER-001"></div>
+      <div><label>Nombre</label><input id="tool-name"></div>
+      <div><label>Precio (CLP)</label><input type="number" id="tool-price"></div>
+    </div>
+    <button class="btn" type="button" onclick="addTool()">Agregar al catálogo</button>
+    <div id="toolCatalog" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-asignar">
+  <div class="card">
+    <h2>Asignar herramienta a trabajador</h2>
+    <small>Se asigna una <b>unidad física</b> (con su QR), no solo el tipo. Al devolverla, esa etiqueta vuelve a quedar disponible.</small>
+    <div class="row">
+      <div><label>Trabajador (código)</label><select id="assign-worker"></select></div>
+      <div><label>Herramienta (código)</label><select id="assign-tool" onchange="fillAssignableUnits()"></select></div>
+      <div><label>Fecha</label><input type="date" id="assign-fecha"></div>
+    </div>
+    <div class="row">
+      <div><label>Unidad (QR)</label><select id="assign-unit"></select></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn" type="button" onclick="assignTool()">Registrar entrega de herramienta</button>
+        <button class="btn secondary" type="button" onclick="openQrCamera('tool-owner')">📷 Buscar por QR</button>
+      </div>
+    </div>
+    <div id="assignUnitInfo"></div>
+  </div>
+  <div class="card">
+    <div id="toolAssignments"></div>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-qr">
+  <div class="card">
+    <h2>QR / Etiquetas de herramientas y materiales</h2>
+    <small>Cada unidad física lleva un QR propio. Sirve para saber quién la tiene, y para anular la etiqueta si la herramienta se pierde o se descarta.</small>
+    <div class="row">
+      <div><label>Tipo de etiqueta</label><select id="qrTipo" onchange="fillQrCatalog()">
+        <option value="herramienta">Herramienta</option>
+        <option value="epp">Material / EPP</option>
+      </select></div>
+      <div><label>Elemento</label><select id="qrCatalogo"></select></div>
+      <div><label>Cantidad de unidades</label><input type="number" id="qrCantidad" value="1" min="1" max="50"></div>
+    </div>
+    <div class="qrAcciones">
+      <button class="btn" type="button" onclick="emitirQrUnidades()">Emitir etiquetas</button>
+      <button class="btn secondary" type="button" onclick="printQrLabels()">🖨 Imprimir hoja de etiquetas</button>
+      <button class="btn secondary" type="button" onclick="openQrCamera('tool-owner')">📷 Escanear una etiqueta</button>
+    </div>
+    <div id="qrMsg"></div>
+  </div>
+  <div class="card">
+    <h2>Etiquetas emitidas</h2>
+    <div class="row">
+      <div><label>Estado</label><select id="qrFiltroEstado" onchange="renderQrList()">
+        <option value="activa">Activas</option>
+        <option value="anulada">Anuladas</option>
+        <option value="">Todas</option>
+      </select></div>
+    </div>
+    <div class="qrGrid" id="qrList"></div>
+  </div>
+</section>
+
+<section class="view v-supervisores" id="v-supervisores">
+  <div class="card" id="supIntroCard">
+    <h2>Supervisores</h2>
+    <small>Los supervisores son trabajadores marcados con "Este trabajador es supervisor" en su ficha.</small>
+    <div id="supervisorList"></div>
+  </div>
+  <div class="card" id="supScopeCard" style="display:none">
+    <h2>Mi equipo</h2>
+    <small id="supScopeHint"></small>
+  </div>
+  <div class="card">
+    <h2>Tarja del personal de un supervisor</h2>
+    <div id="supSoloEqWrap" class="kitResumen" style="display:none"></div>
+    <div class="row">
+      <div id="supSelWrap"><label>Supervisor</label><select id="sup-view" onchange="renderSupervisorMatrix()"></select></div>
+      <div><label>Año</label><input type="number" id="supYear" onchange="renderSupervisorMatrix()"></div>
+      <div><label>Mes</label><select id="supMonth" onchange="renderSupervisorMatrix()">
+        <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+        <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn secondary" type="button" onclick="openQrCamera('supervisor-team')">📷 Escanear QR de un trabajador</button>
+        <button class="btn secondary" type="button" onclick="abrirModalTodosLosDias()">Pedir cambio por rango</button>
+      </div>
+    </div>
+    <div class="overflow"><div id="supMatrixArea"></div></div>
+    <p class="kitResumen">Haz clic en cualquier día para <b>solicitar</b> un cambio de estado: se abre una ventana para elegir el estado nuevo y escribir el detalle. Queda pendiente hasta que RRHH lo apruebe.</p>
+  </div>
+</section>
+
+<div id="solModal" role="dialog" aria-modal="true" aria-labelledby="solModalTitle">
+  <div class="solBox">
+    <h3 id="solModalTitle">Solicitar cambio de estado</h3>
+    <div class="solQuien" id="solModalQuien"></div>
+    <div class="solActual" id="solModalActual"></div>
+    <label>Estado que quieres solicitar</label>
+    <div class="solGrid" id="solModalEstados"></div>
+    <div class="solAviso" id="solModalAviso"></div>
+    <label for="solModalMotivo">Detalle / motivo</label>
+    <textarea id="solModalMotivo" rows="3" placeholder="Ej. el trabajador presentó licencia médica ante supervisor"></textarea>
+    <label for="solModalNota">Observación para RRHH (opcional)</label>
+    <input type="text" id="solModalNota" placeholder="Ej. certificado recibido en portería">
+    <div class="solFoot">
+      <button class="btn secondary" type="button" onclick="cerrarModalSolicitud()">Cancelar</button>
+      <button class="btn secondary" type="button" id="solModalSolicitar" onclick="enviarDesdeModal('solicitud')" style="display:none">Enviar a RRHH</button>
+      <button class="btn" type="button" id="solModalEnviar" onclick="enviarDesdeModal('directo')">Guardar cambio</button>
+    </div>
+  </div>
+</div>
+
+<section class="view v-supervisores" id="v-sup-diaria">
+  <div class="supTabs" role="tablist" aria-label="Opciones del supervisor">
+    <button type="button" class="active" aria-selected="true" role="tab" data-sup-tab="diaria">Asistencia diaria</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="conciliacion">Conciliar el reloj con la planilla</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="avisos-mios">Mis avisos de ingreso</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="avisos-dia">Avisos del día</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="importar">Importar marcajes desde Excel</button>
+  </div>
+
+  <div class="card attendance-panel active" role="tabpanel" data-sup-panel="diaria">
+
+      <small>Cada trabajador de tu equipo pasa su tarjeta y queda <b>presente</b> con la hora real. Si al fichar hay algo que resolver, sale una ventana indicando a qué tiene que ir.</small>
+      <div class="row">
+        <div id="diariaSupWrap"><label>Supervisor</label><select id="supDiariaSup" onchange="renderDiaria()"></select></div>
+        <div><label>Fecha</label><input type="date" id="diariaFecha" onchange="cambiarFechaDiaria()"></div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn" type="button" onclick="openQrCamera('sup-diaria')">📷 Escanear tarjeta</button>
+          <button class="btn secondary" type="button" onclick="initDiaria()">Actualizar</button>
+        </div>
+      </div>
+      <div class="mkResumen" id="diariaResumen"></div>
+      <div class="overflow"><div id="diariaLista"></div></div>
+      <p><small>El marcaje queda guardado en la tabla <b>marcajes</b> y la entrada también se refleja como <b>X</b> en la tarja del día.</small></p>
+  </div>
+  <div class="card attendance-panel" role="tabpanel" data-sup-panel="conciliacion">
+
+      <small>El reloj de la obra y la planilla son dos registros distintos de lo mismo, y se contradicen.
+        Lo que más pasa: <b>el reloj tiene la marcación y la planilla no</b>. Ese trabajador fichó y en el
+        sistema nadie lo marcó. Acá se ven los dos casos, en las dos direcciones, más los que están
+        marcados en los dos pero a horas distintas.</small>
+      <div id="conciliacionBox" style="margin-top:10px"></div>
+  </div>
+  <div class="card attendance-panel" role="tabpanel" data-sup-panel="avisos-mios">
+
+      <small>Cuando marcas a alguien que no había fichado, la app te pide la indicación y la manda a
+        Administración, que tiene que <b>confirmarla</b>. Ahí ves si ya la confirmaron o si sigue en la bandeja.</small>
+      <div id="avisosIngresoMios" style="margin-top:10px"></div>
+  </div>
+  <div class="card attendance-panel" role="tabpanel" data-sup-panel="avisos-dia">
+
+      <small>Atrasos, mensajes de la asistente social y de prevención, se anotan solos al marcar la tarjeta.</small>
+      <div id="diariaAvisosLista"></div>
+  </div>
+  <div class="card attendance-panel" role="tabpanel" data-sup-panel="importar">
+
+      <small>Para cuando el reloj de la obra manda el reporte y no se puede pasar tarjeta por tarjeta.
+        Se leen las columnas <b>Tipo</b> o <b>Evento</b> (entrada / salida), <b>Fecha</b>, <b>Hora</b>,
+        <b>Rut</b> y <b>Colaborador</b>. Primero se muestra un resumen de lo que se va a guardar y
+        solo después se importa: si el archivo está mal, no se toca nada.</small>
+      <div class="row" style="margin-top:10px">
+        <div><label>Archivo del reloj (.xlsx o .csv)</label><input type="file" id="marcajesFile" accept=".xlsx,.xls,.csv"></div>
+        <div style="display:flex;align-items:flex-end;gap:8px">
+          <button class="btn" type="button" onclick="analizarMarcajesExcel()">Revisar archivo</button>
+          <button class="btn" type="button" id="btnImportarMarcajes" onclick="importarMarcajesExcel()" disabled>Importar</button>
+        </div>
+      </div>
+      <div id="marcajesExcelMsg" style="margin-top:10px" role="status" aria-live="polite"></div>
+      <div id="marcajesExcelPreview" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<section class="view v-administracion" id="v-just-diaria">
+  <div class="card">
+    <h2>Justificación diaria</h2>
+    <small>Quién tiene que explicar su asistencia de un día, y por qué. Para Administración y RRHH: no es la vista del supervisor con su equipo, sino toda la obra, y ordenada por lo que hay que resolver.
+      Los días que no son laborables (fin de semana, feriado) no se cuentan, y tampoco los días en que el trabajador todavía no trabajaba o ya se fue.</small>
+    <div class="row">
+      <div><label>Fecha</label><input type="date" id="justDiaFecha" onchange="renderJustificacionDiaria()"></div>
+      <div><label>Supervisor</label><select id="justDiaSup" onchange="renderJustificacionDiaria()"></select></div>
+      <div><label>Mostrar</label><select id="justDiaFiltro" onchange="renderJustificacionDiaria()">
+        <option value="pendientes">Solo lo que hay que explicar</option>
+        <option value="justificados">Incluir también lo justificado</option>
+        <option value="todos">Todos los del día</option>
+      </select></div>
+    </div>
+    <div id="justDiaResumen" style="margin-top:12px"></div>
+    <div id="justDiaAviso" style="margin-top:10px"></div>
+    <div id="justDiaLista" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<!--
+DESVINCULAR
+===========
+Fecha de término y artículo, no un confirm() con la fecha de hoy.
+
+Va fuera del <script> porque es contenido, no lógica. Y está después del
+cuadro de la bitácora para que los dos dialogos, que son cosas distintas
+que se llenan por motivos distintos, no se confundan al leerlos.
+-->
+
+<!--
+RELOJES
+=======
+Un "reloj" acá es el dispositivo: el Android TV Box con HDMI, o el equipo al
+que se le enchufa un lector QR USB. De él cuelgan dónde está (centro de
+costo), cómo lee (cámara o lector USB) y qué marca (entrada, salida o
+colación). Las tres cosas se configuran en la misma pantalla porque en la
+obra se definen juntas.
+-->
+<!--
+LOS MARCAJES
+=============
+El dato crudo: una fila por cada vez que alguien pasó su credencial. La
+planilla es un resumen de esto, y cuando un trabajador dice que marcó y no
+le entró, la pregunta es por los marcajes, no por la planilla.
+
+Esta pantalla NO edita. Un marcaje es un hecho: pasó o no pasó. Editarlo es
+otra cosa, y esa otra cosa es la asistencia, con su motivo y su firma.
+-->
+<section class="view v-administracion" id="v-marcajes">
+  <div class="card">
+    <h2>Marcajes</h2>
+    <small>Cada vez que alguien pasó su credencial, con el reloj, la hora exacta y el origen.
+      Los últimos 7 días. Para editar o anular un marcaje se usa la asistencia, que deja
+      el motivo y quién lo hizo.</small>
+    <div class="row" style="margin-top:12px;align-items:flex-end;gap:10px">
+      <div><label for="marcajesBuscar">Buscar trabajador</label>
+        <input id="marcajesBuscar" placeholder="Nombre o código" oninput="filtrarMarcajes()"></div>
+      <div><label for="marcajesFiltroCentro">Centro de costo</label>
+        <select id="marcajesFiltroCentro" onchange="filtrarMarcajes()"></select></div>
+      <div><label for="marcajesFiltroTipo">Tipo</label>
+        <select id="marcajesFiltroTipo" onchange="filtrarMarcajes()">
+          <option value="">Todos</option>
+          <option value="entrada">Entrada</option>
+          <option value="salida">Salida</option>
+          <option value="colacion_entrada">Colación entrada</option>
+          <option value="colacion_salida">Colación salida</option>
+        </select></div>
+      <div><label for="marcajesFiltroReloj">Reloj</label>
+        <select id="marcajesFiltroReloj" onchange="filtrarMarcajes()"></select></div>
+    </div>
+    <div class="row" style="margin-top:10px;align-items:flex-end;gap:10px">
+      <div><label for="marcajesFiltroDesde">Desde</label>
+        <input type="date" id="marcajesFiltroDesde" onchange="filtrarMarcajes();marcarAtajoMarcajes()"></div>
+      <div><label for="marcajesFiltroHasta">Hasta</label>
+        <input type="date" id="marcajesFiltroHasta" onchange="filtrarMarcajes();marcarAtajoMarcajes()"></div>
+      <div style="flex:1">
+        <label>Atajos</label>
+        <div class="marcajes-atajos">
+          <button type="button" class="btn" data-marcajes-atajo="hoy" onclick="atajoMarcajes('hoy')">Hoy</button>
+          <button type="button" class="btn" data-marcajes-atajo="ayer" onclick="atajoMarcajes('ayer')">Ayer</button>
+          <button type="button" class="btn" data-marcajes-atajo="semana" onclick="atajoMarcajes('semana')">Últimos 7 días</button>
+          <button type="button" class="btn" data-marcajes-atajo="todo" onclick="atajoMarcajes('todo')">Todo</button>
+        </div>
+      </div>
+    </div>
+    <div id="marcajesAviso" style="margin-top:10px"></div>
+    <div id="marcajesLista" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!--
+LOS MARCAJES
+=============
+El dato crudo: una fila por cada vez que alguien pasó su credencial. La
+planilla es un resumen de esto, y cuando un trabajador dice que marcó y no
+le entró, la pregunta es por los marcajes, no por la planilla.
+
+Esta pantalla NO edita. Un marcaje es un hecho: pasó o no pasó. Editarlo es
+otra cosa, y esa otra cosa es la asistencia, con su motivo y su firma.
+-->
+<section class="view v-administracion" id="v-relojes">
+  <div class="card">
+    <h2>Relojes y centros de costo</h2>
+    <small>Cada reloj es un aparato. Se le dice en qué centro de costo está (que es contra el dato que se
+      revisa y se paga la asistencia), cómo lee la credencial, y cuánto espera antes de dar por repetida una
+      lectura.</small>
+
+    <div class="card" style="margin-top:14px">
+      <h3>Centros de costo</h3>
+      <small>Los de la obra. El nombre es libre; el código es lo que va en la planilla.</small>
+      <div class="row" style="margin-top:8px">
+        <div><label>Código</label><input id="ccCode" placeholder="CC-01"></div>
+        <div style="flex:1"><label>Nombre</label><input id="ccNombre" placeholder="ALTO CIRUELOS"></div>
+        <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="guardarCentroCosto()">Agregar</button></div>
+      </div>
+      <div id="ccError" style="color:var(--danger);margin-top:6px" role="alert"></div>
+      <div id="ccLista" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>Relojes</h3>
+      <div class="row" style="margin-top:8px">
+        <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="abrirFormularioReloj('')">Agregar reloj</button></div>
+      </div>
+      <div id="relojAviso" style="margin-top:10px"></div>
+      <div id="relojLista" style="margin-top:10px"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <h3>Abrir la pantalla de marcaje</h3>
+      <small>La pantalla que va en el tótem: grande, sin menú, con el campo siempre enfocado. Podés probarla
+        acá antes de instalarla en el aparato.</small>
+      <div class="row" style="margin-top:8px">
+        <div style="flex:1"><label>Reloj</label><select id="totemReloj" onchange="if(this.value)abrirTotem(this.value)"></select></div>
+        <div style="align-self:flex-end">
+          <button class="btn" type="button" onclick="abrirFormularioToken()">Instalar token en este equipo</button>
+        </div>
+      </div>
+      <small style="display:block;margin-top:8px">
+        Para el Android TV Box la dirección es <b>/totem/CODIGO</b>. Ejemplo: <b>/totem/RELOJ-01</b>.
+        La primera vez hay que instalar el token en ese aparato (botón de arriba).
+      </small>
+    </div>
+  </div>
+</section>
+
+<!--
+LA PANTALLA DEL TÓTEM
+====================
+A pantalla completa y sin el menú de la aplicación. En un cartel fijo de la
+portería no tiene sentido que se vea la navegación, y un botón a medio
+apretar cambiaría de vista y dejaría el reloj sin marcar.
+-->
+<div id="pantallaTotem" role="dialog" aria-modal="true" aria-label="Marcaje de asistencia">
+  <!-- La hora va FUERA de la barra a propósito. El modo kiosco esconde la
+       barra entera (el selector de tipo de marca no puede quedar al alcance
+       de un dedo, porque cualquier toque lo cambia), y con la hora adentro
+       se escondía también: el código andaba bien, la prueba pasaba, y en
+       el aparato no se veía nunca. -->
+  <!--
+  La hora va FUERA de la barra a propósito. El modo kiosco esconde la barra
+  entera (el selector de tipo de marca no puede quedar al alcance de un
+  dedo, porque cualquier toque lo cambia), y con la hora adentro se
+  escondía también: el código andaba bien, la prueba pasaba, y en el
+  aparato no se veía nunca.
+  -->
+  <!--
+  LA DISTRIBUCIÓN, EN TRES COLUMNAS
+  ================================
+  Empresa a la izquierda, lo que marca en el medio, la fecha a la derecha, y
+  los tres números abajo.
+
+  No es un acomodo. En la portería la persona llega, apoya la tarjeta y se va:
+  tiene que ver TRES cosas en un segundo sin buscar, y la pantalla está a un
+  brazo de distancia.
+
+    - dónde estoy, para no marcar en el reloj equivocado
+    - que la hora y el centro son los correctos
+    - que el marcaje entró
+
+  Por eso la hora y la fecha están en columnas separadas y no apiladas: la
+  fecha arriba a la derecha se lee sin bajar la vista de la cámara, que es
+  donde tiene que estar la mirada.
+  -->
+  <div class="totem-distribucion">
+    <div class="totem-col totem-col-izq">
+      <div id="totemEmpresa">
+        <img id="totemLogo" alt="">
+        <div id="totemEmpresaNombre">-</div>
+        <div id="totemEmpresaCentro"></div>
+      </div>
+    </div>
+    <div class="totem-col totem-col-centro">
+      <div id="totemConexion" class="totem-conexion"><span class="totem-conexion-punto"></span></div>
+      <div id="totemHoraCaja">
+        <span class="totem-hora" id="totemHoraActual">--:--:--</span>
+        <span class="totem-marcaje" id="totemHoraMarcada"></span>
+      </div>
+      <!--
+      "Marca" es un TEXTO que cambia solo, no una lista.
+
+      En la portería un desplegable es un botón que alguien puede apretar sin
+      querer, y el botón Salir está escondido justamente porque tocar cualquier
+      cosa en modo kiosco es un problema. El texto se ve siempre; el selector
+      queda atrás y solo se abre con el mouse encima, para quien esté
+      configurando. En el aparato no hay nada que apretar por error.
+      -->
+      <div id="totemTipoCaja">
+        <span class="totem-tipo-etiqueta">Marca</span>
+        <span class="totem-marca-texto" id="totemMarcaTexto">Entrada</span>
+        <select id="totemTipo" onchange="cambiarTipoTotem()"></select>
+      </div>
+    </div>
+    <div class="totem-col totem-col-der">
+      <span class="totem-fecha" id="totemFechaActual"></span>
+      <!-- El LUGAR, con más peso que la fecha. La fecha se sabe de memoria; el
+           lugar no. Con dos cajas en la portería, la respuesta a "¿dónde
+           estoy?" tiene que estar en la pantalla sin abrir nada. -->
+      <span class="totem-ubicacion" id="totemCentroActual"></span>
+      <button type="button" class="totem-salir" onclick="cerrarTotem()">Salir</button>
+    </div>
+  </div>
+  <div class="totem-zona" id="totemZonaCamara" style="display:none">
+    <div id="totemCamara"></div>
+  </div>
+  <div id="totemMensaje" class="totem-idle"></div>
+  <!--
+  LA BARRA DE NÚMEROS
+
+  En una obra, "¿cuántos somos?" se contesta mirando. Tener que abrir el
+  sistema para enterarse es lo que hace que la gente responda de memoria y se
+  equivoque, y en una obra equivocarse de cantidad significa mandar a alguien
+  a un lugar donde no es.
+
+  El tercero va en rojo cuando no es cero, porque es el único de los tres que
+  es un problema y no un dato: un marcaje pendiente es un marcaje que NO se
+  registró.
+
+  Y cuando no se sabe el número se escribe "—", no "0". Cero significa "no
+  marcó nadie", que es un hecho; "no se consultó" no es lo mismo, y poner 0
+  cuando no se sabe es mentir con una cifra que la gente se cree.
+  -->
+  <div class="totem-contadores">
+    <div class="totem-contador">
+      <span class="totem-contador-cifra sin-dato" id="totemCifraRealizados">—</span>
+      <span class="totem-contador-texto">N° Marcajes Realizados</span>
+    </div>
+    <div class="totem-contador">
+      <span class="totem-contador-cifra sin-dato" id="totemCifraAusencias">—</span>
+      <span class="totem-contador-texto">N° Ausencia Justificado y total presentes en Ubicación</span>
+    </div>
+    <div class="totem-contador totem-contador-pendiente" id="totemCajaPendientes">
+      <span class="totem-contador-cifra sin-dato" id="totemCifraPendientes">—</span>
+      <span class="totem-contador-texto">N° Marcajes pendientes</span>
+    </div>
+  </div>
+  <!-- La barra vieja se terminó: el centro, el tipo de marca y el botón de
+       salir están ahora en las columnas, cada uno en su lugar. Lo que queda
+       de esto es la Zona Kiosco, que va después porque tiene que tapar
+       todo lo demás. -->
+  <!--
+  La barra vieja (.totem-barra) se fue con sus tres cosas adentro: el centro
+  actual, el selector de tipo de marca y el botón de salir. Los tres están
+  arriba, en las columnas donde corresponde.
+
+  El selector de tipo de marca es el más delicado de los tres. En el kiosco
+  queda escondido a propósito, porque cualquier toque lo cambiaría y alguien
+  podría marcar "salida" sin querer. Por eso está en la columna del medio y
+  no en la barra: cuando se esconde la barra, se esconde con ella, y no hace
+  falta acordarse de esconder otra cosa.
+  -->
+  <!-- La zona del kiosco. Transparente y sin ícono: si se le pone un ícono,
+       es un botón de salida, y entonces el bloqueo no protege de nada.
+       Va al final para que quede por encima de todo lo demás. -->
+  <div id="totemZonaKiosco" style="display:none" onpointerdown="pulsacionKiosco()"></div>
+  <div id="totemPistaKiosco" aria-hidden="true"></div>
+  <!--
+  LA EMPRESA, ARRIBA A LA IZQUIERDA
+
+  El logo y el nombre de la empresa van en la esquina de arriba a la
+  izquierda, APARTE de la camara.
+
+  No es decoracion. En una obra con mas de una empresa o mas de un centro
+  de costo, la persona tiene que poder confirmar en un vistazo que esta
+  marcando en el lugar correcto. Si se equivoca de reloj, la asistencia
+  queda mal puesta y eso ya no se puede arreglar sola.
+
+  Va ahi y no al medio porque al medio esta la camara, que es donde la
+  persona tiene que mirar para marcar, y arriba esta la hora, que es el
+  dato que viene a ver. La esquina de arriba a la izquierda es el unico
+  lugar que no le quita nada a nadie.
+
+  Y va APARTE de la camara, no pegada a ella. La camara se enciende y se
+  apaga segun el reloj tenga lector de camara o sea un lector USB
+  pegado; si la empresa fuera parte de la zona de la camara, en un reloj
+  con lector USB no se veria, que es justo cuando mas falta hace para
+  confirmar en que lugar se esta marcando.
+  -->
+  <!--
+  ESTOS TRES YA NO ESTÁN AQUÍ: LA EMPRESA, LA CÁMARA Y EL MENSAJE
+  ------------------------------------------------------------------
+  Los moví arriba, dentro de la distribución de tres columnas. Borrarlos de
+  acá es lo que evita que queden dos elementos con el mismo id: si el
+  navegador encuentra dos #totemMensaje, el JavaScript paintinga siempre el
+  primero y el segundo queda invisible, y no se ve ningún error en la
+  consola. Es la falla más difícil de encontrar de las que da este programa.
+  -->
+  <!--
+  EL AVISO QUE QUEDA PARA DESPUES
+
+  El aviso se muestra en el momento del marcaje, y es lo que la persona ve
+  al pasar la tarjeta. Pero eso no alcanza: hay avisos que se le olvidan a
+  los diez minutos, o que la misma persona no lee en la porteria y se los
+  lleva puestos dos dias.
+
+  Por eso el aviso no se borra al terminar los 2,2 segundos: queda en la
+  lista, y hay un boton para abrirlo cuando la persona quiera. El boton
+  aparece solo cuando hay algo pendiente, con la cantidad, para que en la
+  porteria se vea que hay algo sin tener que abrir nada.
+  -->
+  <button type="button" id="totemVerAviso" onclick="abrirAvisoTotem()"></button>
+  <!-- Lo que se imprime. Va escondido y solo aparece en la impresora. -->
+  <div id="boletaAviso"></div>  <!--
+  El token del reloj, en el propio tótem. Aparece SOLO cuando el token
+  que hay instalado no es el de este reloj, y se esconde después de
+  guardar bien.
+
+  Va en la pantalla del reloj y no en la de Relojes a propósito: el reloj
+  está en la portería y la pantalla de Relojes en el computador de la
+  oficina. Pedir el viaje es pedir que alguien se vaya y vuelva con un
+  token anotado en un papel.
+  -->
+  <div id="totemTokenCaja" class="totem-token-caja" style="display:none">
+    <label for="totemTokenCampo">Token de este reloj</label>
+    <div class="row" style="gap:8px;align-items:flex-end">
+      <div style="flex:1">
+        <input id="totemTokenCampo" type="text" autocomplete="off" spellcheck="false"
+               placeholder="Pegá el token que sale al rotarlo">
+      </div>
+      <button type="button" class="btn primary" onclick="guardarTokenDesdeTotem()">Guardar</button>
+    </div>
+    <small>
+      Se guarda en este aparato. Sale una sola vez, al rotarlo desde
+      Relojes. No hace falta volver a presentarla: después de guardar,
+      marcá de nuevo.
+    </small>
+  </div>
+  <div class="totem-pie">
+    <!-- El identificador del reloj va ABAJO, con el campo de la tarjeta.
+         Arriba, en la esquina, quedaba competingiendo con la hora y con el
+         nombre de la empresa, y esos dos son los que la persona viene a ver.
+         Abajo acompaña lo que está haciendo en ese momento, que es pasar la
+         tarjeta: es el pie, no la cabecera. -->
+    <span class="totem-identificador" id="totemRelojActual"></span>
+    <span id="totemCodigoLeido" class="totem-pill"></span>
+    <label for="totemCampo" class="totem-campo-label">Tarjeta</label>
+    <input id="totemCampo" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+      inputmode="none" placeholder="Escribe el código y presiona Enter">
+  </div>
+</div>
+
+<!--
+LA VENTANA DEL AVISO
+===================
+Tres cosas que se piden de un aviso, y por que estan separadas:
+
+1. QUE DICE, en grande. Es lo que la persona tiene que entender, y tiene
+   que poder leerlo a un brazo de distancia sin acercarse a la pantalla.
+
+2. QUIEN LO DEJO. Un aviso sin autor es un aviso que nadie acata, porque
+   "alguien" no es una razon para hacer nada. Ademas, en una obra, saber
+   quien lo dejo es la mitad del seguimiento: al dia siguiente se le puede
+   preguntar a la misma persona.
+
+3. QUE SE MANDO POR CORREO. Para que la persona sepa que lo tiene tambien
+   en el correo y lo lea con calma en la casa, sin acordarse de que se lo
+   dejaron en la porteria.
+
+   OJO, Y ESTO ES IMPORTANTE: que ponga "se envio al correo" NO significa
+   que se haya enviado. El envio depende de que haya un proveedor de correo
+   configurado, y mientras no lo haya el aviso queda registrado pero sin
+   enviar. Decirle a la persona que esta en su correo cuando no esta es
+   PEOR que no decirle nada: la persona no lo va a buscar, y el aviso se
+   pierde. Por eso el texto se arma con el estado real del envio.
+-->
+<dialog id="dlgAviso" style="max-width:720px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 id="dlgAvisoTitulo">Aviso</h2>
+    <span id="dlgAvisoQuien"></span>
+    <div id="dlgAvisoTexto"></div>
+    <div id="dlgAvisoEnviado"></div>
+    <div class="row">
+      <button type="button" class="btn secondary" onclick="imprimirAvisoTotem()">Imprimir</button>
+      <button type="button" class="btn primary" onclick="cerrarAvisoTotem()">Entendido</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
+CONFIGURAR UN RELOJ
+===================
+Un solo formulario para las tres cosas que se definen juntas en la obra:
+dónde está, cómo lee y cuánto antirrebote.
+-->
+<dialog id="dlgReloj" style="max-width:560px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 id="relojTitulo" style="margin-top:0">Agregar reloj</h2>
+    <div class="row">
+      <div><label for="relojCode">Código</label><input id="relojCode" placeholder="RELOJ-01"></div>
+      <div style="flex:1"><label for="relojNombre">Nombre</label><input id="relojNombre" placeholder="Portón principal"></div>
+    </div>
+    <small style="display:block;margin-top:4px">El código es el que va en la dirección de la pantalla del tótem, y no se cambia después.</small>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1"><label for="relojCentro">Centro de costo</label><select id="relojCentro"></select></div>
+      <div style="flex:1"><label for="relojUbicacion">Ubicación (texto)</label><input id="relojUbicacion" placeholder="Portón 1"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:1"><label for="relojTipoLector">Cómo lee la credencial</label>
+        <select id="relojTipoLector" onchange="explicarTipoLector()">
+          <option value="teclado">Lector QR USB (se ve como teclado)</option>
+          <option value="camara">Cámara del aparato</option>
+        </select>
+      </div>
+      <div id="relojCamaraWrap" style="display:none"><label for="relojCamara">Cámara</label>
+        <select id="relojCamara">
+          <option value="trasera">La de arriba (apunta a la gente)</option>
+          <option value="frontal">La de enfrente</option>
+          <option value="auto">Que elija el aparato</option>
+        </select>
+      </div>
+    </div>
+    <div id="relojLectorAyuda" class="small" style="margin-top:6px"></div>
+    <div class="row" style="margin-top:10px">
+      <div><label for="relojAntirrebote">Antirrebote (segundos)</label>
+        <input type="number" id="relojAntirrebote" min="5" max="600" step="5">
+        <small style="display:block">Cuánto espera antes de ignorar una lectura repetida. 45 sirve para la mayoría.</small>
+      </div>
+      <div style="align-self:flex-end">
+        <label style="display:flex;gap:6px;align-items:center;cursor:pointer">
+          <input type="checkbox" id="relojActivo"> Reloj activo
+        </label>
+      </div>
+    </div>
+    <div id="relojTokenWrap" class="small" style="margin-top:10px"></div>
+    <div id="relojError" style="color:var(--danger);margin-top:6px" role="alert"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="document.getElementById('dlgReloj').close()">Cancelar</button>
+      <button class="btn primary" id="relojGuardar" type="button" onclick="guardarReloj()">Crear reloj</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
+EL TOKEN DEL RELOJ
+==================
+Se muestra UNA vez. En la base solo queda el hash, así que si se pierde no
+se recupera: se rota y se reinstala. Por eso el texto viene seleccionado
+para copiar, y el aviso dice exactamente eso.
+-->
+<!--
+LA CLAVE DEL KIOSCO
+===================
+Se pide después de las cinco pulsaciones. La verificación va al servidor: el
+hash del reloj es lo único que hay guardado, así que acá no hay clave que
+leer, y alguien que abra DevTools no obtiene nada con esto.
+-->
+<dialog id="dlgClaveKiosco" style="max-width:400px;width:92vw">
+  <div class="card" style="margin:0">
+    <h2 style="margin-top:0">Clave del kiosco</h2>
+    <small>La pantalla está bloqueada. Escribí la clave del reloj para poder salir.</small>
+    <div style="margin-top:10px">
+      <input id="claveCampo" type="text" inputmode="numeric" autocomplete="off"
+             maxlength="6" placeholder="6 dígitos"
+             style="width:100%;font-size:1.6rem;letter-spacing:.4em;text-align:center"
+             onkeydown="if(event.key==='Enter')verificarClaveKiosco()">
+    </div>
+    <div id="claveError" style="color:var(--danger);margin-top:8px;min-height:1.2em" role="alert"></div>
+    <div class="row" style="margin-top:8px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="cancelarClaveKiosco()">Volver al reloj</button>
+      <button class="btn primary" type="button" onclick="verificarClaveKiosco()">Abrir</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- La clave nueva, mostrada una sola vez. Después queda solo el hash. -->
+<dialog id="dlgClaveReloj" style="max-width:440px;width:92vw">
+  <div class="card" style="margin:0">
+    <h2 style="margin-top:0">Clave del reloj</h2>
+    <p>La clave del reloj <b id="claveRelojQuien"></b> es:</p>
+    <div id="claveRelojTexto" style="font-size:2.4rem;letter-spacing:.5em;text-align:center;
+         font-family:ui-monospace,monospace;background:var(--surface);padding:14px;
+         border-radius:8px;margin:12px 0"></div>
+    <div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);
+         padding:9px 11px;border-radius:8px;font-size:.85rem">
+      Anotala ahora. No se puede volver a leer: en la base solo queda el hash.
+      Si la perdés, generás una nueva desde esta misma pantalla.
+    </div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <button class="btn primary" type="button" onclick="document.getElementById('dlgClaveReloj').close()">Ya la anoté</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
+Este diálogo tiene que quedar FUERA de todo comentario HTML.
+
+El 2026-09-28 estuvo un rato con el comentario de arriba sin cerrar, y el
+diálogo entero quedó adentro: el navegador no creó ninguno de sus
+elementos. El botón que lo abre reventaba con
+
+    TypeError: Cannot set properties of null (setting 'value')
+
+que no dice nada de la causa. El archivo estaba bien, el script parseaba,
+y el diálogo simplemente no existía. Por eso el token no se podía
+instalar.
+
+Un comentario HTML mal cerrado es la forma más difícil de romper una
+aplicación: no da error de sintaxis, no aparece en el control de
+calidad, y se come elementos que el código sigue usando por su nombre.
+-->
+<dialog id="dlgToken" style="max-width:520px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 style="margin-top:0">Token de este reloj</h2>
+    <small style="display:block;margin-bottom:8px">
+      Reloj: <b id="tokenDeQueReloj"></b>. Cada reloj tiene su propio token:
+      el de uno no hace marcar al otro.
+    </small>
+    <div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">
+      <b>Copiá esto ahora.</b> Se muestra una sola vez: en la base queda solo su huella, no el token.
+      Si lo perdés, se genera uno nuevo desde la lista, y hay que reinstalar la pantalla en el tótem
+      porque el anterior deja de servir.
+    </div>
+    <small style="display:block;margin-top:6px">
+      <b>Dónde se ve el token:</b> sale acá al rotarlo, y desde ese momento
+      queda guardado en el navegador del equipo donde lo instalaste. En la base
+      no está, y esa es la idea: si estuviera, cualquiera con acceso a la base
+      podría marcar por cualquier reloj.
+    </small>
+    <label for="tokenValor" style="margin-top:12px">Token</label>
+    <input id="tokenValor" readonly style="font-family:ui-monospace,monospace">
+    <label for="tokenInstalarCampo" style="margin-top:10px">Pegar el token para que ESTE equipo marque con este reloj</label>
+    <div class="row" style="margin-top:6px;gap:8px">
+      <div style="flex:1"><input id="tokenInstalarCampo" placeholder="3f2504e0-4f89-11d3-9a0c-0305e82c3301"
+               title="El token son 36 caracteres con guiones, como el de ejemplo. Si se corta al copiar, no sirve."></div>
+      <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="guardarTotemToken()">Instalar</button></div>
+    </div>
+    <!--
+    EL BOTÓN DE OLVIDAR
+
+    Sin esto, un token equivocado guardado en el navegador es un callejón
+    sin salida desde la pantalla: el campo se rellena solo con lo que hay
+    guardado, la persona aprieta Instalar, y la base le dice que no es de
+    este reloj. No hay forma de limpiarlo.
+
+    Pasó de verdad: había un id de usuario guardado como si fuera un
+    token, de una instalación de antes de que existiera la comprobación.
+    Con este botón se aprieta, se limpia, y se pega el token bueno.
+    -->
+    <div class="row" style="margin-top:8px;gap:8px;align-items:center;flex-wrap:wrap">
+      <button class="btn secondary" type="button" onclick="olvidarTokenReloj()">Olvidar el token guardado</button>
+      <small style="flex:1;min-width:180px">Borra lo que hay guardado en ESTE navegador para este reloj. Sirve cuando lo guardado no es el token bueno.</small>
+    </div>
+    <small style="display:block;margin-top:4px">Se guarda en este navegador, no en el archivo de la app. En un equipo compartido cualquiera con acceso al navegador podría marcar: por eso el tótem tiene que ser un aparato dedicado.</small>
+    <input type="hidden" id="tokenRelojCodigo">
+    <div id="tokenEstado" style="margin-top:12px"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end;gap:8px">
+      <button class="btn" type="button" onclick="copiarTokenReloj()">Copiar el token</button>
+      <button class="btn primary" type="button" onclick="document.getElementById('dlgToken').close()">Listo</button>
+    </div>
+  </div>
+</dialog>
+
+
+<!--
+PLANTILLAS DEL KIT
+==================
+Las escribe Prevención. El contenido es HTML, no texto con saltos de línea,
+porque es lo que se imprime: guardar texto plano obliga a reinterpretar los
+saltos al imprimir, y el resultado cambia entre navegadores.
+
+El editor es un <div contenteditable> con una barra de formato, no un
+<textarea>: el textarea obliga a que el texto se interprete después, y
+entonces el papel se ve bien en un computador y mal en otro.
+
+LA ESPECIALIDAD
+---------------
+Cada plantilla es general (le toca a todo el mundo) o de una especialidad.
+Una charla de albanil no le toca a un portero. La lista de especialidades
+viene de la que ya usa el EPP, con las 25 del formulario de inducción de la
+obra sembradas por la migración 031.
+-->
+<section class="view v-administracion" id="v-plantillas-kit">
+  <div class="card">
+    <h2>Plantillas del kit de contratación</h2>
+    <small>Los papeles que se le entregan a una persona cuando entra. Prevención los escribe y los cambia cuando
+      haga falta; la versión sube sola y las entregas ya firmadas guardan con qué versión se firmaron, así que un
+      cambio de texto no vuelve válido un papel viejo.</small>
+    <div class="row" style="margin-top:12px">
+      <div style="align-self:flex-end"><button class="btn primary" type="button" onclick="abrirEditorPlantilla('')">Agregar plantilla</button></div>
+    </div>
+    <div id="plantillasAviso" style="margin-top:10px"></div>
+    <div id="plantillasLista" style="margin-top:10px"></div>
+  </div>
+
+  <!--
+  LOS CAMPOS PROPIOS
+  ==================
+  Las plantillas de arriba solo pueden poner datos que YA existen en el trabajador. Faltan
+  los que la empresa necesita y no estan: el numero de licencia, la talla, el centro de
+  costo, el sueldo del cargo.
+
+  Y son POR EMPRESA, porque "codigo de hazard" en una constructora y "codigo de patio" en
+  un depot no son la misma cosa. Un campo con dos significados es peor que no tenerlo.
+
+  Y la clave de cada uno lleva el numero de empresa adelante —"7-licencia"— para que dos
+  empresas puedan tener un campo que se llama igual sin pisarse. Ver [campos-01].
+  -->
+  <div class="card">
+    <h3>Campos propios de la empresa</h3>
+    <small>Los que agrega la empresa para sus plantillas, y que no existen en la ficha del
+      trabajador. Cada uno es de un tipo, y el tipo decide cómo se muestra y cómo se rellena.
+      Un campo <b>requerido</b> sin dato no deja descargar la plantilla: un documento con un
+      hueco es peor que no tener documento.</small>
+
+    <div class="plantillaEditor" style="margin-top:12px">
+      <div class="plantillaPanel">
+        <h4>Empresa</h4>
+        <select id="camposPropiosEmpresa" onchange="cargarCamposPropios()"></select>
+
+        <h4 style="margin-top:14px">Campos definidos</h4>
+        <div id="camposPropiosLista"><small style="color:var(--muted)">— sin cargar —</small></div>
+
+        <h4 style="margin-top:14px">Agregar un campo</h4>
+        <div class="campoForm">
+          <div>
+            <label for="cpClave" style="font-size:.78rem;display:block;margin-bottom:3px">Cómo se escribe dentro del documento</label>
+            <input id="cpClave" placeholder="licencia, talla, centro-costo">
+            <small style="display:block;color:var(--muted);font-size:.7rem;margin-top:2px">Queda como
+              <b id="cpVistaClaveCompleta">[CLAVE]</b></small>
+          </div>
+          <div>
+            <label for="cpEtiqueta" style="font-size:.78rem;display:block;margin-bottom:3px">Cómo se lo muestra en pantalla</label>
+            <input id="cpEtiqueta" placeholder="Licencia de conducir (si se escribe distinto)">
+          </div>
+          <div>
+            <label for="cpTipo" style="font-size:.78rem;display:block;margin-bottom:3px">Tipo</label>
+            <select id="cpTipo" onchange="cambiarTipoCampo()">
+              <option value="texto">Texto — una línea de texto libre</option>
+              <option value="numero">Número — solo cifras, se puede calcular</option>
+              <option value="fecha">Fecha — se escribe AAAA-MM-DD</option>
+              <option value="lista">Lista — se elige UNA de las opciones</option>
+              <option value="casillas">Casillas — se marcan VARIAS</option>
+              <option value="imagen">Imagen — una foto, como la del trabajador</option>
+              <option value="firma">Firma — una imagen, el hueco para firmar</option>
+            </select>
+          </div>
+          <div id="cpOpcionesCaja" style="display:none">
+            <label for="cpOpciones" style="font-size:.78rem;display:block;margin-bottom:3px">Opciones, separadas por <b>|</b></label>
+            <input id="cpOpciones" placeholder="A|B|C">
+          </div>
+          <div class="fila">
+            <label><input type="checkbox" id="cpRequerido"> es requerido</label>
+          </div>
+          <div>
+            <button class="btn primary" type="button" onclick="crearCampoPropio()">Crear el campo</button>
+            <span id="cpAviso" style="margin-left:8px"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plantillaPapel">
+        <div id="plantillaVariablesBox">
+          <h4 style="margin:0 0 8px 0;font:600 .78rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Variables para usar en cualquier plantilla</h4>
+          <div id="plantillaVariables" style="font-size:.8rem"></div>
+        </div>
+
+        <!--
+        BAJAR LA PLANTILLA CON DATOS
+        ============================
+        Y el botón va acá y no en la lista de plantillas de arriba, porque lo que falta no
+        es el texto: es el dato de una persona concreta. Una plantilla no se "descarga": se
+        completa con alguien y se descarga.
+
+        Y NO se baja si falta un campo requerido. Un documento con un hueco es peor que no
+        tener documento, porque alguien lo archiva igual y el problema aparece meses
+        después, cuando ya no se sabe de quién era.
+        -->
+        <h4 style="margin:16px 0 8px 0;font:600 .78rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Bajar con datos de un trabajador</h4>
+        <div class="campoForm">
+          <div class="fila">
+            <select id="descargaTrabajador" onchange="cargarVariablesConDatos()" style="flex:1"><option value="">— trabajador —</option></select>
+            <select id="descargaPlantilla" onchange="cargarVariablesConDatos()" style="flex:1"><option value="">— plantilla —</option></select>
+          </div>
+          <div class="fila">
+            <button class="btn primary" type="button" onclick="descargarPlantillaConDatos()">Descargar para Word</button>
+            <span id="descargaAviso" style="font-size:.8rem"></span>
+          </div>
+          <div id="plantillaPrevia"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>El timbre</h3>
+    <small>El nombre y el RUT salen de la empresa, no se escriben de nuevo acá: si el timbre tuviera su propio
+      nombre, algún día los dos dicen cosas distintas y el que vale es el del papel. Lo que se configura es quién
+      lo suscribe y cómo se dibuja.</small>
+    <div id="timbreEditor" style="margin-top:10px"></div>
+  </div>
+</section>
+
+<!--
+EL KIT DE UN TRABAJADOR
+=======================
+La lista la arma la base de datos, no la pantalla: con muchas personas y
+varios papeles, una lista mal armada es un papel que no se entrega.
+-->
+<section class="view v-administracion" id="v-kit">
+  <div class="card">
+    <h2>Kit de contratación</h2>
+    <small>Los papeles que le tocan a un trabajador y los que ya firmó. Para armar el kit, primero hay que
+      asignarle la especialidad en su ficha: sin especialidad le tocan solo los papeles generales, y es
+      preferible eso a darle la charla del oficio equivocado.</small>
+    <div class="row" style="margin-top:12px">
+      <div style="flex:1"><label>Trabajador</label><select id="kitWorker" onchange="if(this.value)cargarKitDelTrabajador(this.value)"></select></div>
+    </div>
+    <div id="kitLista" style="margin-top:12px"></div>
+  </div>
+</section>
+
+<!--
+EL PAPEL
+========
+Como se va a imprimir, con las firmas y el timbre ya en su lugar. El
+timbre se dibuja con HTML y sale en el PDF tal cual se ve acá, porque el
+PDF se genera renderizando esta misma hoja.
+-->
+<dialog id="dlgPapel" style="max-width:min(860px,96vw);width:96vw">
+  <div class="card" style="margin:0">
+    <div class="row" style="align-items:center">
+      <h2 id="papelTitulo" style="margin:0;flex:1"></h2>
+      <small id="papelVersion"></small>
+    </div>
+    <div class="papel-scroll">
+      <div class="hoja-papel" id="papelHoja"></div>
+    </div>
+    <div class="firmas-edicion">
+      <div id="papelFirmaTrabWrap">
+        <label>Firma del trabajador</label>
+        <canvas id="papelFirmaTrab" width="420" height="150"></canvas>
+        <div class="row" style="gap:6px;margin-top:4px">
+          <button class="btn" type="button" onclick="limpiarFirma('papelFirmaTrab')">Limpiar</button>
+        </div>
+      </div>
+      <div id="papelFirmaSupWrap">
+        <label>Firma del supervisor</label>
+        <canvas id="papelFirmaSup" width="420" height="150"></canvas>
+        <div class="row" style="gap:6px;margin-top:4px">
+          <button class="btn" type="button" onclick="limpiarFirma('papelFirmaSup')">Limpiar</button>
+        </div>
+      </div>
+    </div>
+    <div id="papelError" style="color:var(--danger);margin-top:8px" role="alert"></div>
+    <small style="display:block;margin-top:4px">Marcá la firma con el dedo, el mouse o el lápiz, si la pantalla lo tiene.
+      Para que funcione hay que apoyar y arrastrar, no solo apoyar.</small>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <button class="btn" id="papelAnular" type="button" onclick="anularPapel(document.getElementById('dlgPapel')._plantilla.code,document.getElementById('dlgPapel')._code)">Anular</button>
+      <button class="btn" type="button" onclick="document.getElementById('dlgPapel').close()">Cerrar</button>
+      <button class="btn primary" id="papelGuardar" type="button" onclick="guardarPapel()">Guardar firma</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
+EL EDITOR DE PLANTILLAS
+=======================
+Barra de formato + hoja editable. Es lo más cerca de un documento de Word
+que se puede sin instalar nada: la barra usa execCommand, que es lo único
+que da formato enriquecido sin una librería entera. Sirve para negrita,
+cursiva, listas y tamaño de letra, que es lo que necesita un acta.
+
+Lo que NO se puede desde acá y hay que pegar: tablas, imágenes y cambios
+de página. Un <div contenteditable> los acepta si se los pegan, y después
+no se pueden editar con la barra.
+-->
+<dialog id="dlgPlantilla" style="max-width:min(960px,96vw);width:96vw">
+  <div class="card" style="margin:0">
+    <h2 id="plantillaTitulo" style="margin-top:0">Editar plantilla</h2>
+    <div class="row">
+      <div><label>Código</label><input id="plantillaCode" placeholder="IND-GENERAL"></div>
+      <div style="flex:1"><label>Nombre</label><input id="plantillaNombre" placeholder="Inducción general"></div>
+      <div><label>Tipo</label><select id="plantillaTipo" onchange="actualizarAyudaPlantilla()">
+        <option value="charla">Charla</option>
+        <option value="formulario">Formulario</option>
+        <option value="acta">Acta</option>
+      </select></div>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div style="flex:1">
+        <label for="plantillaDestino">Le toca a</label>
+        <select id="plantillaDestino" onchange="cambiarDestinoPlantilla()">
+          <option value="">A todo el mundo</option>
+          <option value="grupo">A un grupo entero</option>
+          <option value="cargo">Solo a un cargo</option>
+        </select>
+        <small style="display:block;color:var(--muted);font-size:.72rem" id="plantillaDestinoAviso"></small>
+      </div>
+      <div id="plantillaGrupoCaja" style="display:none;flex:1">
+        <label for="plantillaGrupo">Grupo</label>
+        <select id="plantillaGrupo" onchange="actualizarAyudaPlantilla()"></select>
+      </div>
+      <div id="plantillaCargoCaja" style="display:none;flex:1">
+        <label for="plantillaCargo">Cargo</label>
+        <select id="plantillaCargo" onchange="actualizarAyudaPlantilla()"></select>
+      </div>
+      <div><label>Orden en el kit</label><input type="number" id="plantillaOrden" min="1" step="10" value="100"></div>
+      <div><label>Quién lo firma</label>
+        <select id="plantillaFirmas" onchange="actualizarAyudaPlantilla()">
+          <option value="trabajador_supervisor">El trabajador y el supervisor</option>
+          <option value="trabajador">Solo el trabajador</option>
+          <option value="ninguno">Nadie (es un aviso)</option>
+        </select></div>
+    </div>
+    <div id="plantillaAyuda" class="small" style="margin-top:8px"></div>
+  <!-- Importar desde Word y la lista de variables -->
+  <div style="margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)">
+    <div class="row" style="align-items:center;gap:10px">
+      <button type="button" class="btn primary" onclick="importarPlantillaDesdeWord()">
+        Pegar desde Word
+      </button>
+      <div style="flex:1">
+        <small>
+          <b>Para armar la plantilla:</b> apretá <b>Bajar en Word</b>, editá el
+          archivo en Word, volvé a subirlo y apretá <b>Pegar desde Word</b>.
+          Se conserva la fuente, el color, la alineación y las tablas.
+          <br>
+          <b>Para rellenarla:</b> donde va un dato del trabajador poné el nombre
+          entre corchetes con mayúsculas: <b>[NOMBRE]</b>, <b>[RUT]</b>,
+          <b>[FECHA]</b>. También sirve {{nombre}} y {nombre}.
+          <br>
+          <small>Si el papel es un aviso y no lo firma nadie, elegí "Nadie" en
+          "Quién lo firma".</small>
+        </small>
+      </div>
+      <button type="button" class="btn" onclick="descargarPlantillaWord()">
+        Bajar en Word
+      </button>
+      <button type="button" class="btn" onclick="pintarListaVariables()">Ver variables</button>
+    </div>
+    <div id="plantillaAvisoWord" style="margin-top:8px"></div>
+    <div id="plantillaAvisoVariables" style="margin-top:8px"></div>
+    <div id="plantillaListaVariables" style="margin-top:8px;display:none"></div>
+  </div>
+    <div class="editor-barra" style="margin-top:10px">
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('bold')"><b>N</b></button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('italic')"><i>C</i></button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('underline')"><u>S</u></button>
+      <select class="btn" style="padding:3px 6px" onchange="document.execCommand('fontSize',false,this.value);this.value=''">
+        <option value="">Tamaño</option><option value="1">Chico</option><option value="3">Normal</option><option value="5">Grande</option>
+      </select>
+      <!--
+      LAS FUENTES, Y SOLO SEIS
+      =======================
+      El "fontName" de "execCommand" pone "<font face=...>", que es lo más viejo que hay y
+      por eso funciona en todos lados. Y el desplegable NO se arma con un catálogo: se arma
+      con la lista de "FUENTES_PLANTILLA", que está en el JavaScript.
+
+      Y la lista vive ahí y no acá a propósito. Si estuviera en el HTML habría dos lugares
+      donde cambiar las fuentes —esta lista y la de la plantilla— y algún día se cambiaría
+      en uno y no en el otro, y el editor ofrecería una fuente que la plantilla no tiene.
+
+      Y son SEIS, no un catálogo. Con veinte fuentes disponibles cada documento sale con una
+      distinta y la empresa deja de verse como empresa. Tres serif para el texto que se lee
+      seguido y tres sans para lo que se escanea.
+
+      Y hay una razón técnica: Word NO descarga fuentes de Google. La fuente viaja con el
+      archivo solo si va embebida, y Word no la embebe desde un HTML. Por eso el archivo
+      generado lleva, después de cada fuente, una del sistema con el mismo carácter.
+      -->
+      <select class="btn" id="plantillaFuente" style="padding:3px 6px"
+        onchange="aplicarFuentePlantilla(this.value);this.value=''"></select>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertUnorderedList')">• Lista</button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertOrderedList')">1. Lista</button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('insertParagraph')">Párrafo</button>
+      <button type="button" class="btn" style="padding:3px 9px" onclick="document.execCommand('removeFormat')">Sin formato</button>
+      <!--
+            BAJAR Y SUBIR
+            ===========
+            Sin esto el flujo era: bajar el archivo, abrirlo en Word, COPIAR EL CÓDIGO FUENTE a mano y
+            pegarlo en el editor. Y pegar el código fuente no es editar el documento: en la pantalla
+            sale escrito "<td width="64" valign="top" style="width: 48.15pt;...". Ver [word-01].
+      
+            Y el ".docx" NO se acepta, porque es un archivo comprimido y desde el navegador no se
+            puede abrir sin una librería de ZIP que este proyecto no tiene. Aceptarlo y no poder leerlo
+            es peor que rechazarlo. Ver [word-02].
+            -->
+            <button type="button" class="btn" style="padding:3px 9px" onclick="descargarPlantillaModelo()"
+              title="Baja un .doc con el esqueleto del documento y las variables">Bajar en blanco</button>
+            <label class="btn" style="padding:3px 9px;cursor:pointer"
+              title="Elige el .doc que guardaste desde Word">
+              Subir desde Word
+              <input type="file" id="plantillaArchivo" accept=".doc,.htm,.html,text/html"
+                onchange="subirPlantillaArchivo()" style="display:none">
+            </label>
+    </div>
+    <!--
+EL MANUAL, A LA VISTA
+====================
+Y dentro de un "<details>", cerrado. Porque son varios renglones de instrucciones que solo
+interesan mientras se está haciendo una plantilla, y abiertos de entrada taparían el editor.
+
+Y el mismo texto viaja dentro del archivo que se descarga. Ver [word-01].
+-->
+<details class="ayuda" style="margin-bottom:10px">
+  <summary class="ayuda-ico" title="Cómo se hace una plantilla paso a paso">i</summary>
+  <div class="ayuda-caja">
+  <b>El flujo es: Word primero.</b>
+  <br><br>
+  1. Aprieta <b>"Bajar en blanco"</b>. Abre el archivo en Word.
+  <br>
+  2. En Word, borra el bloque de instrucciones y la lista de variables, y arma el documento.
+  <br>
+  3. Donde va un dato, escribe el nombre del campo <b>entre corchetes y en mayúsculas</b>:
+  <br><span style="font-family:Consolas,monospace">Sr. [APELLIDO_PATERNO] [APELLIDO_MATERNO]</span>
+  <br><br>
+  4. <b>Guarda como "Word 97-2003 (.doc)"</b>, no como ".docx". Un ".docx" es un archivo
+  comprimido y desde acá no se puede abrir.
+  <br>
+  5. Vuelve, aprieta <b>"Subir desde Word"</b>, elige el archivo, y después <b>Guardar</b>.
+  <br><br>
+  <b>Las tres trampas de Word.</b>
+  <br><br>
+  <b>a) La corrección automática.</b> Word cambia los corchetes y las mayúsculas mientras se
+  escribe, y "[NOMBRE]" se vuelve "[Nombre]" y deja de reconocerse. Si pasa: escríbelo en otro
+  lado, cópialo y pégalo donde va.
+  <br><br>
+  <b>b) No partas una variable en dos.</b> Si "[APELLIDO_PATERNO]" queda cortado entre dos
+  párrafos, el corchete de cierre cae en otro lado y no se reconoce. Va entera, en un solo
+  pedazo de texto.
+  <br><br>
+  <b>c) Sin espacios adentro.</b> "[ NOMBRE ]" no sirve. "[NOMBRE]" sí.
+  <br><br>
+  <b>Y ya no se usan las llaves.</b> Antes se escribía "{{nombre}}" y la base la reconocía pero el
+  navegador no la reemplazaba: el documento salía con las llaves escritas y sin ningún dato. Si
+  tenés una plantilla armada así, en "Reconocidas" la vas a ver igual, y el papel no la va a
+  reemplazar.
+  </div>
+</details>
+    <div id="plantillaEditor" class="editor-hoja" contenteditable="true" spellcheck="true"></div>
+    <div id="plantillaError" style="color:var(--danger);margin-top:6px" role="alert"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="document.getElementById('dlgPlantilla').close()">Cancelar</button>
+      <button class="btn primary" id="plantillaGuardar" type="button" onclick="guardarPlantilla()">Guardar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Lo que se imprime no se ve nunca en la app, pero tiene que estar en el
+     DOM para poder renderizarlo al PDF. Por eso vive acá y no se arma al
+     vuelo: se arma, se mide, se saca. -->
+<div id="pantallaTotal" style="position:fixed;left:-10000px;top:0;background:#fff"></div>
+
+<dialog id="dlgDesvincula" style="max-width:560px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 id="desvTitulo" style="margin-top:0">Desvincular trabajador</h2>
+    <div id="desvInfo" class="small" style="margin-bottom:12px"></div>
+    <input type="hidden" id="desvCodigo">
+    <div class="row">
+      <div>
+        <label for="desvFecha">Fecha de término</label>
+        <input type="date" id="desvFecha" max="2099-12-31">
+        <small style="display:block">Cuándo terminó el contrato. Es la fecha que va a la planilla, y puede ser anterior a hoy.</small>
+      </div>
+      <div>
+        <label for="desvArticulo">Artículo del Código del Trabajo</label>
+        <select id="desvArticulo" onchange="document.getElementById('desvArticuloTexto').style.display=this.value==='otro'?'':'none'"></select>
+        <small style="display:block">Lo elige una persona. La app no lo valida.</small>
+      </div>
+    </div>
+    <div style="margin-top:8px">
+      <label for="desvArticuloTexto">Artículo, si no está en la lista</label>
+      <input id="desvArticuloTexto" placeholder="Por ejemplo: finiquito firmado con acuerdo">
+    </div>
+    <div style="margin-top:8px">
+      <label for="desvMotivo">Motivo</label>
+      <textarea id="desvMotivo" rows="2" placeholder="Por ejemplo: se fue por decisión propia, entregó carta de renuncia"></textarea>
+    </div>
+    <div id="desvError" style="color:var(--danger);margin-top:6px;min-height:1.2em" role="alert"></div>
+    <small style="display:block;margin-top:6px">
+      Queda registrado con tu nombre, la fecha y el artículo. Podés corregirlo después, pero la corrección también queda anotada.
+    </small>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn" id="desvCancelar" type="button" onclick="document.getElementById('dlgDesvincula').close()">Cancelar</button>
+      <button class="btn primary" id="desvGuardar" type="button" onclick="ejecutarDesvinculacion()">Desvincular</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
+BITÁCORA DE AUDITORÍA
+====================
+Una bitácora que no se puede leer no sirve de nada: se cumpliría el papel de
+"guardar el rastro" sin que nadie pudiera revisarlo. Esta es la pantalla que
+lo lee.
+
+No es un registro que se pueda corregir desde acá, a propósito. Si alguien
+encuentra un cambio mal hecho, la respuesta es dejar OTRO cambio con su
+motivo, no reescribir el primero. Por eso no hay botones acá, y por eso la
+tabla no tiene permisos de UPDATE ni de DELETE ni en la base.
+
+Lo que se muestra es el antes y el después de cada cambio, porque un motivo
+sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
+-->
+<section class="view v-administracion" id="v-auditoria">
+  <div class="card">
+    <h2>Bitácora de asistencia</h2>
+    <small>Quién cambió qué, cuándo y por qué. Es un registro que no se puede modificar ni borrar: ni desde la aplicación, ni desde la base de datos.
+      Si un cambio está mal, la forma de corregirlo es hacer otro cambio con su motivo, no reescribir este.</small>
+    <div class="row" style="margin-top:12px">
+      <div><label>Trabajador</label><select id="audWorker" onchange="renderAuditoria()"></select></div>
+      <div><label>Desde</label><input type="date" id="audDesde" onchange="renderAuditoria()"></div>
+      <div><label>Hasta</label><input type="date" id="audHasta" onchange="renderAuditoria()"></div>
+      <div><label>Quién lo hizo</label><select id="audUsuario" onchange="renderAuditoria()"></select></div>
+      <div><label>Tipo</label><select id="audAccion" onchange="renderAuditoria()">
+        <option value="">Todos</option>
+        <option value="inserta">Altas</option>
+        <option value="actualiza">Cambios</option>
+        <option value="borra">Borrados</option>
+      </select></div>
+    </div>
+    <div id="audResumen" style="margin-top:12px"></div>
+    <div id="audAviso" style="margin-top:10px"></div>
+    <div id="audLista" style="margin-top:12px"></div>
+    <div id="audMas" style="margin-top:12px;text-align:center"></div>
+  </div>
+</section>
+
+<div id="marcajeModal" role="dialog" aria-modal="true" aria-labelledby="marcajeModalTitle">
+  <div class="mkBox">
+    <h3 id="marcajeModalTitle">Marcaje registrado</h3>
+    <div class="mkQuien" id="marcajeQuien"></div>
+    <div id="marcajeLista"></div>
+    <div class="mkFoot">
+      <button class="btn" type="button" onclick="cerrarAvisoMarcaje()">Entendido</button>
+    </div>
+  </div>
+</div>
+
+<section class="view v-administracion" id="v-exportar">
+  <div class="card">
+    <h2>Exportar códigos para carga masiva a remuneraciones</h2>
+    <div class="row">
+      <div><label>Año</label><input type="number" id="expYear" value="2026"></div>
+      <div><label>Mes</label><select id="expMonth">
+        <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+        <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+        <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+        <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+      </select></div>
+    </div>
+    <small>Genera una fila por trabajador y día con permiso/tipo registrado, lista para editar el código de inasistencia/licencia antes de subir al sistema.</small>
+    <button class="btn" onclick="exportPayroll()">Generar Excel</button>
+  </div>
+</section>
+
+
+</main>
+<!-- ==================================================================
+     SOLICITAR INGRESO (supervisores)
+     ------------------------------------------------------------------
+     Lo que el supervisor escribe con la persona delante. Deliberadamente NO
+     está el código del trabajador: lo asigna RRHH.
+
+     Y el motivo está en el propio formulario, y no escondido: un supervisor
+     tiene que entender que lo que está haciendo es dejar un pedido, no dar de
+     alta a alguien. Si no lo sabe, va a suponer que la persona ya quedó
+     trabajando y va a pasar por portería a sacarle un marcaje que no existe.
+     ================================================================== -->
+<section class="view v-soporte" id="v-solicitar-ingreso">
+  <h2>Solicitar ingreso de un trabajador</h2>
+  <div class="small" style="max-width:900px;margin-bottom:14px">
+    Anota a la persona nueva y envíala a RRHH. <b>RRHH le asigna el código y
+    completa los datos que faltan</b>: el código del trabajador es la llave de
+    las tarjetas, la asistencia, el EPP y las herramientas, y se lo pone quien
+    lo controla.
+  </div>
+
+  <div class="card" style="max-width:900px">
+    <div class="row">
+      <div style="flex:2"><label for="ingRut">RUT *</label>
+        <input id="ingRut" placeholder="12.345.678-9" autocomplete="off"></div>
+      <div style="flex:3"><label for="ingNombre">Nombre completo *</label>
+        <input id="ingNombre" placeholder="Como figura en el documento"></div>
+      <div><label for="ingTelefono">Teléfono</label>
+        <input id="ingTelefono" placeholder="Opcional"></div>
+    </div>
+    <div class="row">
+      <div><label for="ingGrupo">Grupo</label>
+        <select id="ingGrupo" onchange="cambiarGrupoIngreso()"></select>
+        <small>El área de trabajo. Sale de la lista real, no se escribe a mano.</small></div>
+      <div><label for="ingCargo">Cargo</label>
+        <select id="ingCargo"></select>
+        <small>Decide qué kit recibe y qué charlas le tocan. Se elige el CARGO; el
+        grupo se deduce de él, y por eso no se guarda dos veces.</small></div>
+      <div><label for="ingFecha">Fecha de ingreso</label>
+        <input type="date" id="ingFecha"></div>
+    </div>
+    <div><label for="ingNota">Nota para RRHH (opcional)</label>
+      <textarea id="ingNota" rows="2" placeholder="Ej. viene de la contratista XYZ, hay que revisar su certificado de identificación"></textarea></div>
+    <div class="row" style="margin-top:10px;align-items:center">
+      <button class="btn" type="button" id="ingEnviar" onclick="enviarSolicitudIngreso()">Enviar a RRHH</button>
+      <button class="btn secondary" type="button" onclick="limpiarFormularioIngreso()">Limpiar</button>
+      <small id="ingAviso" style="flex:1"></small>
+    </div>
+  </div>
+
+  <h3 style="margin-top:22px">Lo que ya enviaste</h3>
+  <div id="ingMisPendientes"></div>
+</section>
+
+<!-- ==================================================================
+     COLA DE INGRESOS PENDIENTES (administración)
+     ------------------------------------------------------------------
+     Aquí es donde se asigna el código. El botón de aprobar pide el código y
+     el cargo, y solo con el código basta: lo demás se completa después en la
+     ficha.
+
+     Se ven los pedidos de todos, no solo los de quien mira, porque el que
+     aprueba es RRHH y los pedidos vienen de varias empresas.
+     ================================================================== -->
+<section class="view v-administracion" id="v-ingresos-cola">
+  <h2>Ingresos pendientes</h2>
+  <div class="small" style="max-width:900px;margin-bottom:14px">
+    Pedidos que dejaron los supervisores. Al aprobar, <b>se crea el trabajador
+    y se cierra el pedido en la misma operación</b>: nunca queda una ficha sin
+    pedido, ni un pedido sin ficha.
+  </div>
+  <div class="row" style="max-width:900px">
+    <div><label for="ingFiltroEstado">Mostrar</label>
+      <select id="ingFiltroEstado" onchange="cargarIngresosPendientes()">
+        <option value="pendiente">Solo pendientes</option>
+        <option value="">Todos</option>
+        <option value="aprobado">Ya aprobados</option>
+        <option value="rechazado">Rechazados</option>
+      </select></div>
+    <div style="align-self:end"><button class="btn secondary" type="button" onclick="cargarIngresosPendientes()">Actualizar</button></div>
+  </div>
+  <div id="ingCola" style="margin-top:14px"></div>
+</section>
+
+<div id="dlgAprobarIngreso" role="dialog" aria-modal="true" aria-labelledby="ingDlgTituloAprobar">
+  <div class="card" style="max-width:560px;margin:0">
+    <h2 id="ingDlgTituloAprobar" style="margin-top:0">Aprobar el ingreso</h2>
+    <div id="ingDlgInfo" class="small" style="margin-bottom:10px"></div>
+    <div><label for="ingDlgCodigo">Código del trabajador *</label>
+      <input id="ingDlgCodigo" placeholder="Ej. 0042" autocomplete="off">
+      <small>Es la llave de tarjetas, asistencia, EPP y herramientas. Si ya existe, la base lo rechaza.</small></div>
+    <div><label for="ingDlgCargo">Cargo / especialidad</label>
+      <input id="ingDlgCargo" placeholder="Ej. Maestro Gasfiteria"></div>
+    <div><label for="ingDlgFecha">Fecha de ingreso</label>
+      <input type="date" id="ingDlgFecha"></div>
+    <div id="ingDlgError" style="color:var(--danger);margin-top:8px;min-height:1.2em"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn secondary" type="button" onclick="cerrarDialogoIngreso()">Cancelar</button>
+      <button class="btn" type="button" id="ingDlgAprobar" onclick="aprobarIngresoPendiente()">Aprobar y crear el trabajador</button>
+    </div>
+  </div>
+</div>
+
+<div id="dlgRechazarIngreso" role="dialog" aria-modal="true" aria-labelledby="ingDlgTituloRechazar">
+  <div class="card" style="max-width:520px;margin:0">
+    <h2 id="ingDlgTituloRechazar" style="margin-top:0">Rechazar el ingreso</h2>
+    <div id="ingDlgRechInfo" class="small" style="margin-bottom:10px"></div>
+    <div><label for="ingDlgMotivo">Motivo *</label>
+      <textarea id="ingDlgMotivo" rows="3" placeholder="El supervisor necesita saber qué corregir, así que el motivo no es opcional"></textarea></div>
+    <div id="ingDlgRechError" style="color:var(--danger);margin-top:8px;min-height:1.2em"></div>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn secondary" type="button" onclick="cerrarDialogoIngreso()">Cancelar</button>
+      <button class="btn" type="button" onclick="rechazarIngresoPendiente()">Rechazar</button>
+    </div>
+  </div>
+</div>
+
+<script src="../js/nucleo.js?v=25"></script>
+<script src="../js/componentes/escaner.js?v=25"></script>
+
+<script src="../js/relojes.js?v=25"></script>
+<script src="../js/soporte.js?v=25"></script>
+<script src="../js/administracion.js?v=25"></script>
+<script src="../js/bodega.js?v=25"></script>
+<script src="../js/documentos.js?v=25"></script>
+<script src="../js/supervisores.js?v=25"></script>
+/* MANCHA DE SESION PARA LAS PRUEBAS */
+<script>
+try{
+window.requireAuth=async function(){return{user:{id:"prueba",email:"prueba@prueba"},
+access_token:"prueba",session:{user:{id:"prueba",email:"prueba@prueba"}}};};
+}catch(e){console.error("[prueba] no se pudo anular requireAuth:",e);}
+</script>
+<script src="../js/app.js?v=25"></script>
+<script>
+// EL REGISTRO CORTO
+// ==================
+// Lo que va pegado en "app.html". El detalle está en "sw.js" y en "documentacion.txt", no acá:
+// "app.html" se descarga entero en cada visita.
+//
+// Va al final del "<body>" y no antes, porque un service worker recién instalado no controla
+// la página que lomega hasta la siguiente. Ver [cache-07].
+//
+// No se registra en "localhost": si se instala en la máquina de pruebas, sirve lo viejo en el
+// navegador de la prueba. Ver [cache-09].
+//
+(function () {
+  if (!('serviceWorker' in navigator)) return;
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') return;
+  window.addEventListener('load', function () {
+    navigator.serviceWorker.register('../sw.js?v=19').catch(function () {});
+  });
+})();
+</script>
+
+<!--
+EL MOTIVO DEL CAMBIO
+====================
+Un <dialog> nativo, no un prompt(). El motivo queda guardado para siempre en
+la bitácora de auditoría, así que no es un dato de paso: la persona tiene que
+poder ver a quién y a qué día se está modificando, y corregir lo que
+escriba antes de aceptarlo.
+
+Va fuera del <script> porque es contenido, no lógica: así se lee en el HTML
+y no hay que buscarlo en el JavaScript.
+-->
+<dialog id="dlgMotivo" style="max-width:520px;width:94vw">
+  <div class="card" style="margin:0">
+    <h2 id="motivoTitulo" style="margin-top:0">Por qué hacés este cambio</h2>
+    <div id="motivoInfo" class="small" style="margin-bottom:10px"></div>
+    <label for="motivoTexto">Motivo</label>
+    <textarea id="motivoTexto" rows="4" style="width:100%"
+      placeholder="Por ejemplo: el trabajador me avisó por teléfono que llegó más tarde por el corte de la ruta."></textarea>
+    <div id="motivoError" style="color:var(--danger);margin-top:6px;min-height:1.2em" role="alert"></div>
+    <small style="display:block;margin-top:8px">
+      Queda registrado con tu nombre, tu rol y la fecha y hora exacta. No se puede modificar ni borrar después.
+      Mínimo 5 caracteres.
+    </small>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn" id="motivoCancelar" type="button">Cancelar</button>
+      <button class="btn primary" id="motivoAceptar" type="button">Guardar el cambio</button>
+    </div>
+  </div>
+</dialog>
+</body>
+</html>
