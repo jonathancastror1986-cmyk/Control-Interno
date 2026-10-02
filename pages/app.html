@@ -12,18 +12,18 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supabaseConfig.js?v=26"></script>
-<script src="../js/supabaseClient.js?v=26"></script>
-<script src="../js/auth.js?v=26"></script>
-<script src="../js/theme.js?v=26"></script>
-<script src="../js/clima-reloj.js?v=26"></script>
-<link rel="stylesheet" href="../css/base.css?v=26">
+<script src="../js/supabaseConfig.js?v=27"></script>
+<script src="../js/supabaseClient.js?v=27"></script>
+<script src="../js/auth.js?v=27"></script>
+<script src="../js/theme.js?v=27"></script>
+<script src="../js/clima-reloj.js?v=27"></script>
+<link rel="stylesheet" href="../css/base.css?v=27">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=26">
-<link rel="stylesheet" href="../css/grupos.css?v=26">
-<link rel="stylesheet" href="../css/styles.css?v=26">
+<link rel="stylesheet" href="../css/tokens.css?v=27">
+<link rel="stylesheet" href="../css/grupos.css?v=27">
+<link rel="stylesheet" href="../css/styles.css?v=27">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -41,7 +41,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=26"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=27"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -59,13 +59,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=26">
-<link rel="stylesheet" href="../css/vistas.css?v=26">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=26">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=26">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=26">
-<link rel="stylesheet" href="../css/componentes/plantillas.css?v=26">
-<link rel="stylesheet" href="../css/movil.css?v=26" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=27">
+<link rel="stylesheet" href="../css/vistas.css?v=27">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=27">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=27">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=27">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=27">
+<link rel="stylesheet" href="../css/movil.css?v=27" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -2217,6 +2217,26 @@ no se pueden editar con la barra.
     <label><input type="checkbox" id="plantillaAprueba" style="width:auto;display:inline-block;margin-right:6px">
       Este papel requiere aprobación antes de entregarse</label>
     <small style="display:block;margin-top:4px">Sin marcar, el papel se firma y se entrega directo.</small>
+  </div>
+<!--
+  CÓMO SE FIRMA
+  -------------
+  Y es DISTINTO de "requiere aprobación": eso dice si el papel pasa por alguien antes de
+  entregarse, y esto dice si se firma con certificado o a mano. Ver [firma-01].
+
+  Y las tres opciones, porque el supervisor con certificado y el trabajador a mano es un caso
+  real. Con un sí o no no cabe. Ver [firma-01].
+
+  Y el texto de las opciones digital y mixto avisa que hoy no hay certificado integrado, en vez
+  de que se descubra cuando se guarda. Ver [firma-04].
+  -->
+  <div>
+    <label>Cómo se firma</label>
+    <select id="plantillaModoFirma">
+      <option value="manuscrita">A mano, en pantalla — el PDF se escanea después</option>
+      <option value="digital">Digital, con certificado — todavía no integrado</option>
+      <option value="mixto">El supervisor con certificado y el trabajador a mano</option>
+    </select>
   </div></div>
     </div>
     <div id="plantillaAyuda" class="small" style="margin-top:8px"></div>
@@ -2579,16 +2599,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=26"></script>
-<script src="../js/componentes/escaner.js?v=26"></script>
+<script src="../js/nucleo.js?v=27"></script>
+<script src="../js/componentes/escaner.js?v=27"></script>
 
-<script src="../js/relojes.js?v=26"></script>
-<script src="../js/soporte.js?v=26"></script>
-<script src="../js/administracion.js?v=26"></script>
-<script src="../js/bodega.js?v=26"></script>
-<script src="../js/documentos.js?v=26"></script>
-<script src="../js/supervisores.js?v=26"></script>
-<script src="../js/app.js?v=26"></script>
+<script src="../js/relojes.js?v=27"></script>
+<script src="../js/soporte.js?v=27"></script>
+<script src="../js/administracion.js?v=27"></script>
+<script src="../js/bodega.js?v=27"></script>
+<script src="../js/documentos.js?v=27"></script>
+<script src="../js/supervisores.js?v=27"></script>
+<script src="../js/app.js?v=27"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================

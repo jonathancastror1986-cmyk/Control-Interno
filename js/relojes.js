@@ -2614,6 +2614,7 @@ function renderPlantillas(){
       '<br><small>'+escHtml(textoDestinoPlantilla(p))+
       (p.firmas==='ninguno'?'':' · firma'+(p.firmas==='trabajador_supervisor'?' del trabajador y del supervisor':' del trabajador'))+
       (p.requiere_aprobacion ? ' · requiere aprobación' : '')+
+      (p.modo_firma && p.modo_firma!=='manuscrita' ? ' · firma '+p.modo_firma : '')+
       (hechas?' · '+hechas+' firmada(s)':'')+'</small></div>'+
       '<span style="display:flex;gap:6px;flex:0 0 auto">'+
       '<button class="btn" style="padding:4px 8px;font-size:.8rem" type="button" onclick="abrirEditorPlantilla(\''+escHtml(p.code)+'\')">Editar</button>'+
@@ -2685,6 +2686,14 @@ async function abrirEditorPlantilla(code){
   // Y con "!!(p&&...)": una plantilla vieja sin la columna, o una nueva que no tiene la fila
   // todavía, da falso. Que es lo correcto: no estar marcado no es "requiere aprobación".
   if(cajaAprueba)cajaAprueba.checked=!!(p&&p.requiere_aprobacion);
+  // Y el modo de firma con el mismo cuidado: si la plantilla es vieja y no tiene la columna,
+  // queda en el valor por defecto, que es el camino que ya anda.
+  (function(){
+    const sel=document.getElementById('plantillaModoFirma');
+    if(!sel)return;
+    const v=p?p.modo_firma:'manuscrita';
+    sel.value=['manuscrita','digital','mixto'].indexOf(v)>=0?v:'manuscrita';
+  })();
 
 document.getElementById('plantillaFirmas').value=
     p?(p.firmas||'trabajador_supervisor'):'trabajador_supervisor';
@@ -2730,6 +2739,14 @@ async function guardarPlantilla(){
   // leido, y el "!!" porque un checkbox unchecked devuelve false y checked devuelve true,
   // que es justo lo que se quiere guardar.
   requiere_aprobacion:!!(document.getElementById('plantillaAprueba')||{}).checked,
+  // Y el modo de firma, con la lista de los tres valores. Si el select no está, o tiene
+  // algo raro, se manda el valor por defecto: es preferible que se guarde "manuscrita" a que
+  // vaya un undefined y la base lo rechace con un error de CHECK.
+  modo_firma:(function(){
+    const sel=document.getElementById('plantillaModoFirma');
+    const v=sel?sel.value:'';
+    return ['manuscrita','digital','mixto'].indexOf(v)>=0?v:'manuscrita';
+  })(),
     contenido
   };
   btn.disabled=true;btn.textContent='Guardando…';
