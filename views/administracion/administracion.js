@@ -834,7 +834,13 @@ function buildMatrixHtml(y,m,lista,modo){
   const nd=daysInMonth(y,m);
   const workedWeeks=buildWorkedWeeks();
   const recordsByDay=new Map(attendance.map(record=>[`${record.code}|${record.date}`,record]));
-  let html='<table><tr><th>Código</th><th class="attendance-name-column">Trabajador</th>';
+  // Y el ".overflow" va ACÁ, alrededor de la tabla sola, y no en el HTML afuera.
+  //
+  // Porque "buildMatrixHtml" devuelve la tabla Y las tres leyendas, y si el scroll
+  // horizontal envuelve todo, las leyendas se desplazan con la tabla: para leer el texto
+  // de abajo hay que volver a arrastrar a la izquierda, y eso esconde la grilla. La
+  // leyenda es de la persona, no de la tabla. Ver [tarja-07].
+  let html='<div class="overflow"><table><tr><th>Código</th><th class="attendance-name-column">Trabajador</th>';
   for(let d=1;d<=nd;d++)html+=`<th>${d}</th>`;
   html+='<th>Días trab. (base 30)</th><th>Días efectivos</th><th>Días lluvia (LL)</th><th>Días reales trabajados</th><th>Lic./Acc. (L,A)</th><th>Inasist. (F,P)</th></tr>';
   html+='<tr><td></td><td><i>Día</i></td>';
@@ -878,7 +884,7 @@ function buildMatrixHtml(y,m,lista,modo){
     const diasTrabajadosBase30=Math.round(diasTrabajadosCrudo/nd*30);
     html+=`<td>${diasTrabajadosBase30}</td><td>${diasEfectivos}</td><td>${cLL}</td><td>${diasReales}</td><td>${cL+cA}</td><td>${cF+cP}</td></tr>`;
   });
-  html+='</table>';
+  html+='</table></div>';
   let textoCelda;
   if(modo==='supervisores'){
     textoCelda='Haz clic en cualquier día para <b>solicitar</b> un cambio de estado: se abre una ventana para elegir el estado nuevo y escribir el detalle. Queda pendiente hasta que RRHH lo apruebe.';
