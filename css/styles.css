@@ -4966,6 +4966,102 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    Abajo de 860 los menús se esconden y el encabezado no tiene a quién
    dejarle sitio. La palabra "Modo oscuro" no cabe en 390 píxeles con el ícono
    al lado; el reloj sí, y son 40. */
+/* -------------------------------------------------------------------
+   CUANDO SE ACHICA, DE VERDAD Y NO ESCALADA
+   -------------------------------------------------------------------
+   Estas van DESPUÉS de las del "scaleY" de más arriba, y por eso_gain_pisan. Esas
+   siguen ahí: si algo de esto no soporta el navegador, el "scaleY" achica igual de
+   roto. Ver [barra-02].
+
+   Y en vez de escalar, se achican las cosas de verdad: menos "font-size" y menos "padding".
+   Eso cambia el layout de verdad, así que el contenido sube y no queda un hueco muerto
+   entre la barra y lo que sigue. Y las letras se dibujan más chicas con el mismo hinted
+   de siempre, en vez de deformarse. Ver [barra-01].
+
+   Y las transiciones van sobre esas DOS propiedades, que son las que se animan. Con
+   "transform" no se nota el cambio: se ve un tirón. */
+body.nav-compacto #barrasSuperiores{
+  transform:none;
+}
+body.nav-compacto #barrasSuperiores header,
+body.nav-compacto #barrasSuperiores #mainNav,
+body.nav-compacto #barrasSuperiores #subNav{
+  transition:padding .28s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* Y el aire de las tres barras. */
+body.nav-compacto #barrasSuperiores header{
+  padding-top:3px;
+  padding-bottom:3px;
+}
+body.nav-compacto #barrasSuperiores #mainNav,
+body.nav-compacto #barrasSuperiores #subNav{padding-top:0;padding-bottom:1px}
+
+/* Y el botón del menú: menos alto adentro, y menos letra. */
+/* Y acá se repite "#barrasSuperiores" a propósito. La regla vieja es
+   "#barrasSuperiores #mainNav button", que pesa (2,0,1); sin el segundo id esta
+   sería (1,1,1) y se perdería. Ver [barra-05]. */
+body.nav-compacto #barrasSuperiores #mainNav button,
+body.nav-compacto #barrasSuperiores #subNav>button,
+body.nav-compacto #barrasSuperiores #subNav .nav-dropdown-trigger{
+  padding-top:3px;
+  padding-bottom:3px;
+  font-size:.66rem;
+  transition:padding .28s cubic-bezier(.25,.46,.45,.94),font-size .28s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* Y el nombre del módulo, que es lo más grande y lo que más alto empuja. */
+body.nav-compacto #barrasSuperiores header h1{
+  font-size:.72rem;
+  transition:font-size .28s cubic-bezier(.25,.46,.45,.94);
+}
+
+/*
+   Y EL MOUSE POR ENCIMA
+   --------------------
+   Y ":hover" empieza a matchear desde el primer píxel de la barra, que es lo más
+   pegado al borde de arriba, así que con el puntero arriba la barra no se achica nunca.
+   Eso es lo que pasaba: el puntero cancelaba el achique sin querer.
+
+   Con estas reglas el puntero arriba la vuelve a su tamaño DE VERDAD, no con
+   "transform:none" sino con las mismas propiedades y su valor grande. */
+body.nav-compacto #barrasSuperiores:hover header,
+body.nav-compacto #barrasSuperiores:focus-within header{padding-top:8px;padding-bottom:8px}
+body.nav-compacto #barrasSuperiores:hover #barrasSuperiores #mainNav button,
+body.nav-compacto #barrasSuperiores:hover #barrasSuperiores #subNav>button,
+body.nav-compacto #barrasSuperiores:hover #barrasSuperiores #subNav .nav-dropdown-trigger,
+body.nav-compacto #barrasSuperiores:focus-within #barrasSuperiores #mainNav button,
+body.nav-compacto #barrasSuperiores:focus-within #barrasSuperiores #subNav>button,
+
+body.nav-compacto #barrasSuperiores:focus-within #barrasSuperiores #subNav .nav-dropdown-trigger{
+  padding-top:9px;
+  padding-bottom:9px;
+  font-size:.75rem;
+}
+body.nav-compacto #barrasSuperiores:hover header h1,
+body.nav-compacto #barrasSuperiores:focus-within header h1{font-size:.8rem}
+
+/* -------------------------------------------------------------------
+   EL DESPLEGABLE, QUE YA NO HAY QUE CONTRAESCALAR
+   -------------------------------------------------------------------
+   Antes hacía falta, porque la barra se escalaba con "scaleY" y el desplegable, que cuelga
+   con "position:absolute", se escalaba con ella y sus letras salían con medio píxel de ancho.
+
+   Ahora que se achica con "padding" y "font-size", nada se escala, así que el desplegable no
+   necesita lo contrario. Y las reglas viejas de más arriba, que lo contrascalan, se
+   anulan con un "none": si se dejaran, el menú se vería estirado al revés. Ver [barra-03]. */
+/* Y el título va un pelo más arriba, que con el bloque del logo abajo suma aire.
+   Y el resto del logo NO se toca: se probó achicarlo y no bajó de los 70 píxeles. Ver [barra-07]. */
+body.nav-compacto #barrasSuperiores header h1{
+  margin-top:1px;
+}
+
+body.nav-compacto #subNav .nav-dropdown-menu,
+body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
+  transform:none;
+}
+
+
 @media (max-width:860px){
   .tema-palabra{display:none}
 
