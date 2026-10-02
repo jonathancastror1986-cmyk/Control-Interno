@@ -12,19 +12,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../js/supabaseConfig.js?v=52"></script>
-<script src="../js/supabaseClient.js?v=52"></script>
-<script src="../js/auth.js?v=52"></script>
-<script src="../js/theme.js?v=52"></script>
-<script src="../js/clima-reloj.js?v=52"></script>
-<link rel="stylesheet" href="../css/base.css?v=52">
+<script src="../js/supabaseConfig.js?v=53"></script>
+<script src="../js/supabaseClient.js?v=53"></script>
+<script src="../js/auth.js?v=53"></script>
+<script src="../js/theme.js?v=53"></script>
+<script src="../js/clima-reloj.js?v=53"></script>
+<link rel="stylesheet" href="../css/base.css?v=53">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=52">
-<link rel="stylesheet" href="../css/grupos.css?v=52">
-<link rel="stylesheet" href="../css/styles.css?v=52">
-<link rel="stylesheet" href="../css/componentes/asistencia.css?v=52">
+<link rel="stylesheet" href="../css/tokens.css?v=53">
+<link rel="stylesheet" href="../css/grupos.css?v=53">
+<link rel="stylesheet" href="../css/styles.css?v=53">
+<link rel="stylesheet" href="../css/componentes/asistencia.css?v=53">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -42,7 +42,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=52"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=53"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -60,13 +60,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=52">
-<link rel="stylesheet" href="../css/vistas.css?v=52">
-<link rel="stylesheet" href="../css/componentes/porteria.css?v=52">
-  <link rel="stylesheet" href="../css/componentes/totem.css?v=52">
-<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=52">
-<link rel="stylesheet" href="../css/componentes/plantillas.css?v=52">
-<link rel="stylesheet" href="../css/movil.css?v=52" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=53">
+<link rel="stylesheet" href="../css/vistas.css?v=53">
+<link rel="stylesheet" href="../css/componentes/porteria.css?v=53">
+  <link rel="stylesheet" href="../css/componentes/totem.css?v=53">
+<link rel="stylesheet" href="../css/componentes/tarjeta.css?v=53">
+<link rel="stylesheet" href="../css/componentes/plantillas.css?v=53">
+<link rel="stylesheet" href="../css/movil.css?v=53" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -224,7 +224,6 @@ el sistema no adivina a cuál centro se le imputa a una persona.
           </select>
           <small style="display:block;margin-top:4px">Contra qué centro se justifica su asistencia. Si la empresa tiene uno solo, ya viene puesto.</small>
           <small id="w-centro-costoAviso" hidden style="display:block;margin-top:4px;color:var(--warn-ink);background:var(--warn-surface,rgba(220,150,20,.10));border:1px solid var(--warn);border-radius:6px;padding:6px 8px"></small>
-          <small id="w-centro-costoAviso" hidden style="display:block;margin-top:4px;color:var(--warn-ink);background:var(--warn-surface,rgba(220,150,20,.10));border:1px solid var(--warn);border-radius:6px;padding:6px 8px"></small>
         </div>
       <div><label>Fecha de ingreso <details class="ayuda"><summary class="ayuda-ico" title="El día que empezó, y para qué se usa">i</summary>
 
@@ -436,30 +435,8 @@ distintas, y por eso no se mezclan.
         <button class="btn secondary" type="button" onclick="tarjetasSeleccionadas.clear();renderList()">Quitar todas las marcas</button>
         <small id="tarjetasAviso"></small>
       </div>
-      <div class="barraTarjetas">
-        <button class="btn primary" type="button" id="btnImprimirTarjetas"
-                onclick="imprimirTarjetasSeleccionadas()" disabled>Imprimir tarjetas</button>
-        <label class="marcarTodo"><input type="checkbox" class="marcarTodasFuera"
-                onchange="alternarTodasLasVisibles(this.checked)">Marcar los que se ven</label>
-        <button class="btn secondary" type="button" onclick="tarjetasSeleccionadas.clear();renderList()">Quitar todas las marcas</button>
-        <small id="tarjetasAviso"></small>
-      </div>
-      <div class="barraTarjetas">
-        <button class="btn primary" type="button" id="btnImprimirTarjetas"
-                onclick="imprimirTarjetasSeleccionadas()" disabled>Imprimir tarjetas</button>
-        <label class="marcarTodo"><input type="checkbox" class="marcarTodasFuera"
-                onchange="alternarTodasLasVisibles(this.checked)">Marcar los que se ven</label>
-        <button class="btn secondary" type="button" onclick="tarjetasSeleccionadas.clear();renderList()">Quitar todas las marcas</button>
-        <small id="tarjetasAviso"></small>
-      </div>
-      <div class="barraTarjetas">
-        <button class="btn primary" type="button" id="btnImprimirTarjetas"
-                onclick="imprimirTarjetasSeleccionadas()" disabled>Imprimir tarjetas</button>
-        <label class="marcarTodo"><input type="checkbox" class="marcarTodasFuera"
-                onchange="alternarTodasLasVisibles(this.checked)">Marcar los que se ven</label>
-        <button class="btn secondary" type="button" onclick="tarjetasSeleccionadas.clear();renderList()">Quitar todas las marcas</button>
-        <small id="tarjetasAviso"></small>
-      </div><div id="workerList"></div>
+
+      <div id="workerList"></div>
   </div>
 </section>
 
@@ -2618,13 +2595,6 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
         <div><label>Empresa</label><select id="audEmpresa" onchange="renderAuditoria()"><option value="">Todas</option></select></div>
         <div><label>Centro de costo</label><select id="audCentro" onchange="renderAuditoria()"><option value="">Todos</option></select></div>
         <div><label>Grupo del cargo</label><select id="audGrupo" onchange="renderAuditoria()"><option value="">Todos</option></select></div>
-                <div><label>Buscar código</label>
-          <input id="audCodigo" placeholder="0021 o 21" oninput="renderAuditoria()">
-          <small style="display:block;margin-top:2px;font-size:.68rem">El código con o sin ceros.</small>
-        </div>
-        <div><label>Empresa</label><select id="audEmpresa" onchange="renderAuditoria()"><option value="">Todas</option></select></div>
-        <div><label>Centro de costo</label><select id="audCentro" onchange="renderAuditoria()"><option value="">Todos</option></select></div>
-        <div><label>Grupo del cargo</label><select id="audGrupo" onchange="renderAuditoria()"><option value="">Todos</option></select></div>
         <div><label>Tipo</label><select id="audAccion" onchange="renderAuditoria()">
         <option value="">Todos</option>
         <option value="inserta">Altas</option>
@@ -2787,16 +2757,16 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=52"></script>
-<script src="../js/componentes/escaner.js?v=52"></script>
+<script src="../js/nucleo.js?v=53"></script>
+<script src="../js/componentes/escaner.js?v=53"></script>
 
-<script src="../js/relojes.js?v=52"></script>
-<script src="../js/soporte.js?v=52"></script>
-<script src="../js/administracion.js?v=52"></script>
-<script src="../js/bodega.js?v=52"></script>
-<script src="../js/documentos.js?v=52"></script>
-<script src="../js/supervisores.js?v=52"></script>
-<script src="../js/app.js?v=52"></script>
+<script src="../js/relojes.js?v=53"></script>
+<script src="../js/soporte.js?v=53"></script>
+<script src="../js/administracion.js?v=53"></script>
+<script src="../js/bodega.js?v=53"></script>
+<script src="../js/documentos.js?v=53"></script>
+<script src="../js/supervisores.js?v=53"></script>
+<script src="../js/app.js?v=53"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
