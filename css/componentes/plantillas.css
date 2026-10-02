@@ -161,6 +161,23 @@
 .campoPropio .req{color:var(--warn);font-size:.7rem}
 
 /*
+  LAS VARIABLES CON EL DATO PUESTO
+  --------------------------------
+  Y son "<div>" y no "<button>", porque adentro hay un "<span>" con un valor largo y un
+  "title": un botón con contenido que no es texto es un botón del que el lector de pantalla
+  no lee el valor.
+
+  Y el puntero de mano, porque se inserta con un clic y sin eso parece texto.
+*/
+.varConDato{cursor:copy;align-items:baseline}
+.varConDato:hover{background:var(--surface-hover,var(--panel));border-radius:6px}
+.varConDato:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+
+/* Y el valor completo vive en el "title". El renglón muestra el valor, y con el mouse encima
+   sale entero, que es lo que pasa con una dirección o un correo largo. */
+.varConDato .sinDato{color:var(--warn);font-size:.68rem;white-space:nowrap}
+
+/*
   EL FORMULARIO DE DAR DE ALTO UN CAMPO
   -------------------------------------
   Y el campo de "opciones" aparece SOLO cuando el tipo es lista o casillas. Con un "check"

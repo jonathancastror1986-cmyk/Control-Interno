@@ -3461,6 +3461,44 @@ function verClaveCampo() {
 }
 
 // -------------------------------------------------------------------
+// LOS DOS SELECTORES DE LA DESCARGA
+// -------------------------------------------------------------------
+// Y el de los trabajadores y el de las plantillas.
+//
+// El de los trabajadores se llena con "todosWorkers", que ya está cargado: son las mismas
+// personas que muestra la lista de asistencia. Y NO se vuelve a pedir a la base, porque son
+// las mismas, y pedir otra vez es esperar lo mismo dos veces.
+//
+// Y el nombre se arma con "nombreCompleto" y no con "name", porque una ficha vieja que solo
+// tiene el texto completo en "name" mostraría el nombre partido vacío. Ver [nombres-01].
+async function llenarSelectoresDescarga() {
+  const selW = document.getElementById('descargaTrabajador');
+  const selP = document.getElementById('descargaPlantilla');
+
+  if (selW && !selW.options.length) {
+    const lista = (typeof todosWorkers !== 'undefined' && todosWorkers) ? todosWorkers : [];
+    selW.innerHTML = '<option value="">— trabajador —</option>' +
+      lista
+        .filter(w => String(w.status || 'activo') !== 'desvinculado')
+        .sort((a, b) => String(a.nombreCompleto || a.name || '').localeCompare(String(b.nombreCompleto || b.name || '')))
+        .map(w => '<option value="' + escHtml(String(w.code)) + '">' +
+          escHtml(w.nombreCompleto || w.name || w.code) + '</option>')
+        .join('');
+  }
+
+  if (selP && !selP.options.length) {
+    const lista = (typeof plantillasContratacion !== 'undefined' ? plantillasContratacion : [])
+      .filter(p => p.vigente);
+    selP.innerHTML = '<option value="">— plantilla —</option>' +
+      lista.map(p => '<option value="' + escHtml(String(p.code)) + '">' +
+        escHtml(p.nombre || '') + '</option>').join('');
+  }
+
+  // Y con los dos listos, se pinta la lista de variables con los datos.
+  await cargarVariablesConDatos();
+}
+
+// -------------------------------------------------------------------
 // EL TIPO, Y EL CAMPO DE OPCIONES
 // -------------------------------------------------------------------
 function cambiarTipoCampo() {
@@ -3530,12 +3568,12 @@ async function cargarCamposPropios() {
   // tenga que pasar por veinte renglones que no le sirven.
   const fijas = (data || []).filter(v => !v.es_propio);
   const cajaVar = document.getElementById('plantillaVariables');
-  if (cajaVar) {
-    cajaVar.innerHTML = fijas
-      .map(v => '<span class="campoPropio" style="padding:3px 0"><span class="cod">' + escHtml(v.variable) + '</span>' +
-                '<span class="et" style="font-size:.8rem">' + escHtml(v.etiqueta || '') + '</span></span>')
-      .join('');
+  if (cajaVar && !fijas.length) {
+    cajaVar.innerHTML = '<small style="color:var(--muted)">Elegí un trabajador para ver los datos.</small>';
   }
+
+  // Y los dos selectores de la descarga, que es donde se elige a quién.
+  await llenarSelectoresDescarga();
 }
 
 // -------------------------------------------------------------------
@@ -3930,3 +3968,195 @@ function reglaFuentesDocumento(regla) {
   });
   return regla;
 }
+
+// LAS VARIABLES CON EL DATO PUESTO
+// ====================================
+//
+// -------------------------------------------------------------------
+// QUÉ CAMBIA
+// ---------
+//
+// Antes la lista decía NOMBRE, RUT, CARGO... y nada más. Con eso hay que ir a buscar el dato
+// a la ficha del trabajador, copiarlo, y pegarlo en el documento. Y si se pega mal, o se pega
+// el de otra persona, el documento sale con el dato de otro.
+//
+// Ahora cada variable muestra SU valor, para el trabajador que esté elegido. Y es un clic
+// para insertarla en la plantilla.
+//
+// -------------------------------------------------------------------
+// Y LA LISTA TIENE QUE SEGUIR SIENDO UNA SOLA
+// --------------------------------------------
+//
+// Hay tres fuentes y van en el mismo bloque, en este orden:
+//
+//   1. LA EMPRESA     nombre, RUT, dirección, teléfono, giro
+//   2. EL TRABAJADOR  del "datos_para_plantilla": nombre, RUT, cargo, fecha...
+//   3. LOS CAMPOS PROPIOS, de la empresa
+//
+// Y en UN bloque y no en tres, porque el que escribe la plantilla no puede estar adivinando
+// de qué sección salió la variable. Y la empresa va arriba porque es lo primero que se llena.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ UN "title" CON EL VALOR
+// ---------------------------------
+//
+// Porque el valor completo puede ser largo —una dirección, un correo— y si se muestra entero
+// la lista deja de ser una lista y pasa a ser un muro. Y el "title" lo tiene entero al pasar
+// el mouse, sin sacar el valor de la vista.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ EL VALOR VACÍO SE MARCA
+// ---------------------------------
+//
+// Un "[NOMBRE]" con nada al lado y un "[NOMBRE]" con un dato se ven distinto al pasar el
+// mouse, pero iguales de lejos. Y el que se escribe en mayúsculas con un guion al lado es un
+// "[RUT]" que todavía no tiene nada.
+//
+// Y NO se esconde: se muestra. Un campo vacío que no se ve es un campo que se llena a mano.
+function textoSiVacio(v) {
+  const s = (v == null ? '' : String(v)).trim();
+  return s ? s : '— sin dato —';
+}
+
+// Y el "title" de una variable: el nombre del campo arriba, el dato abajo. Y arriba en
+// monoespaciada, porque eso es lo que va a ir en el documento.
+function filaVariable(clave, valor, etiqueta) {
+  return '<div class="campoPropio varConDato" title="' + escHtml(etiqueta + ': ' + textoSiVacio(valor)) + '"' +
+      ' data-var="' + escHtml(clave) + '" role="button" tabindex="0">' +
+      '<span class="cod">' + escHtml('[' + clave + ']') + '</span>' +
+      '<span class="et">' + escHtml(textoSiVacio(valor)) + '</span>' +
+      (!String(valor || '').trim() ? '<span class="sinDato">vacío</span>' : '') +
+    '</div>';
+}
+
+// -------------------------------------------------------------------
+// ARMAR LA LISTA
+// -------------------------------------------------------------------
+function pintarVariablesConDatos(datos, empresa) {
+  const caja = document.getElementById('plantillaVariables');
+  if (!caja) return;
+
+  const filas = [];
+
+  // -----------------------------------------------------------------
+  // 1. LA EMPRESA
+  // -----------------------------------------------------------------
+  // Y sale de "empresas", que ya está en memoria con nombre, RUT, giro, dirección, teléfono
+  // y correo. No hace falta ninguna consulta extra: la página ya la hizo para otros menús.
+  //
+  // Y con el prefijo "EMPRESA_", que es el que la plantilla de contrato ya usaba. O sea que
+  // los documentos que están armados con esos nombres siguen funcionando sin tocarlos.
+  const e = empresa || {};
+  [
+    ['EMPRESA', e.nombre],
+    ['RUT_EMPRESA', e.rut],
+    ['DIRECCION_EMPRESA', e.direccion],
+    ['TELEFONO_EMPRESA', e.telefono],
+    ['CORREO_EMPRESA', e.email],
+    ['GIRO_EMPRESA', e.giro],
+  ].forEach((x) => filas.push(filaVariable(x[0], x[1], x[0].replace(/_/g, ' ').toLowerCase())));
+
+  // -----------------------------------------------------------------
+  // 2. EL TRABAJADOR
+  // -----------------------------------------------------------------
+  // Y en el orden en que se leen los datos de una persona: nombre, RUT, teléfono, cargo.
+  // Que sea el orden natural y no el alfabético, porque así se busca lo que uno está
+  // escribiendo.
+  const d = datos || {};
+  [
+    ['NOMBRE', d.NOMBRE],
+    ['NOMBRES', d.NOMBRES],
+    ['APELLIDO_PATERNO', d.APELLIDO_PATERNO],
+    ['APELLIDO_MATERNO', d.APELLIDO_MATERNO],
+    ['CODIGO', d.CODIGO],
+    ['RUT', d.RUT],
+    ['TELEFONO', d.TELEFONO],
+    ['CORREO', d.CORREO],
+    ['DIRECCION', d.DIRECCION],
+    ['CARGO', d.CARGO],
+    ['ESPECIALIDAD', d.ESPECIALIDAD],
+    ['FECHA_INGRESO', d.FECHA_INGRESO],
+    ['AFP_CODIGO', d.AFP_CODIGO],
+    ['AFP_NOMBRE', d.AFP_NOMBRE],
+  ].forEach((x) => filas.push(filaVariable(x[0], x[1], 'del trabajador')));
+
+  // -----------------------------------------------------------------
+  // 3. LOS CAMPOS PROPIOS DE LA EMPRESA
+  // -----------------------------------------------------------------
+  // Y acá está el detalle que hace que la lista no tenga que pedirle nada a la base: la clave
+  // que trae "datos_para_plantilla" para los campos propios es la clave CRUDA, sin el prefijo
+  // de empresa. Porque con la forma unificada "[LICENCIA]" el prefijo ya no se usa.
+  Object.keys(d).forEach((k) => {
+    if (['NOMBRE','NOMBRES','APELLIDO_PATERNO','APELLIDO_MATERNO','CODIGO','RUT','TELEFONO',
+         'CORREO','DIRECCION','CARGO','ESPECIALIDAD','FECHA_INGRESO','AFP_CODIGO','AFP_NOMBRE',
+         'FOTO_CASUAL','FOTO_SEGURIDAD','FIRMA'].indexOf(k) >= 0) return;
+    const clave = k.replace(/^\d+-/, '');
+    filas.push(filaVariable(clave, d[k], 'campo propio'));
+  });
+
+  if (!filas.length) {
+    caja.innerHTML = '<small style="color:var(--muted)">Elegí un trabajador para ver los datos.</small>';
+    return;
+  }
+  caja.innerHTML = filas.join('');
+}
+
+// -------------------------------------------------------------------
+// INSERTAR LA VARIABLE EN LA PLANTILLA
+// -------------------------------------------------------------------
+// Y con "execCommand" y no con el contenido del editor: reemplazar todo el contenido por el
+// texto con la variable pegada BORRARÍA lo que el usuario ya escribió.
+function insertarVariableEnPlantilla(clave) {
+  const ed = document.getElementById('plantillaEditor');
+  if (!ed) return;
+  ed.focus();
+  document.execCommand('insertText', false, '[' + clave + ']');
+}
+
+// -------------------------------------------------------------------
+// Y QUE SE LLAME AL CAMBIAR DE TRABAJADOR
+// -------------------------------------------------------------------
+async function cargarVariablesConDatos() {
+  const selW = document.getElementById('descargaTrabajador');
+  const selE = document.getElementById('camposPropiosEmpresa');
+  if (!selW) return;
+
+  const code = selW.value;
+  const empresaId = selE && selE.value ? parseInt(selE.value, 10) : null;
+
+  if (!code) {
+    pintarVariablesConDatos(null, empresaDeLosDatos());
+    return;
+  }
+
+  const { data, error } = await window.supabaseClient.rpc('datos_para_plantilla', {
+    p_trabajador_code: code,
+    p_empresa_id: empresaId,
+  });
+  if (error) {
+    const caja = document.getElementById('plantillaVariables');
+    if (caja) caja.innerHTML = '<small style="color:var(--danger)">' + escHtml(error.message) + '</small>';
+    return;
+  }
+  pintarVariablesConDatos(data || {}, empresaDeLosDatos());
+}
+
+// Y la empresa que hay que mirar es la del selector de campos propios, que es la misma que
+// está elegida arriba. Y si ese selector no está, la primera de la lista.
+function empresaDeLosDatos() {
+  const sel = document.getElementById('camposPropiosEmpresa');
+  const id = sel && sel.value ? sel.value : null;
+  const lista = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
+  return lista.find(x => String(x.id) === String(id)) || lista[0] || null;
+}
+
+// -------------------------------------------------------------------
+// Y EL CLIC
+// -------------------------------------------------------------------
+// Y con delegación en el contenedor, no un escuchador por fila: las filas se repintan cada
+// vez que se cambia de trabajador, y un escuchador por fila apunta a filas que ya no existen.
+document.addEventListener('click', (e) => {
+  const fila = e.target && e.target.closest ? e.target.closest('.varConDato') : null;
+  if (!fila) return;
+  insertarVariableEnPlantilla(fila.getAttribute('data-var') || '');
+});
