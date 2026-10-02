@@ -2368,3 +2368,128 @@ Restaurado el "sw.js" bueno y vuelto a registrar con version nueva: LLEGA.
 
 
 ================================================================================
+
+================================================================================
+LOS CAMPOS PROPIOS: POR QUE NO APARECIAN LAS EMPRESAS
+================================================================================
+
+La pantalla mostraba tres cosas rotas a la vez: el selector de empresa vacio, la lista de
+campos clavada en "Cargando.", y los dos selectores de la descarga con su unica opcion de
+arranque.
+
+Y las tres eran el mismo bug.
+
+
+[campos-01] UNA VARIABLE LOCAL QUE SE TAPA A SI MISMA
+-----------------------------------------------------
+
+    const empresas = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
+
+El "const empresas" de adentro tapa al "let empresas" global. Y "typeof" sobre una "const" que
+se esta declarando LANZA, a diferencia de una variable que no existe, donde "typeof" es
+seguro.
+
+Eso es toda la diferencia entre el codigo que parece correcto y el que funciona:
+
+    typeof noExiste     -> 'undefined'     (no lanza)
+    typeof empresas     -> ReferenceError  (la const sigue sin inicializarse)
+
+Y no es una carrera ni un problema del servidor: la linea se esta evaluando a si misma
+mientras se declara.
+
+Una sola linea lanzaba, y por eso se veian tres sintomas que no se parecen entre si:
+
+    1. el selector de empresa vacio, porque el "innerHTML" estaba despues del lanzamiento
+    2. la lista en "Cargando.", porque nunca se llego a escribir en ella
+    3. los dos selectores de la descarga vacios, porque se llenan al final de esa misma funcion
+
+Comprobado en "tools/prueba-campos.js", que corre las dos versiones y verifica que una lanza
+y la otra no.
+
+
+[campos-02] ESPERAR A QUE LLEGUEN LAS EMPRESAS
+----------------------------------------------
+
+Aun sin el fallo, la lista de empresas puede no haber llegado cuando se abre el editor. Y
+antes ponia "No hay empresas cargadas." y no volvia a intentarlo nunca.
+
+Ahora espera a que "empresasCargadas" sea cierto.
+
+Y no se llama a "loadEmpresas()" para forzarla: la aplicacion ya la llama antes que los
+trabajadores, y llamarla de nuevo desde aqui seria la misma consulta dos veces, con una
+"empresas" que se pisa a si misma mientras la otra sigue yendo.
+
+
+[campos-03] LA ESPERA TIENE TECHO
+----------------------------------
+
+"empresasCargadas" se deja en falso cuando la carga falla. Una espera sin techo, con ese
+bandera, no se resuelve nunca.
+
+Y el sintoma seria EXACTAMENTE el que se acababa de arreglar: el panel clavado en "Cargando.",
+pero por otra razon. Un arreglo que deja vivo el sintoma que dice arreglar es peor que no
+arreglar, porque despues nadie vuelve a mirar.
+
+Por eso el techo son tres segundos: lo que tarda la consulta en un celular con datos. Pasado
+eso no va a llegar nunca, y seguir esperando solo retrasa el mensaje que explica el problema.
+
+Comprobado en "tools/prueba-campos.js": con la lista ya cargada, con la lista a la mitad, y
+con la lista que nunca llega. El ultimo caso tiene que devolver "false", no quedarse colgado.
+
+
+[campos-04] "CARGANDO..." ESTABA ESCRITO EN EL HTML
+----------------------------------------------------
+
+El texto "Cargando..." vivia en el HTML, no lo ponia el codigo.
+
+Y el panel se ve en pantalla apenas se entra a la vista, mucho antes de que nada cargue. O
+sea que decia "Cargando..." sin que se estuviera cargando nada, y no cambiaba hasta que uno
+se acordaba de apretar el boton EDITAR, que no tiene nada que ver con el panel.
+
+Ahora el texto de arranque dice "— sin cargar —", que es lo que es verdad en ese instante, y
+"renderContratacion()" llama a "cargarCamposPropios()" al entrar a la vista.
+
+Con el "catch" porque una promesa que se rechaza sola no la ve nadie: el rechazo queda
+guardado en la consola y la pantalla no cambia.
+
+
+[campos-05] UNA GUARDA POR TOTAL DE OPCIONES NUNCA ES CIERTA
+------------------------------------------------------------
+
+    if (selW && !selW.options.length) {
+
+La guarda dice "si el selector esta vacio". Y el selector NACE con una opcion, porque en el
+HTML esta:
+
+    <option value="">— trabajador —</option>
+
+O sea que "options.length" es 1 desde el primer momento. La guarda nunca se cumple, y los
+dos selectores nunca se llenan: ni con datos, ni con la base andando.
+
+Es el error de [campos-01] del reves. Ahi una guarda mintio diciendo "esta bien"; aca una
+guarda dice "no hay nada que hacer" y nunca hace nada.
+
+Ahora la pregunta es "¿tiene algo REAL?", y se cuenta contando las opciones con codigo, sin
+contar la de arranque.
+
+Y se cuenta con "value !== ''" y no con "value" a secas: un codigo puede ser el numero 0, que
+es falsy, y se perderia.
+
+
+[campos-06] "NO SE ENCONTRO" NO DICE QUE SE BUSCO
+--------------------------------------------------
+
+Al escribir el arreglo, el ancla buscava "Cargando." con punto, y en el HTML estaba
+"Cargando..." con punto suspensivo. Un caracter de diferencia.
+
+El guion imprimio "no se encontro", que en su forma de hablar quiere decir "ya esta
+arreglado". Y no: queria decir que el ancla estaba mal.
+
+Un "no se encontro" sin decir QUE se busco es un aviso que miente por omision, porque el que
+lo lee no tiene forma de saber si tiene que revisar el archivo o el guion.
+
+Ahora se busca el CONTENEDOR, "<div id="camposPropiosLista"> ... </div>", y se reemplaza lo
+que hay adentro. Y cuando falla, dice que busco.
+
+
+================================================================================

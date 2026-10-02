@@ -293,7 +293,7 @@ function abrirFormularioReloj(code){
   document.getElementById('relojCamara').value=r?r.camara:'trasera';
   document.getElementById('relojTokenWrap').innerHTML=r
     ?'<small>El token ya existe. Rotarlo deja de servir el anterior: hay que reinstallar la app del tótem.</small>'
-    :'<small>Se genera solo al crear el reloj, y se muestra una sola vez.</small>';
+    :'<small>Se genera solo al crear el reloj, y se muestra una vez sola: si se llenara más, se perdería la elección.</small>';
   explicarTipoLector();
   dlg.showModal();
   document.getElementById(r?'relojNombre':'relojCode').focus();
@@ -2568,6 +2568,12 @@ function renderContratacion(){
   const aviso=document.getElementById('contratacionAvisoGeneral');
   renderPlantillas();
   renderEditorTimbre();
+  // Y los campos propios de la empresa, al entrar a la vista. Antes solo se cargaban al
+  // apretar EDITAR, así que el panel se veía escrito y vacío. Ver [campos-04].
+  //
+  // Y sin "await" a propósito: esta función la llama el que cambia de vista y no espera
+  // promises. Con el "catch" porque una promesa que se rechaza sola no la ve nadie.
+  cargarCamposPropios().catch(function(){});
 }
 // ¿El contenido tiene texto de verdad?
 //
@@ -3461,6 +3467,24 @@ function verClaveCampo() {
 }
 
 // -------------------------------------------------------------------
+// ¿EL SELECTOR TIENE ALGO REAL?
+// -------------------------------------------------------------------
+// Y contando las opciones con código, no el total. El total incluye la de arranque, que
+// está desde el HTML, así que "!options.length" nunca es cierto y el selector queda con
+// la única opción que trae. Es el bug: una guarda que dice "no hay nada que hacer"
+// cuando sí lo hay. Ver [campos-05].
+//
+// Y "value !== ''" y no "value" a secas: un código puede ser el número 0, que es
+// falsy, y se perdería.
+function selectorTieneDatos(sel) {
+  if (!sel) return false;
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value !== '') return true;
+  }
+  return false;
+}
+
+// -------------------------------------------------------------------
 // LOS DOS SELECTORES DE LA DESCARGA
 // -------------------------------------------------------------------
 // Y el de los trabajadores y el de las plantillas.
@@ -3475,7 +3499,7 @@ async function llenarSelectoresDescarga() {
   const selW = document.getElementById('descargaTrabajador');
   const selP = document.getElementById('descargaPlantilla');
 
-  if (selW && !selW.options.length) {
+  if (selW && !selectorTieneDatos(selW)) {
     const lista = (typeof todosWorkers !== 'undefined' && todosWorkers) ? todosWorkers : [];
     selW.innerHTML = '<option value="">— trabajador —</option>' +
       lista
@@ -3486,7 +3510,7 @@ async function llenarSelectoresDescarga() {
         .join('');
   }
 
-  if (selP && !selP.options.length) {
+  if (selP && !selectorTieneDatos(selP)) {
     const lista = (typeof plantillasContratacion !== 'undefined' ? plantillasContratacion : [])
       .filter(p => p.vigente);
     selP.innerHTML = '<option value="">— plantilla —</option>' +
@@ -3509,6 +3533,32 @@ function cambiarTipoCampo() {
 }
 
 // -------------------------------------------------------------------
+// ESPERAR A QUE LLEGUEN LAS EMPRESAS
+// -------------------------------------------------------------------
+// Y con techo, porque "empresasCargadas" se deja en falso cuando la carga falla. Sin techo
+// esta promesa nunca se resuelve, el panel queda "Cargando." para siempre, y el que lo ve
+// no tiene forma de saber si está cargando o si se rompió. Ver [campos-03].
+//
+// Y no se llama a "loadEmpresas()" para forzar la carga: la app la llama antes que los
+// trabajadores, y llamarla de nuevo desde acá sería la misma consulta dos veces y un
+// "empresas" que se pisa a sí mismo mientras la otra sigue yendo.
+function esperarEmpresas() {
+  const yaEsta = () => (typeof empresasCargadas !== 'undefined' && empresasCargadas) ||
+    (typeof empresas !== 'undefined' && empresas && empresas.length);
+  if (yaEsta()) return Promise.resolve(true);
+
+  return new Promise(function (res) {
+    let intentos = 0;
+    const reloj = setInterval(function () {
+      intentos++;
+      // Y tres segundos: es lo que tarda la consulta en un celular con datos. Pasado eso no
+      // va a llegar nunca, y seguir esperando solo retrasa el mensaje que explica el problema.
+      if (yaEsta() || intentos >= 30) { clearInterval(reloj); res(yaEsta()); }
+    }, 100);
+  });
+}
+
+// -------------------------------------------------------------------
 // CARGAR LOS CAMPOS DE LA EMPRESA
 // -------------------------------------------------------------------
 async function cargarCamposPropios() {
@@ -3521,8 +3571,11 @@ async function cargarCamposPropios() {
   // Y el selector de empresa. Se llena una sola vez, con la lista de empresas que ya se
   // carga para otros usos: no se pide otra vez a la base.
   if (emp && !emp.options.length) {
-    const empresas = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
-    emp.innerHTML = empresas
+    // Y se espera a que la lista llegue. Antes se leia de una: si todavia no habia
+    // llegado, el selector quedaba vacio y no habia quien lo llenara. Ver [campos-02].
+    await esperarEmpresas();
+    const listaEmpresas = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
+    emp.innerHTML = listaEmpresas
       .map(e => '<option value="' + escHtml(String(e.id)) + '">' + escHtml(e.nombre || '') + '</option>')
       .join('');
     // Y sin empresa no hay nada que mostrar, porque los campos son de una.
