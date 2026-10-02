@@ -6,3 +6,12 @@ app-extraido.js
 # desborde adentro, y un marco con iframes a 360, 390, 768 y 1280 pixels.
 # Son archivos de trabajo, no de la aplicación.
 _arnas-*.html
+
+
+# Las páginas de prueba. Son copias de la aplicación con una sesión de mentira adentro,
+# y la de contadores la regenera "copia-sin-login.js" en cada corrida de pruebas.
+#
+# Y los guardianes de "tools/" NO entran acá: esos van al repositorio, porque son los
+# que comprueban que nada se rompió antes de commitear.
+pages/prueba-*.html
+mapa-vistas.txt
