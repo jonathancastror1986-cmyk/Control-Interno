@@ -3898,6 +3898,40 @@ body.con-ayudas-abiertas .ayuda[open] summary{outline:2px solid var(--accent);ou
    Y solo en un teléfono: en una pantalla grande la barra se ve entera y un
    desvanecido al final sería un defecto, no una pista.
    ------------------------------------------------------------------- */
+/* -------------------------------------------------------------------
+LA FILA DEL MENÚ SE ARMA EN DOS RENGLONES, EN EL RANGO QUE FALTA
+-----------------------------------------------------------------------
+
+La fila del menú tiene SIETE botones y necesita 981 píxeles. Entra completa a partir de
+unos 1024. Entre 701 y 1023 —donde el botón de menú todavía no aparece, porque ese sale a
+los 700— la fila se corta: lo que no cabe queda fuera de la vista.
+
+Y no se desborda la página, porque la fila tiene "overflow-x:auto". Se puede arrastrar. Pero
+nada lo dice, y "Prevención" y "Asistente Social" quedan a un arrastre de distancia: para
+quien no lo sepa, no existen. Ver [mov-02].
+
+Con "wrap" los siete se reparten en dos renglones y todos se ven, sin arrastrar nada.
+
+Y POR QUÉ 701 Y NO 700: porque a 700 y menos la fila está en "display:none" y aparece el
+botón de menú, que es la solución para teléfono. El rango que falta es exactamente el
+intermedio. Ver [mov-03].
+
+Y POR QUÉ 1023 Y NO 860: porque a 861 o más "movil.css" ni siquiera se carga —está con
+"media=(max-width: 860px)"—, así que esta regla no puede vivir ahí. Y subir el corte de
+"movil.css" aplicaría todo su contenido hasta 1023, que es cambiar muchas pantallas de una
+vez. Ver [mov-04].
+
+Y el escritorio no se toca: la regla termina en 1023, y a 1280 los siete botones caben en
+1236 de 1236. Ver [mov-05].
+*/
+@media (min-width:701px) and (max-width:1023px){
+  #barrasSuperiores #mainNav,
+  #mainNav{
+    flex-wrap:wrap;
+    row-gap:2px;
+  }
+}
+
 @media (max-width:700px){
   #mainNav{
     -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 30px),transparent);
