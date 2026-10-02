@@ -3673,3 +3673,209 @@ La lección es la del [tarja-12] pero al revés: un nombre único NO alcanza si 
 de la misma versión. Al verificar, hay que preguntar algo del ESTADO —cuántas hojas de
 estilo tienen, cuántos 404— y no algo del NOMBRE.
 
+
+================================================================================
+[arq-22] UNA RUTA ROTA NO AVISA, Y POR ESO HACE FALTA UN GUARDIÁN DE RUTAS
+--------------------------------------------------------------------------------
+
+Se movieron los módulos a carpetas y se rompieron CUATRO páginas. Se cazaron TRES.
+
+El guion que las arreglaba recorría "pages/*.html", y los cuatro archivos que cargaban el
+JavaScript de configuración son:
+
+    index.html              <-- la puerta de entrada de TODO
+    pages/login.html
+    pages/registro.html
+    pages/reset-password.html
+
+O sea el 75%. Y el cuarto quedó roto, y el cuarto es el que se abre primero.
+
+La forma del fallo es la peor: "index.html" no muestra un error, no muestra nada. En la
+consola queda "TypeError: Cannot read properties of undefined". Se abre la dirección del
+proyecto y no pasa nada.
+
+Y no lo cazó ningún guardián porque los tres existentes leen "pages/app.html":
+
+    · compila-juntos.js    lee SOLO pages/app.html
+    · sube-versiones.js    mira lo que pages/app.html pide
+    · prueba-movil.js      lee SOLO pages/app.html
+
+TRES guardianes mirando el MISMO archivo dan la falsa impresión de que hay cobertura.
+La cobertura real la da el que mira el conjunto, no el que mira bien una parte. Ver
+[arq-16].
+
+Por eso existe "tools/comprueba-rutas.js": recorre TODOS los ".html" que Git publica, saca
+cada "href" y cada "src" local, y falla si alguna no existe.
+
+Y recorre "git ls-files", no la carpeta. Porque "tools/pruebas/" tiene una copia completa de
+la aplicación que se regenera y va por delante o por detrás del archivo de verdad: mirar
+la carpeta daría error por un archivo que nadie mantiene, y un guardián que se queja de
+algo que no importa deja de mirarse. Ver [barra-09].
+
+
+[arq-23] Y UN COMENTARIO NO PIDE NADA AL SERVIDOR
+--------------------------------------------------------------------------------
+
+La primera versión del guardián de rutas marque "pages/plantilla-contrato.html" con
+[LOGO_EMPRESA]: en la línea 339, dentro de un comentario,
+
+    <!-- <img src="[LOGO_EMPRESA]" alt=""> -->
+
+Un error falso. Y un guardián que da errores falsos es peor que uno que no existe, porque
+entrena a ignorar los verdaderos: el que se acostumbra a ver "roto" en un comentario deja
+de ver "roto" en una etiqueta. Ver [barra-09], que ya lo dice de otra manera.
+
+Así que el guardián borra los comentarios antes de buscar rutas.
+
+
+[arq-24] Y "/pages/" QUE ERA UN LISTADO DE ARCHIVOS
+--------------------------------------------------------------------------------
+
+Al abrir "127.0.0.1:5500/pages/" aparecía "Index of control-asistencia-web/pages/" con la
+lista de archivos. Porque no hay un "index.html" dentro de "pages/", y un servidor de
+archivos estáticos, sin eso, muestra el contenido de la carpeta.
+
+Y no es solo que se vea feo. Un listado dice qué hay y dónde: en un sistema de control
+interno, publicarlo es entregar el mapa de la instalación. Y "/tools/" mostraría además la
+copia de pruebas con la sesión de mentira, que se salta el ingreso.
+La solución es un archivo: "pages/index.html" que manda a "app.html". En GitHub Pages
+"/pages/" también resuelve a "/pages/index.html", así que el comportamiento es el mismo en
+los dos lados.
+
+Y con las TRES formas de redirigir, porque cada una cubre un caso:
+
+    · http-equiv="refresh"     sin JavaScript, que es el caso de un reloj sin nada;
+    · window.location.replace  el "replace" y no el "assign", para que el botón ATRÁS no
+                              traiga de vuelta la página de redirección. Con "assign" el
+                              historial queda con la redirección en medio y cada "atrás"
+                              rebota;
+    · <noscript>               por si el JavaScript está bloqueado.
+
+
+[arq-25] Y LAS COPIAS DE PRUEBA ESTÁN FUERA DEL REPOSITORIO
+--------------------------------------------------------------------------------
+
+Lo que antecede importa por una razón práctica: "tools/pruebas/app-sin-login.html" es una
+copia COMPLETA de la aplicación con una sesión de mentira adentro. Si alguien abre
+"/tools/" en un servidor donde esa carpeta se sirva, entra al sistema sin contraseña.
+
+Hoy no pasa, porque "tools/pruebas/" está en ".gitignore" y GitHub Pages sirve el
+repositorio. Pero la protección es el ".gitignore", no el diseño: si algún día la carpeta
+se versiona por un descuido, el acceso sin contraseña queda publicado.
+
+Y la razón por la que existe, para no borrarla sin pensarlo: es lo único que permite abrir
+las pantallas sin tener que iniciar sesión cada vez. Ver [pruebas-01] y [pruebas-05].
+
+
+[mov-01] LA TARJA DESBORDA Y ESO ESTÁ BIEN; LA PÁGINA NO
+--------------------------------------------------------------------------------
+
+La tarja tiene 39 columnas. En un teléfono de 320 píxeles no caben ni con letra de cuatro
+puntos. Que desborde está bien, porque va en su propia caja con scroll y hay una forma de
+llegar a todo.
+
+Lo que no puede hacer es salirse de la PÁGINA. Y confundir las dos cosas lleva a "arreglar"
+la tarja achicándola hasta que no se lee, o a dejar un desborde de página porque "la tarja
+siempre desborda".
+
+Por eso el arnés mide las dos cosas por separado:
+
+    · document.documentElement.scrollWidth  vs  window.innerWidth
+      Si el primero es MAYOR, la página se arrastra de lado. Eso es el defecto.
+
+Y para eso hay iframes de ancho fijo: un iframe ES el ancho real de la pantalla, y
+"window.innerWidth" lo ve como tal. No hay otra forma desde una página.
+
+
+[mov-02] Y EL MENÚ QUE NO CABE Y NO LO DICE
+--------------------------------------------------------------------------------
+
+La fila del menú tiene siete botones y necesita 981 píxeles. Entra completa a partir de
+unos 1024.
+
+Entre 701 y 1023 la fila se corta. Y no se desborda la página, porque la fila tiene
+"overflow-x:auto": se puede arrastrar. Pero no hay nada que diga que hay más, y
+"Prevención" y "Asistente Social" quedan a un arrastre de distancia.
+
+Un control que existe pero no se ve no es un control: es un acertijo.
+
+La corrección es "flex-wrap: wrap" en ese rango, no un degradado. Con "wrap" los siete se
+reparten en dos renglones y todos se ven, sin arrastrar nada. El degradado mejora el aviso,
+no el acceso.
+
+
+[mov-03] Y EL RANGO QUE FALTABA ERA EL INTERMEDIO
+--------------------------------------------------------------------------------
+
+Hay un degradado que avisa "acá hay más", en "styles.css", dentro de
+"@media (max-width:700px)". Y ese es el rango donde la fila está en "display:none" y
+aparece el botón de menú.
+
+O sea: el degradado está en la pantalla donde la fila no se muestra. Salvo una cosa: cuando
+el menú móvil está ABIERTO, la fila sí se muestra, y ahí el degradado sí se ve. Por eso el
+rango está bien puesto y no se tocó.
+
+El rango que faltaba era el intermedio: de 701 a 1023, donde la fila se ve pero no cabe.
+Por eso la regla nueva empieza en 701 y no en 700.
+
+
+[mov-04] POR QUÉ NO SE TOCA "movil.css"
+--------------------------------------------------------------------------------
+
+Porque "movil.css" se carga con "media=(max-width: 860px)" DENTRO de "styles.css". O sea
+que entre 861 y 1023 ese archivo no existe para el navegador.
+
+Subirle el corte a 1023 aplicaría todo su contenido hasta 1023, que es cambiar muchas
+pantallas de una vez. Eso es otro refactor. Este es un arreglo de una regla.
+
+
+[mov-05] Y EL ESCRITORIO NO SE TOCA
+--------------------------------------------------------------------------------
+
+La regla nueva termina en 1023. A 1280 los siete botones caben en 1236 de 1236, así que
+allí ni siquiera haría falta, y la regla no llega. El escritorio queda igual.
+
+
+[mov-06] Y UN INFORME QUE DICE "TODO BIEN" Y DESPUÉS LISTA SIETE CULPABLES
+--------------------------------------------------------------------------------
+
+La primera versión del arnés reportaba, a 390 píxeles:
+
+    +4496px  thead  w=4860  "CódigoNombreCargoRUTSupervis"
+    +212px   th     w=528   "Código"
+    +778px   th     w=565   "Nombre"
+
+Siete "culpables" de la tabla de trabajadores. Y la tabla mide 4860 porque tiene nueve
+columnas y está dentro de una caja con "overflow-x:auto" a propósito.
+
+El veredicto de ese marco era correcto —"DESBORDA: no"— y la lista de culpables era basura:
+son cosas que PUEDEN estar fuera de la vista porque hay una barra para llegar a ellas.
+
+Ahora el arnés salta todo elemento que tenga un ancestro con "overflow-x" de auto, scroll
+o hidden. Un culpable de verdad es el que se sale de la PÁGINA, no de una caja hecha para
+desplazarse.
+
+
+[mov-07] Y UN ARNÉS QUE SE ROMPE CUANDO RECARGA SU PROPIO MARCO
+--------------------------------------------------------------------------------
+
+Al forzar la recarga de los iframes para subir la versión del CSS, dos de los once marcos
+dieron "Cannot read properties of null (reading 'scrollWidth')".
+
+No era la aplicación: era el arnés.medir un marco mientras se recarga no encuentra
+"document.body". Un comprobador tiene que tolerar lo que él mismo provoca.
+
+
+[mov-08] Y LA CACHÉ, QUE ES EL DEFECTO QUE SE PARECE A "NO FUNCIONA"
+--------------------------------------------------------------------------------
+
+La regla del menú se escribió en "styles.css", la medición siguió dando el defecto, y la
+regla se comprobó que estaba en el archivo en la línea 3928.
+
+La causa: se había corrido "sube-versiones.js" ANTES de editar el CSS. O sea el "?v=58"
+no había cambiado cuando el archivo cambió, y el navegador sirvió el viejo.
+
+Es el mismo defecto de [cache-01] y de [cache-04], y tiene una forma propia: cuando se
+edita un ".css" o un ".js", la versión tiene que subir EN EL MISMO MOMENTO. Correr el
+guardián de versiones antes de editar deja el número viejo con el archivo nuevo, que es la
+combinación que hace que un arreglo no llegue y no haya ningún error que lo explique.
