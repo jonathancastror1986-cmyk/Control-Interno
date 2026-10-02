@@ -211,6 +211,91 @@ body.nav-compacto #barrasSuperiores header:focus-visible .marca-jc{
   .marca-jc-dibujo{width:46px;height:31px}
 }
 
+/* ===================================================================
+EL LOGO CUANDO LA BARRA SE ACHICA
+=================================================================== */
+
+/* -------------------------------------------------------------------
+   Y POR QUÉ ESTO ESTÁ AQUÍ Y NO EN "styles.css"
+   -------------------------------------------------------------------
+   Porque "marca.css" YA tiene las reglas compactas del logo, las [marca-21] a la [marca-24],
+   y estas son del mismo tema. Y porque los tests leen el archivo concatenado: "styles.css" va
+   antes que este, así que un selector como ".marca-jc-letras{" puesto acá se les cuelga como
+   si fuera el de reposo, y leen el equivocado. Ver [barra-15].
+
+   Y va AL FINAL por una razón que no es de estilo: el bloque de "prefers-reduced-motion" de
+   más abajo tiene que seguir siendo el último del archivo, porque es el que apaga las
+   transiciones cuando la persona pidió que no se anime nada. Si estas reglas quedaran después,
+   lo dejarían de hacer. Por eso se parte en dos. Ver [barra-16]. */
+
+/* -------------------------------------------------------------------
+   Y EL BLOQUE DEL LOGO, QUE TAMBIÉN BAJA
+   -------------------------------------------------------------------
+   El bloque tiene un ALTO FIJO de 70 píxeles, y por eso achicar el dibujo no lo achicaba a
+   él. Ver [barra-11].
+
+   Y esos 70 no son decorativos: son la fila donde aterrizan las letras al pasar el puntero,
+   que bajan a "translate(0, 47px)". El 47 es 5 de relleno + 39 de la marca + 3 de hueco, y
+   los 70 son esos 47 más las 22 del alto de las letras. Ver [marca-13].
+
+   Entonces el bloque baja a 58 y las letras bajan 35: la misma cuenta con la marca comprimida,
+   3 + 29 + 3 = 35, y 35 + 22 = 57. Si el bloque bajara y las letras no, se saldrían de la
+   caja. Ver [barra-12].
+
+   Y en "styles.css" y no en "marca.css": los números de "marca.css" están MEDIDOS y con su
+   código, y son los de reposo. El comportamiento compacto es de la barra. Ver [barra-13]. */
+body.nav-compacto #barrasSuperiores .marca-bloque{
+  height:58px;
+}
+
+/* Y el "--descomprimir" era el inverso del 0,72 con que se aplastaba la barra. Como ya no se
+   aplasta nada, la contraescala no tiene sentido y estira el logo al revés. */
+body.nav-compacto #barrasSuperiores .marca-jc{
+  --descomprimir:1;
+}
+
+/* Y las letras bajan 35 en vez de 47. Con ":has()" de "marca.css", y estas de acá que ganan
+   por los dos id de delante. */
+body.nav-compacto #barrasSuperiores .marca-bloque:has(.marca-jc:hover) .marca-jc-letras,
+body.nav-compacto #barrasSuperiores .marca-bloque:has(.marca-jc:focus-visible) .marca-jc-letras,
+body.nav-compacto #barrasSuperiores .marca-bloque:has(.marca-jc-letras:hover) .marca-jc-letras{
+  transform:translate(0, 35px);
+}
+
+/* Y el título, que usa "align-self:center" con la caja entera. */
+body.nav-compacto #barrasSuperiores #tituloSeccion{
+  transform:translateY(9px);
+}
+
+/* Y al pasar el puntero, el bloque vuelve a 70 y las letras vuelven a bajar 47. Sin esto el
+   puntero agrandaría las letras dentro de una caja chica y se saldrían. */
+body.nav-compacto #barrasSuperiores:hover .marca-bloque,
+body.nav-compacto #barrasSuperiores:focus-within .marca-bloque{
+  height:70px;
+}
+body.nav-compacto #barrasSuperiores:hover .marca-bloque:has(.marca-jc:hover) .marca-jc-letras,
+body.nav-compacto #barrasSuperiores:hover .marca-bloque:has(.marca-jc:focus-visible) .marca-jc-letras,
+body.nav-compacto #barrasSuperiores:hover .marca-bloque:has(.marca-jc-letras:hover) .marca-jc-letras,
+body.nav-compacto #barrasSuperiores:focus-within .marca-bloque:has(.marca-jc:hover) .marca-jc-letras,
+body.nav-compacto #barrasSuperiores:focus-within .marca-bloque:has(.marca-jc:focus-visible) .marca-jc-letras,
+body.nav-compacto #barrasSuperiores:focus-within .marca-bloque:has(.marca-jc-letras:hover) .marca-jc-letras{
+  transform:translate(0, 47px);
+}
+body.nav-compacto #barrasSuperiores:hover #tituloSeccion,
+body.nav-compacto #barrasSuperiores:focus-within #tituloSeccion{
+  transform:translateY(11px);
+}
+/*
+   Y CUANDO LA PERSONA PIDIÓ QUE NO SE ANIME NADA
+   ------------------------------------------------
+   Este bloque tiene que ir al final, después de todo lo de arriba y de las transiciones. Es el
+   que deja el logo como está, sin achicar y sin intercambio, que es lo que pidió la persona.
+   Ver [barra-16]. */
+@media (prefers-reduced-motion: reduce){
+  body.nav-compacto #barrasSuperiores .marca-bloque{height:70px}
+  body.nav-compacto #barrasSuperiores .marca-jc{--descomprimir:1}
+  body.nav-compacto #barrasSuperiores #tituloSeccion{transform:translateY(11px)}
+}
 @media (prefers-reduced-motion: reduce){
   body.nav-compacto .marca-jc{--descomprimir:1}
   .marca-jc,

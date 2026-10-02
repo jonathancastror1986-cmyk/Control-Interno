@@ -1995,7 +1995,7 @@ QUÉ SE VEÍA
 
 Cada titulo de tarjeta salia con una franja oscura detras: fondo "--accent2", que en
 tema claro es casi negro. Ademas con "padding:16px" y "border-bottom", o sea que el
-titulo tenia un recuadro. Y con "position:sticky", o sea que ademas se pegaba al
+titulo tenia un recuadro. Y con "position:sticky", o sea que además se pegaba al
 hacer scroll.
 
 Medido en el navegador, antes y despues:
@@ -2282,7 +2282,7 @@ es el numero, no se puede equivocar de camino.
 
 La autoprueba de la comprobacion de mojibake empezo con la MISMA cadena en los dos casos: se
 escribio una "ñ" con "ñ" en el caso que debia estar roto. O sea que la autoprueba no probaba
-nada, y ademas decia que la comprobacion estaba rota.
+nada, y además decia que la comprobacion estaba rota.
 
 El mojibake es lo que pasa cuando los bytes UTF-8 de una letra se leen como Latin-1. La "ñ"
 son dos bytes, C3 B1, y leidos mal dan U+00C3 seguido de U+00B1.
@@ -2815,6 +2815,182 @@ funcionaba perfecto.
 
 La transformación ahora se aplica solo en el camino donde hace falta, que es el del "<script>"
 suelto. Y "tools/compila-juntos.js" compila sin transformar, que es lo que tiene que compilar.
+
+
+================================================================================
+
+================================================================================
+LA BARRA QUE SE ACHICA DE VERDAD
+================================================================================
+
+Lo que se pedía: que al hacer scroll la barra se viera como en la foto, sin tapar, y que el
+puntero por encima no la dejara anclada.
+
+Lo que había: "transform:scaleY(.72)" sobre la barra entera, y "transform:none" en ":hover".
+
+
+
+[barra-01] POR QUÉ ESCALAR NO ES ACHICAR
+------------------------------------------
+
+"transform" no cambia el LAYOUT. El navegador seguía reservando los 181 píxeles de alto de la
+barra mientras lo que se veían eran 142.
+
+O sea que el contenido quedaba empujado 181 píxeles hacia abajo y no 142. La barra TAPABA más
+de lo que aparentaba, y quedaba un hueco muerto entre la barra y lo que viene.
+
+Y "scaleY" no hace las letras más chicas: las aplasta. Una "S" sale achatada, y no hay
+suavizado que lo arregle, porque no es un problema de píxeles sino de forma.
+
+Ahora se achica con "font-size" y "padding", que sí cambian el layout. Medido, en la misma
+lectura: 149 píxeles sin scroll, 131 con scroll, y el alto reservado es igual al visible, así
+que no queda hueco.
+
+
+[barra-02] POR QUÉ LAS REGLAS VIEJAS SIGUEN AHÍ
+------------------------------------------------
+
+Las reglas del "scaleY" no se borraron. Después hay un "transform:none" que las pisa.
+
+Es a propósito: si el navegador no soporta alguna de las nuevas, el "scaleY" achica igual de
+roto, que es mejor que no achicar nada. Y borrar reglas que funcionan es cambiar el diseño sin
+que nadie lo haya pedido.
+
+
+[barra-03] EL DESPLEGABLE, QUE YA NO HAY QUE CONTRAESCALAR
+------------------------------------------------------------
+
+Antes hacía falta: la barra se escalaba con "scaleY" y el desplegable, que cuelga con
+"position:absolute", se escalaba con ella y sus letras salían con medio píxel de ancho.
+
+Ahora que se achica con "padding" y "font-size", nada se escala. Las reglas viejas que lo
+contraescalaban al 1,3889 se anulan con un "transform:none", porque si se dejaran el menú se
+vería estirado al revés.
+
+
+[barra-04] LA ESPECIFICIDAD, Y POR QUÉ MIS REGLAS PERDIERAN
+------------------------------------------------------------
+
+La primera versión de las reglas nuevas no hacía casi nada: la barra bajaba 10 píxeles de 181.
+
+La razón es la especificidad. La regla que estaba puesta es:
+
+    #barrasSuperiores #mainNav button          ->  (2,0,1)
+
+y la que escribí era:
+
+    body.nav-compacto #mainNav button          ->  (1,1,1)
+
+Dos clases pesan como un id, así que (2,0,1) le gana, y la regla nueva se descartaba SIN AVISAR.
+El síntoma —"casi no se achica"— no dice nada del por qué.
+
+Lo que lo destapó: el encabezado SÍ bajaba y los botones NO. Ahí la regla vieja es
+"#barrasSuperiores header", que es (1,0,1), y la nueva era (1,1,1), que gana. Esa diferencia
+entre el encabezado y los botones era la pista.
+
+La regla nueva lleva "#barrasSuperiores" dos veces a propósito, para llegar a (2,1,1).
+
+
+[barra-05] Y POR QUÉ UNA COMPROBACIÓN DEBE MIRAR LO QUE COMPITE
+----------------------------------------------------------------
+
+La comprobación decía "no queda ninguna regla corta poniendo padding". Y además marcaba una
+regla que solo ponía "-webkit-font-smoothing".
+
+Esas compiten con nada: no tocan ni el alto ni la letra. Marcarlas hacía que la comprobación
+sea poco útil, porque señalaba algo que no importa.
+
+Se acotó a las reglas que de verdad ponen "padding" o "font-size", que son las que compiten por
+el mismo trabajo.
+
+
+[barra-06] UNA REGLA QUE NO HACE NADA ES PEOR QUE NO TENERLA
+-------------------------------------------------------------
+
+Se agregaron dos reglas para achicar el bloque del logo, el hijo más alto del encabezado. No
+hicieron nada: el bloque siguió en 70 píxeles.
+
+Y una de ellas rompió "test-boton.js", que saca el texto de la PRIMERA regla ".marca-bloque{" del
+archivo para verificar que el título no se está sacando del flujo. Con una segunda regla antes,
+leía la nueva en vez de la del diseño.
+
+O sea que la prueba hizo exactamente lo que tiene que hacer: leer lo que hay. Y una regla que
+no cambia nada ocupa lugar, obliga a leerla, y rompe cosas. Ver [barra-11].
+
+
+[barra-07] POR QUÉ LAS REGLAS DEL LOGO VAN EN "marca.css"
+----------------------------------------------------------
+
+Se pusieron primero en "styles.css", con el razonamiento de que los números de "marca.css" son
+los de reposo y el comportamiento compacto es de la barra.
+
+El razonamiento era correcto y la conclusión no. Las pruebas leen el ARCHIVO CONCATENADO, y
+"styles.css" va antes que "marca.css". "test-logo.js" y "test-boton.js" buscan "la regla que
+empieza por .marca-jc-letras{" y "la de .marca-bloque{", y con las reglas nuevas en
+"styles.css" leían esas en vez de las del diseño. Seis comprobaciones en rojo.
+
+Y no es un defecto de las pruebas: leen el primer selector que coincide, que es lo que se les
+pidió. La diferencia es que mi selector es MÁS ESPECÍFICO, no el mismo: describe el estado
+compacto con el puntero, que es otra cosa que el estado de reposo.
+
+La respuesta no es hacer que las pruebas no miren. Es que las reglas estén donde deben: en el
+archivo del logo, que YA tiene las suyas compactas, las [marca-21] a la [marca-24]. Y ahí hay un
+beneficio que no estaba visto: "marca.css" se carga después, así que ganan por orden de la
+cascada y no hay que pelear por especificidad contra reglas que no existen.
+
+
+[barra-08] EL ALTO FIJO DEL BLOQUE DEL LOGO
+---------------------------------------------
+
+".marca-bloque" tiene "height:70px". Fijo. El bloque mide 70 aunque el dibujo esté en 29, y por
+eso achicar el dibujo no achicaba el bloque.
+
+Y esos 70 no son decorativos: son la fila donde aterrizan las letras cuando el puntero pasa por
+el logo. Están en "position:absolute" y bajan de "translate(102px, 0)" a "translate(0, 47px)".
+El 47 sale de la marca [marca-13]: 5 de relleno + 39 del dibujo + 3 de hueco. Y los 70 son esos
+47 más las 22 del alto de las letras.
+
+O sea que si el bloque baja y las letras no, se salen de la caja y se dibujan sobre el
+contenido de abajo.
+
+La cuenta compacta es la misma, con la marca comprimida: 3 + 29 + 3 = 35, y 35 + 22 = 57, con
+caja en 58. Y las letras bajan 35, no 47: más no cabrían, y con 47 quedarían pegadas al borde de
+abajo.
+
+Medido con el puntero por encima: la caja vuelve a 70, las letras vuelven a bajar 47, y
+"bloqueContieneLetras" da verdadero en los tres estados. La animación sigue entera.
+
+
+[barra-09] "prefers-reduced-motion" TIENE QUE SEGUIR SIENDO LO ÚLTIMO
+-------------------------------------------------------------------------
+
+El bloque que apaga las animaciones cuando la persona pidió que no se anime nada es el ÚLTIMO de
+"marca.css", a propósito: si las reglas compactas quedaran después, lo dejarían de apagar.
+
+Por eso el bloque que se movió se partió en dos: el comportamiento compacto antes, y un
+"@media (prefers-reduced-motion: reduce){...}" propio después, que devuelve el logo a su valor
+de reposo.
+
+Es un problema de accesibilidad, no de estética: una persona que pidió que no se anime nada no
+debe ver un logo que se agranda al pasar el puntero.
+
+
+[barra-10] CONTAR LLAVES DENTRO DE LOS COMENTARIOS
+----------------------------------------------------
+
+El guion que mueve el bloque contaba llaves sin sacar los comentarios primero, y el comentario
+que explica por qué el bloque no va en "styles.css" menciona un selector que termina en llave de
+apertura.
+
+Para el navegador está perfecto — un comentario no se lee — y el guion decía que el archivo
+estaba roto.
+
+No es un detalle del guion: cualquier archivo que explique algo con un selector adentro de un
+comentario lo hace pasar por roto. Y un guardián que acusa de estar roto a un archivo sano es
+un guardián al que uno aprende a no mirar.
+
+Ahora los dos guiones que cuentan llaves —el de las reglas del logo y el de los finales de
+línea— sacan los comentarios antes de contar.
 
 
 ================================================================================
