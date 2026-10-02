@@ -21,6 +21,27 @@
    angosta: sin mínimo, el documento se estira hasta que las columnas de una tabla no
    alcanzan. Ver [plantillas-02].
    ------------------------------------------------------------------ */
+/*
+  LA HOJA DEL DOCUMENTO
+  ---------------------
+  Y el documento se ve en un "<iframe>", no en un "<div>". Los estilos de un documento no
+  pueden mezclarse con los de la aplicación, y en un marco no se mezclan. Ver [ver-01].
+*/
+.docAviso{
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-bottom:8px;
+}
+.docHoja{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:#fff;
+  display:block;
+}
+
 .plantillaEditor{
   display:grid;
   grid-template-columns:minmax(300px,360px) minmax(0,1fr);

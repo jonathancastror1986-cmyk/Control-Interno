@@ -3784,7 +3784,7 @@ function completarPlantilla(html, datos, faltantes) {
 // Y muestra el texto ya completado, con los huecos marcados. Porque el que va a firmar tiene
 // que ver el documento antes de bajarlo, y ver que dice "[falta]" es mejor que descubrirlo
 // después de imprimirlo.
-function vistaPreviaPlantilla(html, datos, faltantes) {
+function vistaPreviaPlantilla(html, datos, faltantes, css) {
   const caja = document.getElementById('plantillaPrevia');
   if (!caja) return;
 
@@ -3792,18 +3792,25 @@ function vistaPreviaPlantilla(html, datos, faltantes) {
   const quedan = (texto.match(/\[[A-Z_0-9:.\-]+\]/g) || []);
   const unicas = [...new Set(quedan)];
 
-  caja.innerHTML =
-    '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">' +
-      (unicas.length
-        ? '<span class="pill" style="color:var(--warn);border-color:var(--warn)">Faltan: ' +
-          unicas.slice(0, 8).map(v => escHtml(v)).join(', ') +
-          (unicas.length > 8 ? ' y ' + (unicas.length - 8) + ' más' : '') + '</span>'
-        : '<span class="pill" style="color:var(--accent);border-color:var(--accent)">Completo</span>') +
-    '</div>' +
-    '<pre style="white-space:pre-wrap;word-break:break-word;margin:0;font-size:.82rem;line-height:1.5">' +
-      escHtml(texto.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 900)) +
-    '</pre>';
+  // Y el aviso de qué falta, que se queda: es lo más útil de la vista previa, porque avisa
+  // ANTES de bajar el papel y no después.
+  const aviso = '<div class="docAviso">' +
+    (unicas.length
+      ? '<span class="pill" style="color:var(--warn);border-color:var(--warn)">Faltan: ' +
+        unicas.slice(0, 8).map((v) => escHtml(v)).join(', ') +
+        (unicas.length > 8 ? ' y ' + (unicas.length - 8) + ' más' : '') + '</span>'
+      : '<span class="pill" style="color:var(--accent);border-color:var(--accent)">Completo</span>') +
+    '</div>';
+
+  // Y el aviso primero, y el documento después. Y NO juntos en un "innerHTML": el "srcdoc"
+  // va en un atributo del marco, y se pone con "setAttribute" cuando el marco ya existe.
+  const marco = document.createElement('div');
+  verDocumentoEnHoja(marco, texto, css, 1120);
+
+  caja.innerHTML = aviso;
+  caja.appendChild(marco);
 }
+
 
 // -------------------------------------------------------------------
 // BAJAR EL ARCHIVO
@@ -4105,7 +4112,10 @@ function subirPlantillaArchivo() {
       return;
     }
     editor.innerHTML = salida.html;
-    aviso.textContent = 'Cargado: ' + f.name + '. Revisá cómo quedó, y después apretá Guardar.';
+    const conEstilo = salida.css ? ' con su estilo.' : ' SIN estilo: si se ve feo, ' +
+      'faltó guardar el bloque de estilos en el archivo.';
+    aviso.textContent = 'Cargado: ' + f.name + conEstilo +
+      ' Revisá cómo quedó, y después apretá Guardar.';
     archivo.value = '';
   };
   lector.onerror = function () {
@@ -4124,6 +4134,130 @@ function contarVariablesDelEditor() {
   if (!editor) return 0;
   const encontradas = editor.innerHTML.match(/\[(?:CAMPO:)?[A-Za-z0-9_-]+\]/g) || [];
   return [...new Set(encontradas)].length;
+}
+
+
+// -------------------------------------------------------------------
+// EL CSS DEL DOCUMENTO, PARA QUE SE VEA COMO EN WORD
+// -------------------------------------------------------------------
+// Y se limpian las reglas que no cambian nada en pantalla. El que Word guarda trae reglas "mso-*",
+// "@page WordSection*", y clases vacías que solo le sirven a él.
+//
+// Y no se puede intentar entenderlas: no hay un analizador de CSS en el proyecto. Lo que se puede
+// es mirar el nombre de cada regla y decidir por lo que dice. Ver [ver-02].
+//
+// Y se quedan solo las propiedades que se ven: familia, tamaño, alto de línea, márgenes, texto,
+// tablas y bordes.
+function cssDeDocumentoParaPantalla(css) {
+  let t = String(css || '');
+
+  // Y primero, las reglas que enteras no sirven.
+  t = t.replace(/@page[^{}]*\{[\s\S]*?\}/gi, '');
+  t = t.replace(/@(font-face|import|charset)[^;{]*;?/gi, '');
+
+  const reglas = [];
+
+  // Y después, regla por regla.
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m;
+  while ((m = re.exec(t)) !== null) {
+    const sel = m[1].trim();
+    if (!sel) continue;
+
+    // Y las que son del propio Word, por el nombre.
+    if (/\bmso[-:]/i.test(sel) || /WordSection/i.test(sel) || sel.indexOf('Mso') === 0) continue;
+
+    const SE_VEN = /^(?:font-family|font-size|font-weight|font-style|line-height|letter-spacing|color|background-color|margin|padding|text-align|text-indent|text-decoration|vertical-align|white-space|width|border|border-collapse|border-spacing|page-break|list-style|text-transform|clear|display)\s*:/i;
+
+    const props = m[2].split(';')
+      .map((x) => x.trim())
+      .filter((x) => x && SE_VEN.test(x))
+      // Y se descarta el "mso-" que se cuela en una propiedad buena:
+      // "border:solid 1.0pt mso-..." no es una propiedad válida.
+      .filter((x) => !/\bmso-/i.test(x));
+
+    if (props.length) reglas.push(sel + ' {' + props.join(';') + '}');
+  }
+
+  return reglas.join('\n');
+}
+
+// -------------------------------------------------------------------
+// ARMAR EL DOCUMENTO COMPLETO
+// -------------------------------------------------------------------
+// Y es lo mismo que baja el ".doc": una página entera, con su "<head>" y su "<style>". Por eso
+// lo que se ve en la vista previa y lo que sale en Word son la misma cosa. Ver [ver-01].
+//
+// Y la medida sale de la "@page" del archivo de Word, si la trae. Un documento que se armó para
+// carta no se muestra en A4, ni al revés.
+function documentoCompletoDesdeHtml(html, css) {
+  const estilos = cssDeDocumentoParaPantalla(css);
+  const pagina = String(css || '').match(/@page[^{]*\{[\s\S]*?size\s*:\s*([^;}]+)/i);
+  const medida = pagina ? pagina[1].trim() : '21cm 29.7cm';
+
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
+    '<title>Documento</title>' +
+    '<style>@page{size:' + medida + ';margin:2.5cm 2cm;}' + estilos + '</style>' +
+    '</head><body>' + String(html || '').trim() + '</body></html>';
+}
+
+// -------------------------------------------------------------------
+// LEER UN ARCHIVO QUE SALIÓ DE WORD, Y QUE VUELVA ENTERO
+// -------------------------------------------------------------------
+// Y ahora devuelve el "<style>", que antes se guardaba en una variable que no se guardaba en
+// ningún lado: el estilo se perdía entre leer el archivo y guardar la plantilla. Y es el estilo
+// lo que hace que el documento se vea como se ve en Word.
+//
+// Y se sigue sacando lo que Word mete y no sirve: la "<head>" con sus "<meta>", los "<link>", las
+// etiquetas del espacio de nombres de Office y los comentarios condicionales.
+function documentoDesdeArchivoDeWord(texto) {
+  let t = String(texto || '');
+  const css = (t.match(/<style[^>]*>([\s\S]*?)<\/style>/i) || [])[1] || '';
+
+  // Y el "<style>" se queda donde está, y la "<head>" se le saca alrededor.
+  t = t.replace(/<head[^>]*>/gi, '').replace(/<\/head>/gi, '');
+  t = t.replace(/<link[^>]*>/gi, '').replace(/<meta[^>]*>/gi, '');
+
+  // Y el cuerpo.
+  const cuerpo = t.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (cuerpo) t = cuerpo[1];
+
+  // Y la basura de Office.
+  t = t.replace(/<!--[\s\S]*?-->/g, '');
+  t = t.replace(/<\/?[a-z]+:[^>]*>/gi, '');
+  t = t.replace(/<o:p\s*\/?>/gi, '');
+  t = t.replace(/\r/g, '');
+
+  return { html: t.trim(), css: css.trim() };
+}
+
+// -------------------------------------------------------------------
+// LA VISTA PREVIA, EN UN "iframe"
+// -------------------------------------------------------------------
+// Y en un "iframe", no en un "<div>". Porque los estilos del documento se meterían en la página
+// de la aplicación: un "body{margin:0}" del documento borra los márgenes de la página, y un "h1"
+// del documento se vuelve el "h1" de la aplicación.
+//
+// En un marco el documento es un documento aparte. Es literalmente lo mismo que baja el ".doc":
+// la misma cosa que Word abre es la que se ve acá. Y no puede tocar la aplicación, porque no
+// comparte nada con ella. Ver [ver-01].
+//
+// Y con "sandbox" sin scripts y sin formularios, porque el contenido viene de un archivo que sube
+// una persona. Y con "allow-same-origin" para poder leer el alto, que es lo que hace que la hoja
+// tenga el alto del papel y no el de la pantalla.
+function verDocumentoEnHoja(caja, html, css, alto) {
+  if (!caja) return;
+  const doc = documentoCompletoDesdeHtml(html, css);
+
+  caja.innerHTML =
+    '<iframe class="docHoja" title="Vista previa del documento" ' +
+      'sandbox="allow-same-origin" style="height:' + (alto || 1120) + 'px"></iframe>';
+
+  // Y el "srcdoc" se pone DESPUÉS, con "setAttribute", y no en el "innerHTML" de arriba. En el
+  // "innerHTML" el documento entero tendría que ir escapado como atributo, con las comillas
+  // dobles cambiadas, y es fácil que una se escape mal y cierre el atributo antes de tiempo.
+  const marco = caja.querySelector('iframe');
+  if (marco) marco.setAttribute('srcdoc', doc);
 }
 
 
