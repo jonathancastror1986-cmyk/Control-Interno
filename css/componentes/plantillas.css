@@ -295,6 +295,51 @@
 @media (max-width:640px){ .w-campos .ancho2{grid-column:span 2} }
 @media (max-width:400px){ .w-campos .ancho2{grid-column:span 1} }
 
+/*
+  LOS CAMPOS DEL MISMO RENGLÓN, TODOS A LA MISMA ALTURA
+  ------------------------------------------------------
+  Medido, sin esto los campos de un renglón arrancaban en tres alturas: 586, 596 y 598. Doce
+  píxeles de desalineación, y se nota más con los rótulos largos que con los cortos.
+
+  Y eran dos cosas distintas, no una:
+
+    - el rótulo. El de "Cargo" lleva el ícono de ayuda adentro y mide 17 píxeles; los demás
+      miden 14. Con "min-height" todos los rótulos ocupan lo mismo y el campo de abajo arranca
+      siempre en el mismo lugar.
+
+    - el campo. El "<select>" mide 40 y el "<input type=text>" 38. Se les da el mismo alto.
+
+  Y "align-items:start" se queda: es lo que hace que un campo con un texto largo no estire
+  al de al lado. Lo que se empareja es el alto del rótulo y el del campo, no el de la celda.
+  Ver [campos-01].
+*/
+.w-campos label{
+  min-height:18px;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  margin-bottom:4px;
+}
+.w-campos input:not([type=checkbox]):not([type=hidden]),
+.w-campos select,
+.w-campos textarea{
+  height:40px;
+  /*
+    Y EL "margin-top" QUE TENIAN LOS "<select>"
+    ---------------------------------------------
+    Medido: los "<select>" tienen "margin-top:10px" y los "<input>" "0". Con el rótulo dejando
+    4 píxeles en todos, el campo de un renglón quedaba a 603 y el de al lado a 613: diez píxeles.
+
+    Y no es una consecuencia de que sean select. Es un margen que se puso en otra parte y
+    llega acá. El aire entre el rótulo y el campo lo pone el rótulo, no el campo; si cada tipo
+    de campo pone el suyo, la fila se descuadra. Ver [campos-02].
+  */
+  margin-top:0;
+}
+.w-campos textarea{
+  height:auto;
+}
+.w-campos .ancho2 textarea{height:auto}
 .w-campos{
   display:grid;
   grid-template-columns:repeat(5,minmax(0,1fr));

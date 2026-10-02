@@ -2994,3 +2994,358 @@ línea— sacan los comentarios antes de contar.
 
 
 ================================================================================
+
+================================================================================
+[centro-01] EL CENTRO DE COSTO DEL TRABAJADOR, Y POR QUÉ NO EL DEL RELOJ
+--------------------------------------------------------------------------------
+
+Se pidió dos veces y las dos veces pedían cosas distintas. La primera, para la tabla del
+listado: "el centro de costo". Se contestó que fuera el derivado del reloj donde la persona
+marca. La segunda, en el formulario: "falta ASIGNAR centro de costo; si está seleccionado uno
+sale por defecto, si no debe solicitarlo". Eso es guardarlo en el trabajador.
+
+Las dos no pueden ser la fuente a la vez, y esta es la razón por la que mande la segunda:
+un centro de costo guardado en dos lugares es un centro de costo que algún día está viejo
+en uno de los dos, y no hay forma de saber cuál de los dos manda. El planilla sale contra el
+que nadie actualizó y no hay error que lo diga.
+
+Es el mismo error que ya costó una vez con las plantillas, en la migración 060:
+"plantillas_contratacion" guardaba el dato de dos maneras y las dos seusepaban. Esa vez lo
+encontró una consulta que no cuadraba. Esta vez no lo encuentra nada: el worker queda
+guardado contra un centro y aparece en la planilla contra otro.
+
+Entonces: el centro de costo es UN SOLO DATO, el que declara el ingreso, y vive en
+"trabajadores.centro_costo_id" (migración 064). El del reloj sigue existiendo y es del
+APARATO, no de la persona: un reloj puede estar en una obra y el maestro trabajar en tres.
+
+
+[centro-02] EL ORDEN: PRIMERO LA MIGRACIÓN, DESPUÉS EL CÓDIGO
+--------------------------------------------------------------------------------
+
+Si primero se sube el JavaScript y se guarda un trabajador sin la columna en la base, el
+"upsert" falla con
+
+    42703: column "centro_costo_id" of relation "trabajadores" does not exist
+
+y no se guarda NADA de la fila. Ni el nombre, ni el RUT, ni el cargo.
+
+Y ese error es peligroso por una razón que no es obvia: el "upsert" de "trabajadores"
+manda TODAS las columnas del objeto, no solo las que cambiaron. Por eso el fallo no es
+"no se guardó el centro de costo", sino "no se guardó esta persona".
+
+
+[centro-03] QUE LO PIDA LA PANTALLA Y NO LA BASE
+--------------------------------------------------------------------------------
+
+La columna quedó en NULL y no en "not null".
+
+Un "not null" impediría cambiar de empresa —porque al cambiar habría que tener el centro de
+la nueva antes de poder guardar nada—, y el guardado desde el Excel y desde el ingreso que
+hace un supervisor no tienen el campo. Con "not null", las dos entradas se caen.
+
+Lo que se hizo fue que la PANTALLA lo pida: "saveWorker" avisa "Falta elegir el centro de
+costo" y no guarda. Y el aviso está con los otros dos, antes de armar el objeto, porque si
+estuviera después del "upsert" avisaría de algo que ya se guardó.
+
+Y hay "required" en el desplegable, que es el aviso del navegador. Se puso el de los dos
+lados a propósito: el del navegador salta al apretar el botón, y el del JavaScript salta
+también si el guardado se dispara con Enter o desde el código. Uno solo de los dos deja un
+camino sin avisar.
+
+
+[centro-04] EN NULL Y NO EN 0, Y POR QUÉ NO IMPORTA TANTO
+--------------------------------------------------------------------------------
+
+NULL es "todavía no se le preguntó el destino". 0 no es un centro de costo: es un id que
+no existe. Con 0, la consulta que cuenta "los trabajadores sin centro" cuenta los que
+tienen el 0 puesto, que no son los mismos.
+
+Lo mismo que se hizo en la migración 056 con los otros cinco campos.
+
+
+[centro-05] "editWorker" NO RESTAURABA LA EMPRESA (bug que se encontró de paso)
+--------------------------------------------------------------------------------
+
+Este no es un problema del centro de costo. Es un bug que existía antes y que se encontró
+porque el centro de costo es POR EMPRESA y hacía falta la empresa para llenarlo.
+
+La función "editWorker" no mencionaba "empresa" ni una sola vez (va de la línea 2006 a la
+2040, y se comprobó). Y "saveWorker" hace:
+
+    empresa_id: (empSel&&empSel.value) ? parseInt(empSel.value) : (existing?existing.empresa_id:null)
+
+El select MANDA sobre lo que el trabajador tenía. Y ese select lo llena
+"fillWorkerEmpresaSelect", que deja lo de "empresaActual", que es el filtro de la cabecera.
+Entonces:
+
+    1. el filtro de la cabecera está en Empresa A
+    2. se abre un trabajador que es de Empresa B
+    3. se le aprieta Guardar
+    4. el trabajador cambia de empresa. Sin aviso y sin error.
+
+No da error porque Empresa A existe y el id es válido. La persona cambia de empresa y
+nadie lo nota hasta que alguien la busca en la planilla y no la encuentra.
+
+El arreglo: "editWorker" ahora llama a "fillWorkerEmpresaSelect()" y pone la empresa del
+trabajador, si y solo si esa empresa está entre las opciones —porque si el que edita no tiene
+acceso a ella, se deja la que haya: es mejor mostrar otra que dejar el select en blanco y que
+"saveWorker" la guarde como NULL.
+
+
+[centro-06] SIN LA LÍNEA EN "workerToDb" NO SE GUARDA Y NO DA ERROR
+--------------------------------------------------------------------------------
+
+"workerToDb" es lo que arman todos los guardados: el formulario, el Excel, el ingreso por
+supervisor. Devuelve un objeto con las columnas de la tabla.
+
+Si la columna nueva no está en ese objeto, el "upsert" no la manda. Y "upsert" no es un
+"update": no es "cambia lo que viene", es "manda esto". Lo que no está en el objeto no se
+toca, y lo que está en NULL se borra.
+
+O sea: sin esa línea, el valor no se guarda nunca, no se queja nadie, y la próxima vez que se
+edite a esa persona desde el formulario el campo aparece vacío.
+
+Es la misma razón por la que están las tres líneas de la desvinculación, las de los
+nombres separados y la del grupo del cargo, todas comentadas en ese mismo archivo.
+
+
+[centro-07] LOS TRES CASOS DEL DESPLEGABLE, Y POR QUÉ EL TERCERO NO ADIVINA
+--------------------------------------------------------------------------------
+
+"llenarCentroCostoTrabajador" tiene tres comportamientos, y el orden importa:
+
+    1. Editando a alguien que ya tiene uno: sale el que tenía.
+    2. Al crear, y la empresa tiene UN solo centro activo: sale ese, solo.
+    3. Al crear, y la empresa tiene varios: no sale ninguno, hay que elegir.
+
+El 2 existe para no hacer elegir a mano cuando hay un solo destino posible. El 3 NO tiene
+esa cortesía a propósito: con varios centros, elegir el primero ES elegirle el centro de
+costo a la persona, y eso es una decisión que no le corresponde al sistema. Adivinar no es
+ayudar, es dejar un dato que después no se sabe de dónde salió.
+
+Y los centros dados de baja no se ofrecen, pero el trabajador que los tenía los conserva y
+se siguen mostrando en la tabla. "No lo ofrezco para elegir" y "no existe" son cosas
+distintas. Es la misma diferencia que con los cargos en la migración 051.
+
+
+================================================================================
+[afp-01] DE DÓNDE SALEN LOS CÓDIGOS, Y QUÉ VERSIÓN
+--------------------------------------------------------------------------------
+
+"Tablas Equivalencia", del PREVIRED, versión de AGOSTO DE 2021. Cuatro tablas:
+
+    Tabla N°10   Códigos de AFP                          (de 2 dígitos)
+    Tabla N°11   Institución Autorizada APV, la parte de AFP   (de 3 dígitos)
+    Tabla N°16   Códigos de Institución de Salud         (de 2 dígitos)
+    Tabla N°20   Rut Pagadores de Subsidio
+
+Y por qué se cita el número de tabla y no la página: "Tabla N°16" es un número estable
+dentro de la documentación del PREVIRED. La página cambia entre versiones; el número de
+tabla no. Y la FECHA es la que hay que mirar, porque el PREVIRED publica una versión
+nueva cuando algo cambia, y un catálogo sin fecha es un catálogo del que nadie sabe
+cuándo se copió.
+
+El texto del PDF está en "tools/datos/previred-agosto-2021.txt", con su procedimiento. Y
+está DENTRO del repo a propósito: un guardián que lee el PDF de la carpeta temporal deja
+de funcionar el día que se limpia, y nadie se entera hasta que deja de avisar.
+
+
+[afp-02] ESTO CIERRA LOS CÓDIGOS QUE ESTABAN SIN MAPEAR
+--------------------------------------------------------------------------------
+
+Antes se tenían los nombres de siete AFP —Capital, Cuprum, Habitat, PlanVital, Provida,
+Modelo, Uno— y siete números de dos dígitos —33, 03, 05, 29, 08, 34, 35— vistos en un
+documento de un TERCERO, sin saber a cuál correspondía cada número.
+
+Y de Salud no había nada verificado.
+
+Ahora sí, y está escrito en la Tabla N°10 del documento:
+
+    03 Cuprum    05 Habitat    08 Provida    29 PlanVital
+    33 Capital   34 Modelo     35 Uno
+
+Los siete nombres y los siete números son los mismos siete. Lo que se sospechaba era
+cierto, y ahora está con su fuente y no con la memoria de un tercero.
+
+
+[afp-03] LAS AFP TIENEN DOS CÓDIGOS, Y NO SON EL MISMO
+--------------------------------------------------------------------------------
+
+Las AFP aparecen en DOS tablas del documento, con el mismo número escrito distinto:
+
+    Tabla N°10:   03 Cuprum      (obligatorio, 2 dígitos)
+    Tabla N°11:  003 Cuprum      (APV, 3 dígitos)
+
+No es un error de tipeo del documento: son dos tablas distintas. La N°10 es el campo de
+cotización obligatoria; la N°11 es el de Ahorro Preliminar Voluntario, que se rellena
+con tres dígitos. Por eso el catálogo guarda LOS DOS, y no uno suponiendo que el número
+de tres dígitos también sirve para el otro.
+
+Y los dos son de TEXTO y no enteros, con un CHECK que exige dígitos: "03" y "3" tienen
+que ser el mismo dato, y si la columna fuera entera el cero del principio se perdería al
+guardarlo y la planilla recibiría "3" donde espera "03". El CHECK es lo que atrapa un
+código escrito como número, que es el error más probable de todos.
+
+
+[afp-04] POR QUÉ NO SE TOCA "trabajadores.afp_codigo"
+--------------------------------------------------------------------------------
+
+Porque ese campo YA guarda otra cosa, y no son números.
+
+La migración 057 lo dejó así, y lo dejó bien pensado:
+
+    comment on column public.trabajadores.afp_codigo is
+      'Código corto de la AFP... Texto de tres a seis letras.'
+
+O sea "AFPH", "CUP", "HAB". Y las importaciones desde Excel emparejan contra ESO.
+
+Si se metiera "03" en esa columna, las importaciones que hoy funcionan dejarían de
+emparejar SIN ERROR: la importación no avisa "no encontré la AFP", simplemente deja la
+columna de AFP vacía en la planilla. Y el error aparece a fin de mes, en el consolidado,
+que es cuando ya no se puede arreglar.
+
+Por eso la columna nueva es OTRA, "afp_previred_codigo", y el catálogo dice a cuál de las
+dos AFP del trabajador corresponde cada número. Las letras que ya están siguen como
+están, y la migración 057 lo dijo de antemano: "si más adelante el catálogo se hace, se
+agrega el desplegable ARRIBA de los dos campos y no se toca lo ya guardado".
+
+
+[afp-05] POR QUÉ LA TABLA NO SE LLAMA "salud"
+--------------------------------------------------------------------------------
+
+Porque "trabajadores" YA tiene "salud_notas", y es otra cosa: lo que escribe la persona
+sobre su salud —alergias, medicamentos, precauciones— en texto libre.
+
+La institución a la que está afiliado es un dato de la planilla, no una nota. Meterlo en
+un campo que se llama "salud" al lado de las alergias es exactamente el tipo de cosa que
+después nadie sabe qué es: nadie se acuerda si "salud" era la isapre o la alergia.
+
+Por eso la tabla se llama "instituciones_salud" y la columna del trabajador
+"salud_institucion_codigo". Y en el nombre de la columna va "institucion", que es lo que
+dice.
+
+
+[afp-06] EL "00" NO TIENE RUT, Y NO ES UN ERROR
+--------------------------------------------------------------------------------
+
+En la Tabla N°10 el "00" es "no está en AFP", y en la N°16 el "00" es "sin isapre".
+Ninguno de los dos es una institución: son la ausencia de una.
+
+Están en el catálogo porque son respuestas válidas de la planilla —"esta persona no está
+en ninguna AFP" es un dato, no un vacío— pero no tienen RUT, porque un RUT es de una
+persona jurídica y la ausencia de una no tiene.
+
+Y NO se le inventó uno. El guardián comprueba expresamente que el "00" venga sin RUT,
+porque el reflejo al armar el catálogo es poner el RUT de Fonasa ahí, "para que no quede
+vacío", y eso convierte "sin isapre" en "Fonasa", que es lo contrario de lo que dice.
+
+Los RUT vienen de la Tabla N°20, que es la del pagador del subsidio, y son lo que permite
+cruzar contra un documento del pagador. El guardián además valida el dígito verificador
+de cada uno: un RUT copiado con el dígito mal no falla al guardarlo, falla meses después
+contra el pagador.
+
+
+[afp-07] EL GUARDIÁN COMPARA CON EL PDF, Y SE PRUEBA QUE PUEDA FALLAR
+--------------------------------------------------------------------------------
+
+"tools/comprueba-065.js" no lee la migración para opinar si "parece bien". La compara con
+el texto del PDF, código por código.
+
+Y tiene DOS formas de fallar comprobadas, porque un comprobador que solo se sabe quejar
+de una cosa no sirve:
+
+    1. Con un PDF CAMBIADO a propósito (un código de salud corrido), tiene que quejarse.
+       Ese caso está dentro del propio guardián.
+    2. Con el ARCHIVO de la migración roto, tiene que quejarse. Eso es
+       "tools/prueba-comprueba-065.js", que mete ocho errores distintos uno por uno.
+
+Y hay un tercer caso, más raro y más grave: con el archivo sano, el guardián no puede
+quejarse de nada. Una comparación mal escrita se queja siempre, y entonces approve todo
+lo que le pasen y suena contenta.
+
+
+[afp-08] LA LISTA SE SACA DEL PDF, NO DE UNA LISTA ESCRITA A MANO
+--------------------------------------------------------------------------------
+
+El guardián lee los códigos del PDF y los compara con los de la migración. La lista de
+"qué códigos hay" NO está escrita en el guion.
+
+Y esa es toda la gracia: si la lista estuviera escrita a mano, uno escribiría lo que
+CREE que dice el documento, el comprobador confirmaría la lista equivocada, y daría todo
+verde sobre un catálogo equivocado. Un comprobador que repite una lista escrita a mano no
+comprueba el documento: comprueba que uno se haya copiado a sí mismo.
+
+
+[afp-09] DEL "INSERT", NO DE TODO EL ARCHIVO
+--------------------------------------------------------------------------------
+
+El guardador lee las filas del "insert into", no del archivo entero. Un "03 Cuprum"
+dentro de un comentario no es un dato cargado.
+
+Con todo el archivo, una migración que explica los códigos en el comentario y se le
+olvida el "insert" pasaría la comprobación con las filas que puso en el texto.
+
+
+[afp-10] EL BLOQUE DEL PDF TERMINA EN EL ENCABEZADO SIGUIENTE, Y CON ESPACIOS
+--------------------------------------------------------------------------------
+
+Para leer una tabla del PDF hay que saber dónde termina, y esa es donde falló dos veces:
+
+    1. La Tabla N°10 se cerraba buscando "Tabla N°11:". Y en el documento la N°11 está
+       ANTES que la N°10. Buscarla después no la encuentra nunca, el bloque se iba hasta
+       el final del PDF, y se comía las tablas 16 a 20: leía 28 filas donde hay 8.
+
+    2. Arreglado eso, el bloque de la N°11 se comía 59 filas. Porque el encabezado
+       siguiente es "  Institución Autorizada..." con DOS ESPACIOS al principio, y el
+       patrón buscaba un "\nInstitución" sin espacios que en el archivo no existe.
+
+Ahora corta en el encabezado siguiente, buscando "\n\s*" —con los espacios. Es un
+detalle de una línea y costó dos vueltas.
+
+
+[afp-11] EL "NULL" DEL RUT, Y LA FILA QUE DESAPARECÍA
+--------------------------------------------------------------------------------
+
+El "00" se carga con RUT en null, y el patrón del guardián pedía un texto entre comillas.
+Entonces esa fila no aparecía en la comparación, y el guardián decía que faltaba una
+institución que sí estaba en la migración.
+
+O sea: el comprobador acusaba a la migración de estar incompleta, cuando lo que estaba
+incompleto era el comprobador. Y un comprobador que acusa de algo que no es, enseña a
+ignorarlo.
+
+
+[afp-12] EL ARNÉS TENÍA QUE PASARLE EL ARCHIVO ROTO
+--------------------------------------------------------------------------------
+
+La primera versión de "prueba-comprueba-065.js" rompía el archivo, lo guardaba aparte...
+y no se lo pasaba al guardián. El guardián miraba el archivo de verdad, que está sano, y
+aprobaba los ocho casos rotos.
+
+Nueve de nueve. Todo verde sobre archivos que estaban mal.
+
+La causa es chica y por eso vale la pena: el guardián acepta una ruta por variable de
+entorno, el arnés la preparaba y nunca la puso.
+
+Y el síntoma es el que más engaña: "9 de 9", en verde, con los nueve archivos rotos.
+Un arnés que no le pasa la entrada al sistema que prueba no está probando el sistema que
+dice probar.
+
+
+[afp-13] QUÉ NO SE COMPRUEBA, DICHO
+--------------------------------------------------------------------------------
+
+El NOMBRE de cada institución NO se compara con el PDF. Y es a propósito.
+
+El mismo documento escribe el mismo nombre de dos formas:
+
+    Tabla N°10:   PlanVital              Tabla N°11:   Planvital
+    Tabla N°16:   Isapre Bco. Estado     Tabla N°20:   Isapre Banco Estado
+
+Comparar los nombres obligaría a elegir una de las dos formas, y elegir una ES inventar.
+Se conserva el nombre de la tabla del catálogo —la N°10 y la N°16— que es la que manda,
+y el guardián lo dice en vez de quedarse callado.
+
+Lo que SÍ se comprueba son los códigos, que es lo que va a la planilla. Y el nombre es
+lo único que se puede leer de más de una forma, porque el nombre lo escribe una persona.
+

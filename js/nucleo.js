@@ -141,7 +141,10 @@ function workerToDb(w){
     // workerToDb lo usan TODOS los guardados —incluida la carga del
     // Excel— y sin esta línea cualquiera de ellos la pondría en null.
     especialidad_clave: w.especialidad_clave||null,
-    empresa_id: w.empresa_id||null
+    empresa_id: w.empresa_id||null,
+    // El centro de costo del trabajador (migración 064). Sin esta línea el "upsert"
+    // no la manda y el valor se pierde en silencio, sin error. Ver [centro-06].
+    centro_costo_id: w.centro_costo_id||null
   };
 }
 // -------------------------------------------------------------------

@@ -52,7 +52,31 @@ const path = require('path');
 
 const RAIZ = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-asistencia-web/';
 const ALVO = RAIZ + 'pages/app.html';
-const NUEVA = process.argv[2] || '1';
+// -------------------------------------------------------------------
+// ESTE GUION SOLO ARREGLA SI SE LE PIDE. SIN NÚMERO, SOLO MIRA.
+//
+// -------------------------------------------------------------------
+// Antes decía:
+//
+//     const NUEVA = process.argv[2] || '1';
+//
+// Y eso convertía al GUARDIÁN en el que arregla. Correrlo para comprobar —que es lo que
+// uno hace siempre, antes de commitear— le ponía "?v=1" a los 26 archivos de "app.html",
+// y el archivo que estaba en v29 quedaba en v1.
+//
+// Y no es un error visible: el guion decía "ok" y el mensaje de salida incluso Farewell
+// "v29 -> v1" como si fuera lo que se le pidió. Roto, y de paso, borro el estado.
+//
+// Un guardián que reescribe lo que está comprobando no se puede correr dos veces, y
+// un guardián que no se puede correr sin miedo no se corre. Y el que no se corre
+// deja de estorbar, y a la vez es el que se suponia que atajaba este problema.
+//
+// Ahora: sin argumento no escribe NADA y solo informa. Con argumento, sube a ese número.
+// Ver [cache-06].
+//
+const PEDIDA = process.argv[2];
+const SOLO_MIRA = !PEDIDA || !/^\d+$/.test(String(PEDIDA));
+const NUEVA = PEDIDA || '1';
 
 // -------------------------------------------------------------------
 // DESCUBRIR, NO SUPONER
@@ -106,6 +130,16 @@ LOCALES.forEach((archivo) => {
   // no sabe si cambió algo o no, y termina sin leer el final, que es donde está la
   // comprobación buena. Ver [cache-16].
   if (antes === NUEVA) return;
+
+  // Y ESTA ES LA LÍNEA QUE FALTABA.
+  //
+  // Si no se le pidió un número, no se reescribe NADA. Se sigue mirando o no, pero
+  // "cambiados" queda vacío y el archivo no se escribe.
+  //
+  // Sin esto, el guardián que se corre para COMPROBAR antes de commitear era el mismo que
+  // bajaba las 26 referencias a "?v=1". Y como además el mensaje de salida dizia "ok", nadie
+  // veía el daño hasta que la página pedía la versión vieja. Ver [cache-06].
+  if (SOLO_MIRA) return;
 
   t = t.replace(re, (m, hasta) => hasta + '?v=' + NUEVA + '"');
   cambiados.push(archivo + '  (v' + (antes || 'SIN v') + ' -> v' + NUEVA + ')');

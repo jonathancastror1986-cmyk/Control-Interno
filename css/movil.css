@@ -719,3 +719,19 @@ svg {
     margin: 8px 12px 0;
   }
 }
+
+
+/* -------------------------------------------------------------------
+  EL PANEL DE ASISTENCIA EN MÓVIL
+  ---------------------------------------------------------
+
+  Y va al FINAL a propósito, porque el orden de la cascada lo decide el orden del
+  archivo. Si se pone antes, la regla de escritorio —que es más específica porque lleva
+  "#v-asistencia"—, le gana igual y este valor no sirve de nada.
+
+  Y el valor es MENOR: en móvil el panel tiene que dejar aire para los botones de abajo,
+  que ahí flotan.
+*/
+:root{
+  --alto-panel-asistencia: 168px;
+}

@@ -15,6 +15,147 @@
 
    Y "cursor:zoom-in" porque el clic agranda la foto, y si no lo dice la manita el
    parece que la imagen está rota. Ver [foto-01]. */
+/*
+  EL LISTADO DE TRABAJADORES, COMO TABLA
+  ------------------------------------------
+  Y en un scroll aparte, con el encabezado quieto: en una lista larga, sin eso, uno tiene
+  que subir hasta arriba a ver de nuevo de qué columna es la que est\u00e1 mirando. Ver [lista-02].
+*/
+.trabTablaCaja{
+  overflow:auto;
+  max-height:min(66vh,720px);
+  border:1px solid var(--line);
+  border-radius:10px;
+}
+.trabTabla{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:.86rem;
+}
+.trabTabla th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:var(--panel);
+  text-align:left;
+  font:600 .72rem 'Montserrat',system-ui,sans-serif;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  color:var(--muted);
+  padding:10px 12px;
+  border-bottom:1px solid var(--line);
+  white-space:nowrap;
+}
+.trabTabla td{
+  padding:9px 12px;
+  border-bottom:1px solid var(--line);
+  vertical-align:middle;
+}
+.trabTabla tbody tr:last-child td{border-bottom:none}
+.trabTabla tbody tr{
+  cursor:pointer;
+  transition:background-color .12s ease;
+}
+.trabTabla tbody tr:hover{background:var(--surface-hover,var(--panel-2,rgba(127,127,127,.08)))}
+
+/* Y el c\u00f3digo en monoespaciada, porque se escanea de a uno y no a ojo. */
+.trabTabla .colCod{white-space:nowrap;width:1%;
+  font-family:Consolas,'Courier New',monospace}
+.trabTabla .colNombre{min-width:220px}
+.trabTabla .colCargo{min-width:140px;max-width:220px}
+.trabTabla .colRut{white-space:nowrap;font-family:Consolas,'Courier New',monospace}
+.trabTabla .colSup{min-width:160px;color:var(--secondary-text)}
+/* Y el centro de costo, que es texto largo y no código: se le da el mismo ancho que el cargo. */
+.trabTabla .colCentro{min-width:170px}
+.trabTabla th.thCentro{text-align:left}
+/*
+  QUÉ LE FALTA A CADA TRABAJADOR
+  ------------------------------------------
+  Y el color va con la GRAVEDAD, no con la ausencia: rojo es lo que impide emitir un
+  documento o saber a quién se le paga, amarillo es lo que va a faltar antes de la
+  planilla, y gris es lo que solo es de orden. Ver [falta-01].
+*/
+.trabTabla .colFalta{min-width:210px;white-space:normal}
+.trabTabla th.thFalta{text-align:left}
+.faltaPill{
+  display:inline-block;
+  margin:0 4px 3px 0;
+  padding:1px 7px;
+  border:1px solid currentColor;
+  border-radius:20px;
+  font:600 .68rem/1.6 var(--sans,system-ui,sans-serif);
+  cursor:pointer;
+}
+.faltaPill:hover{filter:brightness(1.15)}
+.faltaAlto{color:var(--danger);background:var(--danger-surface,rgba(200,50,50,.10))}
+.faltaMedio{color:var(--warn);background:var(--warn-surface,rgba(220,150,20,.10))}
+.faltaBajo{color:var(--muted);background:transparent}
+
+/* Y el numero de la celda, que es el que permite ordenar por "cuantos le faltan". */
+.faltaCuenta{
+  display:inline-block;
+  margin-left:2px;
+  color:var(--muted);
+  font:600 .68rem/1 sans-serif;
+}
+
+/* Y "Completa", que se ve en gris y NO en verde. Con verde parece una alarma apagada. */
+.faltaOk{color:var(--muted);font-size:.72rem;font-style:italic}
+.trabTabla .colEstado{min-width:170px}
+.trabTabla .sinFecha{color:var(--warn)}
+
+/* Y la \u00faltima celda, que es la del men\u00fa. */
+.trabTabla .colOpciones{width:1%;white-space:nowrap;text-align:right;position:relative}
+.btnOpciones{
+  border:1px solid var(--line);
+  border-radius:6px;
+  background:var(--panel);
+  color:var(--muted);
+  cursor:pointer;
+  font-size:1rem;
+  line-height:1;
+  width:32px;
+  height:30px;
+  padding:0;
+}
+.btnOpciones:hover{color:var(--accent);border-color:var(--accent)}
+.btnOpciones:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+
+.menuOpciones{
+  position:absolute;
+  right:8px;
+  top:calc(100% - 4px);
+  z-index:40;
+  min-width:210px;
+  padding:4px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.22);
+  text-align:left;
+}
+.menuOpciones button{
+  display:block;
+  width:100%;
+  text-align:left;
+  border:0;
+  background:transparent;
+  color:var(--text);
+  padding:8px 10px;
+  border-radius:6px;
+  cursor:pointer;
+  font-size:.84rem;
+}
+.menuOpciones button:hover{background:var(--surface-hover,rgba(127,127,127,.12))}
+.menuOpciones .peligro{color:var(--danger)}
+.menuOpciones .peligro:hover{background:var(--danger-surface,rgba(220,60,60,.12))}
+
+/* Y con "pillOk" y "pillR" que no exist\u00edan: los estados tienen que decir su nombre, no
+   ser un color. Un color solo no se lee en una tabla con seis columnas. Ver [lista-03]. */
+.pillOk{color:var(--accent);border-color:var(--accent)}
+.pillR{color:var(--danger);border-color:var(--danger)}
+
 .photoBox img{
   width:100%;height:110px;object-fit:contain;
   border:1px solid var(--line);border-radius:0;background:var(--panel);

@@ -1,0 +1,138 @@
+/*
+  EL PANEL DE ASISTENCIA, QUE OCUPABA LA PANTALLA
+  ----------------------------------------------
+
+  Y la variable va acá y no pegada en el "calc". Un solo lugar por tamaño, y en
+  "movil.css" se redefine. Ver [panel-02].
+*/
+:root{
+  /* La barra de arriba, la de vistas, la sub-barra, las pestañas y un aire. */
+  --alto-panel-asistencia: 320px;
+}
+
+/* -------------------------------------------------------------------
+  1) QUE EL PANEL NO CREZCA
+  ---------------------------------------------------------
+
+  Y se limita a "#v-asistencia" y no a ".attendance-panel" pelado, porque la misma clase
+  la usan los paneles del SUPERVISOR, que son otra cosa y que no semeasured to change. Ver
+  [panel-04].
+*/
+#v-asistencia .attendance-panel.active{
+  display:flex;
+  flex-direction:column;
+  box-sizing:border-box;
+  height:calc(100dvh - var(--alto-panel-asistencia));
+  min-height:340px;
+  overflow:hidden;
+}
+
+/* Y el "min-height" para que con la pantalla MUY chica no quede un panel de 40px. El
+   "min-height" gana sobre el "height", y es el comportamiento correcto: mejor scrollear
+   la página en una pantalla de 300px que mostrar una matriz de dos filas. */
+
+/* Y la matriz es la única que scrollea. Es lo que hay que ver siempre, y por eso su
+   encabezado queda pegado arriba mientras se recorre. */
+#v-asistencia .attendance-panel.active > .overflow{
+  flex:1 1 auto;
+  /* Y el "min-height:0" SIN "box-sizing" es lo que dejaba la matriz en cero. */
+  min-height:min(220px,38vh);
+}
+
+/* -------------------------------------------------------------------
+  2) LOS CONTROLES, QUE COMIAN 362 PX
+  ---------------------------------------------------------
+
+  De cuatro ".row" a dos. No se quita ningún control: se juntan. El año y el mes se
+  quedan juntos, los tres filtros se quedan juntos, y los tres botones se quedan juntos
+  con el feriado.
+*/
+#v-asistencia .attendance-panel.active > .row{
+  gap:10px 14px;
+  margin-bottom:8px;
+}
+#v-asistencia .attendance-panel.active > .row label{
+  font-size:.68rem;
+  margin:0 0 2px;
+  line-height:1.2;
+}
+#v-asistencia .attendance-panel.active > .row input,
+#v-asistencia .attendance-panel.active > .row select,
+#v-asistencia .attendance-panel.active > .row button,
+#v-asistencia .attendance-panel.active > .row small{
+  /* Las TRES juntas. Con una sola, el campo no baja. Ver [panel-09]. */
+  box-sizing:border-box;
+  min-height:0;
+  padding:5px 9px;
+  height:30px;
+  font-size:.8rem;
+}
+
+/* Y el "h2" y el aviso, que son dos renglones de texto antes de la matriz. */
+#v-asistencia .attendance-panel.active > h2{
+  margin:0 0 8px;
+  font-size:1.05rem;
+}
+#v-asistencia .attendance-panel.active > .kitResumen{
+  margin-bottom:6px;
+}
+
+/* -------------------------------------------------------------------
+  3) LA MATRIZ, UN POCO MENOS ALTA POR FILA
+  ---------------------------------------------------------
+
+  Y la DENSIDAD va en una clase propia y no en una regla que alcance a todas las tablas
+  del sistema: esta tabla tiene 31 columnas y sus celdas son de un color de estado, y
+  bajar la fuente sin bajar el color de fondo convierte la matriz en un mar de cuadros
+  del mismo tono. Ver [panel-05].
+*/
+#v-asistencia .attendance-panel.active > input[type="date"],
+#v-asistencia .attendance-panel.active > .btn{
+  box-sizing:border-box;
+  min-height:0;
+  height:30px;
+  padding:5px 12px;
+  margin-top:4px;
+}
+
+#v-asistencia #matrixArea{
+  font-size:.78rem;
+}
+/*
+  EL ENCABEZADO PEGADO, QUE ES LO QUE HACE FALTA PARA PODER SCROLLEAR
+  ------------------------------------------------------------------
+
+  Con 28 filas y 8 a la vista, al bajar no se sabe en qué columna se está. Con esto se
+  sabe siempre.
+
+  Y va sobre el "th" y no sobre el "thead": el "thead" pegado con 31 columnas da saltos
+  en varios navegadores, y el "position:sticky" se ignora cuando un ancestro scrollea.
+  Ver [panel-12].
+*/
+#v-asistencia #matrixArea th{
+  /* Y SIN "thead", porque esta tabla no tiene: la fila de encabezado es un "tr" con
+     "th" adentro del "tbody". Con el "thead" en el selector la regla no tocaba nada y
+     lo único que quedaba pegado era la primera celda, por casualidad. Ver [panel-12]. */
+  position:sticky;
+  top:0;
+  z-index:3;
+  background:var(--card);
+  /* Y una sombra finita abajo, porque con 31 columnas pegadas una y otra se leen como
+     una sola masa y no se sabe dónde termina la de arriba. */
+  box-shadow:inset 0 -1px 0 var(--line);
+}
+
+/* Y la primera columna —código y nombre— también pegada a la izquierda, porque al
+   scrollear a la derecha se pierden de vista y no se sabe a quién es la fila. */
+#v-asistencia #matrixArea th:first-child,
+#v-asistencia #matrixArea td:first-child{
+  position:sticky;
+  left:0;
+  z-index:2;
+  background:var(--card);
+}
+#v-asistencia #matrixArea th:first-child{z-index:4}
+#v-asistencia #matrixArea td,#v-asistencia #matrixArea th{
+  padding:2px 1px;
+  line-height:1.25;
+}

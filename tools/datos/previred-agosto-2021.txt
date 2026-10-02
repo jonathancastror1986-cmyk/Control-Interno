@@ -1,0 +1,444 @@
+EL TEXTO DE ESTE ARCHIVO
+=========================
+
+Viene de:
+
+    Tablas Equivalencia (PREVIRED), "TablasEquivalencia+Agosto+2021.pdf",
+    3 páginas, 203 KB.
+
+Y se sacó con "pypdf", que solo lee texto. Un PDF guarda el texto en orden de flujo y
+no en columnas, así que las tablas salen como listas de "codigo glosa" y en el orden en
+que el documento las escribe — que NO es el orden de los números: la Tabla N°11 aparece
+antes que la N°10 en la primera página.
+
+Eso es lo que usa "comprueba-065.js", y por eso el orden importa: si alguien rearma este
+archivo y pone las tablas ordenadas por número, el comprobador deja de encontrar la
+Tabla N°10 donde la busca y dice que el catálogo no coincide con el PDF.
+
+Si el PREVIRED publica una versión nueva, NO se edita este archivo a mano: se saca de
+nuevo del PDF nuevo, y se escribe una migración nueva. Editar el texto "para que el
+catálogo pase" sería hacer pasar la pruebafalseando la fuente.
+
+--------------------------------------------------------------------------------
+paginas: 3
+
+========================================================================
+PAGINA 1  (4927 caracteres)
+========================================================================
+ 
+Tablas Equivalencia 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Tabla N°12: Forma Pago APVI - APVC 
+Código Glosa 
+1 Directa: Se envía la información directamente a la Institución encargada de 
+administrar los fondos. 
+2 Indirecta: Se envía la información a la AFP del trabajador, la cual actúa como 
+intermediaria para luego traspasar los fondos a otra Institución encargada de 
+administrar estos fondos. 
+ 
+Tabla N°13: Movimiento de Personal Afiliado Voluntario 
+Código Glosa 
+10 Cese de Cotización de Afiliado Voluntario 
+Tabla N°1: Sexo 
+Código Glosa 
+M Masculino 
+F Femenino 
+ 
+Tabla N°2: Nacionalidad 
+Código Glosa 
+0 Chileno 
+1 Extranjero 
+ 
+Tabla N°11: Nombre Institución APV Autorizadas (APVI - APVC) 
+ Institución Autorizada APV - APVC : AFP 
+Código Glosa 
+000 No Cotiza A.P.V. 
+003 Cuprum 
+005 Habitat 
+008 Provida 
+029 Planvital 
+033 Capital 
+034 Modelo 
+035 Uno 
+ Institución Autorizada APV - APVC : Cias Seguros de Vida 
+100 ABN AMRO (CHILE) SEGUROS DE VIDA S.A. 
+101 AGF ALLIANZ CHILE COMPAÑIA DE SEGUROS VIDA S.A 
+102 SANTANDER SEGUROS DE VIDA S.A. 
+103 BCI SEGUROS VIDA S.A. 
+104 BANCHILE SEGUROS DE VIDA S.A. 
+105 BBVA SEGUROS DE VIDA S.A. 
+106 BICE VIDA COMPAÑIA DE SEGUROS S.A. 
+107 CHILENA CONSOLIDADA SEGUROS DE VIDA S.A. 
+108 CIGNA COMPAÑIA DE SEGUROS DE VIDA S.A. 
+109 CN LIFE, COMPAÑIA DE SEGUROS DE VIDA S.A. 
+110 COMPAÑIA DE SEGUROS DE VIDA CARDIF S.A. 
+111 CIA DE SEG. DE VIDA CONSORCIO NACIONAL DE SEG S.A. 
+113 COMPAÑIA DE SEGUROS DE VIDA HUELEN S.A. 
+115 COMPAÑIA DE SEGUROS DE VIDA VITALIS S.A. 
+116 COMPAÑIA DE SEGUROS CONFUTURO S.A. 
+118 SEGUROS DE VIDA SURA S.A. 
+121 METLIFE CHILE SEGUROS DE VIDA S.A. 
+123 MAPFRE COMPAÑIA DE SEGUROS DE VIDA DE CHILE S.A. 
+125 MUTUAL DE SEGUROS DE CHILE 
+126 MUTUALIDAD DE CARABINEROS 
+127 MUTUALIDAD DEL EJERCITO Y AVIACION 
+128 OHIO NATIONAL SEGUROS DE VIDA S.A. 
+129 PRINCIPAL COMPAÑIA DE SEGUROS DE VIDA CHILE S.A. 
+130 RENTA NACIONAL COMPAÑIA DE SEGUROS DE VIDA S.A. 
+131 SEGUROS DE VIDA SECURITY PREVISION S.A. 
+134 COMPAÑIA DE SEGUROS GENERALES PENTA-SECURITY S.A. 
+135 PENTA VIDA COMPAÑIA DE SEGUROS DE VIDA S.A. 
+136 ACE SEGUROS S.A. 
+ Institución Autorizada APVI - APVC : Fondos Mutuos 
+201 BANDESARROLLO ADM. GENERAL DE FONDOS S.A. 
+204 BCI ASSET MANAGEMENT ADMINISTRADORA GENERAL DE FONDOS S.A. 
+205 BICE INVERSIONES AGF S.A. 
+208 BTG PACTUAL CHILE S.A. ADMINISTRADORA GENERAL DE FONDOS 
+214 PRINCIPAL ADMINISTRADORA GENERAL DE FONDOS S.A. 
+215 SANTANDER ASSET MANAGEMENT S.A. ADM. GENERAL DE FONDOS 
+217 SCOTIA SUDAMERICANO ADMINISTRADORA DE FONDOS MUTUOS S.A. 
+218 ADMINISTRADORA GENERAL DE FONDOS SECURITY S.A. 
+225 ITAU ADMINISTRADORA GENERAL DE FONDOS S.A. 
+229 BANCOESTADO S.A. ADMINISTRADORA GENERAL DE FONDOS 
+237 FINTUAL ADMINISTRADORA GENERAL DE FONDOS S.A 
+238 FOCUS AGF S.A. 
+600 ZURICH CHILE ASSET MANAGEMENT ADMINISTRADORA GENERAL DE FONDOS S.A 
+601 LARRAIN VIAL ADMINISTRADORA GENERAL DE FONDOS S.A. 
+ Institución Autorizada APVI - APVC : Corredores de Bolsa 
+213 LARRAIN VIAL S.A. CORREDORA DE BOLSA 
+222 BANCHILE CORREDORES DE BOLSA S.A. 
+227 CORREDORES DE BOLSA SURA S.A. 
+228 BTG PACTUAL CHILE S.A. CORREDORES DE BOLSA 
+231 SCOTIA SUD AMERICANO CORREDORES DE BOLSA S.A. 
+232 BICE INVERSIONES CORREDORES DE BOLSA S.A. 
+235 MBI CORREDORES DE BOLSA S.A. 
+236 CONSORCIO CORREDORES DE BOLSA S.A. 
+ Institución Autorizada APVI - APVC: Bancos 
+321 Banco Santander Santiago 
+  
+ 
+Tabla N°3: Tipo Nómina 
+Código Glosa 
+01 Remuneraciones del mes 
+02 Gratificaciones 
+03 Bono Ley de Modernización Empresas Públicas 
+ Tabla N°4: Régimen Previsional Trabajador 
+Código Glosa 
+AFP AFP 
+INP IPS (Ex-INP) 
+SIP Sin Institución Previsional 
+ Tabla N°5: Tipo de Trabajador 
+Código Glosa 
+0 Activo (No Pensionado) 
+1 Pensionado y cotiza 
+2 Pensionado y no cotiza 
+3 Activo > 65 años (nunca pensionado) 
+ Tabla N°6: Tipo de Línea 
+Código Glosa 
+00 Línea Principal o Base 
+01 Línea Adicional 
+02 Segundo Contrato 
+03 Movimiento de Personal Afiliado Voluntario 
+ Tabla N°7: Movimiento de Personal 
+Código Glosa 
+0 Sin Movimiento en el Mes 
+1 Contratación a plazo indefinido 
+2 Retiro 
+3 Subsidios 
+4 Permiso Sin Goce de Sueldos 
+5 Incorporación en el Lugar de Trabajo 
+6 Accidentes del Trabajo 
+7 Contratación a plazo fijo 
+8 Cambio Contrato plazo fijo a plazo indefinido 
+11 Otros Movimientos (Ausentismos) 
+12 Reliquidación, Premio, Bono 
+13 Suspensión Contrato acto de autoridad (Ley N°21.227) 
+14 Suspensión Contrato por pacto (Ley N°21.227) 
+15 Reducción de Jornada (Ley N°21.227) 
+ Tabla N°8: Tramo Asignación Familiar 
+Código Glosa 
+A Primer Tramo 
+B Segundo Tramo 
+C Tercer Tramo 
+D Sin Derecho 
+Sin Información Sin Derecho 
+ Tabla N°9: Solicitud Subsidio Trabajador Joven 
+Código Glosa 
+S Si, tiene Subsidio 
+N No, tiene Subsidio 
+ Tabla N°10: Códigos de AFP 
+Código Glosa 
+00 no está en AFP 
+03 Cuprum 
+05 Habitat 
+08 Provida 
+29 PlanVital 
+33 Capital 
+34 Modelo 
+35 Uno 
+ 
+
+========================================================================
+PAGINA 2  (5383 caracteres)
+========================================================================
+ 
+Tablas Equivalencia 
+ 
+Tabla N°14: Códigos de Cajas ex Régimen 
+Código Glosa 
+0000 No pertenece al IPS 
+0201 Bancaria - Régimen 1 
+0202 Bancaria - Régimen 2 
+0203 Bancaria - Régimen 3 
+0214 Bancaria - Régimen 14 
+0221 Bancaria - Régimen 21 
+0234 Bancaria - Régimen 34 
+2201 Caja de Previsión de Gildemeister - Régimen 1 
+2202 Caja de Previsión de Gildemeister - Régimen 2 
+1601 Caja de Previsión Social de los EE - Régimen 1 
+1602 Caja de Previsión Social de los EE - Régimen 2 
+1202 Caja Ferro - Régimen 2 
+1203 Caja Ferro - Régimen 3 
+1204 Caja Ferro - Régimen 4 
+1205 Caja Ferro - Régimen 5 
+1207 Caja Ferro - Régimen 7 
+1401 Canaempu: Periodistas - Régimen 1 
+1402 Canaempu: Periodistas - Régimen 2 
+1403 Canaempu: Periodistas - Régimen 3 
+1404 Canaempu: Periodistas - Régimen 4 
+1405 Canaempu: Periodistas - Régimen 5 
+1406 Canaempu: Periodistas - Régimen 6 
+1407 Canaempu: Periodistas - Régimen 7 
+1408 Canaempu: Periodistas - Régimen 8 
+1411 Canaempu: Periodistas - Régimen 11 
+1412 Canaempu: Periodistas - Régimen 12 
+1413 Canaempu: Periodistas - Régimen 13 
+1414 Canaempu: Periodistas - Régimen 14 
+1415 Canaempu: Periodistas - Régimen 15 
+1416 Canaempu: Periodistas - Régimen 16 
+1417 Canaempu: Periodistas - Régimen 17 
+1418 Canaempu: Periodistas - Régimen 18 
+1421 Canaempu: Periodistas - Régimen 21 
+1422 Canaempu: Periodistas - Régimen 22 
+1423 Canaempu: Periodistas - Régimen 23 
+1424 Canaempu: Periodistas - Régimen 24 
+1425 Canaempu: Periodistas - Régimen 25 
+1426 Canaempu: Periodistas - Régimen 26 
+1431 Canaempu: Periodistas - Régimen 31 
+1432 Canaempu: Periodistas - Régimen 32 
+1433 Canaempu: Periodistas - Régimen 33 
+1434 Canaempu: Periodistas - Régimen 34 
+1301 Canaempu: Públicos - Régimen 1 
+1302 Canaempu: Públicos - Régimen 2 
+1303 Canaempu: Públicos - Régimen 3 
+1305 Canaempu: Públicos - Régimen 5 
+1306 Canaempu: Públicos - Régimen 6 
+1308 Canaempu: Públicos - Régimen 8 
+1309 Canaempu: Públicos - Régimen 9 
+1310 Canaempu: Públicos - Régimen 10 
+1311 Canaempu: Públicos - Régimen 11 
+1312 Canaempu: Públicos - Régimen 12 
+1321 Canaempu: Públicos - Régimen 21 
+1322 Canaempu: Públicos - Régimen 22 
+1323 Canaempu: Públicos - Régimen 23 
+1325 Canaempu: Públicos - Régimen 25 
+1326 Canaempu: Públicos - Régimen 26 
+1328 Canaempu: Públicos - Régimen 28 
+1329 Canaempu: Públicos - Régimen 29 
+1330 Canaempu: Públicos - Régimen 30 
+1331 Canaempu: Públicos - Régimen 31 
+1332 Canaempu: Públicos - Régimen 32 
+1338 Canaempu: Públicos - Régimen 38 
+0501 Caprebech - Régimen 1 
+0503 Caprebech - Régimen 3 
+0514 Caprebech - Régimen 14 
+0521 Caprebech - Régimen 21 
+0534 Caprebech - Régimen 34 
+0601 Capremer - Régimen 1 
+0602 Capremer - Régimen 2 
+0603 Capremer - Régimen 3 
+0604 Capremer - Régimen 4 
+0605 Capremer - Régimen 5 
+0606 Capremer - Régimen 6 
+0608 Capremer - Régimen 8 
+1501 Copremusa EE - Régimen 1 
+1502 Copremusa EE - Régimen 2 
+1503 Copremusa EE - Régimen 3 
+1901 Diomp - Régimen 1 
+1701 EE Municipales de la Republica - Régimen 1 
+1702 EE Municipales de la Republica - Régimen 2 
+1703 EE Municipales de la Republica - Régimen 3 
+1704 EE Municipales de la Republica - Régimen 4 
+2001 EE Salitre - Régimen 1 
+2002 EE Salitre - Régimen 2 
+0101 Empart - Régimen 1 
+0102 Empart - Régimen 2 
+0103 Empart - Régimen 3 
+ 
+0104 Empart - Régimen 4 
+0106 Empart - Régimen 6 
+1001 Empleados de Emos - Régimen 1 
+0801 Hípica Nacional - Régimen 1 
+0802 Hípica Nacional - Régimen 2 
+0803 Hípica Nacional - Régimen 3 
+0804 Hípica Nacional - Régimen 4 
+2301 Mauricio, Hochschild - Régimen 1 
+2302 Mauricio, Hochschild - Régimen 2 
+1101 Obreros de Emos - Régimen 1 
+1801 OO Municipales de la Republica - Régimen 1 
+1802 OO Municipales de la Republica - Régimen 2 
+1803 OO Municipales de la Republica - Régimen 3 
+2101 Sección Esp.Previsión Empleados - Régimen 1 
+2102 Sección Esp.Previsión Empleados - Régimen 2 
+2401 Secgasco - Régimen 1 
+2402 Secgasco - Régimen 2 
+0901 Servicios de Seguro Social - Régimen 1 
+0902 Servicios de Seguro Social - Régimen 2 
+0701 Triomar - Régimen 1 
+0702 Triomar - Régimen 2 
+0703 Triomar - Régimen 3 
+0704 Triomar - Régimen 4 
+ 
+Tabla N°15: Códigos de Cajas ex Régimen Desahucio 
+Código Glosa 
+0101 Empart 
+0201 Bancaria 
+0202 Bancaria 
+0203 Bancaria 
+0501 Caprebech 
+0502 Caprebech 
+0503 Caprebech 
+0601 Capremer 
+0603 Capremer 
+0902 Servicios de Seguro Social 
+1204 Caja Ferro 
+1303 Canaempu: Públicos 
+1311 Canaempu: Públicos 
+1343 Canaempu: Públicos 
+1363 Canaempu: Públicos 
+1401 Canaempu: Periodistas 
+1402 Canaempu: Periodistas 
+1406 Canaempu: Periodistas 
+1501 Copremusa EE 
+1503 Copremusa EE 
+1601 Caja de Previsión Social de los EE 
+1602 Caja de Previsión Social de los EE 
+1701 EE Municipales de la República 
+1901 Diomp 
+ 
+Tabla N°16: Códigos de Institución de Salud 
+Código Glosa 
+00 Sin Isapre 
+01 Banmédica 
+02 Consalud 
+03 VidaTres 
+04 Colmena 
+05 Isapre Cruz Blanca S.A. 
+07 Fonasa 
+10 Nueva Masvida 
+11 Isapre de Codelco Ltda. 
+12 Isapre Bco. Estado 
+25 Cruz del Norte 
+ 
+Tabla N°17: Tipo Moneda del plan pactado Isapre 
+Código Glosa 
+1 Pesos 
+2 UF 
+ 
+Tabla N°18: Códigos CCAF 
+Código Glosa 
+00 Sin CCAF 
+01 Los Andes 
+02 La Araucana 
+03 Los Héroes 
+06 18 de Septiembre 
+ 
+Tabla N°19: Códigos Mutualidad 
+Código Glosa 
+00 Sin Mutual - Empresa entrega aporte Accidentes del Trabajo al ISL 
+01 Asociación Chilena de Seguridad (ACHS) 
+02 Mutual de Seguridad CCHC 
+03 Instituto de Seguridad del Trabajo I.S.T. 
+ 
+
+========================================================================
+PAGINA 3  (539 caracteres)
+========================================================================
+ 
+Tablas Equivalencia 
+ 
+ 
+ 
+ 
+ 
+ 
+Tabla N°20: Rut Pagadores de Subsidio 
+Rut Glosa 
+96572800-7 Banmédica 
+96856780-2 Consalud 
+96502530-8 Vida Tres 
+76296619-0 Colmena 
+96501450-0 Isapre Cruz Blanca S.A. 
+61603000-0 Fonasa 
+96504160-5 Nueva Masvida 
+76334370-7 Isapre de Codelco Ltda. 
+71235700-2 Isapre Banco Estado 
+79906120-1 Cruz del Norte 
+70360100-6 Asociación Chilena de Seguridad (ACHS) 
+70285100-9 Mutual de Seguridad CCHC 
+70015580-3 Instituto de Seguridad del Trabajo I.S.T. 
+61533000-0 Instituto de Seguridad Laboral I.S.L. 
+ 

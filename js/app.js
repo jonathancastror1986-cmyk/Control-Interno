@@ -1397,6 +1397,105 @@ function fillWorkerEmpresaSelect(){
   else if(permitidas.some(e=>String(e.id)===previo))sel.value=previo;
 }
 
+// ------------------------------------------------------------------
+// LOS CENTROS DE COSTO DEL TRABAJADOR
+// ------------------------------------------------------------------
+//
+// Se llenan POR EMPRESA, porque "centros_costo" tiene empresa_id y los centros de una
+// empresa no son los de otra. Ver la migración 030.
+//
+// Y "activo": un centro dado de baja no se ofrece, pero el trabajador que lo tenía lo
+// conserva guardado y se sigue mostrando en la ficha. Es la diferencia entre "no lo
+// ofrezco para elegir" y "no existe", que es lo mismo que se hizo con los cargos.
+//
+// Y el que ya venía se vuelve a poner al final, porque al recargar la lista se pierde
+// la selección, y sin esto editar a alguien lo deja sin centro y "guardar" se lo borra.
+// El "upsert" manda todas las columnas: lo que no está llega como null.
+//
+// ------------------------------------------------------------------
+// QUE LA LISTA DE CENTROS ESTÉ CARGADA, CUANDO SE NECESITA
+// ------------------------------------------------------------------
+//
+// Y una bandera aparte, y no la longitud del arreglo. La longitud no sirve: con una
+// empresa que no tiene centros, la lista vacía es CORRECTA y volver a preguntar cada vez
+// sería una consulta por cada apertura del formulario. Ver [centro-05].
+//
+// Y devuelve la promesa, para que quien la llame pueda esperar. Y no lanza: si falla, el
+// error queda en el aviso del panel de relojes, que es donde se viene viendo.
+//
+function centrosCostoCargados(){
+  if(centrosCostoListos)return Promise.resolve(centrosCosto);
+  return window.supabaseClient.from('centros_costo').select('*').order('nombre')
+    .then(function(r){
+      if(r.error){centrosCosto=[];centrosCostoListos=true;return centrosCosto;}
+      centrosCosto=r.data||[];
+      centrosCostoListos=true;
+      return centrosCosto;
+    })
+    .catch(function(){centrosCosto=[];centrosCostoListos=true;return centrosCosto;});
+}
+
+// Y "centrosCostoListos", que es la bandera. Vive acá y no en "relojes.js" porque el
+// formulario del trabajador vive en "app.js", y una variable compartida entre dos archivos
+// que se declaran en orden distinto es una variable que llega "undefined" en la mitad de
+// las pantallas.
+var centrosCostoListos=false;
+
+function llenarCentroCostoTrabajador(previo){
+  const sel=document.getElementById('w-centro-costo');
+  if(!sel)return;
+  const empSel=document.getElementById('w-empresa');
+  // Y el que se quiere dejar marcado es el que se le pasó, o el que ya estaba puesto.
+  const queda=previo!==undefined&&previo!==null&&previo!==''?String(previo):sel.value;
+  const empId=empSel&&empSel.value?parseInt(empSel.value):null;
+  // Y si se está editando y la empresa no es la del trabajador, el id guardado es de
+  // otra empresa: no se ofrece, porque ofrecer un centro ajeno es un error que la
+  // clave foránea no va a avisar.
+  const lista=(centrosCosto||[]).filter(c=>
+    c.activo!==false&&(!empId||c.empresa_id==null||parseInt(c.empresa_id)===empId));
+  sel.innerHTML='<option value="">— sin centro de costo —</option>'+
+    lista.map(c=>`<option value="${c.id}">${escHtml(c.nombre)}</option>`).join('');
+  // Y el 1: el que ya tenía.
+  if(lista.some(c=>String(c.id)===queda))sel.value=queda;
+  // Y el 2: uno solo, se pone solo.
+  else if(lista.length===1)sel.value=String(lista[0].id);
+  // Y el 3: varios, no se elige ninguno. Se elige la persona.
+  else sel.value='';
+
+  // Y si la lista venía vacía porque NUNCA se cargó, se pide y se repinta cuando llegue.
+  // Si ya venía vacía de verdad, no se vuelve a preguntar: "centrosCostoListos" lo sabe.
+  if(!centrosCostoListos){
+    centrosCostoCargados().then(function(){
+      llenarCentroCostoTrabajador(previo);
+    });
+  }
+
+  // Y CUANDO NO HAY NINGUNO, SE DICE. Un desplegable con una sola opción que dice
+  // "— sin centro de costo —" es indistinguible de uno que falló al cargar, y como el
+  // campo es obligatorio el error termina siendo "Falta elegir el centro de costo", que
+  // // es falso. Ver [centro-04].
+  var aviso=document.getElementById('w-centro-costoAviso');
+  if(aviso){
+    // Y SOLO cuando se sabe. Una lista vacía y una lista que todavía no se cargó se ven
+    // iguales desde el desplegable, y son cosas distintas: la primera es "no hay", la
+    // segunda es "todavía no sé". Mostrar el aviso en la segunda es decir algo falso, y
+    // además es una instrucción: "agrégalos". Ver [centro-07].
+    const hay=lista.length>0;
+    const seSabe=centrosCostoListos;
+    aviso.hidden=hay||!seSabe;
+    aviso.textContent=hay
+      ?''
+      :'Esta empresa no tiene centros de costo. Agrégalos en "Relojes y centros de costo", abajo en Administration.';
+  }
+}
+
+// El nombre del centro, para las tablas y las fichas. Y no guarda nada: es una lectura.
+function nombreCentroCosto(id){
+  if(id==null||id==='')return null;
+  const c=(centrosCosto||[]).find(x=>String(x.id)===String(id));
+  return c?c.nombre:null;
+}
+
 async function saveWorker(){
   const code=document.getElementById('w-code').value.trim();
   const spec=document.getElementById('w-spec').value.trim();
@@ -1414,6 +1513,13 @@ async function saveWorker(){
   // Y si no hay nombres, se avisa acá y no en la base. La base no avisa "falta el
   // apellido paterno": guarda lo que le manden, y el nombre queda a medias.
   if(!code){alert('El código es obligatorio');return;}
+  // Y el centro de costo se pide, no se adivina. Ver [centro-03].
+  const selCentro=document.getElementById('w-centro-costo');
+  if(selCentro&&!selCentro.value.trim()){
+    alert('Falta elegir el centro de costo. Es contra qué centro se justifica la asistencia de esta persona.');
+    selCentro.focus();
+    return;
+  }
   if(!nombres||!apellidoPaterno){
     alert('Nombres y apellido paterno son obligatorios. El apellido materno es opcional.');
     return;
@@ -1432,6 +1538,11 @@ async function saveWorker(){
     afp_nombre:document.getElementById('w-afp-nombre').value.trim(),
     spec,
     empresa_id: (empSel&&empSel.value)?parseInt(empSel.value):(existing?existing.empresa_id:null),
+    // Y el centro de costo, que se acaba de pedir más arriba. Y si el select no existe
+    // —porque se está llamando desde el Excel o desde otra pantalla— se conserva el que
+    // tenía, para no borrarlo por una llamada que no iba a tocarlo.
+    centro_costo_id: selCentro&&selCentro.value ? parseInt(selCentro.value)
+                        : (existing?existing.centro_costo_id:null),
     phone: document.getElementById('w-phone').value.trim(),
     rut: document.getElementById('w-rut').value.trim() || (existing?existing.rut:''),
     is_supervisor: document.getElementById('w-is-supervisor').checked,
@@ -1821,6 +1932,47 @@ async function importWorkersCsv(){
   }
 }
 
+// ------------------------------------------------------------------
+// QUÉ LE FALTA A ESTA PERSONA
+// ------------------------------------------------------------------
+//
+// Y no es una lista escrita a mano de "requisitos": cada renglón mira un campo que se
+// sabe si está, y devuelve solo los que están vacíos. Si mañana se agrega un campo
+// nuevo, esta función no lo sabe y no lo avisa — que es lo correcto, porque inventar un
+// requisito que nadie pidió es peor que no avisar.
+//
+// Y NADA de esto es legal. Ver el comentario de arriba. Lo que sí es legal vive en
+// "firma_autorizaciones".
+//
+function problemasDeFicha(w){
+  const falta=[];
+  // Y el orden es el que hace daño primero: lo que impide emitir, lo que impide pagar,
+  // y al final lo que solo es de orden. No es alfabético ni por importance del código.
+  if(!w.rut)falta.push({t:'alto',d:'Sin RUT',q:'No se pueden emitir documentos a su nombre.'});
+  if(!w.empresa_id)falta.push({t:'alto',d:'Sin empresa',q:'No se sabe a qué empresa se le imputa.'});
+  if(!w.casual&&!w.safety)falta.push({t:'alto',d:'Sin foto',q:'No se puede emitir la credencial.'});
+  if(!w.centro_costo_id)falta.push({t:'medio',d:'Sin centro de costo',q:'No hay contra qué se justificar su asistencia.'});
+  // Y la AFP se mira por las dos columnas, no por una: con la 057 hay AFP con código y
+  // sin nombre, y con nombre y sin código, y las dos están a medias.
+  if(!w.afp_codigo&&!w.afp_nombre)falta.push({t:'medio',d:'Sin AFP',q:'La planilla no lo puede imputar.'});
+  else if(!w.afp_codigo)falta.push({t:'bajo',d:'AFP sin código',q:'Las importaciones desde Excel no emparejan.'});
+  if(!w.fecha_ingreso)falta.push({t:'bajo',d:'Sin fecha de ingreso',q:'No se le puede calcular antigüedad.'});
+  return falta;
+}
+
+// Y el resumen para la celda. Con CERO problemas devuelve un aviso de que está todo
+// listo, y no un guion: un espacio vacío en una columna de colores no se distingue de
+// una columna que no se está pintando.
+function resumenDeFicha(w){
+  const f=problemasDeFicha(w);
+  if(!f.length)return '<span class="faltaOk">Completa</span>';
+  const peor=f.some(function(x){return x.t==='alto';})?'alto':(f.some(function(x){return x.t==='medio';})?'medio':'bajo');
+  return f.map(function(x){
+    return '<span class="faltaPill falta'+x.t.charAt(0).toUpperCase()+x.t.slice(1)+'" title="'+escHtml(x.q)+'">'+escHtml(x.d)+'</span>';
+  }).join('')+
+    '<span class="faltaCuenta" aria-hidden="true">'+f.length+'</span>';
+}
+
 function renderList(filter){
   const el=document.getElementById('workerList');
   const searchValue=filter===undefined?document.getElementById('workerSearch').value:filter;
@@ -1846,61 +1998,140 @@ function renderList(filter){
     :(a,b)=>a.name.localeCompare(b.name));
   el.innerHTML='';
   if(!filteredWorkers.length){el.innerHTML='<small>No hay trabajadores que coincidan con estos filtros.</small>';return;}
+  // Y el encabezado, una sola vez por tabla y no una por fila.
+  const NOMBRES=['C\u00f3digo','Nombre','Cargo','RUT','Supervisor','Centro de costo','Estado','Falta',''];
+  el.innerHTML='<div class="trabTablaCaja"><table class="trabTabla"><thead><tr>'+
+    NOMBRES.map((n,i)=>'<th'+(n?(' class="'+('thCentro'===n?'thCentro':'thFalta'===n?'thFalta':'')+'"'):' class="thOpciones"')+'>'+escHtml(n)+'</th>').join('')+
+    '</tr></thead><tbody></tbody></table></div>';
+  const cuerpo=el.querySelector('tbody');
+
   filteredWorkers.forEach(w=>{
-    const d=document.createElement('div');
-    d.className='list-item';
-    // La fecha de término va a la vista cuando existe: es lo que ordena el
-    // plano de obra. Si no existe, se dice, porque "desvinculado" a secas no
-    // dice cuándo se fue y en la planilla queda con la fecha en que alguien
-    // apretó el botón.
+    const fila=document.createElement('tr');
+
     const desvinculado=w.status==='desvinculado';
-    const termino=w.fecha_termino?'<small> · término '+escHtml(String(w.fecha_termino).slice(0,10))+'</small>':'';
-    const sinFecha=desvinculado&&!w.fecha_termino
-      ?' <span class="pill" style="color:var(--warn-ink);border-color:var(--warn)" title="Sin fecha de término: la baja queda en la fecha en que se cerró la ficha">sin fecha de término</span>'
-      :'';
-    const estado=desvinculado
-      ?' <span class="pill" style="color:var(--danger);border-color:var(--danger)">Desvinculado</span>'+termino+sinFecha
-      :'';
-    d.innerHTML=`<span><b>${escHtml(codigoMostrar(w.code))}</b> — ${escHtml(w.name)} <small>(${escHtml(w.spec||'—')})</small>${estado}</span>`+
-      `<span class="lista-iconos">${desvinculado?'<span title="Revivir" style="cursor:pointer">♻️</span><span title="Completar fecha y artículo" style="cursor:pointer">📅</span>':''}<span title="${desvinculado?'Corregir desvinculación':'Desvincular'}" style="cursor:pointer">🚪</span><span title="Eliminar" style="cursor:pointer">🗑️</span></span>`;
-    d.onclick=()=>editWorker(w.code);
-    // Se busca por clase y no con "span:last-child": ese selector también
-    // matchea el último ícono interno, y el código terminaba conectando los
-    // manejadores al ícono de la papelera en vez de al contenedor. Revivir
-    // o completar la fecha no hacían nada.
-    const icons=d.querySelector('.lista-iconos');
-    const botones=[...icons.children];
-    if(desvinculado){
-      // Revivir. Va primero: la ficha desvinculada por error es el caso más
-      // común y el más caro de dejar así, porque la persona no aparece en
-      // ninguna planilla.
-      botones[0].onclick=(ev)=>{ev.stopPropagation();revivirWorker(w.code);};
-      botones[1].onclick=(ev)=>{ev.stopPropagation();abrirDesvinculacion(w.code);};
+
+    // Y el SUPERVISOR por su nombre, no por su c\u00f3digo. Una celda con "0007" no se sabe
+    // qui\u00e9n es.
+    let nombreSup='\u2014';
+    if(w.supervisor_code){
+      const sup=(workers||[]).find(x=>x.code===w.supervisor_code);
+      nombreSup=sup?(sup.name||sup.code):w.supervisor_code;
     }
-    botones[botones.length-2].onclick=(ev)=>{ev.stopPropagation();desvincularWorker(w.code);};
-    botones[botones.length-1].onclick=(ev)=>{ev.stopPropagation();eliminarWorker(w);};
-    // ------------------------------------------------------------------
-    // EL BOTON DE LA FICHA
-    // ------------------------------------------------------------------
-    // Va como hermano DESPUES de lista-iconos, y no dentro. Los botones de
-    // la fila se conectan por posicion (botones[0], botones[length-2], y
-    // asi), asi que agregar uno DENTRO corre los indices una posicion y
-    // "desvincular" pasa a disparar la ficha.
-    //
-    // No sale ningun error cuando eso pasa: las dos funciones existen y
-    // reciben un codigo valido, solo que hacen otra cosa. Y un trabajador
-    // desvinculado por un clic equivocado se va de la planilla sin que
-    // nadie lo note hasta que alguien lo reclama.
-    const btnFicha=document.createElement('button');
-    btnFicha.type='button';
-    btnFicha.className='btn secondary';
-    btnFicha.style.cssText='flex:0 0 auto;min-height:40px;padding:6px 12px;font-size:.82rem';
-    btnFicha.textContent='Ficha';
-    btnFicha.title='Ver la ficha completa, con boton de copiar en cada campo';
-    btnFicha.onclick=(ev)=>{ev.stopPropagation();abrirFichaTrabajador(w.code);};
-    d.appendChild(btnFicha);
-    el.appendChild(d);
+
+    const cargo=w.spec||'\u2014';
+    const rut=w.rut?escHtml(String(w.rut)):'\u2014';
+
+    // Y el estado, con su fecha de t\u00e9rmino cuando la hay: es lo que ordena el plano de
+    // obra. Y si no hay fecha, se dice, porque "desvinculado" a secas no dice cu\u00e1ndo se
+    // fue.
+    let celdaEstado;
+    if(desvinculado){
+      const fin=w.fecha_termino?' \u00b7 t\u00e9rmino '+escHtml(String(w.fecha_termino).slice(0,10)):'';
+      const falta=w.fecha_termino?'':' \u00b7 <span class="sinFecha">sin fecha</span>';
+      celdaEstado='<span class="pill pillR">Desvinculado</span>'+fin+falta;
+    }else{
+      celdaEstado='<span class="pill pillOk">Activo</span>';
+    }
+
+    // Y el CENTRO DE COSTO por su nombre, que es el que se lee. Y sale el que está
+    // guardado en la persona (migración 064), no el del reloj: son dos cosas y una es
+    // el aparato. Ver [centro-01].
+    const nombreCentro=nombreCentroCosto(w.centro_costo_id);
+
+    fila.innerHTML='<td class="colCod"><b>'+escHtml(codigoMostrar(w.code))+'</b></td>'+
+      '<td>'+escHtml(w.name)+'</td>'+
+      '<td class="colCargo">'+escHtml(cargo)+'</td>'+
+      '<td class="colRut">'+rut+'</td>'+
+      '<td class="colSup">'+escHtml(nombreSup)+'</td>'+
+      '<td class="colCentro">'+escHtml(nombreCentro||'\u2014')+'</td>'+
+      '<td class="colEstado">'+celdaEstado+'</td>'
+      +'<td class="colFalta">'+resumenDeFicha(w)+'</td>';
+
+    // Y el manejador de la celda de problemas, DESPUÉS de cerrar el "innerHTML".
+
+    // Y va con su "stopPropagation" porque la fila tiene onclick y editaría a la persona.
+    // El que apretó una pastilla quiere MIRAR, no cambiar. Ver [falta-03].
+    const tdFalta=fila.querySelector('.colFalta');
+    if(tdFalta){
+      tdFalta.title='Ver la ficha completa. Apretar cualquier pastilla la abre.';
+      tdFalta.onclick=function(ev){
+        ev.stopPropagation();
+        abrirFichaTrabajador(w.code);
+      };
+    }
+
+    // Y LA \u00daLTIMA CELDA, con el \u00edcono de opciones.
+    const tdOpc=document.createElement('td');
+    tdOpc.className='colOpciones';
+    const btnOpc=document.createElement('button');
+    btnOpc.type='button';
+    btnOpc.className='btnOpciones';
+    btnOpc.textContent='\u22ee';
+    btnOpc.title='Acciones para '+String(w.name||w.code);
+    btnOpc.setAttribute('aria-label','Acciones para '+String(w.name||w.code));
+    btnOpc.setAttribute('aria-haspopup','true');
+    btnOpc.setAttribute('aria-expanded','false');
+
+    // Y el men\u00fa se arma con las acciones que TEN\u00cdA esa persona. Desvinculado tiene dos
+    // m\u00e1s, y por eso el men\u00fa no es una lista fija.
+    const acciones=[];
+    if(desvinculado){
+      acciones.push(['Revivir',function(){revivirWorker(w.code);}]);
+      acciones.push(['Completar fecha y art\u00edculo',function(){abrirDesvinculacion(w.code);}]);
+    }
+    acciones.push([desvinculado?'Corregir desvinculaci\u00f3n':'Desvincular',function(){desvincularWorker(w.code);}]);
+    acciones.push(['Ver ficha',function(){abrirFichaTrabajador(w.code);}]);
+    acciones.push(['Editar',function(){editWorker(w.code);}]);
+    acciones.push(['Eliminar',function(){eliminarWorker(w);},'peligro']);
+
+    const menu=document.createElement('div');
+    menu.className='menuOpciones';
+    menu.hidden=true;
+    acciones.forEach(function(a){
+      const b=document.createElement('button');
+      b.type='button';
+      b.className='opcionFila'+(a[2]?' '+a[2]:'');
+      b.textContent=a[0];
+      b.onclick=function(ev){ev.stopPropagation();menu.hidden=true;btnOpc.setAttribute('aria-expanded','false');a[1]();};
+      menu.appendChild(b);
+    });
+
+    btnOpc.onclick=function(ev){
+      ev.stopPropagation();
+      var abierto=!menu.hidden;
+      // Y se cierra el que estiverabierto, porque si no al abrir el segundo quedan dos
+      // abiertos y el de abajo tapa la fila de al lado.
+      Array.prototype.forEach.call(document.querySelectorAll('.menuOpciones'),function(m){
+        if(!abierto){m.hidden=true;m.setAttribute('data-cerrado','1');}
+      });
+      Array.prototype.forEach.call(document.querySelectorAll('.btnOpciones'),function(b){
+        if(!abierto)b.setAttribute('aria-expanded','false');
+      });
+      menu.hidden=abierto;
+      btnOpc.setAttribute('aria-expanded',String(!abierto));
+    };
+
+    tdOpc.appendChild(btnOpc);
+    tdOpc.appendChild(menu);
+    fila.appendChild(tdOpc);
+
+    // Y el nombre abre la ficha, que es lo que se esperaba de una tarjeta. Con una tabla el
+    // blanco de la fila es el que invite a apretar, as\u00ed que toda la fila.
+    fila.className='filaTabla';
+    fila.querySelectorAll('td')[1].className='colNombre';
+    fila.onclick=function(){editWorker(w.code);};
+
+    cuerpo.appendChild(fila);
   });
+
+  // Y al apretar en cualquier lado, se cierra el men\u00fa que estuviera abierto. Sin esto queda
+  // abierto y la fila se va a la otra.
+  el.onclick=function(ev){
+    if(!ev.target.closest||!ev.target.closest('.menuOpciones')){
+      Array.prototype.forEach.call(el.querySelectorAll('.menuOpciones'),function(m){m.hidden=true;});
+      Array.prototype.forEach.call(el.querySelectorAll('.btnOpciones'),function(b){b.setAttribute('aria-expanded','false');});
+    }
+  };
 }
 // Eliminar es distinto de desvincular, y por eso pregunta distinto.
 //
@@ -1968,6 +2199,20 @@ function editWorker(code){
   document.getElementById('w-is-supervisor').checked=!!w.is_supervisor;
   document.getElementById('w-fecha-ingreso').value=w.fecha_ingreso||'';
   document.getElementById('w-tipo-trabajador').value=w.tipo_trabajador||'interno';
+
+  // Y LA EMPRESA, que antes no se ponía. Ver [centro-05].
+  fillWorkerEmpresaSelect();
+  const selEmp=document.getElementById('w-empresa');
+  // Y solo si esa empresa está entre las opciones. Si no está —porque el que edita no
+  // tiene acceso a ella— se deja la que haya: es mejor mostrar otra que dejar el
+  // select en blanco y que "saveWorker" lo guarde como null.
+  if(selEmp&&w.empresa_id!=null&&Array.prototype.some.call(selEmp.options,function(o){
+    return o.value===String(w.empresa_id);
+  }))selEmp.value=String(w.empresa_id);
+
+  // Y recién con la empresa ya puesta se llenan los centros: antes saldrían los de la
+  // empresa que estaba en el filtro, que no es la de esta persona.
+  llenarCentroCostoTrabajador(w.centro_costo_id);
   document.getElementById('pre-casual').src=w.casual||'';
   document.getElementById('pre-safety').src=w.safety||'';
   tempCasual=null;tempSafety=null;
