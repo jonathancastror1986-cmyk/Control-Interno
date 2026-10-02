@@ -439,7 +439,16 @@ function initView(v){
   if(v==='buscar-tarjeta'){fillCardSelect();renderCard();}
   if(v==='imprimir-tarjetas'){fillPdfChecks();}
   if(v==='empresa'){loadEmpresaForm();revisarMigraciones();}
-  if(v==='nuevo-trabajador'){fillWorkerEmpresaSelect();}
+  if(v==='nuevo-trabajador'){
+    // Y LIMPIAR, que antes solo pasaba después de guardar. Abrir el alta desde el menú
+    // dejaba lo del alta anterior, y el centro de costo encima porque no estaba en la
+    // lista de campos. Ver [centro-10].
+    //
+    // Y limpiar ANTES de llenar el centro: al revés, el limpiado borraría la lista recién
+    // llena y el campo quedaría siempre con la opción vacía. Ver [centro-10].
+    clearForm();
+    llenarCentroCostoTrabajador();
+  }
   if(v==='usuarios'){loadPerfiles();}
   if(v==='invitar-usuario'){initInvitarUsuario();}
   if(v==='mi-perfil'){initMiPerfil();}
@@ -1392,7 +1401,7 @@ function clearForm(){
   // Y los cinco de la 056 van en la lista. Si no, quedan con lo de la ficha anterior y
   // el siguiente trabajador nace con el apellido del otro: es el peor lugar para que un
   // campo se quede pegado, porque no se nota hasta que se imprimió la planilla.
-  ['w-code','w-name','w-nombres','w-apellido-paterno','w-apellido-materno','w-direccion','w-correo','w-afp-codigo','w-afp-nombre','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['w-code','w-name','w-nombres','w-apellido-paterno','w-apellido-materno','w-direccion','w-correo','w-afp-codigo','w-afp-nombre','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones','w-centro-costo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.getElementById('w-is-supervisor').checked=false;
   llenarSelectoresEspecialidad();
   if(document.getElementById('w-cargo')){
