@@ -3879,3 +3879,199 @@ Es el mismo defecto de [cache-01] y de [cache-04], y tiene una forma propia: cua
 edita un ".css" o un ".js", la versión tiene que subir EN EL MISMO MOMENTO. Correr el
 guardián de versiones antes de editar deja el número viejo con el archivo nuevo, que es la
 combinación que hace que un arreglo no llegue y no haya ningún error que lo explique.
+
+
+================================================================================
+LA FAMILIA "imp": IMPRIMIR LAS TARJETAS DE LOS TRABAJADORES
+================================================================================
+
+Ocho referencias que el código hacía y la documentación no tenía. Todas están en
+"js/app.js", en la función que arma la tabla de trabajadores y la que imprime.
+
+Y son el ejemplo más claro de por qué un índice de referencias sirve: las tres primeras
+explican decisiones quetaken con el código abierto se ven como rarezas, y con el porqué se
+entienden.
+
+[imp-01] LA TABLA DECIDE POR POSICIÓN, Y NO POR SI EL TEXTO ESTÁ VACÍO
+--------------------------------------------------------------------------------
+El encabezado de la tabla de trabajadores tiene diez celdas. La primera es la casilla de
+"marcar todas" y la última es el menú de cada fila. Las ocho del medio llevan texto.
+
+La primera versión armaba el encabezado así:
+
+    NOMBRES.map(function(n){ return '<th>'+(n?escHtml(n):'')+'</th>'; })
+
+O sea: si el nombre estaba vacío, la celda salía vacía. Y con eso la casilla de "marcar
+todas" y el menú de la fila quedaban SIN NADA DENTRO: no había ni una casilla ni un botón.
+
+La segunda versión decide por POSICIÓN, que es lo que dice el código hoy:
+
+    const clase = i===0 ? ' class="thSel"'
+                : (i===NOMBRES.length-1 ? ' class="thOpciones"' : '');
+
+Y el contenido se decide en la misma línea: en la posición cero va la casilla de marcar
+todas, en las del medio el nombre, y en la última el menú.
+
+Y hay un detalle que hace que "vacío" no sirva ni como atajo: la lista de nombres tiene
+DOS entradas vacías a propósito, una en cada extremo. O sea que "el texto está vacío"
+decía dos cosas distintas, y con un "if" que fuera de eso no se distinguían.
+
+La forma general: cuando dos posiciones tienen meanings distintos, hay que nombrarlas
+por índice. "Si está vacío" es un atajo que funciona hasta que algo vacío aparece.
+
+[imp-02] "MARCAR TODAS" MARCA SOLO LO QUE SE ESTÁ VIENDO
+--------------------------------------------------------------------------------
+La casilla del encabezado dice "Marcar las que se ven", y ese "las que se ven" es
+literal: lo que marca son las filas dibujadas, no las del filtro entero.
+
+El código recorre:
+
+    document.querySelectorAll('.trabTabla tbody input.marcarTarjeta')
+
+Y eso son las celdas que existen en el DOM, que son las que pasó el filtro de búsqueda,
+de empresa, de supervisor y de estado.
+
+¿Y por qué no todas? Porque "marcar todas" sobre 47 personas cuando el filtro dice
+"Adasme Verdugo" y hay 400 en la base sería una caja de diálogo con un número que nadie
+pidió. El botón dice "las que se ven" justamente para que el alcance sea el que se ve.
+
+Y hay una consecuencia que conviene saber: si después se cambia un filtro, las marcas que
+ya no están a la vista SE QUEDAN en el conjunto. El botón de imprimir cuenta todas las
+marcadas, no solo las visibles. Que es lo correcto —marcar es una decisión que se tomó—
+pero conviene que quien use esto lo sepa, porque la cuenta del botón puede no coincidir
+con lo que hay en pantalla. Ver [imp-03].
+
+[imp-03] LAS TARJETAS MARCADAS SON UN CONJUNTO DE CÓDIGOS, NO DE PERSONAS
+--------------------------------------------------------------------------------
+    var tarjetasSeleccionadas = new Set();
+
+Un conjunto de CÓDIGOS, no de fichas. La diferencia parece de estilo y no lo es.
+
+La fila de la tabla se repinta cada vez que cambia un filtro: se tira el "innerHTML" y
+se vuelven a crear las filas. Si el conjunto guardara objetos, cada objeto guardado sería
+una COPIA del trabajador en el momento de marcarlo.
+
+Y la copia envejece. Si después se le corrige el nombre a esa persona, el objeto guardado
+sigue con el nombre viejo, y la tarjeta que sale impresa lleva el nombre viejo. No hay
+error, no hay aviso: la tarjeta se imprime mal y el papel es de verdad.
+
+Guardando el código, el dato se recupera vivo en el momento de imprimir:
+
+    const elegidos=workers.filter(function(w){return tarjetasSeleccionadas.has(w.code);});
+
+Y "workers" es el arreglo vivo, así que el filtro también saca a quien ya no cumple el
+filtro activo. Marcar no congela a nadie.
+
+Es la misma regla que "el centro de costo del trabajador es guardado y no derivado": si
+el dato puede cambiar, lo que se guarda es la llave, no el valor.
+
+[imp-04] EL BOTÓN DE IMPRIMIR DICE CUÁNTAS HAY Y SE APAGA SI NO HAY NINGUNA
+--------------------------------------------------------------------------------
+    function actualizarBotonTarjetas(){
+        const btn=document.getElementById('btnImprimirTarjetas');
+        if(!btn)return;
+        const n=tarjetasSeleccionadas.size;
+        btn.textContent=n?('Imprimir '+n+' tarjeta'+(n===1?'':'s')):'Imprimir tarjetas';
+        btn.disabled=!n;
+    }
+
+Dos cosas, y las dos importan.
+
+El TEXTO lleva el número: "Imprimir 7 tarjetas". Un botón que no dice cuántas hace marcado
+a ciegas, y con 47 filas es imposible contar a ojo cuántas quedaron marcadas.
+
+Y el botón se APAGA con "disabled" cuando no hay ninguna. No con una classe ni con un
+"onclick" que no hace nada: el control deshabilitado no se le puede apretar y el sistema
+operativo lo muestra apagado. Un botón que parece apretable y no hace nada es peor que un
+botón apagado, porque hace dudar de si el programa anduvo.
+
+Y el singular va con el paréntesis: "1 tarjeta" y "7 tarjetas".
+
+[imp-05] LOS CÓDIGOS SE DIBUJAN ANTES DE IMPRIMIR, PORQUE IMPRIMIR ES SÍNCRONO
+--------------------------------------------------------------------------------
+Este es el que cuesta encontrar si no se sabe.
+
+La tarjeta lleva un código de barras y un QR, y los dos se dibujan en un "canvas" con
+JsBarcode y qrcodejs. Y la impresión es:
+
+    window.print();
+
+"window.print()" es Síncrono: abre el diálogo y devuelve el control cuando el usuario
+ya confirmó. O sea que en ese punto los códigos tienen que estar DIBUJADOS.
+
+Si se llamara primero y se dibujara después, el diálogo de impresión ya está abierto con
+los lienzos en blanco. El usuario ve cuarenta tarjetas sin código, acepta, y las tarjetas
+salen sin código. Y no hay ningún error: el dibujo ocurrió, tarde.
+
+Por eso el "for" con "await" de "drawCardCodes" va antes del "setTimeout" que llama a
+imprimir, y el "await" espera a que cada canvas esté listo antes de pasar al siguiente.
+
+Lo mismo hace "printTemp" en las tarjetas temporales. Es la misma trampa y el mismo
+arreglo: lo que se dibuja, primero.
+
+[imp-06] UNA TARJETA QUE FALLA NO SE LLEVAS LAS OTRAS CUARENTA
+--------------------------------------------------------------------------------
+    }catch(e){
+        console.warn('No se pudo dibujar un código de tarjeta',e);
+    }
+
+El "for" de las tarjetas está dentro de un "try" que se traga la excepción, avisa por
+consola y sigue.
+
+La tentación es no agarrarla: si algo falló, mejor que no se imprima nada que imprimir
+tarjetas a medias. Y para una operación donde importa la integridad del conjunto, esa es
+la decisión correcta.
+
+Acá no. Imprimir una tarjeta sin código y las otras treinta y nueve con código es un
+papel que se puede rehacer: la persona llama, se reimprime esa. Perder el trabajo de
+cuarenta personas porque una falló es peor, y quien falló tiene que esperar a que las
+otras se hagan.
+
+La regla general: qué se traga una excepción depende de si el resultado parcial sirve.
+Un pago a medias no sirve y hay que deshacerlo. Una impresión a medias sirve.
+
+[imp-07] MARCAR UNA CASILLA NO ES EDITAR A NADIE
+--------------------------------------------------------------------------------
+La fila entera de la tabla abre el formulario del trabajador:
+
+    fila.onclick=function(){editWorker(w.code);};
+
+Y la casilla para imprimir está DENTRO de esa fila. Sin nada más, marcar una casilla abre
+el formulario de la persona: uno que quiere imprimir veinte tarjetas termina editando a
+veinte personas, y pezmás con la última editada.
+
+El manejador de la casilla corta el propagar:
+
+    casilla.onclick=function(ev){ ev.stopPropagation(); alternarTarjeta(w.code,ev.target.checked); };
+
+Y "stopPropagation" va en la casilla, no en el "tr": si fuera en la fila, no dejaría
+funcionar NADA dentro de ella, y con nueve celdas con texto y un menú, el nombre y el
+estado dejarían de responder.
+
+La regla general: en un elemento que tiene manejador propio y está dentro de otro que
+también lo tiene, hay que decidir cuál gana. Y gana el más especÍFICO: el de la casilla.
+
+[imp-10] LA CASILLA DE LA FILA SE CREA DESPUÉS DEL "innerHTML", NUNCA ANTES
+--------------------------------------------------------------------------------
+La tabla se arma en dos tiempos, y el orden importa.
+
+Primero, el "innerHTML" con el encabezado y un "<tbody>" vacío:
+
+    el.innerHTML='<div class="trabTablaCaja"><table class="trabTabla"><thead><tr>'+…
+
+Y después, fila por fila, se crean los elementos con "createElement" y se agregan al
+"tbody".
+
+La casilla de marcar es de las cosas que se crean en la segunda pasada, y NO en la
+primera. Porque "innerHTML =" reemplaza TODO lo que hubiera adentro. Si la casilla se
+hubiera puesto antes, el "innerHTML" la borraría y no avisaría: el elemento existe, el
+código se ejecutó, y el resultado desapareció.
+
+Es el fallo más difícil de ver de esta lista, porque no hay error ni excepción. El
+programa corre completo y la casilla no está. Uno Busca el selector, lo encuentra en el
+código, lo ejecuta en la consola… y aparece, porque en la consola no hubo ningún
+"innerHTML" después.
+
+La regla general: en JavaScript, lo que se crea con "createElement" y se cuelga de un
+contenedor se pierde en el primer "innerHTML =" que se le haga a ese contenedor. Por eso
+el "appendChild" va SIEMPRE después del "innerHTML", nunca antes.
