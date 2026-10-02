@@ -75,11 +75,11 @@
     window.supabaseFallo=window.supabaseFallo||{
       motivo:'falta-la-configuracion',
       mensaje:'La aplicación no tiene la dirección de la base.\n\n'
-        +'Falta el archivo js/supabaseConfig.js con la URL y la llave. '
+        +'Falta el archivo config/supabase.config.js con la URL y la llave. '
         +'Es un error de instalación: lo tiene que poner alguien con acceso '
         +'al proyecto, y no se arregla recargando la página.'
     };
-    console.error('[supabaseClient] falta js/supabaseConfig.js: sin SUPABASE_URL '
+    console.error('[supabaseClient] falta config/supabase.config.js: sin SUPABASE_URL '
       +'ni SUPABASE_ANON_KEY no se puede crear el cliente.');
     return;
   }

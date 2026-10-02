@@ -29,7 +29,7 @@
 // Las librerías de CDN y las consultas a Supabase son de otro origen. Este archivo no las
 // guarda: lo que no es del proyecto, no se cachea desde acá. Ver [cache-03].
 //
-const CACHE = 'ca-v1';
+const CACHE = 'ca-v55';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(self.skipWaiting());
@@ -69,7 +69,7 @@ self.addEventListener('fetch', (e) => {
   }
 
   // El CSS y el JS: primero el caché. Y solo si son del proyecto.
-  if (url.pathname.indexOf('/css/') < 0 && url.pathname.indexOf('/js/') < 0) return;
+  if (!/\/(css|js|config|models|controllers|views)\//.test(url.pathname)) return;
 
   e.respondWith(
     caches.match(req).then((guardado) => {

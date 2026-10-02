@@ -72,14 +72,49 @@ reglas.forEach((r) => {
 // Y con subcarpetas: ocho archivos viven en "componentes/", y un patrón que solo acepta
 // letras y guiones en el nombre se los deja. O sea que los cuenta como "sin versión" sin
 // haberlos tocado, y la comprobación pasa sin comprobar. Ver [cache-15].
-const sinVersion = ORIGINAL.replace(/(\.\.\/(?:css|js)\/[\w\-/]+\.(?:css|js))\?v=\d+/g, '$1');
+//
+// Y el patrón además tenía la lista de carpetas ESCRITA: "../(?:css|js)/". Cuando los
+// módulos se movieron a "config/", "controllers/" y "views/<módulo>/", ese patrón dejó de
+// quitarles el "?v=", y el guardián reportaba "QUEDARON 18 VERSIONES" sobre un archivo que
+// estaba perfectamente bien: las 18 versiones eran de archivos que ya no están en "js/" ni en
+// "css/".
+//
+// Es el TERCER guardián de este turno con la misma falla —"compila-juntos" con el mismo regex
+// en la línea 34, "sube-versiones" con su lista en la línea 101— y los tres estaban escritos
+// con la lista de carpetas del día que se hicieron. Ver [arq-14].
+//
+// Ahora el patrón es "cualquier carpeta local", y no hay que tocarlo la próxima vez.
+// Y el patrón tiene que aceptar un PUNTO en el nombre del archivo, Y EXIGIR al menos una
+// carpeta.
+//
+// La primera versión era "/\.\.\/[a-z][\w\-/]*\.(?:css|js)/", y funcionaba con los nombres
+// que había: "relojes.js", "styles.css", "administracion.js". No con "supabase.config.js", que
+// tiene un punto en medio: el carácter de la clase no era un punto, así que la coincidencia
+// terminaba en "supabase" y buscaba un ".js" que no estaba.
+//
+// Y son dos archivos, no uno, y el guardián decía "QUEDARON 2 VERSIONES" sin decir cuáles
+// hasta que las imprimió. Un número sin el nombre es un trabajo pendiente para el que lee.
+//
+// Un nombre de archivo con punto es perfectly legal y en JavaScript es común. El patrón es el
+// que tenía que aprenderlo, no el nombre. Ver [arq-15].
+//
+// Y el "una carpeta o más" es lo que SALVA a "sw.js". "../sw.js" no tiene carpeta: vive en la
+// raíz del repositorio. Y su "?v=" tiene que quedarse, porque no es un asset como los otros:
+// el navegador lo relee con una comprobación de bytes, pero si alguna vez se sirve del caché
+// tiene que poder distinguir versiones. Ver [cache-08].
+//
+// Con la "*" en vez de la "+", el patrón le quitaba la versión al "sw.js" también, y el
+// guardián decía "QUEDARON 0 VERSIONES, y se esperaba 0 o 1" —que parece casi un acierto, y
+// es el fallo entero. Un acierto parcial es peor que un fallo: no da nada que buscar.
+const sinVersion = ORIGINAL.replace(/(\.\.\/(?:[\w\-]+\/)+[\w\-]+(?:\.[\w\-]+)*\.(?:css|js))\?v=\d+/g, '$1');
 const conQ = (sinVersion.match(/\?v=\d+/g) || []).length;
+const nTotales = (ORIGINAL.match(/\?v=\d+/g) || []).length;
 if (conQ === 1 && sinVersion.indexOf('../sw.js?v=19') >= 0) {
   // Y ese uno tiene que quedarse: el "sw.js" NO es un asset como los otros. El navegador lo
   // relee con una comprobación de bytes, pero si en algún momento se sirve desde el caché
   // igual tiene que poder distinguir versiones. Ver [cache-08].
   console.log('');
-  console.log('    ok  las 26 referencias de css y js quedaron sin "?v=" a propósito');
+  console.log('    ok  las ' + (nTotales - 1) + ' referencias de css y js quedaron sin "?v=" a propósito');
   console.log('    ok  y sw.js conserva la suya, que es a propósito');
 } else {
   console.log('');

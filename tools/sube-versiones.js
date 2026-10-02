@@ -98,7 +98,8 @@ function archivosDe(carpeta, salida) {
   return salida;
 }
 
-const LOCALES = archivosDe('css').concat(archivosDe('js'));
+const CARPETAS_LOCALES = ['css', 'js', 'config', 'models', 'controllers', 'views'];
+const LOCALES = CARPETAS_LOCALES.reduce(function (a, c) { return a.concat(archivosDe(c)); }, []);
 
 if (LOCALES.length < 15) {
   console.log('  *** SE DESCUBRIERON SOLO ' + LOCALES.length + ' ARCHIVOS, SE ESPERABAN MAS ***');

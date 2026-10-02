@@ -45,7 +45,7 @@
    Todavía no se partió el resto. "js/app.js" sigue con las 33 secciones de los
    demás módulos, y carga después que este archivo.
 
-   Y "js/componentes/escaner.js" carga en el medio, como antes. No se le toca.
+   Y "views/porteria/escaner.js" carga en el medio, como antes. No se le toca.
 
    Ver la entrada [nucleo-01]. */
 
