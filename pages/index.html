@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Control de Asistencia</title>
+<!--
+  POR QUÉ ESTE ARCHIVO EXISTE
+  -------------------------------
+
+  Sin un "index.html" dentro de "pages/", abrir "127.0.0.1:5500/pages/" muestra el
+  CONTENIDO DE LA CARPETA: la lista de archivos del sistema.
+
+  Y no es solo que se vea feo. Un listado dice qué hay y dónde: en un sistema de control
+  interno, publicarlo es entregar el mapa de la instalación. Y "/tools/" mostraría
+  además la copia de pruebas con la sesión de mentira, que se salta el ingreso. Ver
+  [arq-25].
+
+  Con este archivo, "/pages/" llega a la aplicación, en el servidor local y en GitHub
+  Pages, que también resuelve "/pages/" a "/pages/index.html".
+-->
+<meta http-equiv="refresh" content="0; url=app.html">
+<link rel="canonical" href="app.html">
+</head>
+<body>
+<p>Abriendo el sistema de control de asistencia... <a href="app.html">Entrar</a></p>
+<script>window.location.replace('app.html');</script>
+</body>
+</html>
