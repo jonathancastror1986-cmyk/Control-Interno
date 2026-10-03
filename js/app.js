@@ -993,9 +993,23 @@ function avisarNombresRepetidos(){
   const grupos=[...agruparPorNombre(workers).values()].filter(l=>l.length>1);
   // El caso que hay que resolver: dos fichas VIVAS del mismo nombre.
   const conflictos=grupos.filter(l=>l.filter(w=>w.status==='activo').length>1);
-  // El caso que NO es un problema: la vieja ya se cerró. Se avisa igual,
-  // pero como información, para que quede claro cuál es la antigua.
-  const yaResueltos=grupos.filter(l=>l.filter(w=>w.status==='activo').length===1);
+  // Y SOLO el caso que es un problema: dos fichas VIVAS del mismo nombre.
+  //
+  // Antes se avisaba también cuando la repetida ya estaba cerrada, y esa caja se quitó.
+  // Decía "Ficha activa: 0045 / Cerrada: 1", y tenía tres cosas malas:
+  //
+  //   · decía "Cerrada", y no existe ese estado. Los estados son "activo" y
+  //     "desvinculado" —"nucleo.js" lee la columna "status" tal cual—. La 029 separó
+  //     esas dos cosas a propósito: "fecha_termino" es el dato laboral y
+  //     "fecha_desvinculacion" es cuándo se apretó el botón.
+  //
+  //   · el número no contaba lo que decía contar: "yaResueltos" son los grupos con
+  //     exactamente una ficha activa, que son casi todos los nombres repetidos.
+  //
+  //   · no miraba "fecha_termino", que es lo único que faltaba.
+  //
+  // Y lo que más pesa: una caja que aparece para decir que todo está bien entrena a
+  // la gente a ignorar los avisos, y el que de verdad importa se ignora con ella.
 
   let html='';
   if(conflictos.length){
@@ -1013,30 +1027,14 @@ function avisarNombresRepetidos(){
       (conflictos.length>8?'<li>… y '+(conflictos.length-8)+' más</li>':'')+
       '</ul></div>';
   }
-  if(yaResueltos.length){
-    const linea=l=>{
-      const activa=l.find(w=>w.status==='activo');
-      const viejas=l.filter(w=>w.status!=='activo');
-      const termino=w=>w.fecha_termino?' (término '+w.fecha_termino+')':' (sin fecha de término)';
-      return '<li>'+escHtml('Ficha activa: '+(vis.get(activa.code)||codigoMostrar(activa.code)))+
-        '<br><small>Cerrada: '+escHtml(viejas.map(v=>(vis.get(v.code)||codigoMostrar(v.code))+termino(v)).join(', '))+'</small></li>';
-    };
-    html+='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:10px">'+
-      '<b>'+yaResueltos.length+' nombre(s) tienen una ficha vieja ya desvinculada.</b> '+
-      '<small>No hay nada que hacer acá: no son dos personas activas. Se avisa para que sepas cuál es la antigua, '+
-      'y para que borres la vieja solo cuando estés seguro de que su asistencia ya no se necesita.</small>'+
-      '<ul style="margin:6px 0 0;padding-left:18px">'+
-      yaResueltos.slice(0,8).map(linea).join('')+
-      (yaResueltos.length>8?'<li>… y '+(yaResueltos.length-8)+' más</li>':'')+
-      '</ul></div>';
-  }
   // Las fichas desvinculadas sin fecha de término no se pueden ordenar bien
   // en la planilla, así que se avisa en la misma caja.
   const sinFecha=workers.filter(w=>w.status!=='activo'&&!w.fecha_termino);
   if(sinFecha.length){
     html+='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:10px">'+
       '<b>'+sinFecha.length+' ficha(s) desvinculadas sin fecha de término.</b> '+
-      '<small>En la planilla de los meses en que encore trabajaba, la baja queda en la fecha en que se hizo clic en el botón, que puede no ser la real.</small>'+
+      '<small>Estas fichas NO se borran: su asistencia es parte de la historia de la planilla. Lo que falta es la fecha real en que terminó el contrato, '
+      'que es distinta de la fecha en que se apretó el botón. Con la fecha puesta, los meses en que todavía trabajaba quedan correctos.</small>'+
       '<ul style="margin:6px 0 0;padding-left:18px">'+
       sinFecha.slice(0,8).map(w=>'<li>'+escHtml(etiqueta(w))+
         ' <small>(se desvinculó '+(w.fecha_desvinculacion?escHtml(String(w.fecha_desvinculacion).slice(0,10)):'sin fecha')+')</small>'+
