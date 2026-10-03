@@ -870,539 +870,540 @@ function comprobarLecturaPegada(){
 
 // ===================================================================
 
-// KIT DE CONTRATACIÓN
-
-// LOS CAMPOS PROPIOS DE LA EMPRESA
-// ==================================
-//
-// -------------------------------------------------------------------
-// QUÉ HACE
-// --------
-// El editor de plantillas que YA existía solo puede poner datos que ya están en
-// "trabajadores". Acá van los que la empresa define: licencia, talla, centro de costo.
-//
-// Y son POR EMPRESA, porque "código de hazard" en una constructora y "código de patio" en
-// un depot no son la misma cosa.
-//
-// -------------------------------------------------------------------
-// POR QUÉ UN ARCHIVO NUEVO Y NO EN "relojes.js"
-// ---------------------------------------------
-//
-// Porque el editor de plantillas está en "relojes.js" desde hace años, y esas son 74
-// menciones de "plantilla" que ya funcionan. Tocar ese archivo hoy, con lo que hemos
-// tocado, es mezclar dos cosas: lo que andaba y lo nuevo.
-//
-// Y en un archivo aparte, el que llega después sabe dónde está lo nuevo. Si el editor
-// viejo se rompe, se deshace este archivo y no se toca lo otro.
-//
-// -------------------------------------------------------------------
-// Y POR QUÉ UNA CLASE PROPIA EN EL CSS
-// ------------------------------------
-//
-// Mismo motivo: "css/componentes/plantillas.css" con ".plantillaEditor". Dos columnas, un
-// panel pegajoso y una lista de campos: eso es una pantalla, no un estilo suelto.
-//
-// -------------------------------------------------------------------
-// LOS SIETE TIPOS, Y POR QUÉ NO SON MÁS
-// --------------------------------------
-//
-// texto, numero, fecha, lista, casillas, imagen y firma. Los mismos siete que el "check" de
-// la tabla. Si se agrega un tipo, se agrega en los dos lados: en el "check" de la tabla y en
-// el "<select>" de esta pantalla.
-//
-// Y en el "SELECT" está escrito a mano a propósito, porque un tipo que la base acepta y la
-// pantalla no ofrece es un campo que se puede crear de otra forma y no se puede editar acá.
-const TIPOS_CAMPO = ['texto', 'numero', 'fecha', 'lista', 'casillas', 'imagen', 'firma'];
-
-// Y los que necesitan opciones. Para los demás, mandarlas es dato muerto: se guarda y no
-// se ve nunca.
-const TIPOS_CON_OPCIONES = ['lista', 'casillas'];
-
-function etiquetaTipoCampo(t) {
-  return ({
-    texto: 'texto',
-    numero: 'número',
-    fecha: 'fecha',
-    lista: 'lista',
-    casillas: 'casillas',
-    imagen: 'imagen',
-    firma: 'firma',
-  })[t] || t;
-}
-
-// -------------------------------------------------------------------
-// EL AVISO
-// -------------------------------------------------------------------
-// Y es el mismo del editor que ya existe, uno solo para los dos. Dos cajas de aviso en la
-// misma pantalla se contradicen, y el que se leyó último gana.
-function avisoCamposPropios(texto) {
-  const a = document.getElementById('cpAviso');
-  if (a) a.textContent = texto || '';
-}
-
-// -------------------------------------------------------------------
-// LA VISTA PREVIA DE LA CLAVE
-// -------------------------------------------------------------------
-// Muestra cómo va a quedar la clave DENTRO del documento mientras se escribe.
-//
-// Y SIN el "empresa_id" adelante, que es lo que cambió: la forma se unificó a "[CLAVE]" y ya
-// no hay prefijo. Ver [nombres-02].
-//
-// Y el guion lo de acá: se muestra la clave sola, sin corchetes, porque los corchetes ya están
-// escritos alrededor en el HTML y ponerlos dos veces se ve como un error.
-function verClaveCampo() {
-  const caja = document.getElementById('cpVistaClaveCompleta');
-  if (!caja) return;
-  const inp = document.getElementById('cpClave');
-  const cruda = (inp && inp.value ? inp.value : '').trim();
-
-  if (!cruda) { caja.textContent = '[CLAVE]'; return; }
-
-  // Y la normalización es la misma que la de la base: minúsculas, sin tildes, todo lo que
-  // no sea letra o número a guion. Si acá se ve distinto de lo que guarda la base, el
-  // usuario copia una clave que no existe.
-  const clave = cruda
-    .toLowerCase()
-    .replace(/áéíóúü/g, 'aeiouu')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '');
-
-  caja.textContent = '[' + clave.toUpperCase() + ']';
-}
-
-// -------------------------------------------------------------------
-// ¿EL SELECTOR TIENE ALGO REAL?
-// -------------------------------------------------------------------
-// Y contando las opciones con código, no el total. El total incluye la de arranque, que
-// está desde el HTML, así que "!options.length" nunca es cierto y el selector queda con
-// la única opción que trae. Es el bug: una guarda que dice "no hay nada que hacer"
-// cuando sí lo hay. Ver [campos-05].
-//
-// Y "value !== ''" y no "value" a secas: un código puede ser el número 0, que es
-// falsy, y se perdería.
-function selectorTieneDatos(sel) {
-  if (!sel) return false;
-  for (let i = 0; i < sel.options.length; i++) {
-    if (sel.options[i].value !== '') return true;
-  }
-  return false;
-}
-
-// -------------------------------------------------------------------
-// LOS DOS SELECTORES DE LA DESCARGA
-// -------------------------------------------------------------------
-// Y el de los trabajadores y el de las plantillas.
-//
-// El de los trabajadores se llena con "todosWorkers", que ya está cargado: son las mismas
-// personas que muestra la lista de asistencia. Y NO se vuelve a pedir a la base, porque son
-// las mismas, y pedir otra vez es esperar lo mismo dos veces.
-//
-// Y el nombre se arma con "nombreCompleto" y no con "name", porque una ficha vieja que solo
-// tiene el texto completo en "name" mostraría el nombre partido vacío. Ver [nombres-01].
-async function llenarSelectoresDescarga() {
-  const selW = document.getElementById('descargaTrabajador');
-  const selP = document.getElementById('descargaPlantilla');
-
-  if (selW && !selectorTieneDatos(selW)) {
-    const lista = (typeof todosWorkers !== 'undefined' && todosWorkers) ? todosWorkers : [];
-    selW.innerHTML = '<option value="">— trabajador —</option>' +
-      lista
-        .filter(w => String(w.status || 'activo') !== 'desvinculado')
-        .sort((a, b) => String(a.nombreCompleto || a.name || '').localeCompare(String(b.nombreCompleto || b.name || '')))
-        .map(w => '<option value="' + escHtml(String(w.code)) + '">' +
-          escHtml(w.nombreCompleto || w.name || w.code) + '</option>')
-        .join('');
-  }
-
-  if (selP && !selectorTieneDatos(selP)) {
-    const lista = (typeof plantillasContratacion !== 'undefined' ? plantillasContratacion : [])
-      .filter(p => p.vigente);
-    selP.innerHTML = '<option value="">— plantilla —</option>' +
-      lista.map(p => '<option value="' + escHtml(String(p.code)) + '">' +
-        escHtml(p.nombre || '') + '</option>').join('');
-  }
-
-  // Y con los dos listos, se pinta la lista de variables con los datos.
-  await cargarVariablesConDatos();
-}
-
-// -------------------------------------------------------------------
-// EL TIPO, Y EL CAMPO DE OPCIONES
-// -------------------------------------------------------------------
-function cambiarTipoCampo() {
-  const t = document.getElementById('cpTipo');
-  const caja = document.getElementById('cpOpcionesCaja');
-  if (!t || !caja) return;
-  caja.style.display = TIPOS_CON_OPCIONES.indexOf(t.value) >= 0 ? '' : 'none';
-}
-
-// -------------------------------------------------------------------
-// ESPERAR A QUE LLEGUEN LAS EMPRESAS
-// -------------------------------------------------------------------
-// Y con techo, porque "empresasCargadas" se deja en falso cuando la carga falla. Sin techo
-// esta promesa nunca se resuelve, el panel queda "Cargando." para siempre, y el que lo ve
-// no tiene forma de saber si está cargando o si se rompió. Ver [campos-03].
-//
-// Y no se llama a "loadEmpresas()" para forzar la carga: la app la llama antes que los
-// trabajadores, y llamarla de nuevo desde acá sería la misma consulta dos veces y un
-// "empresas" que se pisa a sí mismo mientras la otra sigue yendo.
-function esperarEmpresas() {
-  const yaEsta = () => (typeof empresasCargadas !== 'undefined' && empresasCargadas) ||
-    (typeof empresas !== 'undefined' && empresas && empresas.length);
-  if (yaEsta()) return Promise.resolve(true);
-
-  return new Promise(function (res) {
-    let intentos = 0;
-    const reloj = setInterval(function () {
-      intentos++;
-      // Y tres segundos: es lo que tarda la consulta en un celular con datos. Pasado eso no
-      // va a llegar nunca, y seguir esperando solo retrasa el mensaje que explica el problema.
-      if (yaEsta() || intentos >= 30) { clearInterval(reloj); res(yaEsta()); }
-    }, 100);
-  });
-}
-
-// -------------------------------------------------------------------
-// CARGAR LOS CAMPOS DE LA EMPRESA
-// -------------------------------------------------------------------
-async function cargarCamposPropios() {
-  const lista = document.getElementById('camposPropiosLista');
-  const emp = document.getElementById('camposPropiosEmpresa');
-  if (!lista) return;
-
-  verClaveCampo();
-
-  // Y el selector de empresa. Se llena una sola vez, con la lista de empresas que ya se
-  // carga para otros usos: no se pide otra vez a la base.
-  if (emp && !emp.options.length) {
-    // Y se espera a que la lista llegue. Antes se leia de una: si todavia no habia
-    // llegado, el selector quedaba vacio y no habia quien lo llenara. Ver [campos-02].
-    await esperarEmpresas();
-    const listaEmpresas = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
-    emp.innerHTML = listaEmpresas
-      .map(e => '<option value="' + escHtml(String(e.id)) + '">' + escHtml(e.nombre || '') + '</option>')
-      .join('');
-    // Y sin empresa no hay nada que mostrar, porque los campos son de una.
-    if (!emp.options.length) {
-      lista.innerHTML = '<small style="color:var(--muted)">No hay empresas cargadas.</small>';
-      return;
-    }
-  }
-
-  if (!emp || !emp.value) {
-    lista.innerHTML = '<small style="color:var(--muted)">Elegí una empresa.</small>';
-    return;
-  }
-
-  const empresaId = parseInt(emp.value, 10);
-  const { data, error } = await window.supabaseClient.rpc('variables_de_plantilla', { p_empresa_id: empresaId });
-
-  if (error) {
-    lista.innerHTML = '<small style="color:var(--danger)">No se pudieron leer los campos: ' + escHtml(error.message) + '</small>';
-    return;
-  }
-
-  const propios = (data || []).filter(v => v.es_propio);
-
-  if (!propios.length) {
-    lista.innerHTML = '<small style="color:var(--muted)">Todavía no hay campos propios. Agregá el primero con el formulario de abajo.</small>';
-  } else {
-    lista.innerHTML = propios.map(v => {
-      // Y el nombre de la variable sale de la fila, que ya trae "[CAMPO:7-licencia]".
-      // Se lo saca de adentro para mostrar solo la clave: la llave completa va en otro
-      // lado, y mostrarla acá dos veces es ruido.
-      const clave = String(v.variable || '').replace(/^\[CAMPO:/, '').replace(/\]$/, '');
-      return '<div class="campoPropio">' +
-        '<span class="cod">' + escHtml(clave) + '</span>' +
-        '<span class="et">' + escHtml(v.etiqueta || '') + '</span>' +
-        '<span class="ti">' + escHtml(etiquetaTipoCampo(v.tipo)) + '</span>' +
-        '</div>';
-    }).join('');
-  }
-
-  // Y las variables fijas aparte, porque son muchas y no tienen nada que ver con los
-  // campos propios: mezclarlas en la misma lista hace que el que quiere ver "licencia"
-  // tenga que pasar por veinte renglones que no le sirven.
-  const fijas = (data || []).filter(v => !v.es_propio);
-  const cajaVar = document.getElementById('plantillaVariables');
-  if (cajaVar && !fijas.length) {
-    cajaVar.innerHTML = '<small style="color:var(--muted)">Elegí un trabajador para ver los datos.</small>';
-  }
-
-  // Y los dos selectores de la descarga, que es donde se elige a quién.
-  await llenarSelectoresDescarga();
-}
-
-// -------------------------------------------------------------------
-// CREAR UN CAMPO
-// -------------------------------------------------------------------
-async function crearCampoPropio() {
-  const emp = document.getElementById('camposPropiosEmpresa');
-  const clave = document.getElementById('cpClave');
-  const etiqueta = document.getElementById('cpEtiqueta');
-  const tipo = document.getElementById('cpTipo');
-  const opciones = document.getElementById('cpOpciones');
-  const requerido = document.getElementById('cpRequerido');
-
-  if (!emp || !emp.value) { avisoCamposPropios('Elegí una empresa.'); return; }
-
-  const cruda = (clave.value || '').trim();
-  if (!cruda) { avisoCamposPropios('Escribí cómo se llama el campo.'); clave.focus(); return; }
-
-  const t = tipo.value;
-  if (TIPOS_CAMPO.indexOf(t) < 0) { avisoCamposPropios('Ese tipo no existe.'); return; }
-
-  // Y si el tipo necesita opciones, se avisa ANTES de mandar nada. La base también lo
-  // avisa, pero con un error que llega con un código y hay que descifrarlo; acá es un
-  // mensaje que dice qué hacer.
-  const listaOpciones = (opciones.value || '').trim();
-  if (TIPOS_CON_OPCIONES.indexOf(t) >= 0 && !listaOpciones) {
-    avisoCamposPropios('Una lista necesita sus opciones, separadas por "|".');
-    opciones.focus();
-    return;
-  }
-
-  const { data, error } = await window.supabaseClient.rpc('gestionar_campo', {
-    p_empresa_id: parseInt(emp.value, 10),
-    p_clave: cruda,
-    p_etiqueta: (etiqueta.value || '').trim() || null,
-    p_tipo: t,
-    p_opciones: TIPOS_CON_OPCIONES.indexOf(t) >= 0 ? listaOpciones : null,
-    p_ayuda: null,
-    p_orden: 100,
-    p_requerido: !!requerido.checked,
-    p_activo: true,
-  });
-
-  if (error) {
-    avisoCamposPropios('No se pudo crear: ' + error.message);
-    return;
-  }
-
-  // Y el mensaje dice la clave FINAL, que es la que va a ir en el documento. Si el usuario
-  // escribió "Licencia de Conducir" y quedó "7-licencia-de-conducir", tiene que saberlo
-  // ahora, no cuando lo busque dentro del documento.
-  // Y el mensaje dice la variable TAL COMO SE ESCRIBE, que es "[LICENCIA]" y no la clave
-  // sola. Porque si el mensaje dice "licencia" el usuario lo escribe sin corchetes, y el
-  // documento le sale con la palabra "licencia" suelta adentro en vez de con el dato.
-  //
-  // Y en MAYÚSCULAS, que es como la reemplaza el completador: la base guarda la clave en
-  // minúsculas, pero el completador la compara en mayúsculas, y si el mensaje dice una cosa
-  // y el completador busca otra, el campo queda con "[licencia]" escrito en el documento.
-  avisoCamposPropios('Creado. Se usa como [' + String(data || '').toUpperCase() + '].');
-  clave.value = '';
-  etiqueta.value = '';
-  opciones.value = '';
-  requerido.checked = false;
-
-  await cargarCamposPropios();
-}
-
-// BAJAR UNA PLANTILLA CON LOS DATOS DE UN TRABAJADOR
-// =====================================================
-//
-// -------------------------------------------------------------------
-// EL ORDEN DE LAS CUATRO COSAS, Y POR QUÉ NO ES EL DE UNO
-// -------------------------------------------------------------------
-//
-//   1. traer los datos        "datos_para_plantilla"
-//   2. ver qué falta          "campos_faltantes"
-//   3. recién ahí, completar  los "[CAMPO]" y los "[NOMBRE]"
-//   4. y recién ahí, bajar
-//
-// El paso 2 antes del 3 es lo importante. Si se completara primero y se bajara, el
-// documento saldría con un "[CAMPO:7-licencia]" literal adentro, que es peor que un hueco:
-// un hueco se ve, y un texto entre corchetes se archiva como si estuviera completo.
-//
-// Y el error dice QUÉ falta y de QUÉ tipo, no "faltan datos". El que tiene que ir a buscar
-// el dato es el usuario, y si el mensaje no dice cuál, vuelve a mirar la pantalla y no
-// encuentra nada.
-//
-// -------------------------------------------------------------------
-// POR QUÉ NO SE COMPLETA EN EL SERVIDOR
-// -------------------------------------------------------------------
-//
-// Porque el contenido de la plantilla es HTML libre que edita el usuario, y meterle
-// "replace" en el servidor significa escribir HTML con concatenación de cadenas, que es
-// justo donde aparecen los problemas de comillas que el editor viejo ya sufrió una vez.
-//
-// Y porque los datos ya vienen en un jsonb con los nombres puestos: la base ya hizo el
-// trabajo difícil. Acá solo se reemplazan "[NOMBRE]" y "[CAMPO:algo]", que es una operación
-// de texto, no de HTML.
-//
-// -------------------------------------------------------------------
-// Y LA VARIABLE QUE FALTA SE MARCA, NO SE BORRA
-// -------------------------------------------------
-//
-// Una variable que no existe en el documento queda como está, en vez de desaparecer. Un
-// "[NOMBRE]" que se queda es una pista de que falta algo. Un hueco en blanco no dice nada.
-function completarPlantilla(html, datos, faltantes) {
-  const nuevos = Object.assign({}, datos);
-
-  // Y las que faltan se ponen con una marca, para que se vean en la vista previa antes
-  // de bajar. Con "[falta]" el que abre el Word entiende al toque.
-  const nombresFaltantes = new Set((faltantes || []).map(f => f.clave));
-  const propiosFaltantes = Array.from(nombresFaltantes)
-    .filter(c => !Object.prototype.hasOwnProperty.call(nuevos, c))
-    .map(c => c.toUpperCase());
-
-  propiosFaltantes.forEach(c => { nuevos[c] = '[falta]'; });
-
-  let salida = html;
-
-  // -------------------------------------------------------------------
-  // LAS DOS FORMAS, Y POR QUÉ LAS DOS
-  // -------------------------------------------------------------------
-  // "[NOMBRE]" es la forma que ya usan los documentos que existen. Y "[CAMPO:7-licencia]" la
-  // que se inventó después, con prefijo, para que un campo propio no se confundiera con una
-  // variable fija.
-  //
-  // Se aceptan LAS DOS, y no es porcompatibilidad con uno mismo: hay documentos armorados con
-  // la forma vieja, y un documento que deja de completarse a mitad es peor que un documento
-  // con una sintaxis de más. Cambiar la forma es para los documentos NUEVOS.
-  //
-  // Y el orden importa: los "[CAMPO:...]" se reemplazan PRIMERO, porque si se buscara "[...]"
-  // primero, "[CAMPO:7-licencia]" se partiría en "[7-licencia]" y "CAMPO:7-licencia]" queda
-  // colgado adentro del documento.
-  const reemplazar = (marcador, valor) => { salida = salida.split(marcador).join(valor); };
-
-  Object.keys(nuevos).forEach(k => {
-    const valor = nuevos[k] == null ? '' : String(nuevos[k]);
-    const alta = k.toUpperCase();
-    reemplazar('[CAMPO:' + k + ']', valor);
-    reemplazar('[CAMPO:' + alta + ']', valor);
-  });
-
-  // Y después, todo lo demás con corchetes solos: "[NOMBRE]", "[LICENCIA]".
-  Object.keys(nuevos).forEach(k => {
-    const valor = nuevos[k] == null ? '' : String(nuevos[k]);
-    reemplazar('[' + k.toUpperCase() + ']', valor);
-  });
-
-  return salida;
-}
-
-// -------------------------------------------------------------------
-// LA VISTA PREVIA
-// -------------------------------------------------------------------
-// Y muestra el texto ya completado, con los huecos marcados. Porque el que va a firmar tiene
-// que ver el documento antes de bajarlo, y ver que dice "[falta]" es mejor que descubrirlo
-// después de imprimirlo.
-function vistaPreviaPlantilla(html, datos, faltantes, css) {
-  const caja = document.getElementById('plantillaPrevia');
-  if (!caja) return;
-
-  const texto = completarPlantilla(html, datos, faltantes);
-  const quedan = (texto.match(/\[[A-Z_0-9:.\-]+\]/g) || []);
-  const unicas = [...new Set(quedan)];
-
-  // Y el aviso de qué falta, que se queda: es lo más útil de la vista previa, porque avisa
-  // ANTES de bajar el papel y no después.
-  const aviso = '<div class="docAviso">' +
-    (unicas.length
-      ? '<span class="pill" style="color:var(--warn);border-color:var(--warn)">Faltan: ' +
-        unicas.slice(0, 8).map((v) => escHtml(v)).join(', ') +
-        (unicas.length > 8 ? ' y ' + (unicas.length - 8) + ' más' : '') + '</span>'
-      : '<span class="pill" style="color:var(--accent);border-color:var(--accent)">Completo</span>') +
-    '</div>';
-
-  // Y el aviso primero, y el documento después. Y NO juntos en un "innerHTML": el "srcdoc"
-  // va en un atributo del marco, y se pone con "setAttribute" cuando el marco ya existe.
-  const marco = document.createElement('div');
-  verDocumentoEnHoja(marco, texto, css, 1120);
-
-  caja.innerHTML = aviso;
-  caja.appendChild(marco);
-}
-
-
-// -------------------------------------------------------------------
-// BAJAR EL ARCHIVO
-// -------------------------------------------------------------------
-// Y es un "Blob" con tipo "application/msword": Word lo abre, se edita normal, y el usuario
-// le hace "Guardar como .docx" cuando quiere.
-//
-// Y NO es un ".docx" de verdad. Un ".docx" es un ZIP con archivos XML adentro, y si Word no
-// lo abre bien no hay ningún aviso: el usuario lo abre, ve que no sirve, y pierde el
-// trabajo. Un HTML que Word abre no tiene ese problema.
-async function descargarPlantillaConDatos() {
-  const code = document.getElementById('descargaTrabajador');
-  const sel = document.getElementById('descargaPlantilla');
-  const aviso = document.getElementById('descargaAviso');
-  const emp = document.getElementById('camposPropiosEmpresa');
-
-  const worker = code && code.value;
-  const pl = sel && sel.value;
-
-  if (!worker) { if (aviso) aviso.textContent = 'Elegí un trabajador.'; return; }
-  if (!pl) { if (aviso) aviso.textContent = 'Elegí una plantilla.'; return; }
-
-  const empresaId = emp && emp.value ? parseInt(emp.value, 10) : null;
-
-  // 1. Los datos.
-  const d = await window.supabaseClient.rpc('datos_para_plantilla', {
-    p_trabajador_code: worker,
-    p_empresa_id: empresaId,
-  });
-  if (d.error) { if (aviso) aviso.textContent = 'No se pudieron leer los datos: ' + d.error.message; return; }
-
-  const datos = d.data || {};
-
-  // 2. Qué falta. Y SOLO los requeridos: un campo opcional vacío no es un problema.
-  const f = await window.supabaseClient.rpc('campos_faltantes', {
-    p_trabajador_code: worker,
-    p_empresa_id: empresaId,
-  });
-  const faltantes = f.error ? [] : (f.data || []);
-
-  // 3. El contenido de la plantilla. La del editor viejo trae "contenido"; la nueva de la
-  // 058 trae "html". Se leen los dos porque un día hay plantillas de un origen y del otro.
-  const p = await window.supabaseClient.rpc('listar_plantillas', { p_empresa_id: empresaId });
-  let html = '';
-  if (!p.error && p.data) {
-    const fila = p.data.find(x => String(x.id) === String(pl));
-    if (fila) html = fila.html || '';
-  }
-  if (!html) {
-    const enMemoria = (typeof plantillasContratacion !== 'undefined' ? plantillasContratacion : [])
-      .find(x => String(x.code) === String(pl) || String(x.id) === String(pl));
-    if (enMemoria) html = enMemoria.contenido || '';
-  }
-  if (!html) {
-    if (aviso) aviso.textContent = 'Esa plantilla no tiene contenido todavía.';
-    return;
-  }
-
-  // 4. Y recién ahora, bajar. Con los campos requeridos faltantes, NO.
-  if (faltantes.length) {
-    if (aviso) aviso.textContent = 'Faltan datos requeridos: ' +
-      faltantes.map(x => x.etiqueta || x.clave).join(', ') + '. No se baja con huecos.';
-    vistaPreviaPlantilla(html, datos, faltantes);
-    return;
-  }
-
-  const texto = completarPlantilla(html, datos, faltantes);
-
-  // Y el archivo lleva un rótulo con el nombre del trabajador, porque "Contrato.doc" en la
-  // carpeta de descargas de veinte personas es un documento que no se encuentra.
-  const nombre = (typeof workers !== 'undefined' ? workers : []).find(w => w.code === worker);
-  const quien = nombre ? nombre.nombreCompleto || nombre.name : worker;
-  const archivo = String(quien).replace(/[\\/:*?"<>|]+/g, '-').trim() + '.doc';
-
-  const completo = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
-    '<title>Documento</title></head><body>' + texto + '</body></html>';
-
-  const url = URL.createObjectURL(new Blob([completo], { type: 'application/msword' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = archivo;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-
-  if (aviso) aviso.textContent = 'Descargado: ' + archivo;
+// KIT DE CONTRATACIÓN
 
+// LOS CAMPOS PROPIOS DE LA EMPRESA
+// ==================================
+//
+// -------------------------------------------------------------------
+// QUÉ HACE
+// --------
+// El editor de plantillas que YA existía solo puede poner datos que ya están en
+// "trabajadores". Acá van los que la empresa define: licencia, talla, centro de costo.
+//
+// Y son POR EMPRESA, porque "código de hazard" en una constructora y "código de patio" en
+// un depot no son la misma cosa.
+//
+// -------------------------------------------------------------------
+// POR QUÉ UN ARCHIVO NUEVO Y NO EN "relojes.js"
+// ---------------------------------------------
+//
+// Porque el editor de plantillas está en "relojes.js" desde hace años, y esas son 74
+// menciones de "plantilla" que ya funcionan. Tocar ese archivo hoy, con lo que hemos
+// tocado, es mezclar dos cosas: lo que andaba y lo nuevo.
+//
+// Y en un archivo aparte, el que llega después sabe dónde está lo nuevo. Si el editor
+// viejo se rompe, se deshace este archivo y no se toca lo otro.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ UNA CLASE PROPIA EN EL CSS
+// ------------------------------------
+//
+// Mismo motivo: "css/componentes/plantillas.css" con ".plantillaEditor". Dos columnas, un
+// panel pegajoso y una lista de campos: eso es una pantalla, no un estilo suelto.
+//
+// -------------------------------------------------------------------
+// LOS SIETE TIPOS, Y POR QUÉ NO SON MÁS
+// --------------------------------------
+//
+// texto, numero, fecha, lista, casillas, imagen y firma. Los mismos siete que el "check" de
+// la tabla. Si se agrega un tipo, se agrega en los dos lados: en el "check" de la tabla y en
+// el "<select>" de esta pantalla.
+//
+// Y en el "SELECT" está escrito a mano a propósito, porque un tipo que la base acepta y la
+// pantalla no ofrece es un campo que se puede crear de otra forma y no se puede editar acá.
+const TIPOS_CAMPO = ['texto', 'numero', 'fecha', 'lista', 'casillas', 'imagen', 'firma'];
+
+// Y los que necesitan opciones. Para los demás, mandarlas es dato muerto: se guarda y no
+// se ve nunca.
+const TIPOS_CON_OPCIONES = ['lista', 'casillas'];
+
+function etiquetaTipoCampo(t) {
+  return ({
+    texto: 'texto',
+    numero: 'número',
+    fecha: 'fecha',
+    lista: 'lista',
+    casillas: 'casillas',
+    imagen: 'imagen',
+    firma: 'firma',
+  })[t] || t;
+}
+
+// -------------------------------------------------------------------
+// EL AVISO
+// -------------------------------------------------------------------
+// Y es el mismo del editor que ya existe, uno solo para los dos. Dos cajas de aviso en la
+// misma pantalla se contradicen, y el que se leyó último gana.
+function avisoCamposPropios(texto) {
+  const a = document.getElementById('cpAviso');
+  if (a) a.textContent = texto || '';
+}
+
+// -------------------------------------------------------------------
+// LA VISTA PREVIA DE LA CLAVE
+// -------------------------------------------------------------------
+// Muestra cómo va a quedar la clave DENTRO del documento mientras se escribe.
+//
+// Y SIN el "empresa_id" adelante, que es lo que cambió: la forma se unificó a "[CLAVE]" y ya
+// no hay prefijo. Ver [nombres-02].
+//
+// Y el guion lo de acá: se muestra la clave sola, sin corchetes, porque los corchetes ya están
+// escritos alrededor en el HTML y ponerlos dos veces se ve como un error.
+function verClaveCampo() {
+  const caja = document.getElementById('cpVistaClaveCompleta');
+  if (!caja) return;
+  const inp = document.getElementById('cpClave');
+  const cruda = (inp && inp.value ? inp.value : '').trim();
+
+  if (!cruda) { caja.textContent = '[CLAVE]'; return; }
+
+  // Y la normalización es la misma que la de la base: minúsculas, sin tildes, todo lo que
+  // no sea letra o número a guion. Si acá se ve distinto de lo que guarda la base, el
+  // usuario copia una clave que no existe.
+  const clave = cruda
+    .toLowerCase()
+    .replace(/áéíóúü/g, 'aeiouu')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  caja.textContent = '[' + clave.toUpperCase() + ']';
+}
+
+// -------------------------------------------------------------------
+// ¿EL SELECTOR TIENE ALGO REAL?
+// -------------------------------------------------------------------
+// Y contando las opciones con código, no el total. El total incluye la de arranque, que
+// está desde el HTML, así que "!options.length" nunca es cierto y el selector queda con
+// la única opción que trae. Es el bug: una guarda que dice "no hay nada que hacer"
+// cuando sí lo hay. Ver [campos-05].
+//
+// Y "value !== ''" y no "value" a secas: un código puede ser el número 0, que es
+// falsy, y se perdería.
+function selectorTieneDatos(sel) {
+  if (!sel) return false;
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value !== '') return true;
+  }
+  return false;
+}
+
+// -------------------------------------------------------------------
+// LOS DOS SELECTORES DE LA DESCARGA
+// -------------------------------------------------------------------
+// Y el de los trabajadores y el de las plantillas.
+//
+// El de los trabajadores se llena con "todosWorkers", que ya está cargado: son las mismas
+// personas que muestra la lista de asistencia. Y NO se vuelve a pedir a la base, porque son
+// las mismas, y pedir otra vez es esperar lo mismo dos veces.
+//
+// Y el nombre se arma con "nombreCompleto" y no con "name", porque una ficha vieja que solo
+// tiene el texto completo en "name" mostraría el nombre partido vacío. Ver [nombres-01].
+async function llenarSelectoresDescarga() {
+  const selW = document.getElementById('descargaTrabajador');
+  const selP = document.getElementById('descargaPlantilla');
+
+  if (selW && !selectorTieneDatos(selW)) {
+    const lista = (typeof todosWorkers !== 'undefined' && todosWorkers) ? todosWorkers : [];
+    selW.innerHTML = '<option value="">— trabajador —</option>' +
+      lista
+        .filter(w => String(w.status || 'activo') !== 'desvinculado')
+        .sort((a, b) => String(a.nombreCompleto || a.name || '').localeCompare(String(b.nombreCompleto || b.name || '')))
+        .map(w => '<option value="' + escHtml(String(w.code)) + '">' +
+          escHtml(w.nombreCompleto || w.name || w.code) + '</option>')
+        .join('');
+  }
+
+  if (selP && !selectorTieneDatos(selP)) {
+    const lista = (typeof plantillasContratacion !== 'undefined' ? plantillasContratacion : [])
+      .filter(p => p.vigente);
+    selP.innerHTML = '<option value="">— plantilla —</option>' +
+      lista.map(p => '<option value="' + escHtml(String(p.code)) + '">' +
+        escHtml(p.nombre || '') + '</option>').join('');
+  }
+
+  // Y con los dos listos, se pinta la lista de variables con los datos.
+  await cargarVariablesConDatos();
+}
+
+// -------------------------------------------------------------------
+// EL TIPO, Y EL CAMPO DE OPCIONES
+// -------------------------------------------------------------------
+function cambiarTipoCampo() {
+  const t = document.getElementById('cpTipo');
+  const caja = document.getElementById('cpOpcionesCaja');
+  if (!t || !caja) return;
+  caja.style.display = TIPOS_CON_OPCIONES.indexOf(t.value) >= 0 ? '' : 'none';
+}
+
+// -------------------------------------------------------------------
+// ESPERAR A QUE LLEGUEN LAS EMPRESAS
+// -------------------------------------------------------------------
+// Y con techo, porque "empresasCargadas" se deja en falso cuando la carga falla. Sin techo
+// esta promesa nunca se resuelve, el panel queda "Cargando." para siempre, y el que lo ve
+// no tiene forma de saber si está cargando o si se rompió. Ver [campos-03].
+//
+// Y no se llama a "loadEmpresas()" para forzar la carga: la app la llama antes que los
+// trabajadores, y llamarla de nuevo desde acá sería la misma consulta dos veces y un
+// "empresas" que se pisa a sí mismo mientras la otra sigue yendo.
+function esperarEmpresas() {
+  const yaEsta = () => (typeof empresasCargadas !== 'undefined' && empresasCargadas) ||
+    (typeof empresas !== 'undefined' && empresas && empresas.length);
+  if (yaEsta()) return Promise.resolve(true);
+
+  return new Promise(function (res) {
+    let intentos = 0;
+    const reloj = setInterval(function () {
+      intentos++;
+      // Y tres segundos: es lo que tarda la consulta en un celular con datos. Pasado eso no
+      // va a llegar nunca, y seguir esperando solo retrasa el mensaje que explica el problema.
+      if (yaEsta() || intentos >= 30) { clearInterval(reloj); res(yaEsta()); }
+    }, 100);
+  });
+}
+
+// -------------------------------------------------------------------
+// CARGAR LOS CAMPOS DE LA EMPRESA
+// -------------------------------------------------------------------
+async function cargarCamposPropios() {
+  const lista = document.getElementById('camposPropiosLista');
+  const emp = document.getElementById('camposPropiosEmpresa');
+  if (!lista) return;
+
+  verClaveCampo();
+
+  // Y el selector de empresa. Se llena una sola vez, con la lista de empresas que ya se
+  // carga para otros usos: no se pide otra vez a la base.
+  if (emp && !emp.options.length) {
+    // Y se espera a que la lista llegue. Antes se leia de una: si todavia no habia
+    // llegado, el selector quedaba vacio y no habia quien lo llenara. Ver [campos-02].
+    await esperarEmpresas();
+    const listaEmpresas = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
+    emp.innerHTML = listaEmpresas
+      .map(e => '<option value="' + escHtml(String(e.id)) + '">' + escHtml(e.nombre || '') + '</option>')
+      .join('');
+    // Y sin empresa no hay nada que mostrar, porque los campos son de una.
+    if (!emp.options.length) {
+      lista.innerHTML = '<small style="color:var(--muted)">No hay empresas cargadas.</small>';
+      return;
+    }
+  }
+
+  if (!emp || !emp.value) {
+    lista.innerHTML = '<small style="color:var(--muted)">Elegí una empresa.</small>';
+    return;
+  }
+
+  const empresaId = parseInt(emp.value, 10);
+  const { data, error } = await window.supabaseClient.rpc('variables_de_plantilla', { p_empresa_id: empresaId });
+
+  if (error) {
+    lista.innerHTML = '<small style="color:var(--danger)">No se pudieron leer los campos: ' + escHtml(error.message) + '</small>';
+    return;
+  }
+
+  const propios = (data || []).filter(v => v.es_propio);
+
+  if (!propios.length) {
+    lista.innerHTML = '<small style="color:var(--muted)">Todavía no hay campos propios. Agregá el primero con el formulario de abajo.</small>';
+  } else {
+    lista.innerHTML = propios.map(v => {
+      // Y el nombre de la variable sale de la fila, que ya trae "[CAMPO:7-licencia]".
+      // Se lo saca de adentro para mostrar solo la clave: la llave completa va en otro
+      // lado, y mostrarla acá dos veces es ruido.
+      const clave = String(v.variable || '').replace(/^\[CAMPO:/, '').replace(/\]$/, '');
+      return '<div class="campoPropio">' +
+        '<span class="cod">' + escHtml(clave) + '</span>' +
+        '<span class="et">' + escHtml(v.etiqueta || '') + '</span>' +
+        '<span class="ti">' + escHtml(etiquetaTipoCampo(v.tipo)) + '</span>' +
+        '</div>';
+    }).join('');
+  }
+
+  // Y las variables fijas aparte, porque son muchas y no tienen nada que ver con los
+  // campos propios: mezclarlas en la misma lista hace que el que quiere ver "licencia"
+  // tenga que pasar por veinte renglones que no le sirven.
+  const fijas = (data || []).filter(v => !v.es_propio);
+  const cajaVar = document.getElementById('plantillaVariables');
+  if (cajaVar && !fijas.length) {
+    cajaVar.innerHTML = '<small style="color:var(--muted)">Elegí un trabajador para ver los datos.</small>';
+  }
+
+  // Y los dos selectores de la descarga, que es donde se elige a quién.
+  await llenarSelectoresDescarga();
+}
+
+// -------------------------------------------------------------------
+// CREAR UN CAMPO
+// -------------------------------------------------------------------
+async function crearCampoPropio() {
+  const emp = document.getElementById('camposPropiosEmpresa');
+  const clave = document.getElementById('cpClave');
+  const etiqueta = document.getElementById('cpEtiqueta');
+  const tipo = document.getElementById('cpTipo');
+  const opciones = document.getElementById('cpOpciones');
+  const requerido = document.getElementById('cpRequerido');
+
+  if (!emp || !emp.value) { avisoCamposPropios('Elegí una empresa.'); return; }
+
+  const cruda = (clave.value || '').trim();
+  if (!cruda) { avisoCamposPropios('Escribí cómo se llama el campo.'); clave.focus(); return; }
+
+  const t = tipo.value;
+  if (TIPOS_CAMPO.indexOf(t) < 0) { avisoCamposPropios('Ese tipo no existe.'); return; }
+
+  // Y si el tipo necesita opciones, se avisa ANTES de mandar nada. La base también lo
+  // avisa, pero con un error que llega con un código y hay que descifrarlo; acá es un
+  // mensaje que dice qué hacer.
+  const listaOpciones = (opciones.value || '').trim();
+  if (TIPOS_CON_OPCIONES.indexOf(t) >= 0 && !listaOpciones) {
+    avisoCamposPropios('Una lista necesita sus opciones, separadas por "|".');
+    opciones.focus();
+    return;
+  }
+
+  const { data, error } = await window.supabaseClient.rpc('gestionar_campo', {
+    p_empresa_id: parseInt(emp.value, 10),
+    p_clave: cruda,
+    p_etiqueta: (etiqueta.value || '').trim() || null,
+    p_tipo: t,
+    p_opciones: TIPOS_CON_OPCIONES.indexOf(t) >= 0 ? listaOpciones : null,
+    p_ayuda: null,
+    p_orden: 100,
+    p_requerido: !!requerido.checked,
+    p_activo: true,
+  });
+
+  if (error) {
+    avisoCamposPropios('No se pudo crear: ' + error.message);
+    return;
+  }
+
+  // Y el mensaje dice la clave FINAL, que es la que va a ir en el documento. Si el usuario
+  // escribió "Licencia de Conducir" y quedó "7-licencia-de-conducir", tiene que saberlo
+  // ahora, no cuando lo busque dentro del documento.
+  // Y el mensaje dice la variable TAL COMO SE ESCRIBE, que es "[LICENCIA]" y no la clave
+  // sola. Porque si el mensaje dice "licencia" el usuario lo escribe sin corchetes, y el
+  // documento le sale con la palabra "licencia" suelta adentro en vez de con el dato.
+  //
+  // Y en MAYÚSCULAS, que es como la reemplaza el completador: la base guarda la clave en
+  // minúsculas, pero el completador la compara en mayúsculas, y si el mensaje dice una cosa
+  // y el completador busca otra, el campo queda con "[licencia]" escrito en el documento.
+  avisoCamposPropios('Creado. Se usa como [' + String(data || '').toUpperCase() + '].');
+  clave.value = '';
+  etiqueta.value = '';
+  opciones.value = '';
+  requerido.checked = false;
+
+  await cargarCamposPropios();
+}
+
+// BAJAR UNA PLANTILLA CON LOS DATOS DE UN TRABAJADOR
+// =====================================================
+//
+// -------------------------------------------------------------------
+// EL ORDEN DE LAS CUATRO COSAS, Y POR QUÉ NO ES EL DE UNO
+// -------------------------------------------------------------------
+//
+//   1. traer los datos        "datos_para_plantilla"
+//   2. ver qué falta          "campos_faltantes"
+//   3. recién ahí, completar  los "[CAMPO]" y los "[NOMBRE]"
+//   4. y recién ahí, bajar
+//
+// El paso 2 antes del 3 es lo importante. Si se completara primero y se bajara, el
+// documento saldría con un "[CAMPO:7-licencia]" literal adentro, que es peor que un hueco:
+// un hueco se ve, y un texto entre corchetes se archiva como si estuviera completo.
+//
+// Y el error dice QUÉ falta y de QUÉ tipo, no "faltan datos". El que tiene que ir a buscar
+// el dato es el usuario, y si el mensaje no dice cuál, vuelve a mirar la pantalla y no
+// encuentra nada.
+//
+// -------------------------------------------------------------------
+// POR QUÉ NO SE COMPLETA EN EL SERVIDOR
+// -------------------------------------------------------------------
+//
+// Porque el contenido de la plantilla es HTML libre que edita el usuario, y meterle
+// "replace" en el servidor significa escribir HTML con concatenación de cadenas, que es
+// justo donde aparecen los problemas de comillas que el editor viejo ya sufrió una vez.
+//
+// Y porque los datos ya vienen en un jsonb con los nombres puestos: la base ya hizo el
+// trabajo difícil. Acá solo se reemplazan "[NOMBRE]" y "[CAMPO:algo]", que es una operación
+// de texto, no de HTML.
+//
+// -------------------------------------------------------------------
+// Y LA VARIABLE QUE FALTA SE MARCA, NO SE BORRA
+// -------------------------------------------------
+//
+// Una variable que no existe en el documento queda como está, en vez de desaparecer. Un
+// "[NOMBRE]" que se queda es una pista de que falta algo. Un hueco en blanco no dice nada.
+function completarPlantilla(html, datos, faltantes) {
+  const nuevos = Object.assign({}, datos);
+
+  // Y las que faltan se ponen con una marca, para que se vean en la vista previa antes
+  // de bajar. Con "[falta]" el que abre el Word entiende al toque.
+  const nombresFaltantes = new Set((faltantes || []).map(f => f.clave));
+  const propiosFaltantes = Array.from(nombresFaltantes)
+    .filter(c => !Object.prototype.hasOwnProperty.call(nuevos, c))
+    .map(c => c.toUpperCase());
+
+  propiosFaltantes.forEach(c => { nuevos[c] = '[falta]'; });
+
+  let salida = html;
+
+  // -------------------------------------------------------------------
+  // LAS DOS FORMAS, Y POR QUÉ LAS DOS
+  // -------------------------------------------------------------------
+  // "[NOMBRE]" es la forma que ya usan los documentos que existen. Y "[CAMPO:7-licencia]" la
+  // que se inventó después, con prefijo, para que un campo propio no se confundiera con una
+  // variable fija.
+  //
+  // Se aceptan LAS DOS, y no es porcompatibilidad con uno mismo: hay documentos armorados con
+  // la forma vieja, y un documento que deja de completarse a mitad es peor que un documento
+  // con una sintaxis de más. Cambiar la forma es para los documentos NUEVOS.
+  //
+  // Y el orden importa: los "[CAMPO:...]" se reemplazan PRIMERO, porque si se buscara "[...]"
+  // primero, "[CAMPO:7-licencia]" se partiría en "[7-licencia]" y "CAMPO:7-licencia]" queda
+  // colgado adentro del documento.
+  const reemplazar = (marcador, valor) => { salida = salida.split(marcador).join(valor); };
+
+  Object.keys(nuevos).forEach(k => {
+    const valor = nuevos[k] == null ? '' : String(nuevos[k]);
+    const alta = k.toUpperCase();
+    reemplazar('[CAMPO:' + k + ']', valor);
+    reemplazar('[CAMPO:' + alta + ']', valor);
+  });
+
+  // Y después, todo lo demás con corchetes solos: "[NOMBRE]", "[LICENCIA]".
+  Object.keys(nuevos).forEach(k => {
+    const valor = nuevos[k] == null ? '' : String(nuevos[k]);
+    reemplazar('[' + k.toUpperCase() + ']', valor);
+  });
+
+  return salida;
+}
+
+// -------------------------------------------------------------------
+// LA VISTA PREVIA
+// -------------------------------------------------------------------
+// Y muestra el texto ya completado, con los huecos marcados. Porque el que va a firmar tiene
+// que ver el documento antes de bajarlo, y ver que dice "[falta]" es mejor que descubrirlo
+// después de imprimirlo.
+function vistaPreviaPlantilla(html, datos, faltantes, css) {
+  const caja = document.getElementById('plantillaPrevia');
+  if (!caja) return;
+
+  const texto = completarPlantilla(html, datos, faltantes);
+  const quedan = (texto.match(/\[[A-Z_0-9:.\-]+\]/g) || []);
+  const unicas = [...new Set(quedan)];
+
+  // Y el aviso de qué falta, que se queda: es lo más útil de la vista previa, porque avisa
+  // ANTES de bajar el papel y no después.
+  const aviso = '<div class="docAviso">' +
+    (unicas.length
+      ? '<span class="pill" style="color:var(--warn);border-color:var(--warn)">Faltan: ' +
+        unicas.slice(0, 8).map((v) => escHtml(v)).join(', ') +
+        (unicas.length > 8 ? ' y ' + (unicas.length - 8) + ' más' : '') + '</span>'
+      : '<span class="pill" style="color:var(--accent);border-color:var(--accent)">Completo</span>') +
+    '</div>';
+
+  // Y el aviso primero, y el documento después. Y NO juntos en un "innerHTML": el "srcdoc"
+  // va en un atributo del marco, y se pone con "setAttribute" cuando el marco ya existe.
+  const marco = document.createElement('div');
+  verDocumentoEnHoja(marco, texto, css, 1120);
+
+  caja.innerHTML = aviso;
+  caja.appendChild(marco);
+}
+
+
+// -------------------------------------------------------------------
+// BAJAR EL ARCHIVO
+// -------------------------------------------------------------------
+// Y es un "Blob" con tipo "application/msword": Word lo abre, se edita normal, y el usuario
+// le hace "Guardar como .docx" cuando quiere.
+//
+// Y NO es un ".docx" de verdad. Un ".docx" es un ZIP con archivos XML adentro, y si Word no
+// lo abre bien no hay ningún aviso: el usuario lo abre, ve que no sirve, y pierde el
+// trabajo. Un HTML que Word abre no tiene ese problema.
+async function descargarPlantillaConDatos() {
+  const code = document.getElementById('descargaTrabajador');
+  const sel = document.getElementById('descargaPlantilla');
+  const aviso = document.getElementById('descargaAviso');
+  const emp = document.getElementById('camposPropiosEmpresa');
+
+  const worker = code && code.value;
+  const pl = sel && sel.value;
+
+  if (!worker) { if (aviso) aviso.textContent = 'Elegí un trabajador.'; return; }
+  if (!pl) { if (aviso) aviso.textContent = 'Elegí una plantilla.'; return; }
+
+  const empresaId = emp && emp.value ? parseInt(emp.value, 10) : null;
+
+  // 1. Los datos.
+  const d = await window.supabaseClient.rpc('datos_para_plantilla', {
+    p_trabajador_code: worker,
+    p_empresa_id: empresaId,
+  });
+  if (d.error) { if (aviso) aviso.textContent = 'No se pudieron leer los datos: ' + d.error.message; return; }
+
+  const datos = d.data || {};
+
+  // 2. Qué falta. Y SOLO los requeridos: un campo opcional vacío no es un problema.
+  const f = await window.supabaseClient.rpc('campos_faltantes', {
+    p_trabajador_code: worker,
+    p_empresa_id: empresaId,
+  });
+  const faltantes = f.error ? [] : (f.data || []);
+
+  // 3. El contenido de la plantilla. La del editor viejo trae "contenido"; la nueva de la
+  // 058 trae "html". Se leen los dos porque un día hay plantillas de un origen y del otro.
+  const p = await window.supabaseClient.rpc('listar_plantillas', { p_empresa_id: empresaId });
+  let html = '';
+  if (!p.error && p.data) {
+    const fila = p.data.find(x => String(x.id) === String(pl));
+    if (fila) html = fila.html || '';
+  }
+  if (!html) {
+    const enMemoria = (typeof plantillasContratacion !== 'undefined' ? plantillasContratacion : [])
+      .find(x => String(x.code) === String(pl) || String(x.id) === String(pl));
+    if (enMemoria) html = enMemoria.contenido || '';
+  }
+  if (!html) {
+    if (aviso) aviso.textContent = 'Esa plantilla no tiene contenido todavía.';
+    return;
+  }
+
+  // 4. Y recién ahora, bajar. Con los campos requeridos faltantes, NO.
+  if (faltantes.length) {
+    if (aviso) aviso.textContent = 'Faltan datos requeridos: ' +
+      faltantes.map(x => x.etiqueta || x.clave).join(', ') + '. No se baja con huecos.';
+    vistaPreviaPlantilla(html, datos, faltantes);
+    return;
+  }
+
+  const texto = completarPlantilla(html, datos, faltantes);
+
+  // Y el archivo lleva un rótulo con el nombre del trabajador, porque "Contrato.doc" en la
+  // carpeta de descargas de veinte personas es un documento que no se encuentra.
+  const nombre = (typeof workers !== 'undefined' ? workers : []).find(w => w.code === worker);
+  const quien = nombre ? nombre.nombreCompleto || nombre.name : worker;
+  const archivo = String(quien).replace(/[\\/:*?"<>|]+/g, '-').trim() + '.doc';
+
+  const completo = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
+    '<title>Documento</title></head><body>' + texto + '</body></html>';
+
+  const url = URL.createObjectURL(new Blob([completo], { type: 'application/msword' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = archivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  if (aviso) aviso.textContent = 'Descargado: ' + archivo;
+
+}
 // ====================================================================
 // BAJAR EL .DOCX DE VERDAD, CON SU FORMATO
 // ====================================================================
@@ -1569,693 +1570,693 @@ function descargarDocxConDatos() {
   reader.readAsArrayBuffer(entrada.files[0]);
 }
 
-}
-
-// BAJAR LA PLANTILLA EN BLANCO
-// ====================================================================
-//
-// Un ".doc" de Word es un HTML con otra extensión. Por eso se puede generar desde el navegador
-// sin ninguna librería, que es lo único que hay acá.
-//
-// Y el manual viaja DENTRO del archivo. Un manual que está solo en la pantalla sirve mientras se
-// está en la pantalla; el que va en el archivo sirve cuando alguien se lo pasa a otro.
-// Ver [word-01].
-//
-// Y la lista de variables queda arriba para que nadie tenga que acordarse de cómo se llaman, y se
-// borra con la línea que dice "FIN DE LAS INSTRUCCIONES". Ver [word-03].
-
-// -------------------------------------------------------------------
-// EL ESQUELETO DEL DOCUMENTO
-// -------------------------------------------------------------------
-// Va en una constante y no adentro de la función, porque es una constante: no cambia nunca. Y
-// afuera se puede leer sin ejecutar nada, que es lo que hace la comprobación.
-//
-// Y con estilos dentro, porque Word los respeta. Sin estilo el documento sale como texto pelado
-// y la persona tiene que armarlo entero, que es al revés de lo que se pidió.
-const ESQUELETO_PLANTILLA = [
-  '<h1 style="text-align:center;font-size:16pt;font-family:Calibri,Arial,sans-serif">[NOMBRE]</h1>',
-  '<p style="text-align:center;font-size:11pt;font-family:Calibri,Arial,sans-serif">[CARGO] &mdash; [EMPRESA]</p>',
-
-  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">1. IDENTIFICACIÓN</h2>',
-  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">El trabajador <b>[NOMBRE]</b>, cédula de identidad [RUT],',
-  'con domicilio en [DIRECCION], teléfono [TELEFONO], correo [CORREO], presta servicios a',
-  '<b>[EMPRESA]</b>, RUT [RUT_EMPRESA], con domicilio en [DIRECCION_EMPRESA].</p>',
-  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">Su cargo es [CARGO], y corresponde al grupo',
-  '[ESPECIALIDAD]. Ingresó el [FECHA_INGRESO], en el centro de costo [CENTRO].</p>',
-  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">Se encuentra afiliado a [AFP_NOMBRE],',
-  'código [AFP_CODIGO]. Es trabajador de tipo [TIPO_TRABAJADOR].</p>',
-
-  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">2. DECLARACIÓN</h2>',
-  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">El trabajador declara que los datos anteriores son ciertos,',
-  'y que cualquier cambio de ellos será oportunamente comunicado a [EMPRESA]. Declara además',
-  'haber leído y aceptado el reglamento interno de la empresa.</p>',
-
-  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">3. FIRMA</h2>',
-  '<p style="margin-top:44pt;font-family:Calibri,Arial,sans-serif;font-size:11pt">_______________________________<br>',
-  '[CODIGO] &mdash; [NOMBRE]<br>[EMPRESA], [FECHA]</p>',
-].join('');
-
-// -------------------------------------------------------------------
-// LAS VARIABLES QUE PUEDEN PONERSE
-// -------------------------------------------------------------------
-// Y es la lista completa, con lo que se eligió que existe: nombre entero [NOMBRE] y no
-// [NOMBRE_COMPLETO]. Ver [nombres-01].
-const VARIABLES_DEL_MODELO = [
-  ['[CODIGO]', 'Código de 4 dígitos'],
-  ['[RUT]', 'RUT del trabajador'],
-  ['[NOMBRES]', 'Nombres'],
-  ['[APELLIDO_PATERNO]', 'Apellido paterno'],
-  ['[APELLIDO_MATERNO]', 'Apellido materno'],
-  ['[NOMBRE]', 'El nombre entero, armado con los cuatro de arriba'],
-  ['[DIRECCION]', 'Dirección'],
-  ['[TELEFONO]', 'Teléfono'],
-  ['[CORREO]', 'Correo'],
-  ['[EMPRESA]', 'Nombre de la empresa'],
-  ['[RUT_EMPRESA]', 'RUT de la empresa'],
-  ['[DIRECCION_EMPRESA]', 'Dirección de la empresa'],
-  ['[TELEFONO_EMPRESA]', 'Teléfono de la empresa'],
-  ['[CORREO_EMPRESA]', 'Correo de la empresa'],
-  ['[GIRO_EMPRESA]', 'A qué se dedica la empresa'],
-  ['[CARGO]', 'Cargo'],
-  ['[ESPECIALIDAD]', 'Cargo del kit'],
-  ['[CENTRO]', 'Centro de costo o nombre de la obra'],
-  ['[FECHA_INGRESO]', 'Fecha de ingreso'],
-  ['[TIPO_TRABAJADOR]', 'Interno o subcontrato'],
-  ['[AFP_CODIGO]', 'Código de la AFP'],
-  ['[AFP_NOMBRE]', 'Nombre de la AFP'],
-  ['[FECHA]', 'Fecha de hoy'],
-];
-
-// -------------------------------------------------------------------
-// EL MANUAL, QUE VIAJA EN EL ARCHIVO
-// -------------------------------------------------------------------
-const MANUAL_PLANTILLA = [
-  '<!--',
-  'COMO SE USA ESTA PLANTILLA',
-  '==========================',
-  '',
-  '1. BORRAR TODO DESDE ACÁ HASTA LA LÍNEA "FIN DE LAS INSTRUCCIONES". Incluye este bloque y',
-  '   la lista de variables de más abajo. Se borra porque si queda, sale impreso en cada',
-  '   documento que se arme con esta plantilla.',
-  '',
-  '2. ARMAR EL DOCUMENTO COMO UN DOCUMENTO NORMAL.',
-  '',
-  '3. DONDE VA UN DATO DEL TRABAJADOR, ESCRIBIR EL NOMBRE DEL CAMPO ENTRE CORCHETES Y EN',
-  '   MAYÚSCULAS. Por ejemplo:',
-  '',
-  '       Sr. [APELLIDO_PATERNO] [APELLIDO_MATERNO], RUT [RUT]',
-  '',
-  '   Y NO con llaves. Antes se usaba {{nombre}} y ya no: la base reconocía esa forma y el',
-  '   navegador no la reemplazaba, así que el documento salía con las llaves escritas y sin',
-  '   ningún dato.',
-  '',
-  '4. GUARDAR COMO "Word 97-2003 (.doc)". NO como ".docx": un ".docx" es un archivo comprimido',
-  '   y desde el sistema no se puede abrir.',
-  '',
-  '5. VOLVER, ABRIR LA PLANTILLA, ELEGIR EL ARCHIVO, Y GUARDAR.',
-  '',
-  'CUIDADO CON TRES COSAS DE WORD',
-  '------------------------------',
-  '',
-  'a) LA CORRECCIÓN AUTOMÁTICA. Word cambia los corchetes y las mayúsculas mientras se escribe,',
-  '   y "[NOMBRE]" se vuelve "[Nombre]" y deja de reconocerse. Si pasa: escribirlo en otro',
-  '   lado, copiarlo, y pegarlo donde va.',
-  '',
-  'b) NO PARTIR UNA VARIABLE EN DOS. Si "[APELLIDO_PATERNO]" queda cortado entre dos párrafos,',
-  '   el corchete de cierre cae en otro lado y no se reconoce. Va entera, en un solo pedazo.',
-  '',
-  'c) SIN ESPACIOS ADENTRO. "[ NOMBRE ]" no sirve. "[NOMBRE]" sí.',
-  '',
-  'FIN DE LAS INSTRUCCIONES',
-  '-->',
-  '',
-].join('\n');
-
-function descargarPlantillaModelo() {
-  const lista = VARIABLES_DEL_MODELO.map(function (v) {
-    return '  <tr><td style="width:34%;font-family:Consolas,monospace">' + v[0] +
-           '</td><td>' + v[1] + '</td></tr>';
-  }).join('\n');
-
-  const documento = MANUAL_PLANTILLA +
-    '<h2 style="font-family:Calibri,Arial,sans-serif;font-size:13pt">Variables disponibles: borrar antes de usar la plantilla</h2>\n' +
-    '<table style="width:100%;border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:11pt">\n' +
-    lista + '\n</table>\n' +
-    '<p style="font-family:Calibri,Arial,sans-serif;font-weight:bold">FIN DE LAS INSTRUCCIONES</p>\n' +
-    '<hr>\n' +
-    ESQUELETO_PLANTILLA;
-
-  const completo = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
-    '<title>Plantilla</title></head><body style="font-family:Calibri,Arial,sans-serif">' +
-    documento + '</body></html>';
-
-  const url = URL.createObjectURL(new Blob([completo], { type: 'application/msword' }));
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'plantilla.doc';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-
-  const aviso = document.getElementById('plantillaError');
-  if (aviso) aviso.textContent = 'Descargada plantilla.doc. Ábrela en Word, edítala y vuelve a subirla.';
-}
-
-// -------------------------------------------------------------------
-// LEER UN ARCHIVO QUE SALIÓ DE WORD
-// -------------------------------------------------------------------
-// Word guarda un documento dentro de un HTML entero: con su "<head>", con sus estilos "mso-" y
-// con su "<body>" lleno de atributos larguísimos. Si eso entra tal cual en el editor, el editor
-// muestra la cabeza del documento en lugar del documento.
-//
-// Y hay basura que Word agrega y que no significa nada: las etiquetas del espacio de nombres de
-// Office, que son "<o:p>" con dos puntos y sin cierre, y los comentarios condicionales. Las dos
-// cosas se quitan antes, porque se ven en pantalla y no le hacen nada al formato.
-function htmlDesdeArchivoDeWord(texto) {
-  let t = String(texto || '');
-
-  // Y la cabeza: los estilos se guardan aparte, y al editor entra solo el cuerpo.
-  let estilos = '';
-  t = t.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, function (_, css) { estilos += css; return ''; });
-  t = t.replace(/<link[^>]*>/gi, '').replace(/<meta[^>]*>/gi, '');
-
-  // Y el cuerpo, si viene envuelto.
-  const cuerpo = t.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  if (cuerpo) t = cuerpo[1];
-
-  // Y los comentarios condicionales de Word, primero: a veces traen "<style>" adentro que el
-  // paso anterior no vio, y al quitarlos se van.
-  t = t.replace(/<!--[\s\S]*?-->/g, '');
-  t = t.replace(/<\/?[a-z]+:[^>]*>/gi, '');
-  t = t.replace(/<o:p\s*\/?>/gi, '');
-
-  // Y los "\r" sueltos: en Windows Word los mete entre "<p>" y "</p>", y en el editor salen
-  // como un renglón en blanco de más.
-  t = t.replace(/\r/g, '');
-
-  return { html: t.trim(), css: estilos.trim() };
-}
-
-function subirPlantillaArchivo() {
-  const archivo = document.getElementById('plantillaArchivo');
-  const editor = document.getElementById('plantillaEditor');
-  const aviso = document.getElementById('plantillaError');
-  if (!archivo || !archivo.files || !archivo.files[0]) {
-    if (aviso) aviso.textContent = 'Elegí primero un archivo.';
-    return;
-  }
-  const f = archivo.files[0];
-
-  // Y el ".docx" se dice que no, en vez de aceptarlo y no poder leerlo.
-  if (/\.docx$/i.test(f.name)) {
-    aviso.textContent = 'Un ".docx" no se puede abrir desde acá. En Word: Archivo, Guardar como, ' +
-      '"Word 97-2003 (.doc)". Es el mismo documento pero se puede leer.';
-    archivo.value = '';
-    return;
-  }
-
-  const lector = new FileReader();
-  lector.onload = function () {
-    const salida = htmlDesdeArchivoDeWord(lector.result);
-    if (!salida.html) {
-      aviso.textContent = 'El archivo está vacío, o no tiene contenido dentro.';
-      return;
-    }
-    editor.innerHTML = salida.html;
-    const conEstilo = salida.css ? ' con su estilo.' : ' SIN estilo: si se ve feo, ' +
-      'faltó guardar el bloque de estilos en el archivo.';
-    aviso.textContent = 'Cargado: ' + f.name + conEstilo +
-      ' Revisá cómo quedó, y después apretá Guardar.';
-    archivo.value = '';
-  };
-  lector.onerror = function () {
-    aviso.textContent = 'No se pudo leer el archivo.';
-  };
-  lector.readAsText(f);
-}
-
-// -------------------------------------------------------------------
-// Y CUÁNTAS VARIABLES QUEDARON ESCRITAS
-// -------------------------------------------------------------------
-// Y al subir, avisar cuántas hay. Un archivo que sube con una variable mal escrita se guarda sin
-// que nadie se entere, y el día que se baja el documento aparecen los corchetes en el papel.
-function contarVariablesDelEditor() {
-  const editor = document.getElementById('plantillaEditor');
-  if (!editor) return 0;
-  const encontradas = editor.innerHTML.match(/\[(?:CAMPO:)?[A-Za-z0-9_-]+\]/g) || [];
-  return [...new Set(encontradas)].length;
-}
-
-
-// -------------------------------------------------------------------
-// EL CSS DEL DOCUMENTO, PARA QUE SE VEA COMO EN WORD
-// -------------------------------------------------------------------
-// Y se limpian las reglas que no cambian nada en pantalla. El que Word guarda trae reglas "mso-*",
-// "@page WordSection*", y clases vacías que solo le sirven a él.
-//
-// Y no se puede intentar entenderlas: no hay un analizador de CSS en el proyecto. Lo que se puede
-// es mirar el nombre de cada regla y decidir por lo que dice. Ver [ver-02].
-//
-// Y se quedan solo las propiedades que se ven: familia, tamaño, alto de línea, márgenes, texto,
-// tablas y bordes.
-function cssDeDocumentoParaPantalla(css) {
-  let t = String(css || '');
-
-  // Y primero, las reglas que enteras no sirven.
-  t = t.replace(/@page[^{}]*\{[\s\S]*?\}/gi, '');
-  t = t.replace(/@(font-face|import|charset)[^;{]*;?/gi, '');
-
-  const reglas = [];
-
-  // Y después, regla por regla.
-  const re = /([^{}]+)\{([^{}]*)\}/g;
-  let m;
-  while ((m = re.exec(t)) !== null) {
-    const sel = m[1].trim();
-    if (!sel) continue;
-
-    // Y las que son del propio Word, por el nombre.
-    if (/\bmso[-:]/i.test(sel) || /WordSection/i.test(sel) || sel.indexOf('Mso') === 0) continue;
-
-    const SE_VEN = /^(?:font-family|font-size|font-weight|font-style|line-height|letter-spacing|color|background-color|margin|padding|text-align|text-indent|text-decoration|vertical-align|white-space|width|border|border-collapse|border-spacing|page-break|list-style|text-transform|clear|display)\s*:/i;
-
-    const props = m[2].split(';')
-      .map((x) => x.trim())
-      .filter((x) => x && SE_VEN.test(x))
-      // Y se descarta el "mso-" que se cuela en una propiedad buena:
-      // "border:solid 1.0pt mso-..." no es una propiedad válida.
-      .filter((x) => !/\bmso-/i.test(x));
-
-    if (props.length) reglas.push(sel + ' {' + props.join(';') + '}');
-  }
-
-  return reglas.join('\n');
-}
-
-// -------------------------------------------------------------------
-// ARMAR EL DOCUMENTO COMPLETO
-// -------------------------------------------------------------------
-// Y es lo mismo que baja el ".doc": una página entera, con su "<head>" y su "<style>". Por eso
-// lo que se ve en la vista previa y lo que sale en Word son la misma cosa. Ver [ver-01].
-//
-// Y la medida sale de la "@page" del archivo de Word, si la trae. Un documento que se armó para
-// carta no se muestra en A4, ni al revés.
-function documentoCompletoDesdeHtml(html, css) {
-  const estilos = cssDeDocumentoParaPantalla(css);
-  const pagina = String(css || '').match(/@page[^{]*\{[\s\S]*?size\s*:\s*([^;}]+)/i);
-  const medida = pagina ? pagina[1].trim() : '21cm 29.7cm';
-
-  return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
-    '<title>Documento</title>' +
-    '<style>@page{size:' + medida + ';margin:2.5cm 2cm;}' + estilos + '</style>' +
-    '</head><body>' + String(html || '').trim() + '</body></html>';
-}
-
-// -------------------------------------------------------------------
-// LEER UN ARCHIVO QUE SALIÓ DE WORD, Y QUE VUELVA ENTERO
-// -------------------------------------------------------------------
-// Y ahora devuelve el "<style>", que antes se guardaba en una variable que no se guardaba en
-// ningún lado: el estilo se perdía entre leer el archivo y guardar la plantilla. Y es el estilo
-// lo que hace que el documento se vea como se ve en Word.
-//
-// Y se sigue sacando lo que Word mete y no sirve: la "<head>" con sus "<meta>", los "<link>", las
-// etiquetas del espacio de nombres de Office y los comentarios condicionales.
-function documentoDesdeArchivoDeWord(texto) {
-  let t = String(texto || '');
-  const css = (t.match(/<style[^>]*>([\s\S]*?)<\/style>/i) || [])[1] || '';
-
-  // Y el "<style>" se queda donde está, y la "<head>" se le saca alrededor.
-  t = t.replace(/<head[^>]*>/gi, '').replace(/<\/head>/gi, '');
-  t = t.replace(/<link[^>]*>/gi, '').replace(/<meta[^>]*>/gi, '');
-
-  // Y el cuerpo.
-  const cuerpo = t.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-  if (cuerpo) t = cuerpo[1];
-
-  // Y la basura de Office.
-  t = t.replace(/<!--[\s\S]*?-->/g, '');
-  t = t.replace(/<\/?[a-z]+:[^>]*>/gi, '');
-  t = t.replace(/<o:p\s*\/?>/gi, '');
-  t = t.replace(/\r/g, '');
-
-  return { html: t.trim(), css: css.trim() };
-}
-
-// -------------------------------------------------------------------
-// LA VISTA PREVIA, EN UN "iframe"
-// -------------------------------------------------------------------
-// Y en un "iframe", no en un "<div>". Porque los estilos del documento se meterían en la página
-// de la aplicación: un "body{margin:0}" del documento borra los márgenes de la página, y un "h1"
-// del documento se vuelve el "h1" de la aplicación.
-//
-// En un marco el documento es un documento aparte. Es literalmente lo mismo que baja el ".doc":
-// la misma cosa que Word abre es la que se ve acá. Y no puede tocar la aplicación, porque no
-// comparte nada con ella. Ver [ver-01].
-//
-// Y con "sandbox" sin scripts y sin formularios, porque el contenido viene de un archivo que sube
-// una persona. Y con "allow-same-origin" para poder leer el alto, que es lo que hace que la hoja
-// tenga el alto del papel y no el de la pantalla.
-function verDocumentoEnHoja(caja, html, css, alto) {
-  if (!caja) return;
-  const doc = documentoCompletoDesdeHtml(html, css);
-
-  caja.innerHTML =
-    '<iframe class="docHoja" title="Vista previa del documento" ' +
-      'sandbox="allow-same-origin" style="height:' + (alto || 1120) + 'px"></iframe>';
-
-  // Y el "srcdoc" se pone DESPUÉS, con "setAttribute", y no en el "innerHTML" de arriba. En el
-  // "innerHTML" el documento entero tendría que ir escapado como atributo, con las comillas
-  // dobles cambiadas, y es fácil que una se escape mal y cierre el atributo antes de tiempo.
-  const marco = caja.querySelector('iframe');
-  if (marco) marco.setAttribute('srcdoc', doc);
-}
-
-
-// LAS SEIS FUENTES DE LAS PLANTILLAS
-// =====================================
-//
-// -------------------------------------------------------------------
-// POR QUÉ ESTA LISTA VIVE ACÁ Y NO EN EL HTML
-// -----------------------------------------
-//
-// El desplegable del editor se arma con esta lista. Y si la lista estuviera escrita en el
-// HTML, habría dos lugares donde cambiar las fuentes: el desplegable y la plantilla
-// general. Y algún día se cambiaría en uno y no en el otro, y el editor ofrecería una
-// fuente que la plantilla no tiene.
-//
-// O sea que la lista tiene que estar en UN solo lugar, y el que se lee desde los dos
-// lados es el JavaScript.
-//
-// -------------------------------------------------------------------
-// POR QUÉ SEIS Y NO UN CATÁLOGO
-// ----------------------------
-//
-// Porque "elegante" sin criterio es un catálogo entero, y con veinte fuentes disponibles
-// cada documento sale con una distinta y la empresa deja de verse como empresa.
-//
-// Con seis hay una regla que se puede decir de una vez: una serif para el texto que se lee
-// seguido, y una sans para lo que se escanea. Y si un día hay que agregar una, se agrega
-// acá y en la plantilla, y son dos lugares.
-//
-// -------------------------------------------------------------------
-// Y LA RAZÓN TÉCNICA, QUE ES LA IMPORTANTE
-// ----------------------------------------
-//
-// WORD NO DESCARGA FUENTES DE GOOGLE. La fuente viaja con el archivo solo si va EMBEBIDA, y
-// Word no la embebe desde un HTML.
-//
-// O sea que el documento descargado lleva la fuente pedida, pero la que Word va a mostrar
-// es la primera de la lista que ese computador tenga instalada. Y por eso cada fuente trae
-// una del sistema con el mismo carácter como segunda: si no está Lora, se ve Georgia, que
-// es una serif de lectura parecida.
-//
-// Y esa segunda es la que hace que el documento NO se vea roto en la máquina de quien lo
-// abre. Sin ella, en un computador sin la fuente, el texto cae en una tipografía de sistema
-// que no se parece en nada, y el documento pierde toda la apariencia.
-//
-// -------------------------------------------------------------------
-// Y POR QUÉ ESTAS SEIS
-// --------------------
-//
-// Con serif para el cuerpo del texto, que es lo que se lee seguido en un contrato de
-// veinte artículos:
-//
-//     Lora              la más cómoda de las tres para texto largo
-//     Playfair Display  contraste alto, para títulos
-//     Crimson Text      serif de lectura rápida, la mejor para artículos densos
-//
-// Con sans para títulos y rótulos, que es lo que se escanea:
-//
-//     Montserrat        la que ya usa este proyecto en sus menús
-//     Source Sans 3     limpia, para rótulos largos
-//     Inter             la más neutra, para datos
-const FUENTES_PLANTILLA = [
-  { valor: 'Lora', respaldo: 'Georgia,serif' },
-  { valor: 'Playfair Display', respaldo: 'Georgia,serif' },
-  { valor: 'Crimson Text', respaldo: 'Georgia,serif' },
-  { valor: 'Montserrat', respaldo: 'Arial,sans-serif' },
-  { valor: 'Source Sans 3', respaldo: 'Arial,sans-serif' },
-  { valor: 'Inter', respaldo: 'Arial,sans-serif' },
-];
-
-// -------------------------------------------------------------------
-// EL DESPLEGABLE
-// -------------------------------------------------------------------
-// Y se arma por código, no en el HTML, para que la lista de arriba sea la única.
-function llenarFuentesPlantilla() {
-  const sel = document.getElementById('plantillaFuente');
-  if (!sel) return;
-
-  // Y si ya está armado no se rehace: "abrirEditorPlantilla" se llama cada vez que se edita
-  // una plantilla y rehacer el desplegable cada vez pierde la fuente que el usuario tenía
-  // elegida a medio cambiar.
-  if (sel.dataset.lleno === '1') return;
-
-  sel.innerHTML = '<option value="">Fuente</option>' +
-    FUENTES_PLANTILLA
-      .map(f => '<option value="' + escHtml(f.valor) + '">' + escHtml(f.valor) + '</option>')
-      .join('');
-
-  sel.dataset.lleno = '1';
-}
-
-// -------------------------------------------------------------------
-// APLICARLA
-// -------------------------------------------------------------------
-// Y con "styleWithCSS" en falso ANTES de aplicar la fuente, y no después.
-//
-// La diferencia se ve: con estilos en falso sale UN "<font face=...>" por la selección, y con
-// estilos entrue sale un "<span style=...>" por renglón. Y el "<span>" es el problema: se
-// multiplica con cada cambio de fuente y con cada pegada de Word, y a la tercera ya hay
-// veinte capas anidadas y el documento pesa el doble sin que se vea.
-//
-// Y el ORDEN importa. Ponerlo después no deshace lo que ya hizo el comando anterior: cada
-// "execCommand" usa el valor que había cuando empezó. Así que puesto después no sirve de
-// nada, y seemed que sí.
-//
-// Medido en el navegador, con el diálogo abierto:
-//
-//     estilo en falso   <p><font face="Lora">texto</font></p>
-//     estilo en true    <p><span style="font-family: Montserrat;">texto</span></p>
-function aplicarFuentePlantilla(valor) {
-  if (!valor) return;
-  document.execCommand('styleWithCSS', false, false);
-  document.execCommand('fontName', false, valor);
-}
-
-// -------------------------------------------------------------------
-// Y PARA EL DOCUMENTO DESCARGADO
-// -------------------------------
-// Que es donde las seis son una restriction real y no una preferencia: el archivo que se
-// baja lleva, al lado de cada fuente, su respaldo del sistema. Si el documento se arma sin
-// eso, el que lo abre en un computador sin las fuentes ve una tipografía cualquiera.
-//
-// Y por eso la función está acá y no en el CSS de la plantilla: la necesita el generador
-// del archivo, que es JavaScript.
-function reglaFuentesDocumento(regla) {
-  FUENTES_PLANTILLA.forEach(f => {
-    regla += (regla && !/^\s*$/.test(regla)) ? '\n' : '';
-    regla += f.valor + ', ' + f.respaldo;
-  });
-  return regla;
-}
-
-// LAS VARIABLES CON EL DATO PUESTO
-// ====================================
-//
-// -------------------------------------------------------------------
-// QUÉ CAMBIA
-// ---------
-//
-// Antes la lista decía NOMBRE, RUT, CARGO... y nada más. Con eso hay que ir a buscar el dato
-// a la ficha del trabajador, copiarlo, y pegarlo en el documento. Y si se pega mal, o se pega
-// el de otra persona, el documento sale con el dato de otro.
-//
-// Ahora cada variable muestra SU valor, para el trabajador que esté elegido. Y es un clic
-// para insertarla en la plantilla.
-//
-// -------------------------------------------------------------------
-// Y LA LISTA TIENE QUE SEGUIR SIENDO UNA SOLA
-// --------------------------------------------
-//
-// Hay tres fuentes y van en el mismo bloque, en este orden:
-//
-//   1. LA EMPRESA     nombre, RUT, dirección, teléfono, giro
-//   2. EL TRABAJADOR  del "datos_para_plantilla": nombre, RUT, cargo, fecha...
-//   3. LOS CAMPOS PROPIOS, de la empresa
-//
-// Y en UN bloque y no en tres, porque el que escribe la plantilla no puede estar adivinando
-// de qué sección salió la variable. Y la empresa va arriba porque es lo primero que se llena.
-//
-// -------------------------------------------------------------------
-// Y POR QUÉ UN "title" CON EL VALOR
-// ---------------------------------
-//
-// Porque el valor completo puede ser largo —una dirección, un correo— y si se muestra entero
-// la lista deja de ser una lista y pasa a ser un muro. Y el "title" lo tiene entero al pasar
-// el mouse, sin sacar el valor de la vista.
-//
-// -------------------------------------------------------------------
-// Y POR QUÉ EL VALOR VACÍO SE MARCA
-// ---------------------------------
-//
-// Un "[NOMBRE]" con nada al lado y un "[NOMBRE]" con un dato se ven distinto al pasar el
-// mouse, pero iguales de lejos. Y el que se escribe en mayúsculas con un guion al lado es un
-// "[RUT]" que todavía no tiene nada.
-//
-// Y NO se esconde: se muestra. Un campo vacío que no se ve es un campo que se llena a mano.
-function textoSiVacio(v) {
-  const s = (v == null ? '' : String(v)).trim();
-  return s ? s : '— sin dato —';
-}
-
-// Y el "title" de una variable: el nombre del campo arriba, el dato abajo. Y arriba en
-// monoespaciada, porque eso es lo que va a ir en el documento.
-function filaVariable(clave, valor, etiqueta) {
-  return '<div class="campoPropio varConDato" title="' + escHtml(etiqueta + ': ' + textoSiVacio(valor)) + '"' +
-      ' data-var="' + escHtml(clave) + '" role="button" tabindex="0">' +
-      '<span class="cod">' + escHtml('[' + clave + ']') + '</span>' +
-      '<span class="et">' + escHtml(textoSiVacio(valor)) + '</span>' +
-      (!String(valor || '').trim() ? '<span class="sinDato">vacío</span>' : '') +
-    '</div>';
-}
-
-// -------------------------------------------------------------------
-// ARMAR LA LISTA
-// -------------------------------------------------------------------
-function pintarVariablesConDatos(datos, empresa) {
-  const caja = document.getElementById('plantillaVariables');
-  if (!caja) return;
-
-  const filas = [];
-
-  // -----------------------------------------------------------------
-  // 1. LA EMPRESA
-  // -----------------------------------------------------------------
-  // Y sale de "empresas", que ya está en memoria con nombre, RUT, giro, dirección, teléfono
-  // y correo. No hace falta ninguna consulta extra: la página ya la hizo para otros menús.
-  //
-  // Y con el prefijo "EMPRESA_", que es el que la plantilla de contrato ya usaba. O sea que
-  // los documentos que están armados con esos nombres siguen funcionando sin tocarlos.
-  const e = empresa || {};
-  [
-    ['EMPRESA', e.nombre],
-    ['RUT_EMPRESA', e.rut],
-    ['DIRECCION_EMPRESA', e.direccion],
-    ['TELEFONO_EMPRESA', e.telefono],
-    ['CORREO_EMPRESA', e.email],
-    ['GIRO_EMPRESA', e.giro],
-  ].forEach((x) => filas.push(filaVariable(x[0], x[1], x[0].replace(/_/g, ' ').toLowerCase())));
-
-  // -----------------------------------------------------------------
-  // 2. EL TRABAJADOR
-  // -----------------------------------------------------------------
-  // Y en el orden en que se leen los datos de una persona: nombre, RUT, teléfono, cargo.
-  // Que sea el orden natural y no el alfabético, porque así se busca lo que uno está
-  // escribiendo.
-  const d = datos || {};
-  [
-    ['NOMBRE', d.NOMBRE],
-    ['NOMBRES', d.NOMBRES],
-    ['APELLIDO_PATERNO', d.APELLIDO_PATERNO],
-    ['APELLIDO_MATERNO', d.APELLIDO_MATERNO],
-    ['CODIGO', d.CODIGO],
-    ['RUT', d.RUT],
-    ['TELEFONO', d.TELEFONO],
-    ['CORREO', d.CORREO],
-    ['DIRECCION', d.DIRECCION],
-    ['CARGO', d.CARGO],
-    ['ESPECIALIDAD', d.ESPECIALIDAD],
-    ['FECHA_INGRESO', d.FECHA_INGRESO],
-    ['AFP_CODIGO', d.AFP_CODIGO],
-    ['AFP_NOMBRE', d.AFP_NOMBRE],
-  ].forEach((x) => filas.push(filaVariable(x[0], x[1], 'del trabajador')));
-
-  // -----------------------------------------------------------------
-  // 3. LOS CAMPOS PROPIOS DE LA EMPRESA
-  // -----------------------------------------------------------------
-  // Y acá está el detalle que hace que la lista no tenga que pedirle nada a la base: la clave
-  // que trae "datos_para_plantilla" para los campos propios es la clave CRUDA, sin el prefijo
-  // de empresa. Porque con la forma unificada "[LICENCIA]" el prefijo ya no se usa.
-  Object.keys(d).forEach((k) => {
-    if (['NOMBRE','NOMBRES','APELLIDO_PATERNO','APELLIDO_MATERNO','CODIGO','RUT','TELEFONO',
-         'CORREO','DIRECCION','CARGO','ESPECIALIDAD','FECHA_INGRESO','AFP_CODIGO','AFP_NOMBRE',
-         'FOTO_CASUAL','FOTO_SEGURIDAD','FIRMA'].indexOf(k) >= 0) return;
-    const clave = k.replace(/^\d+-/, '');
-    filas.push(filaVariable(clave, d[k], 'campo propio'));
-  });
-
-  if (!filas.length) {
-    caja.innerHTML = '<small style="color:var(--muted)">Elegí un trabajador para ver los datos.</small>';
-    return;
-  }
-  caja.innerHTML = filas.join('');
-}
-
-// -------------------------------------------------------------------
-// INSERTAR LA VARIABLE EN LA PLANTILLA
-// -------------------------------------------------------------------
-// Y con "execCommand" y no con el contenido del editor: reemplazar todo el contenido por el
-// texto con la variable pegada BORRARÍA lo que el usuario ya escribió.
-function insertarVariableEnPlantilla(clave) {
-  const ed = document.getElementById('plantillaEditor');
-  if (!ed) return;
-  const texto = '[' + clave + ']';
-  // Y en un "try": si el navegador ya no lo soporta, se avisa en vez de fallar en silencio.
-  try {
-    ed.focus();
-    if (!document.execCommand('insertText', false, texto)) throw new Error('no');
-  } catch (e) {
-    alert('Este navegador no deja escribir en el cursor.\n\nPegá la variable a mano: ' + texto);
-  }
-  try { marcarContenidoCambiado(); } catch (e) {}
-}
-
-// -------------------------------------------------------------------
-// Y QUE SE LLAME AL CAMBIAR DE TRABAJADOR
-// -------------------------------------------------------------------
-async function cargarVariablesConDatos() {
-  const selW = document.getElementById('descargaTrabajador');
-  const selE = document.getElementById('camposPropiosEmpresa');
-  if (!selW) return;
-
-  const code = selW.value;
-  const empresaId = selE && selE.value ? parseInt(selE.value, 10) : null;
-
-  if (!code) {
-    pintarVariablesConDatos(null, empresaDeLosDatos());
-    return;
-  }
-
-  const { data, error } = await window.supabaseClient.rpc('datos_para_plantilla', {
-    p_trabajador_code: code,
-    p_empresa_id: empresaId,
-  });
-  if (error) {
-    const caja = document.getElementById('plantillaVariables');
-    if (caja) caja.innerHTML = '<small style="color:var(--danger)">' + escHtml(error.message) + '</small>';
-    return;
-  }
-  pintarVariablesConDatos(data || {}, empresaDeLosDatos());
-}
-
-// Y la empresa que hay que mirar es la del selector de campos propios, que es la misma que
-// está elegida arriba. Y si ese selector no está, la primera de la lista.
-function empresaDeLosDatos() {
-  const sel = document.getElementById('camposPropiosEmpresa');
-  const id = sel && sel.value ? sel.value : null;
-  const lista = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
-  return lista.find(x => String(x.id) === String(id)) || lista[0] || null;
-}
-
-// -------------------------------------------------------------------
-// Y EL CLIC
-// -------------------------------------------------------------------
-// Y con delegación en el contenedor, no un escuchador por fila: las filas se repintan cada
-// vez que se cambia de trabajador, y un escuchador por fila apunta a filas que ya no existen.
-document.addEventListener('click', (e) => {
-  const fila = e.target && e.target.closest ? e.target.closest('.varConDato') : null;
-  if (!fila) return;
-  insertarVariableEnPlantilla(fila.getAttribute('data-var') || '');
-});
+
+
+// BAJAR LA PLANTILLA EN BLANCO
+// ====================================================================
+//
+// Un ".doc" de Word es un HTML con otra extensión. Por eso se puede generar desde el navegador
+// sin ninguna librería, que es lo único que hay acá.
+//
+// Y el manual viaja DENTRO del archivo. Un manual que está solo en la pantalla sirve mientras se
+// está en la pantalla; el que va en el archivo sirve cuando alguien se lo pasa a otro.
+// Ver [word-01].
+//
+// Y la lista de variables queda arriba para que nadie tenga que acordarse de cómo se llaman, y se
+// borra con la línea que dice "FIN DE LAS INSTRUCCIONES". Ver [word-03].
+
+// -------------------------------------------------------------------
+// EL ESQUELETO DEL DOCUMENTO
+// -------------------------------------------------------------------
+// Va en una constante y no adentro de la función, porque es una constante: no cambia nunca. Y
+// afuera se puede leer sin ejecutar nada, que es lo que hace la comprobación.
+//
+// Y con estilos dentro, porque Word los respeta. Sin estilo el documento sale como texto pelado
+// y la persona tiene que armarlo entero, que es al revés de lo que se pidió.
+const ESQUELETO_PLANTILLA = [
+  '<h1 style="text-align:center;font-size:16pt;font-family:Calibri,Arial,sans-serif">[NOMBRE]</h1>',
+  '<p style="text-align:center;font-size:11pt;font-family:Calibri,Arial,sans-serif">[CARGO] &mdash; [EMPRESA]</p>',
+
+  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">1. IDENTIFICACIÓN</h2>',
+  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">El trabajador <b>[NOMBRE]</b>, cédula de identidad [RUT],',
+  'con domicilio en [DIRECCION], teléfono [TELEFONO], correo [CORREO], presta servicios a',
+  '<b>[EMPRESA]</b>, RUT [RUT_EMPRESA], con domicilio en [DIRECCION_EMPRESA].</p>',
+  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">Su cargo es [CARGO], y corresponde al grupo',
+  '[ESPECIALIDAD]. Ingresó el [FECHA_INGRESO], en el centro de costo [CENTRO].</p>',
+  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">Se encuentra afiliado a [AFP_NOMBRE],',
+  'código [AFP_CODIGO]. Es trabajador de tipo [TIPO_TRABAJADOR].</p>',
+
+  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">2. DECLARACIÓN</h2>',
+  '<p style="font-family:Calibri,Arial,sans-serif;font-size:11pt">El trabajador declara que los datos anteriores son ciertos,',
+  'y que cualquier cambio de ellos será oportunamente comunicado a [EMPRESA]. Declara además',
+  'haber leído y aceptado el reglamento interno de la empresa.</p>',
+
+  '<h2 style="font-size:13pt;margin-top:24pt;font-family:Calibri,Arial,sans-serif">3. FIRMA</h2>',
+  '<p style="margin-top:44pt;font-family:Calibri,Arial,sans-serif;font-size:11pt">_______________________________<br>',
+  '[CODIGO] &mdash; [NOMBRE]<br>[EMPRESA], [FECHA]</p>',
+].join('');
+
+// -------------------------------------------------------------------
+// LAS VARIABLES QUE PUEDEN PONERSE
+// -------------------------------------------------------------------
+// Y es la lista completa, con lo que se eligió que existe: nombre entero [NOMBRE] y no
+// [NOMBRE_COMPLETO]. Ver [nombres-01].
+const VARIABLES_DEL_MODELO = [
+  ['[CODIGO]', 'Código de 4 dígitos'],
+  ['[RUT]', 'RUT del trabajador'],
+  ['[NOMBRES]', 'Nombres'],
+  ['[APELLIDO_PATERNO]', 'Apellido paterno'],
+  ['[APELLIDO_MATERNO]', 'Apellido materno'],
+  ['[NOMBRE]', 'El nombre entero, armado con los cuatro de arriba'],
+  ['[DIRECCION]', 'Dirección'],
+  ['[TELEFONO]', 'Teléfono'],
+  ['[CORREO]', 'Correo'],
+  ['[EMPRESA]', 'Nombre de la empresa'],
+  ['[RUT_EMPRESA]', 'RUT de la empresa'],
+  ['[DIRECCION_EMPRESA]', 'Dirección de la empresa'],
+  ['[TELEFONO_EMPRESA]', 'Teléfono de la empresa'],
+  ['[CORREO_EMPRESA]', 'Correo de la empresa'],
+  ['[GIRO_EMPRESA]', 'A qué se dedica la empresa'],
+  ['[CARGO]', 'Cargo'],
+  ['[ESPECIALIDAD]', 'Cargo del kit'],
+  ['[CENTRO]', 'Centro de costo o nombre de la obra'],
+  ['[FECHA_INGRESO]', 'Fecha de ingreso'],
+  ['[TIPO_TRABAJADOR]', 'Interno o subcontrato'],
+  ['[AFP_CODIGO]', 'Código de la AFP'],
+  ['[AFP_NOMBRE]', 'Nombre de la AFP'],
+  ['[FECHA]', 'Fecha de hoy'],
+];
+
+// -------------------------------------------------------------------
+// EL MANUAL, QUE VIAJA EN EL ARCHIVO
+// -------------------------------------------------------------------
+const MANUAL_PLANTILLA = [
+  '<!--',
+  'COMO SE USA ESTA PLANTILLA',
+  '==========================',
+  '',
+  '1. BORRAR TODO DESDE ACÁ HASTA LA LÍNEA "FIN DE LAS INSTRUCCIONES". Incluye este bloque y',
+  '   la lista de variables de más abajo. Se borra porque si queda, sale impreso en cada',
+  '   documento que se arme con esta plantilla.',
+  '',
+  '2. ARMAR EL DOCUMENTO COMO UN DOCUMENTO NORMAL.',
+  '',
+  '3. DONDE VA UN DATO DEL TRABAJADOR, ESCRIBIR EL NOMBRE DEL CAMPO ENTRE CORCHETES Y EN',
+  '   MAYÚSCULAS. Por ejemplo:',
+  '',
+  '       Sr. [APELLIDO_PATERNO] [APELLIDO_MATERNO], RUT [RUT]',
+  '',
+  '   Y NO con llaves. Antes se usaba {{nombre}} y ya no: la base reconocía esa forma y el',
+  '   navegador no la reemplazaba, así que el documento salía con las llaves escritas y sin',
+  '   ningún dato.',
+  '',
+  '4. GUARDAR COMO "Word 97-2003 (.doc)". NO como ".docx": un ".docx" es un archivo comprimido',
+  '   y desde el sistema no se puede abrir.',
+  '',
+  '5. VOLVER, ABRIR LA PLANTILLA, ELEGIR EL ARCHIVO, Y GUARDAR.',
+  '',
+  'CUIDADO CON TRES COSAS DE WORD',
+  '------------------------------',
+  '',
+  'a) LA CORRECCIÓN AUTOMÁTICA. Word cambia los corchetes y las mayúsculas mientras se escribe,',
+  '   y "[NOMBRE]" se vuelve "[Nombre]" y deja de reconocerse. Si pasa: escribirlo en otro',
+  '   lado, copiarlo, y pegarlo donde va.',
+  '',
+  'b) NO PARTIR UNA VARIABLE EN DOS. Si "[APELLIDO_PATERNO]" queda cortado entre dos párrafos,',
+  '   el corchete de cierre cae en otro lado y no se reconoce. Va entera, en un solo pedazo.',
+  '',
+  'c) SIN ESPACIOS ADENTRO. "[ NOMBRE ]" no sirve. "[NOMBRE]" sí.',
+  '',
+  'FIN DE LAS INSTRUCCIONES',
+  '-->',
+  '',
+].join('\n');
+
+function descargarPlantillaModelo() {
+  const lista = VARIABLES_DEL_MODELO.map(function (v) {
+    return '  <tr><td style="width:34%;font-family:Consolas,monospace">' + v[0] +
+           '</td><td>' + v[1] + '</td></tr>';
+  }).join('\n');
+
+  const documento = MANUAL_PLANTILLA +
+    '<h2 style="font-family:Calibri,Arial,sans-serif;font-size:13pt">Variables disponibles: borrar antes de usar la plantilla</h2>\n' +
+    '<table style="width:100%;border-collapse:collapse;font-family:Calibri,Arial,sans-serif;font-size:11pt">\n' +
+    lista + '\n</table>\n' +
+    '<p style="font-family:Calibri,Arial,sans-serif;font-weight:bold">FIN DE LAS INSTRUCCIONES</p>\n' +
+    '<hr>\n' +
+    ESQUELETO_PLANTILLA;
+
+  const completo = '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
+    '<title>Plantilla</title></head><body style="font-family:Calibri,Arial,sans-serif">' +
+    documento + '</body></html>';
+
+  const url = URL.createObjectURL(new Blob([completo], { type: 'application/msword' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'plantilla.doc';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  const aviso = document.getElementById('plantillaError');
+  if (aviso) aviso.textContent = 'Descargada plantilla.doc. Ábrela en Word, edítala y vuelve a subirla.';
+}
+
+// -------------------------------------------------------------------
+// LEER UN ARCHIVO QUE SALIÓ DE WORD
+// -------------------------------------------------------------------
+// Word guarda un documento dentro de un HTML entero: con su "<head>", con sus estilos "mso-" y
+// con su "<body>" lleno de atributos larguísimos. Si eso entra tal cual en el editor, el editor
+// muestra la cabeza del documento en lugar del documento.
+//
+// Y hay basura que Word agrega y que no significa nada: las etiquetas del espacio de nombres de
+// Office, que son "<o:p>" con dos puntos y sin cierre, y los comentarios condicionales. Las dos
+// cosas se quitan antes, porque se ven en pantalla y no le hacen nada al formato.
+function htmlDesdeArchivoDeWord(texto) {
+  let t = String(texto || '');
+
+  // Y la cabeza: los estilos se guardan aparte, y al editor entra solo el cuerpo.
+  let estilos = '';
+  t = t.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, function (_, css) { estilos += css; return ''; });
+  t = t.replace(/<link[^>]*>/gi, '').replace(/<meta[^>]*>/gi, '');
+
+  // Y el cuerpo, si viene envuelto.
+  const cuerpo = t.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (cuerpo) t = cuerpo[1];
+
+  // Y los comentarios condicionales de Word, primero: a veces traen "<style>" adentro que el
+  // paso anterior no vio, y al quitarlos se van.
+  t = t.replace(/<!--[\s\S]*?-->/g, '');
+  t = t.replace(/<\/?[a-z]+:[^>]*>/gi, '');
+  t = t.replace(/<o:p\s*\/?>/gi, '');
+
+  // Y los "\r" sueltos: en Windows Word los mete entre "<p>" y "</p>", y en el editor salen
+  // como un renglón en blanco de más.
+  t = t.replace(/\r/g, '');
+
+  return { html: t.trim(), css: estilos.trim() };
+}
+
+function subirPlantillaArchivo() {
+  const archivo = document.getElementById('plantillaArchivo');
+  const editor = document.getElementById('plantillaEditor');
+  const aviso = document.getElementById('plantillaError');
+  if (!archivo || !archivo.files || !archivo.files[0]) {
+    if (aviso) aviso.textContent = 'Elegí primero un archivo.';
+    return;
+  }
+  const f = archivo.files[0];
+
+  // Y el ".docx" se dice que no, en vez de aceptarlo y no poder leerlo.
+  if (/\.docx$/i.test(f.name)) {
+    aviso.textContent = 'Un ".docx" no se puede abrir desde acá. En Word: Archivo, Guardar como, ' +
+      '"Word 97-2003 (.doc)". Es el mismo documento pero se puede leer.';
+    archivo.value = '';
+    return;
+  }
+
+  const lector = new FileReader();
+  lector.onload = function () {
+    const salida = htmlDesdeArchivoDeWord(lector.result);
+    if (!salida.html) {
+      aviso.textContent = 'El archivo está vacío, o no tiene contenido dentro.';
+      return;
+    }
+    editor.innerHTML = salida.html;
+    const conEstilo = salida.css ? ' con su estilo.' : ' SIN estilo: si se ve feo, ' +
+      'faltó guardar el bloque de estilos en el archivo.';
+    aviso.textContent = 'Cargado: ' + f.name + conEstilo +
+      ' Revisá cómo quedó, y después apretá Guardar.';
+    archivo.value = '';
+  };
+  lector.onerror = function () {
+    aviso.textContent = 'No se pudo leer el archivo.';
+  };
+  lector.readAsText(f);
+}
+
+// -------------------------------------------------------------------
+// Y CUÁNTAS VARIABLES QUEDARON ESCRITAS
+// -------------------------------------------------------------------
+// Y al subir, avisar cuántas hay. Un archivo que sube con una variable mal escrita se guarda sin
+// que nadie se entere, y el día que se baja el documento aparecen los corchetes en el papel.
+function contarVariablesDelEditor() {
+  const editor = document.getElementById('plantillaEditor');
+  if (!editor) return 0;
+  const encontradas = editor.innerHTML.match(/\[(?:CAMPO:)?[A-Za-z0-9_-]+\]/g) || [];
+  return [...new Set(encontradas)].length;
+}
+
+
+// -------------------------------------------------------------------
+// EL CSS DEL DOCUMENTO, PARA QUE SE VEA COMO EN WORD
+// -------------------------------------------------------------------
+// Y se limpian las reglas que no cambian nada en pantalla. El que Word guarda trae reglas "mso-*",
+// "@page WordSection*", y clases vacías que solo le sirven a él.
+//
+// Y no se puede intentar entenderlas: no hay un analizador de CSS en el proyecto. Lo que se puede
+// es mirar el nombre de cada regla y decidir por lo que dice. Ver [ver-02].
+//
+// Y se quedan solo las propiedades que se ven: familia, tamaño, alto de línea, márgenes, texto,
+// tablas y bordes.
+function cssDeDocumentoParaPantalla(css) {
+  let t = String(css || '');
+
+  // Y primero, las reglas que enteras no sirven.
+  t = t.replace(/@page[^{}]*\{[\s\S]*?\}/gi, '');
+  t = t.replace(/@(font-face|import|charset)[^;{]*;?/gi, '');
+
+  const reglas = [];
+
+  // Y después, regla por regla.
+  const re = /([^{}]+)\{([^{}]*)\}/g;
+  let m;
+  while ((m = re.exec(t)) !== null) {
+    const sel = m[1].trim();
+    if (!sel) continue;
+
+    // Y las que son del propio Word, por el nombre.
+    if (/\bmso[-:]/i.test(sel) || /WordSection/i.test(sel) || sel.indexOf('Mso') === 0) continue;
+
+    const SE_VEN = /^(?:font-family|font-size|font-weight|font-style|line-height|letter-spacing|color|background-color|margin|padding|text-align|text-indent|text-decoration|vertical-align|white-space|width|border|border-collapse|border-spacing|page-break|list-style|text-transform|clear|display)\s*:/i;
+
+    const props = m[2].split(';')
+      .map((x) => x.trim())
+      .filter((x) => x && SE_VEN.test(x))
+      // Y se descarta el "mso-" que se cuela en una propiedad buena:
+      // "border:solid 1.0pt mso-..." no es una propiedad válida.
+      .filter((x) => !/\bmso-/i.test(x));
+
+    if (props.length) reglas.push(sel + ' {' + props.join(';') + '}');
+  }
+
+  return reglas.join('\n');
+}
+
+// -------------------------------------------------------------------
+// ARMAR EL DOCUMENTO COMPLETO
+// -------------------------------------------------------------------
+// Y es lo mismo que baja el ".doc": una página entera, con su "<head>" y su "<style>". Por eso
+// lo que se ve en la vista previa y lo que sale en Word son la misma cosa. Ver [ver-01].
+//
+// Y la medida sale de la "@page" del archivo de Word, si la trae. Un documento que se armó para
+// carta no se muestra en A4, ni al revés.
+function documentoCompletoDesdeHtml(html, css) {
+  const estilos = cssDeDocumentoParaPantalla(css);
+  const pagina = String(css || '').match(/@page[^{]*\{[\s\S]*?size\s*:\s*([^;}]+)/i);
+  const medida = pagina ? pagina[1].trim() : '21cm 29.7cm';
+
+  return '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">' +
+    '<title>Documento</title>' +
+    '<style>@page{size:' + medida + ';margin:2.5cm 2cm;}' + estilos + '</style>' +
+    '</head><body>' + String(html || '').trim() + '</body></html>';
+}
+
+// -------------------------------------------------------------------
+// LEER UN ARCHIVO QUE SALIÓ DE WORD, Y QUE VUELVA ENTERO
+// -------------------------------------------------------------------
+// Y ahora devuelve el "<style>", que antes se guardaba en una variable que no se guardaba en
+// ningún lado: el estilo se perdía entre leer el archivo y guardar la plantilla. Y es el estilo
+// lo que hace que el documento se vea como se ve en Word.
+//
+// Y se sigue sacando lo que Word mete y no sirve: la "<head>" con sus "<meta>", los "<link>", las
+// etiquetas del espacio de nombres de Office y los comentarios condicionales.
+function documentoDesdeArchivoDeWord(texto) {
+  let t = String(texto || '');
+  const css = (t.match(/<style[^>]*>([\s\S]*?)<\/style>/i) || [])[1] || '';
+
+  // Y el "<style>" se queda donde está, y la "<head>" se le saca alrededor.
+  t = t.replace(/<head[^>]*>/gi, '').replace(/<\/head>/gi, '');
+  t = t.replace(/<link[^>]*>/gi, '').replace(/<meta[^>]*>/gi, '');
+
+  // Y el cuerpo.
+  const cuerpo = t.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+  if (cuerpo) t = cuerpo[1];
+
+  // Y la basura de Office.
+  t = t.replace(/<!--[\s\S]*?-->/g, '');
+  t = t.replace(/<\/?[a-z]+:[^>]*>/gi, '');
+  t = t.replace(/<o:p\s*\/?>/gi, '');
+  t = t.replace(/\r/g, '');
+
+  return { html: t.trim(), css: css.trim() };
+}
+
+// -------------------------------------------------------------------
+// LA VISTA PREVIA, EN UN "iframe"
+// -------------------------------------------------------------------
+// Y en un "iframe", no en un "<div>". Porque los estilos del documento se meterían en la página
+// de la aplicación: un "body{margin:0}" del documento borra los márgenes de la página, y un "h1"
+// del documento se vuelve el "h1" de la aplicación.
+//
+// En un marco el documento es un documento aparte. Es literalmente lo mismo que baja el ".doc":
+// la misma cosa que Word abre es la que se ve acá. Y no puede tocar la aplicación, porque no
+// comparte nada con ella. Ver [ver-01].
+//
+// Y con "sandbox" sin scripts y sin formularios, porque el contenido viene de un archivo que sube
+// una persona. Y con "allow-same-origin" para poder leer el alto, que es lo que hace que la hoja
+// tenga el alto del papel y no el de la pantalla.
+function verDocumentoEnHoja(caja, html, css, alto) {
+  if (!caja) return;
+  const doc = documentoCompletoDesdeHtml(html, css);
+
+  caja.innerHTML =
+    '<iframe class="docHoja" title="Vista previa del documento" ' +
+      'sandbox="allow-same-origin" style="height:' + (alto || 1120) + 'px"></iframe>';
+
+  // Y el "srcdoc" se pone DESPUÉS, con "setAttribute", y no en el "innerHTML" de arriba. En el
+  // "innerHTML" el documento entero tendría que ir escapado como atributo, con las comillas
+  // dobles cambiadas, y es fácil que una se escape mal y cierre el atributo antes de tiempo.
+  const marco = caja.querySelector('iframe');
+  if (marco) marco.setAttribute('srcdoc', doc);
+}
+
+
+// LAS SEIS FUENTES DE LAS PLANTILLAS
+// =====================================
+//
+// -------------------------------------------------------------------
+// POR QUÉ ESTA LISTA VIVE ACÁ Y NO EN EL HTML
+// -----------------------------------------
+//
+// El desplegable del editor se arma con esta lista. Y si la lista estuviera escrita en el
+// HTML, habría dos lugares donde cambiar las fuentes: el desplegable y la plantilla
+// general. Y algún día se cambiaría en uno y no en el otro, y el editor ofrecería una
+// fuente que la plantilla no tiene.
+//
+// O sea que la lista tiene que estar en UN solo lugar, y el que se lee desde los dos
+// lados es el JavaScript.
+//
+// -------------------------------------------------------------------
+// POR QUÉ SEIS Y NO UN CATÁLOGO
+// ----------------------------
+//
+// Porque "elegante" sin criterio es un catálogo entero, y con veinte fuentes disponibles
+// cada documento sale con una distinta y la empresa deja de verse como empresa.
+//
+// Con seis hay una regla que se puede decir de una vez: una serif para el texto que se lee
+// seguido, y una sans para lo que se escanea. Y si un día hay que agregar una, se agrega
+// acá y en la plantilla, y son dos lugares.
+//
+// -------------------------------------------------------------------
+// Y LA RAZÓN TÉCNICA, QUE ES LA IMPORTANTE
+// ----------------------------------------
+//
+// WORD NO DESCARGA FUENTES DE GOOGLE. La fuente viaja con el archivo solo si va EMBEBIDA, y
+// Word no la embebe desde un HTML.
+//
+// O sea que el documento descargado lleva la fuente pedida, pero la que Word va a mostrar
+// es la primera de la lista que ese computador tenga instalada. Y por eso cada fuente trae
+// una del sistema con el mismo carácter como segunda: si no está Lora, se ve Georgia, que
+// es una serif de lectura parecida.
+//
+// Y esa segunda es la que hace que el documento NO se vea roto en la máquina de quien lo
+// abre. Sin ella, en un computador sin la fuente, el texto cae en una tipografía de sistema
+// que no se parece en nada, y el documento pierde toda la apariencia.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ ESTAS SEIS
+// --------------------
+//
+// Con serif para el cuerpo del texto, que es lo que se lee seguido en un contrato de
+// veinte artículos:
+//
+//     Lora              la más cómoda de las tres para texto largo
+//     Playfair Display  contraste alto, para títulos
+//     Crimson Text      serif de lectura rápida, la mejor para artículos densos
+//
+// Con sans para títulos y rótulos, que es lo que se escanea:
+//
+//     Montserrat        la que ya usa este proyecto en sus menús
+//     Source Sans 3     limpia, para rótulos largos
+//     Inter             la más neutra, para datos
+const FUENTES_PLANTILLA = [
+  { valor: 'Lora', respaldo: 'Georgia,serif' },
+  { valor: 'Playfair Display', respaldo: 'Georgia,serif' },
+  { valor: 'Crimson Text', respaldo: 'Georgia,serif' },
+  { valor: 'Montserrat', respaldo: 'Arial,sans-serif' },
+  { valor: 'Source Sans 3', respaldo: 'Arial,sans-serif' },
+  { valor: 'Inter', respaldo: 'Arial,sans-serif' },
+];
+
+// -------------------------------------------------------------------
+// EL DESPLEGABLE
+// -------------------------------------------------------------------
+// Y se arma por código, no en el HTML, para que la lista de arriba sea la única.
+function llenarFuentesPlantilla() {
+  const sel = document.getElementById('plantillaFuente');
+  if (!sel) return;
+
+  // Y si ya está armado no se rehace: "abrirEditorPlantilla" se llama cada vez que se edita
+  // una plantilla y rehacer el desplegable cada vez pierde la fuente que el usuario tenía
+  // elegida a medio cambiar.
+  if (sel.dataset.lleno === '1') return;
+
+  sel.innerHTML = '<option value="">Fuente</option>' +
+    FUENTES_PLANTILLA
+      .map(f => '<option value="' + escHtml(f.valor) + '">' + escHtml(f.valor) + '</option>')
+      .join('');
+
+  sel.dataset.lleno = '1';
+}
+
+// -------------------------------------------------------------------
+// APLICARLA
+// -------------------------------------------------------------------
+// Y con "styleWithCSS" en falso ANTES de aplicar la fuente, y no después.
+//
+// La diferencia se ve: con estilos en falso sale UN "<font face=...>" por la selección, y con
+// estilos entrue sale un "<span style=...>" por renglón. Y el "<span>" es el problema: se
+// multiplica con cada cambio de fuente y con cada pegada de Word, y a la tercera ya hay
+// veinte capas anidadas y el documento pesa el doble sin que se vea.
+//
+// Y el ORDEN importa. Ponerlo después no deshace lo que ya hizo el comando anterior: cada
+// "execCommand" usa el valor que había cuando empezó. Así que puesto después no sirve de
+// nada, y seemed que sí.
+//
+// Medido en el navegador, con el diálogo abierto:
+//
+//     estilo en falso   <p><font face="Lora">texto</font></p>
+//     estilo en true    <p><span style="font-family: Montserrat;">texto</span></p>
+function aplicarFuentePlantilla(valor) {
+  if (!valor) return;
+  document.execCommand('styleWithCSS', false, false);
+  document.execCommand('fontName', false, valor);
+}
+
+// -------------------------------------------------------------------
+// Y PARA EL DOCUMENTO DESCARGADO
+// -------------------------------
+// Que es donde las seis son una restriction real y no una preferencia: el archivo que se
+// baja lleva, al lado de cada fuente, su respaldo del sistema. Si el documento se arma sin
+// eso, el que lo abre en un computador sin las fuentes ve una tipografía cualquiera.
+//
+// Y por eso la función está acá y no en el CSS de la plantilla: la necesita el generador
+// del archivo, que es JavaScript.
+function reglaFuentesDocumento(regla) {
+  FUENTES_PLANTILLA.forEach(f => {
+    regla += (regla && !/^\s*$/.test(regla)) ? '\n' : '';
+    regla += f.valor + ', ' + f.respaldo;
+  });
+  return regla;
+}
+
+// LAS VARIABLES CON EL DATO PUESTO
+// ====================================
+//
+// -------------------------------------------------------------------
+// QUÉ CAMBIA
+// ---------
+//
+// Antes la lista decía NOMBRE, RUT, CARGO... y nada más. Con eso hay que ir a buscar el dato
+// a la ficha del trabajador, copiarlo, y pegarlo en el documento. Y si se pega mal, o se pega
+// el de otra persona, el documento sale con el dato de otro.
+//
+// Ahora cada variable muestra SU valor, para el trabajador que esté elegido. Y es un clic
+// para insertarla en la plantilla.
+//
+// -------------------------------------------------------------------
+// Y LA LISTA TIENE QUE SEGUIR SIENDO UNA SOLA
+// --------------------------------------------
+//
+// Hay tres fuentes y van en el mismo bloque, en este orden:
+//
+//   1. LA EMPRESA     nombre, RUT, dirección, teléfono, giro
+//   2. EL TRABAJADOR  del "datos_para_plantilla": nombre, RUT, cargo, fecha...
+//   3. LOS CAMPOS PROPIOS, de la empresa
+//
+// Y en UN bloque y no en tres, porque el que escribe la plantilla no puede estar adivinando
+// de qué sección salió la variable. Y la empresa va arriba porque es lo primero que se llena.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ UN "title" CON EL VALOR
+// ---------------------------------
+//
+// Porque el valor completo puede ser largo —una dirección, un correo— y si se muestra entero
+// la lista deja de ser una lista y pasa a ser un muro. Y el "title" lo tiene entero al pasar
+// el mouse, sin sacar el valor de la vista.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ EL VALOR VACÍO SE MARCA
+// ---------------------------------
+//
+// Un "[NOMBRE]" con nada al lado y un "[NOMBRE]" con un dato se ven distinto al pasar el
+// mouse, pero iguales de lejos. Y el que se escribe en mayúsculas con un guion al lado es un
+// "[RUT]" que todavía no tiene nada.
+//
+// Y NO se esconde: se muestra. Un campo vacío que no se ve es un campo que se llena a mano.
+function textoSiVacio(v) {
+  const s = (v == null ? '' : String(v)).trim();
+  return s ? s : '— sin dato —';
+}
+
+// Y el "title" de una variable: el nombre del campo arriba, el dato abajo. Y arriba en
+// monoespaciada, porque eso es lo que va a ir en el documento.
+function filaVariable(clave, valor, etiqueta) {
+  return '<div class="campoPropio varConDato" title="' + escHtml(etiqueta + ': ' + textoSiVacio(valor)) + '"' +
+      ' data-var="' + escHtml(clave) + '" role="button" tabindex="0">' +
+      '<span class="cod">' + escHtml('[' + clave + ']') + '</span>' +
+      '<span class="et">' + escHtml(textoSiVacio(valor)) + '</span>' +
+      (!String(valor || '').trim() ? '<span class="sinDato">vacío</span>' : '') +
+    '</div>';
+}
+
+// -------------------------------------------------------------------
+// ARMAR LA LISTA
+// -------------------------------------------------------------------
+function pintarVariablesConDatos(datos, empresa) {
+  const caja = document.getElementById('plantillaVariables');
+  if (!caja) return;
+
+  const filas = [];
+
+  // -----------------------------------------------------------------
+  // 1. LA EMPRESA
+  // -----------------------------------------------------------------
+  // Y sale de "empresas", que ya está en memoria con nombre, RUT, giro, dirección, teléfono
+  // y correo. No hace falta ninguna consulta extra: la página ya la hizo para otros menús.
+  //
+  // Y con el prefijo "EMPRESA_", que es el que la plantilla de contrato ya usaba. O sea que
+  // los documentos que están armados con esos nombres siguen funcionando sin tocarlos.
+  const e = empresa || {};
+  [
+    ['EMPRESA', e.nombre],
+    ['RUT_EMPRESA', e.rut],
+    ['DIRECCION_EMPRESA', e.direccion],
+    ['TELEFONO_EMPRESA', e.telefono],
+    ['CORREO_EMPRESA', e.email],
+    ['GIRO_EMPRESA', e.giro],
+  ].forEach((x) => filas.push(filaVariable(x[0], x[1], x[0].replace(/_/g, ' ').toLowerCase())));
+
+  // -----------------------------------------------------------------
+  // 2. EL TRABAJADOR
+  // -----------------------------------------------------------------
+  // Y en el orden en que se leen los datos de una persona: nombre, RUT, teléfono, cargo.
+  // Que sea el orden natural y no el alfabético, porque así se busca lo que uno está
+  // escribiendo.
+  const d = datos || {};
+  [
+    ['NOMBRE', d.NOMBRE],
+    ['NOMBRES', d.NOMBRES],
+    ['APELLIDO_PATERNO', d.APELLIDO_PATERNO],
+    ['APELLIDO_MATERNO', d.APELLIDO_MATERNO],
+    ['CODIGO', d.CODIGO],
+    ['RUT', d.RUT],
+    ['TELEFONO', d.TELEFONO],
+    ['CORREO', d.CORREO],
+    ['DIRECCION', d.DIRECCION],
+    ['CARGO', d.CARGO],
+    ['ESPECIALIDAD', d.ESPECIALIDAD],
+    ['FECHA_INGRESO', d.FECHA_INGRESO],
+    ['AFP_CODIGO', d.AFP_CODIGO],
+    ['AFP_NOMBRE', d.AFP_NOMBRE],
+  ].forEach((x) => filas.push(filaVariable(x[0], x[1], 'del trabajador')));
+
+  // -----------------------------------------------------------------
+  // 3. LOS CAMPOS PROPIOS DE LA EMPRESA
+  // -----------------------------------------------------------------
+  // Y acá está el detalle que hace que la lista no tenga que pedirle nada a la base: la clave
+  // que trae "datos_para_plantilla" para los campos propios es la clave CRUDA, sin el prefijo
+  // de empresa. Porque con la forma unificada "[LICENCIA]" el prefijo ya no se usa.
+  Object.keys(d).forEach((k) => {
+    if (['NOMBRE','NOMBRES','APELLIDO_PATERNO','APELLIDO_MATERNO','CODIGO','RUT','TELEFONO',
+         'CORREO','DIRECCION','CARGO','ESPECIALIDAD','FECHA_INGRESO','AFP_CODIGO','AFP_NOMBRE',
+         'FOTO_CASUAL','FOTO_SEGURIDAD','FIRMA'].indexOf(k) >= 0) return;
+    const clave = k.replace(/^\d+-/, '');
+    filas.push(filaVariable(clave, d[k], 'campo propio'));
+  });
+
+  if (!filas.length) {
+    caja.innerHTML = '<small style="color:var(--muted)">Elegí un trabajador para ver los datos.</small>';
+    return;
+  }
+  caja.innerHTML = filas.join('');
+}
+
+// -------------------------------------------------------------------
+// INSERTAR LA VARIABLE EN LA PLANTILLA
+// -------------------------------------------------------------------
+// Y con "execCommand" y no con el contenido del editor: reemplazar todo el contenido por el
+// texto con la variable pegada BORRARÍA lo que el usuario ya escribió.
+function insertarVariableEnPlantilla(clave) {
+  const ed = document.getElementById('plantillaEditor');
+  if (!ed) return;
+  const texto = '[' + clave + ']';
+  // Y en un "try": si el navegador ya no lo soporta, se avisa en vez de fallar en silencio.
+  try {
+    ed.focus();
+    if (!document.execCommand('insertText', false, texto)) throw new Error('no');
+  } catch (e) {
+    alert('Este navegador no deja escribir en el cursor.\n\nPegá la variable a mano: ' + texto);
+  }
+  try { marcarContenidoCambiado(); } catch (e) {}
+}
+
+// -------------------------------------------------------------------
+// Y QUE SE LLAME AL CAMBIAR DE TRABAJADOR
+// -------------------------------------------------------------------
+async function cargarVariablesConDatos() {
+  const selW = document.getElementById('descargaTrabajador');
+  const selE = document.getElementById('camposPropiosEmpresa');
+  if (!selW) return;
+
+  const code = selW.value;
+  const empresaId = selE && selE.value ? parseInt(selE.value, 10) : null;
+
+  if (!code) {
+    pintarVariablesConDatos(null, empresaDeLosDatos());
+    return;
+  }
+
+  const { data, error } = await window.supabaseClient.rpc('datos_para_plantilla', {
+    p_trabajador_code: code,
+    p_empresa_id: empresaId,
+  });
+  if (error) {
+    const caja = document.getElementById('plantillaVariables');
+    if (caja) caja.innerHTML = '<small style="color:var(--danger)">' + escHtml(error.message) + '</small>';
+    return;
+  }
+  pintarVariablesConDatos(data || {}, empresaDeLosDatos());
+}
+
+// Y la empresa que hay que mirar es la del selector de campos propios, que es la misma que
+// está elegida arriba. Y si ese selector no está, la primera de la lista.
+function empresaDeLosDatos() {
+  const sel = document.getElementById('camposPropiosEmpresa');
+  const id = sel && sel.value ? sel.value : null;
+  const lista = (typeof empresas !== 'undefined' && empresas) ? empresas : [];
+  return lista.find(x => String(x.id) === String(id)) || lista[0] || null;
+}
+
+// -------------------------------------------------------------------
+// Y EL CLIC
+// -------------------------------------------------------------------
+// Y con delegación en el contenedor, no un escuchador por fila: las filas se repintan cada
+// vez que se cambia de trabajador, y un escuchador por fila apunta a filas que ya no existen.
+document.addEventListener('click', (e) => {
+  const fila = e.target && e.target.closest ? e.target.closest('.varConDato') : null;
+  if (!fila) return;
+  insertarVariableEnPlantilla(fila.getAttribute('data-var') || '');
+});

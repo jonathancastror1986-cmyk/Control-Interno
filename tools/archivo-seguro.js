@@ -399,10 +399,19 @@ class Archivo {
       console.log('    el archivo ya tenía ' + antesSueltos + ', y quedan ' + sueltos(salida) + '.');
       process.exit(1);
     }
-    if (AntesSueltos) {
-      console.log('    ojo  el archivo YA tenía ' + AntesSueltos
-        + ' "\\r" suelto(s), y siguen ahí. No se agrega ninguno.');
-    }
+    // Y el mensaje dice CUÁNTOS QUEDAN, no solo cuántos había.
+//
+// Porque la versión anterior decía "el archivo YA tenía 1.223, y siguen ahí", y era falso: se
+// acababan de quitar todos. Lo decía porque el texto estaba escrito una vez y no se actualizó
+// cuando se le agregó la cuenta. Y un guardián que dice una cosa que no es, en el mensaje que se
+// lee cuando todo salió bien, es peor que uno que no dice nada: ocupa el lugar del que avisa.
+if (AntesSueltos) {
+  const quedan = sueltos(salida);
+  console.log('    ojo  el archivo tenía ' + AntesSueltos + ' "\\r" suelto(s), y ahora hay '
+    + quedan + '.'
+    + (quedan > AntesSueltos ? '  *** SE AGREGARON ***' : '  No se agregó ninguno.')
+    + (quedan === 0 ? '  Los quitaron todos.' : ''));
+}
     if (/\r\r\n/.test(salida)) {
       console.log('  *** SALIÓ UN "\\r\\r\\n". NO SE ESCRIBE ***');
       process.exit(1);
