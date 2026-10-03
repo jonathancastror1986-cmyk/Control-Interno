@@ -201,7 +201,18 @@ if (correr('código repetido')) { console.log('  *** NO LO PESCA ***'); malas++;
 // -------------------------------------------------------------------
 console.log('');
 console.log('  === caso 4: "Ver [código]" dentro de la documentación, a la nada ===');
-fs.writeFileSync(PROBETA, BUENO + '\nVer [nada-01].\n', 'utf8');
+// Y el texto roto se arma con concatenación, y no escrito entero.
+//
+// Porque si el archivo del arnés contiene la referencia completa y literal, el guardián la lee
+// como una referencia REAL del proyecto y la reporta como nueva. Y la primera versión de esta
+// prueba la escribía entera —y también la repetía en el comentario de arriba—, así que el
+// guardián de verdad, el que corre sobre el repositorio, la contaba entre las nuevas.
+//
+// Y eso es lo peor de un arnés: ensucia la medición del sujeto. El que lee el informe tiene que
+// poder separar "esto lo rompió el proyecto" de "esto lo puso la prueba", y con la referencia
+// escrita en el archivo no hay forma de saberlo. Ver [arq-26].
+const ROTO = 'Ver [' + 'nada' + '-01].';
+fs.writeFileSync(PROBETA, BUENO + '\n' + ROTO + '\n', 'utf8');
 if (correr('referencia interna rota')) { console.log('  *** NO LO PESCA ***'); malas++; }
 
 // -------------------------------------------------------------------

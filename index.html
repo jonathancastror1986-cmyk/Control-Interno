@@ -2,6 +2,23 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<!--
+  EL "VIEWPORT", QUE FALTABA
+
+  Sin esta línea, el navegador de un teléfono dibuja la página como si fuera de 980 píxeles de
+  ancho y después la achica para que entre. O sea que el usuario ve la aplicación en miniatura,
+  con la letra diminuta, y tiene que hacer zoom dos veces para poder usarla.
+
+  Y aquí no se ve casi nada —es una página que redirige—, así que el síntoma es leve. Pero el
+  que llega por un enlace en un teléfono ve la pantalla de ingreso en miniatura durante el
+  instante que tarda en redirigir, y eso es la primera impresión del sistema.
+
+  Con "width=device-width" el ancho del dibujo es el ancho real del teléfono, y el "initial-
+  scale=1" deja de alejarlo.
+
+  El "viewport-fit=cover" no hace falta acá: esta página no dibuja nada. Está en las otras.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control de Asistencia</title>
 <script src="controllers/theme.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -9,6 +26,21 @@
 <script src="config/supabase.client.js"></script>
 </head>
 <body>
+<!--
+  Y ESTA PÁGINA NO MUESTRA NADA A PROPÓSITO
+
+  Es la puerta de entrada: pregunta si hay sesión y manda a la aplicación o a la pantalla de
+  ingreso. No tiene texto ni botón, y eso es correcto: si alguien ve algo aquí es que el
+  "getSession()" falló, y eso hay que verlo en la consola y no con una pantalla en blanco que
+  parece una página que carga.
+
+  Y la redirección es "location.href" y no "location.replace" porque el usuario tiene que
+  poder volver con el botón ATRÁS del navegador hasta acá, y desde ahí saltar al login. Con
+  "replace" la entrada de acá se borra del historial y el botón atrás no vuelve a nada.
+
+  Lo que SÍ lleva "replace" es "pages/index.html", que es una redirección y no una puerta. Ver
+  [arq-24].
+-->
 <script>
 window.supabaseClient.auth.getSession().then(({data:{session}})=>{
   window.location.href = session ? 'pages/app.html' : 'pages/login.html';

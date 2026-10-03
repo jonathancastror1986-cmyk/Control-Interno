@@ -4249,3 +4249,130 @@ Y con la "\*" en vez de la "\+" el patrón le quitaba la versión al "sw.js" tam
 el guardián decía "QUEDARON 0 VERSIONES, y se esperaba 0 o 1" —que parece casi un
 acierto, y es el fallo entero. Un acierto parcial es peor que un fallo: no da nada que
 buscar.
+
+
+================================================================================
+LO QUE EL GUARDIÁN DEL ÍNDICE DETECTÓ EN EL TURNO QUE SE ARMÓ
+================================================================================
+
+Cuatro referencias que el código hizo y este índice no tenía, más el defecto de formato que
+las delató. Y el "viewport" que faltaba en la puerta de entrada.
+
+[arq-20] UN CERO TIENE QUE PODER SER "NO HAY" O "NO ENCUENTRO"
+--------------------------------------------------------------------------------
+Un guion que filtra por nombre buscando "marcaje" en las declaraciones encontró CERO, y lo
+informó con su propio apartado, su propio resumen y su propio veredicto:
+
+    === declaraciones que nombran "marcaje" ===
+    0 declaraciones en total
+
+Un cero con formato de resultado es un cero que no se lee.
+
+Y el patrón era "/^(?:function|var|let|const|class)\s+…/", con el ancla "^" pegada al
+principio. En "app.js" TODO está indentado con dos espacios, así que ninguna declaración
+empieza en la columna cero y el guion no vio NINGUNA.
+
+Un patrón que no encuentra nada tiene que distinguir DOS cosas: "no hay" y "no
+encuentro". Y no puede distinguirlas solo, así que tiene que decirlo. Este guion ahora
+dice, cuando sale cero:
+
+    *** CERO DECLARACIONES CON "marcaje" EN EL NOMBRE ***
+    Esto puede ser que no haya, y puede ser que el patrón no encuentre.
+    NO SE SACA NINGUNA CONCLUSIÓN DE ESTE GUION.
+
+Y además mira un dato que ya sabe: "compila-juntos.js" cuenta cientos de declaraciones de
+nivel superior en los mismos archivos. Si ese cuenta muchos y este cuenta cero, el
+problema es de acá y no del código.
+
+La regla: un cero se puede confirmar o se puede refutar, pero NUNCA se informa como si
+estuviera confirmado.
+
+[arq-26] UN TÍTULO DECLARA UN CÓDIGO, Y SI NO HAY GUIONES NO ES TÍTULO
+--------------------------------------------------------------------------------
+El índice de referencias usa líneas como:
+
+    [imp-01] LA TABLA DECIDE POR POSICIÓN
+    --------------------------------------------------------------------------------
+
+Y hay dos reglas sobre esa forma, y las dos se rompen sin avisar.
+
+LA PRIMERA: un título declara UN código. Se escribieron dos así:
+
+    [tarja-09] Y [tarja-10] LOS TRES FALLOS DEL GUION QUE LAS QUITÓ
+    [afp-22] Y [afp-23] DOS ANCLAS QUE NO SE ENCONTRARON
+
+Cada una declara una sección —la de la izquierda— y deja la de la derecha citada en el
+código y sin nada escrito. Y la línea PARECE un título normal, así que nada avisa.
+
+Se escribieron así porque las dos secciones contaban la misma historia y parecía más corto
+juntarlas. Pero "juntar" no es lo mismo que "declarar las dos": el índice que se arma
+leyendo títulos ve una sola de las dos.
+
+LA SEGUNDA, y es la que más engaña: un título NO es cualquier línea que empiece por
+"[código]". Lo es cuando la LÍNEA DEBAJO es una fila de guiones.
+
+Sin ese requisito, el guardián inventó tres títulos repetidos de "modulos-01" que en
+realidad son renglones de prosa que arrancan con una referencia:
+
+    [modulos-01], que explica por qué.
+
+Y un guardián que dice "[modulos-01] ya tiene un título" tres veces, y uno va a buscarlo y
+no lo encuentra, enseña a ignorar sus avisos. Ver [arq-28].
+
+Y la fila de guiones no es decoración: es el dato que permite distinguir un título de una
+mención sin depender de si la frase arranca con mayúscula.
+
+[arq-27] UN ARNÉS QUE SE QUEDA VACÍO NO FALLA: SALE CON CERO
+--------------------------------------------------------------------------------
+La prueba del guardián del índice se creó en una carpeta y después se copió de otra con
+"Copy-Item -Force". El origen NO existía —el archivo ya se había escrito en el destino—,
+y "Copy-Item" con un origen que no está NO DA ERROR: crea el destino vacío.
+
+O sea: el archivo quedó en CERO BYTES.
+
+Y "node --check" lo aprobó. Porque un archivo vacío es un programa vacío, y un programa
+vacío compila. Y el guion salía con 0, sin imprimir una línea.
+
+Eso es [arq-20], aplicado a un arnés: un cero se ve igual cuando no hay nada y cuando la
+herramienta no está mirando. Y un arnés que no mira es peor que no tener arnés, porque
+ocupa el lugar del que comprueba.
+
+La forma de evitarlo: el arnés comprueba SUYO archivo antes de leer el del sistema que
+prueba. Tamaño mayor a un mínimo, y que contenga lo que tiene que contener:
+
+    if (fuente.length < 200) {
+      console.log('  *** EL GUARDIÁN MIDE ' + fuente.length + ' BYTES ***');
+      process.exit(1);
+    }
+
+Y la comprobación tiene que ser la PRIMERA, antes de leer nada del guardián. Un arnés que
+se verifica al final ya no sirve.
+
+[arq-28] UN COMPROBADOR QUE SE QUEJA DE ALGO QUE ESTÁ BIEN ENSEÑA A IGNORARLO
+--------------------------------------------------------------------------------
+Este aparece en tres lugares del mismo turno, y siempre con la misma forma: el
+comprobador da un informe CORRECTO y una lista de culpables que es basura.
+
+UNO: el arnés de tamaños de pantalla reportaba, a 390 píxeles,
+
+    +4496px  thead  w=4860  "CódigoNombreCargoRUTSupervis"
+    +212px   th     w=528   "Código"
+
+Siete "culpables" de la tabla de trabajadores. Y el veredicto de ese marco era
+"DESBORDA: no", que era lo correcto: la tabla mide 4860 porque tiene nueve columnas y
+está dentro de una caja con "overflow-x:auto" a propósito.
+
+O sea: el veredicto bien y la lista mal. Y se cuentan como "DOS COSAS DISTINTAS" porque lo
+son: una es si la PÁGINA desborda, y la otra es si un elemento está fuera de la vista.
+Confundirlas hace que se "arregle" la tarja achicándola hasta que no se lee.
+
+DOS: el guardián del índice decía "[modulos-01] ya tiene un título" tres veces, y
+modulos-01 tiene UN título. Las otras dos son renglones de prosa. Ver [arq-26].
+
+TRES: la prueba del guardián usaba un índice de prueba SIN filas de guiones, así que el
+guardián no reconocía ningún título, y la prueba concluía que el guardián estaba
+roto. El guardián estaba bien: le habían pasado un archivo que no podía leer.
+
+La regla general: un informe que dice "todo bien" y después lista sospechosos obliga a
+elegir cuál de las dos partes leer. Y el que lea siempre la misma parte termina
+ignorando las dos.
