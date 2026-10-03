@@ -39,19 +39,21 @@
 <div id="salida">Aparecen los resultados acá.</div>
 
 <!--
-  Y LAS RUTAS SON ABSOLUTAS DESDE LA RAÍZ DEL SITIO, con "/config/…" y no con "/config/…".
+  Y LAS RUTAS SON RELATIVAS, con "../config/…". Igual que las de la aplicación.
 
-  Porque el servidor sirve esta página como un DIRECTORIO —la dirección termina en
-  "rem-y-epp", sin ".html"— y en un directorio las rutas relativas se resuelven distinto que en
-  un archivo. Medido en el navegador, cuando esta página estaba en "tools/pruebas/":
+  Porque "/config/…" funciona en el servidor de desarrollo y NO en GitHub Pages: ahí el sitio
+  puede vivir bajo "/<repo>/", y una ruta que arranca con "/" se resuelve desde la raíz del
+  dominio, o sea que "/config/supabase.config.js" acabaría pidiendo
+  "https://<usuario>.github.io/config/supabase.config.js", que no está.
 
-      "./config/supabase.config.js"     ->  404
-      "/config/supabase.config.js"      ->  200
-      "/config/supabase.config.js"  ->  200
+  Las cuatro páginas de "pages/" usan "../config/…", y esta está en "tools/", que es el mismo
+  nivel. Medido: "../config/supabase.config.js" responde 200 desde "/tools/", tanto si la
+  dirección termina en ".html" como si el servidor la sirve como un directorio.
 
-  La segunda y la tercera funcionan; la tercera porque el servidor tiene un alias que sube dos
-  niveles. Pero depender de ese alias es depender de un accidento del servidor, así que va la
-  absoluta, que funciona siempre que la página esté en el mismo sitio que el resto.
+  Y esto lo dijo "tools/comprueba-rutas.js", que marcó la página porque "/config/…" no lleva a
+  nada desde "tools/". El guardián tenía razón y la página estaba mal: respondía 200 en local y
+  se habría roto al subir. Una ruta que funciona en el servidor de desarrollo y no en el de
+  publicación no está verificada. Ver [arq-22].
 -->
 <!--
   Y FALTA LA LIBRERÍA DE SUPABASE. Es lo que dijo la consola: "[supabaseClient] la librería de
@@ -66,8 +68,8 @@
   y lo único que lo dice es una línea en la consola. Ver [cache-01].
 -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="/config/supabase.config.js"></script>
-<script src="/config/supabase.client.js"></script>
+<script src="../config/supabase.config.js"></script>
+<script src="../config/supabase.client.js"></script>
 <script>
 const SAL = document.getElementById('salida');
 let LOG = '';
