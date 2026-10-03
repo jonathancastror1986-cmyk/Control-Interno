@@ -72,8 +72,66 @@ select '6. tarjetas: política VIEJA',
 -- entero. Ver [sql-01] y [sql-02].
 
 
+-- ---------------------------------------------------------------------
+-- LA CONSULTA QUE HAY QUE CORRER PRIMERO: UN VEREDICTO, UNA FILA
+-- ---------------------------------------------------------------------
+--
+-- Y va primera, y es una sola, porque el que se va a poner a esperar necesita un número y no
+-- tres pantallas. Dice en una fila qué falta y qué no.
+--
+-- Copiala tal cual, corréla, y pegá lo que devuelva.
+
+select
+  case
+    when (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public'
+             and p.proname in ('puede_ver_trabajador', 'puede_ver_archivo')) = 2
+     and (select count(*) from pg_policies
+           where schemaname = 'public'
+             and policyname in ('asistencia por empresa', 'marcajes por empresa',
+                                'tarjetas por empresa')) = 3
+    then 'LA 067 ESTÁ APLICADA COMPLETA. Falta solo el paso del panel del bucket.'
+    when (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+           where n.nspname = 'public'
+             and p.proname in ('puede_ver_trabajador', 'puede_ver_archivo')) = 0
+    then 'LA 067 NO ESTÁ APLICADA. Vuelve a correrla: no debería dar ningún error.'
+    else '*** ESTADO A MEDIAS: hay funciones o políticas pero no todas. NO sigas: pegá esta salida. ***'
+  end as veredicto,
+  (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in ('puede_ver_trabajador', 'puede_ver_archivo'))
+    || ' de 2 funciones, '
+    || (select count(*) from pg_policies
+         where schemaname = 'public'
+           and policyname in ('asistencia por empresa', 'marcajes por empresa',
+                              'tarjetas por empresa'))
+    || ' de 3 políticas nuevas, '
+    || (select count(*) from pg_policies
+         where schemaname = 'public'
+           and policyname in ('asistencia rw', 'marcajes rw', 'tarjetas rw'))
+    || ' de 3 políticas VIEJAS (0 es lo bueno)'
+    as el_detalle;
+
+
+-- ---------------------------------------------------------------------
+-- Y DESPUÉS DE HACER EL PASO DEL PANEL, ESTA OTRA
+-- ---------------------------------------------------------------------
+--
+-- Dice si el bucket quedó cerrado. Y "políticas sobre el bucket" tiene que ser 1, no 2: si
+-- quedan dos, la vieja sigue ganando y el bucket sigue abierto. Ver [rls-04].
+
+select count(*)::text || ' políticas sobre el bucket (tiene que ser 1)'
+         || case when (select count(*) from pg_policies
+                        where schemaname = 'storage' and tablename = 'objects'
+                          and qual like '%puede_ver_archivo%') = 1
+                 then '  Y es la correcta.' else '  *** NO ES LA CORRECTA ***' end
+    as estado_del_bucket
+  from pg_policies
+ where schemaname = 'storage' and tablename = 'objects';
+
+
 -- ===================================================================
--- 2) LAS POLÍTICAS DEL BUCKET, UNA POR UNA
+-- 3) LAS POLÍTICAS DEL BUCKET, UNA POR UNA
 -- ===================================================================
 --
 -- Y esta es la que decide si el paso del panel está hecho o no. Correla DESPUÉS de la 068.
