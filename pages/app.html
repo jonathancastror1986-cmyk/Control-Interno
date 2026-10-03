@@ -9,22 +9,30 @@
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+  Y "fflate" abre y arma el .docx, que es un ZIP. Son 32 KB.
+  Y va antes que el motor por una razón que no es de ejecución: el motor solo guarda
+  funciones al cargarse, así que el orden no importa. Pero si mañana el motor hace
+  algo al cargarse, el orden pasa a importar y nadie lo va a leer. Mejor que la
+  dependencia esté antes, en el archivo, y no en la cabeza de alguien.
+  Y entra por CDN como las otras seis librerías, que es el camino que ya tiene el
+  proyecto: cero build, cero "node_modules".
+<script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=61"></script>
-<script src="../config/supabase.client.js?v=61"></script>
-<script src="../config/auth.js?v=61"></script>
-<script src="../controllers/theme.js?v=61"></script>
-<script src="../controllers/clima-reloj.js?v=61"></script>
-<link rel="stylesheet" href="../css/base.css?v=61">
+<script src="../config/supabase.config.js?v=62"></script>
+<script src="../config/supabase.client.js?v=62"></script>
+<script src="../config/auth.js?v=62"></script>
+<script src="../controllers/theme.js?v=62"></script>
+<script src="../controllers/clima-reloj.js?v=62"></script>
+<link rel="stylesheet" href="../css/base.css?v=62">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=61">
-<link rel="stylesheet" href="../css/grupos.css?v=61">
-<link rel="stylesheet" href="../css/styles.css?v=61">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=61">
+<link rel="stylesheet" href="../css/tokens.css?v=62">
+<link rel="stylesheet" href="../css/grupos.css?v=62">
+<link rel="stylesheet" href="../css/styles.css?v=62">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=62">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -42,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=61"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=62"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -60,13 +68,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=61">
-<link rel="stylesheet" href="../css/vistas.css?v=61">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=61">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=61">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=61">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=61">
-<link rel="stylesheet" href="../css/movil.css?v=61" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=62">
+<link rel="stylesheet" href="../css/vistas.css?v=62">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=62">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=62">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=62">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=62">
+<link rel="stylesheet" href="../css/movil.css?v=62" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -2225,6 +2233,20 @@ obra sembradas por la migración 031.
           </div>
           <div class="fila">
             <button class="btn primary" type="button" onclick="descargarPlantillaConDatos()">Descargar para Word</button>
+        <!-- Y EL .DOCX DE VERDAD, CON SU FORMATO -->
+        <!--
+          Y este botón estaba ausente por una razón que ya no se sostiene. La que
+          estaba escrita más abajo decía que el proyecto no tiene una librería de ZIP, y
+          eso era cierto el día que se escribió. Hoy hay una: "fflate", 32 KB, de CDN.
+          Ver [word-06]. -->
+        <label class="btn" style="padding:3px 9px;cursor:pointer"
+          title="Elige el .docx de la plantilla; se abre en Word con su formato intacto">
+          Elegir .docx
+          <input type="file" id="docxPlantillaArchivo" accept=".docx" style="display:none">
+        </label>
+        <button class="btn primary" type="button" onclick="descargarDocxConDatos()"
+          title="Rellena el .docx elegido con los datos del trabajador y lo baja. No baja si falta algún dato">
+          Descargar .docx</button>
             <span id="descargaAviso" style="font-size:.8rem"></span>
           </div>
           <div id="plantillaPrevia"></div>
@@ -2457,7 +2479,10 @@ no se pueden editar con la barra.
             pegarlo en el editor. Y pegar el código fuente no es editar el documento: en la pantalla
             sale escrito "<td width="64" valign="top" style="width: 48.15pt;...". Ver [word-01].
       
-            Y el ".docx" NO se acepta, porque es un archivo comprimido y desde el navegador no se
+            Y el ".docx" NO se aceptaba, porque es un archivo comprimido y desde el navegador no se
+puede abrir sin una librería de ZIP que este proyecto no tenía. YA SE TIENE: "fflate",
+32 KB, de CDN. Y con ella el .docx entra, se rellena y vuelve con su formato. El
+restricción queda abajo, en el botón "Elegir .docx". Ver [word-06].
             puede abrir sin una librería de ZIP que este proyecto no tiene. Aceptarlo y no poder leerlo
             es peor que rechazarlo. Ver [word-02].
             -->
@@ -2757,16 +2782,20 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=61"></script>
-<script src="../views/porteria/escaner.js?v=61"></script>
+<script src="../js/nucleo.js?v=62"></script>
+<script src="../views/porteria/escaner.js?v=62"></script>
 
-<script src="../views/asistencia/relojes.js?v=61"></script>
-<script src="../views/soporte/soporte.js?v=61"></script>
-<script src="../views/administracion/administracion.js?v=61"></script>
-<script src="../views/bodega/bodega.js?v=61"></script>
-<script src="../views/administracion/documentos.js?v=61"></script>
-<script src="../views/supervisores/supervisores.js?v=61"></script>
-<script src="../js/app.js?v=61"></script>
+<script src="../views/asistencia/relojes.js?v=62"></script>
+<script src="../views/soporte/soporte.js?v=62"></script>
+<script src="../views/administracion/administracion.js?v=62"></script>
+<script src="../views/bodega/bodega.js?v=62"></script>
+  Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
+  la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
+  del mismo módulo y el motor es el que se apoya en el resto, no al revés.
+<script src="../views/administracion/docx.js?v=62"></script>
+<script src="../views/administracion/documentos.js?v=62"></script>
+<script src="../views/supervisores/supervisores.js?v=62"></script>
+<script src="../js/app.js?v=62"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================

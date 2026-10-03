@@ -100,4 +100,5 @@ if (mal) {
 
 console.log('    ok  ningún archivo del repositorio tiene mojibake');
 console.log('');
-console.log('    y el detector se autocomprobó en esta corrida, con sus ocho casos');
+console.log('    y el detector se autocomprobó en esta corrida, con sus nueve casos');
+console.log('    (ocho de doble codificación, y uno de byte perdido)');

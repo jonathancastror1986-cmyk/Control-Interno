@@ -138,6 +138,36 @@ const SANO_PORTUGUES = 'es um padr' + String.fromCharCode(0xE3) + 'o conhecido';
 const SANO_SOLO = 'el primer byte tras ' + C3;
 const SANO_ESPACIO = 'el byte ' + C3 + ' y el siguiente';
 
+// -------------------------------------------------------------------
+// Y U+FFFD, QUE NO ES MOJIBAKE PERO ES PEOR
+// --------------------------------------------------------
+//
+// El U+FFFD es el carácter que un decodificador pone cuando NO PUEDE interpretar unos bytes.
+// No es una letra rara: es la marca de que se perdió algo en el camino, y lo que se perdió
+// era texto.
+//
+// En "migrations/028_auditoria_asistencia.sql" había dos, en medio de una palabra:
+//
+//     -- Toda inser��n, cambio o borrado sobre `asistencia` deja una traza con
+//
+// Y la palabra era "inserción". El archivo llevaba tiempo con un hueco adentro, y no se veía
+// en el editor, y la migración se aplicaba sin problema, porque un comentario roto no rompe
+// nada.
+//
+// Y esto NO lo veía el rango de los "Ã" y los "Â", porque un U+FFFD no es ninguno de los
+// dos: no es doble codificación, es pérdida. Y el detector le daba el visto bueno a un
+// archivo con dos letras perdidas.
+//
+// Por eso va aparte, y es el caso más fácil de esta herramienta: un U+FFFD en un archivo del
+// proyecto es SIEMPRE un error.
+const PERDIDO = String.fromCharCode(0xFFFD);
+
+// Y el archivo de esta herramienta NO lo lleva. No por exención: porque si lo llevara, esta
+// comprobación estaría probándose con un byte perdido de verdad, y "no hay mojibake" dejaría
+// de ser una afirmación y pasaría a ser un deseo.
+const YO = require('path').resolve(__filename).toLowerCase();
+const ES_ESTA = function (P) { return require('path').resolve(P).toLowerCase() === YO; };
+
 const CASOS = [
   ['el ni' + C3 + String.fromCharCode(0xB1) + 'o roto, de minúscula', ROTO, true],
   ['la mayúscula rota, que el rango viejo NO veía', ROTO_MAYUS, true],
@@ -147,11 +177,28 @@ const CASOS = [
   ['portugués con "ão", que NO es mojibake', SANO_PORTUGUES, false],
   ['la letra rara sola, al final de un comentario', SANO_SOLO, false],
   ['la letra rara seguida de espacio', SANO_ESPACIO, false],
+  ['un byte perdido, que no es mojibake pero es peor', 'Toda inser' + PERDIDO + 'n', true],
 ];
+
+// -------------------------------------------------------------------
+// Y LA COMPROBACIÓN FINAL, QUE ES LA DE LAS DOS COSAS
+// ------------------------------------------------------
+//
+// Y no se prueba con "MOJIBAKE" sino con esto, que es lo que de verdad se usa para decidir.
+//
+// Y la diferencia importa: el caso del byte perdido estaba en la lista y la autoprueba lo
+// daba por bueno, porque la autoprueba miraba solo el rango de los "Ã". Un archivo con
+// "inser??" pasó los nueve casos.
+//
+// O sea que la autoprueba estaba probando una función y el guardián usaba otra. Es el mismo
+// error de siempre, y con el mismo nombre: la comprobación que no es la que se usa.
+const estaRoto = function (t) {
+  return MOJIBAKE.test(t) || String(t).indexOf(PERDIDO) >= 0;
+};
 
 let autoprueba = 0;
 CASOS.forEach(function (c) {
-  const vio = MOJIBAKE.test(c[1]);
+  const vio = estaRoto(c[1]);
   const bien = vio === c[2];
   if (!bien) autoprueba++;
   console.log('    ' + (bien ? 'ok  ' : '*** ') + c[0].padEnd(46)
@@ -206,20 +253,23 @@ rutas.forEach((P) => {
 
   const t = fs.readFileSync(P, 'utf8');
   t.split('\n').forEach((x, i) => {
-    // Y se saca la posición del CASO con la misma expresión que decide, y no con un
-    // "indexOf" de la "Ã" sola.
+    // Y se busca con LAS DOS, que es lo mismo que usa la autoprueba.
     //
-    // Porque con el rango ancho hay cuatro letras raras, y "indexOf(Ã)" daba -1 en una línea
-    // rota que empezaba con "Â" —y "slice(max(0, -13), 21)" recortaba desde el principio sin
-    // querer, y el aviso salía sin el trozo malo-.
+    // Y antes buscaba solo con el rango de los "Ã", y por eso el byte perdido de la 028
+    // pasó: no era un "Ã". Y la autoprueba tenía el caso en la lista y lo daba por bueno,
+    // porque miraba la función vieja. La comprobación y la prueba, dos cosas distintas.
     const m = x.match(MOJIBAKE);
-    if (!m) return;
+    const perdido = x.indexOf(PERDIDO) >= 0;
+    if (!m && !perdido) return;
 
     // Y se marca solo la parte mala, no la línea entera: la línea entera en un archivo de
     // tres mil es inútil de leer.
     malos++;
-    const desde = Math.max(0, m.index - 12);
-    console.log('  ' + P + ':' + (i + 1) + ': ' + JSON.stringify(x.slice(desde, m.index + 22)));
+    const desde = Math.max(0, (m ? m.index : x.indexOf(PERDIDO)) - 12);
+    const hasta = (m ? m.index : x.indexOf(PERDIDO)) + 22;
+    console.log('  ' + P + ':' + (i + 1) + ': '
+      + JSON.stringify(x.slice(desde, hasta))
+      + (perdido && !m ? '   *** BYTE PERDIDO ***' : ''));
   });
 });
 

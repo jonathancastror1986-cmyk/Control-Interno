@@ -11,7 +11,7 @@
 --
 -- LA REGLA
 --
--- Toda inser��n, cambio o borrado sobre `asistencia` deja una traza con
+-- Toda inserción, cambio o borrado sobre `asistencia` deja una traza con
 -- QUIÉN, QUÉ, CÓMO ESTABA ANTES y POR QUÉ. Y el motivo es obligatorio.
 --
 -- POR QUÉ UN DISPARADOR Y NO UN LLAMADO DESDE LA APP

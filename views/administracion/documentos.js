@@ -1401,7 +1401,174 @@ async function descargarPlantillaConDatos() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
 
-  if (aviso) aviso.textContent = 'Descargado: ' + archivo;
+  if (aviso) aviso.textContent = 'Descargado: ' + archivo;
+
+// ====================================================================
+// BAJAR EL .DOCX DE VERDAD, CON SU FORMATO
+// ====================================================================
+//
+// Y esto NO existía, y la razón por la que no existía está escrita más arriba, en el
+// formulario, y decía:
+//
+//     Y el ".docx" NO se acepta, porque es un archivo comprimido y desde el navegador no se
+//     puede abrir sin una librería de ZIP que este proyecto no tiene.
+//
+// Y la razón era buena, y YA NO SE TIENE. "fflate" son 32 KB y se bajan de CDN, que es
+// exactamente el mismo camino que ya usan jsPDF, html2canvas, JsBarcode, el lector de QR y
+// las otras cinco librerías del proyecto.
+//
+// O sea que la frase "este proyecto no tiene una librería de ZIP" era cierta el día que se
+// escribió, y es falsa hoy. Y una razón que se pone vieja hay que cambiarla, no esquivarla:
+// la próxima que lea el comentario va a concluir que no se puede. Ver [word-06].
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ BAJAR EL .DOCX Y NO EL .DOC
+// ---------------------------------------
+//
+// Porque el ".doc" que se baja hoy es un HTML con otra extensión, y el ".docx" es un ZIP con
+// XML adentro, y tiene el formato.
+//
+// Y la diferencia se ve en las cosas que SOLO Word sabe hacer: las tablas que se parten entre
+// páginas, los encabezados que se repiten al cambiar de hoja, la orientación del papel, los
+// márgenes exactos. Con el ".doc" eso se pierde, porque pasa por HTML.
+//
+// Con el ".docx" no se pierde nada, porque solo se toca el "<w:t>" donde está el dato y el
+// resto del archivo se copia byte por byte.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ EL USUARIO ELIGE EL ARCHIVO, Y NO ESTÁ GUARDADO
+// ----------------------------------------------------------
+//
+// Porque guardar el ".docx" necesita una columna nueva y un archivo en el almacen, y eso es
+// una migración que se aplica aparte. Y esta función no depende de eso.
+//
+// O sea que esto no reemplaza al flujo guardado: lo complementa. El que tiene el papel guardado
+// en la base sigue bajando el ".doc"; el que tiene el ".docx" en su computador lo elige y se
+// lo lleva lleno. Y cuando el guardado esté, esta función es la misma con el archivo tomado
+// de la base en vez de del disco.
+//
+// -------------------------------------------------------------------
+// Y NUNCA SE BAJA UN PAPEL CON UN HUECO ADENTRO
+// -----------------------------------------------
+//
+// Y esto es lo importante de toda la función.
+//
+// El motor deja "[falta]" donde no encuentra un dato. Y un "[falta]" en un archivo es un
+// papel con un hueco adentro, y un papel con un hueco SE IMPRIME Y SE FIRMA IGUAL. El que lo
+// descarga puede no mirar.
+//
+// Y por eso la función NO baja y avisa. Y avisa también de las llaves sin cerrar, que es el
+// otro hueco posible: una variable partida entre dos párrafos queda sin reemplazar, y eso no
+// lo ve ni el que la escribió.
+//
+// La regla: un papel con algo sin resolver no baja. Se avisa, se corrige la plantilla, y
+// después baja.
+function descargarDocxConDatos() {
+  const entrada = document.getElementById('docxPlantillaArchivo');
+  const code = document.getElementById('descargaTrabajador');
+  const aviso = document.getElementById('descargaAviso');
+
+  const worker = code && code.value;
+  if (!worker) { if (aviso) aviso.textContent = 'Elegí un trabajador.'; return; }
+  if (!entrada || !entrada.files || !entrada.files[0]) {
+    if (aviso) aviso.textContent = 'Elegí el archivo .docx de la plantilla.';
+    return;
+  }
+  if (!window.fflate || !window.DOCX_PLANTILLA) {
+    if (aviso) aviso.textContent = 'Falta la librería que abre el archivo. Recargá la página.';
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = async function () {
+    const bytes = new Uint8Array(reader.result);
+
+    // 1) ¿Es un .docx de verdad? Y el signo es "PK": un ZIP empieza así, y un .docx es un
+    // ZIP. Un ".doc" viejo, o un PDF, no.
+    //
+    // Y esto va PRIMERO, porque abrir un archivo que no es un ZIP revienta con un mensaje de
+    // números que no dice nada de qué está mal.
+    if (!window.DOCX_PLANTILLA.esDocx(bytes)) {
+      if (aviso) aviso.textContent = 'Ese archivo no es un .docx. Un .docx es un ZIP, y los '
+        + 'archivos de Word viejos (.doc) no lo son.';
+      return;
+    }
+
+    // 2) Los datos. La MISMA consulta que usa el ".doc", para que los dos archivos digan
+    // exactamente lo mismo.
+    //
+    // Y por qué la misma y no una parecida: si difieren, el papel que se imprime y el que se
+    // firma no son el mismo, y eso no se detecta mirando ninguno de los dos.
+    const emp = document.getElementById('camposPropiosEmpresa');
+    const empresaId = emp && emp.value ? parseInt(emp.value, 10) : null;
+
+    const d = await window.supabaseClient.rpc('datos_para_plantilla', {
+      p_trabajador_code: worker,
+      p_empresa_id: empresaId,
+    });
+    if (d.error) {
+      if (aviso) aviso.textContent = 'No se pudieron leer los datos: ' + d.error.message;
+      return;
+    }
+    const datos = d.data || {};
+
+    // 3) Rellenar.
+    let r;
+    try {
+      r = window.DOCX_PLANTILLA.completar(bytes, datos);
+    } catch (e) {
+      if (aviso) aviso.textContent = 'No se pudo leer el archivo: ' + e.message;
+      return;
+    }
+
+    // 4) Los datos que faltaban.
+    if (r.faltan.length) {
+      if (aviso) aviso.textContent = 'Faltan datos del trabajador: ' + r.faltan.join(', ')
+        + '. No se baja con huecos.';
+      return;
+    }
+
+    // 5) Y las llaves sueltas, que son el otro hueco posible.
+    //
+    // Y se mira el resultado ARMADO, no el original: una variable partida entre dos párrafos
+    // se queda sin reemplazar y no aparece en "faltan", porque no se buscó.
+    const partes = window.fflate.unzipSync(r.bytes);
+    const texto = window.DOCX_PLANTILLA.planoDe(window.fflate.strFromU8(partes['word/document.xml']));
+    const sueltas = texto.match(/\{\{|\}\}|\[\[|\]\]/g);
+    if (sueltas && sueltas.length) {
+      if (aviso) aviso.textContent = 'A la plantilla le quedaron ' + sueltas.length
+        + ' llave(s) sin cerrar. Suele ser una variable partida entre dos párrafos. No se baja.';
+      return;
+    }
+
+    // 6) Bajar. Y el nombre lleva al trabajador, como el otro, porque veinte "Contrato.docx"
+    // en una carpeta de descargas no se distinguen.
+    const nombre = (typeof workers !== 'undefined' ? workers : []).find(w => w.code === worker);
+    const quien = nombre ? (nombre.nombreCompleto || nombre.name) : worker;
+    const salida = String(quien).replace(/[\\/:*?"<>|]+/g, '-').trim() + '.docx';
+
+    const url = URL.createObjectURL(new Blob([r.bytes], {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = salida;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    if (aviso) aviso.textContent = 'Descargado: ' + salida + '  ·  ' + r.tocadas + ' dato(s) puestos.';
+  };
+
+  reader.onerror = function () {
+    if (aviso) aviso.textContent = 'No se pudo leer el archivo del disco.';
+  };
+
+  reader.readAsArrayBuffer(entrada.files[0]);
+}
+
 }
 
 // BAJAR LA PLANTILLA EN BLANCO
