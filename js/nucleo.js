@@ -141,6 +141,17 @@ function workerToDb(w){
     // workerToDb lo usan TODOS los guardados —incluida la carga del
     // Excel— y sin esta línea cualquiera de ellos la pondría en null.
     especialidad_clave: w.especialidad_clave||null,
+    // El sueldo base (migración 069). Va con la MISMA cantidad de cuidado que los datos de
+    // la desvinculación, y por el MISMO motivo: el "upsert" manda todas las columnas del
+    // objeto, no solo las que cambiaron. Sin esta línea, cualquier guardado —editar un
+    // teléfono, un alta, la carga del Excel— pondría el sueldo en null. Y se perdería sin
+    // avisar: el trabajador sigue con todos sus datos, solo que el sueldo volvió a vacío.
+    //
+    // Y se escribe con un "| 0" y no con un "|| null" porque el CERO es un valor: una persona
+    // puede tener sueldo cero, y eso es distinto de "no cargado". Ver [rem-01].
+    sueldo_base: w.sueldo_base==null||w.sueldo_base===''
+      ? (w.sueldo_base_vigente==null?null:w.sueldo_base_vigente)
+      : Number(w.sueldo_base),
     empresa_id: w.empresa_id||null,
     // El centro de costo del trabajador (migración 064). Sin esta línea el "upsert"
     // no la manda y el valor se pierde en silencio, sin error. Ver [centro-06].

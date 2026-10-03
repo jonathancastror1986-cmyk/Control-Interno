@@ -1766,7 +1766,7 @@ function parseCsvBoolean(value,fallback){
   return null;
 }
 function downloadWorkersCsvTemplate(){
-  const headers=['codigo','nombre','cargo','telefono','fecha_ingreso','tipo_trabajador','es_supervisor','codigo_supervisor','nombre_contacto_emergencia','telefono_emergencia','relacion_emergencia','salud','medicamentos','precauciones','alerta_social','nota_alerta_social','alerta_prevencion','nota_alerta_prevencion','indicaciones_sociales','indicaciones_prevencion','status','fecha_termino','articulo_termino','motivo_desvinculacion'];
+  const headers=['codigo','nombre','cargo','telefono','fecha_ingreso','tipo_trabajador','es_supervisor','codigo_supervisor','nombre_contacto_emergencia','telefono_emergencia','relacion_emergencia','salud','medicamentos','precauciones','alerta_social','nota_alerta_social','alerta_prevencion','nota_alerta_prevencion','indicaciones_sociales','indicaciones_prevencion','status','fecha_termino','articulo_termino','motivo_desvinculacion','sueldo_base'];
   const blob=new Blob(['\ufeff'+headers.join(';')+'\r\n'],{type:'text/csv;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const link=document.createElement('a');
@@ -1775,6 +1775,38 @@ function downloadWorkersCsvTemplate(){
   link.click();
   URL.revokeObjectURL(url);
 }
+// ------------------------------------------------------------------
+// LEER UN SUELDO ESCRITO DE CUALQUIER FORMA
+// ------------------------------------------------------------------
+//
+// Y "Number()" no sirve. Un sueldo llega escrito de por lo menos cuatro maneras, y todas
+// valen lo mismo:
+//
+//     500000        número pelado
+//     500.000       con punto de miles, que es como lo escribe la gente
+//     $500.000      con el signo de pesos adelante
+//     "500 000"     con espacio, que es lo que sale al pegar de una tabla
+//
+// "Number('500.000')" da NaN. Y un NaN en el "upsert" es peor que un error: PostgreSQL
+// lo acepta en una columna numérica como si fuera cero, y el sueldo de alguien se vuelve
+// cero sin que nadie lo note. Ver [rem-02].
+//
+// Y lo que NO se acepta: un número negativo. Un sueldo negativo es un error de tipeo, y la
+// migración 069 tiene un "check" que lo rechaza —pero el mensaje que llega es de Postgres
+// y no dice qué hacer. Acá se dice antes.
+function parseSueldoBase(valor){
+  if(valor==null)return null;
+  const s=String(valor).trim();
+  if(!s)return null;
+  // Todo lo que no es dígito se quita: puntos, espacios, signo de pesos, letras.
+  const limpio=s.replace(/[^0-9]/g,'');
+  if(!limpio)return NaN;
+  // Y si al quitar lo que no es dígito queda algo que NO era separador, es otro número.
+  // La idea: "500abc" tiene que ser un error, no "500".
+  if(!/^[0-9.,\s$]+$/.test(s))return NaN;
+  return Number(limpio);
+}
+
 async function importWorkersCsv(){
   const file=document.getElementById('workersCsvFile').files[0];
   const message=document.getElementById('workersCsvMsg');
@@ -1942,7 +1974,11 @@ async function importWorkersCsv(){
         articulo_termino:readOrCurrent(['articulo_termino','articulo','articulo de termino'],'articulo_termino')
           ||existing?.articulo_termino||null,
         motivo_desvinculacion:readOrCurrent(['motivo_desvinculacion','motivo de desvinculacion'],'motivo_desvinculacion')
-          ||existing?.motivo_desvinculacion||null
+          ||existing?.motivo_desvinculacion||null,
+        // Y el sueldo base, que es MENSUAL y en pesos enteros. Va con su propio parseo
+        // porque "Number()" no entiende "500.000" ni "$500.000" ni "500 000", que son las
+        // tres formas en que un sueldo llega escrito. Ver [rem-02].
+        sueldo_base:parseSueldoBase(read('sueldo_base','sueldo','sueldo base'))
       }));
     });
     if(issues.length){message.innerHTML=`<span class="gpsWarn">No se importó nada. ${escHtml(issues.slice(0,5).join(' '))}${issues.length>5?` Hay ${issues.length-5} errores más.`:''}</span>`;return;}
