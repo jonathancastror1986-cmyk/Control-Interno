@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Prueba del sueldo y del EPP</title>
+<style>
+  body{font:15px/1.5 system-ui,sans-serif;margin:0;padding:20px;background:#f6f7f9;color:#1a1d21}
+  h1{font-size:1.15rem;margin:0 0 4px}
+  .sub{color:#666;font-size:.85rem;margin:0 0 18px;max-width:70ch}
+  button{font:inherit;padding:9px 16px;border-radius:8px;border:1px solid #2563eb;
+         background:#2563eb;color:#fff;cursor:pointer;margin:0 8px 8px 0}
+  button.sec{background:#fff;color:#2563eb}
+  button:disabled{opacity:.5;cursor:default}
+  #salida{margin-top:14px;white-space:pre-wrap;font:13px/1.6 ui-monospace,Consolas,monospace;
+          background:#fff;border:1px solid #d8dce2;border-radius:10px;padding:16px;min-height:120px}
+  .ok{color:#0a7d33;font-weight:600}
+  .mal{color:#b91c1c;font-weight:600}
+  .aviso{color:#8a5a00;font-weight:600}
+  table{border-collapse:collapse;width:100%;margin:10px 0 4px;font:13px/1.5 ui-monospace,Consolas,monospace}
+  th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #eceff3;vertical-align:top}
+  th{background:#f0f2f5;font-weight:600}
+</style>
+</head>
+<body>
+
+<h1>Prueba del sueldo base y de las entregas de EPP</h1>
+<p class="sub">
+  Esta página hace las pruebas que antes había que pegar en la consola, y las hace con botones.
+  Los resultados salen abajo. No escribe nada: solo lee.
+</p>
+
+<button id="b1">1. ¿Quién soy y qué permisos tengo?</button>
+<button id="b2">2. ¿El RLS de "trabajadores" deja pasar datos?</button>
+<button id="b3">3. El sueldo, con la columna pedida a propósito</button>
+<button id="b4">4. Las entregas de EPP</button>
+<button class="sec" id="bTodo">Correr las cuatro</button>
+
+<div id="salida">Aparecen los resultados acá.</div>
+
+<!--
+  Y LAS RUTAS SON ABSOLUTAS DESDE LA RAÍZ DEL SITIO, con "/config/…" y no con "/config/…".
+
+  Porque el servidor sirve esta página como un DIRECTORIO —la dirección termina en
+  "rem-y-epp", sin ".html"— y en un directorio las rutas relativas se resuelven distinto que en
+  un archivo. Medido en el navegador, cuando esta página estaba en "tools/pruebas/":
+
+      "./config/supabase.config.js"     ->  404
+      "/config/supabase.config.js"      ->  200
+      "/config/supabase.config.js"  ->  200
+
+  La segunda y la tercera funcionan; la tercera porque el servidor tiene un alias que sube dos
+  niveles. Pero depender de ese alias es depender de un accidento del servidor, así que va la
+  absoluta, que funciona siempre que la página esté en el mismo sitio que el resto.
+-->
+<!--
+  Y FALTA LA LIBRERÍA DE SUPABASE. Es lo que dijo la consola: "[supabaseClient] la librería de
+  Supabase no se cargó".
+
+  Y no es un detalle de esta página: "supabase.client.js" lee "window.supabase", que lo define
+  el módulo de la CDN. Sin ese módulo, "supabase.client.js" avisa por consola y sigue de largo,
+  sin dejar "supabaseClient" en la página. El archivo existe y responde 200, y aun así no hay
+  cliente.
+
+  Que es la clase de fallo que más cuesta: no hay error visible en la página, no hay excepción,
+  y lo único que lo dice es una línea en la consola. Ver [cache-01].
+-->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="/config/supabase.config.js"></script>
+<script src="/config/supabase.client.js"></script>
+<script>
+const SAL = document.getElementById('salida');
+let LOG = '';
+function poner(txt, clase){ SAL.textContent = txt; if(clase) SAL.className = clase; }
+function linea(s){ LOG += s + '\n'; }
+function limpiar(){ LOG = ''; }
+function volcar(){ poner(LOG.trim(), ''); }
+
+// ---------------------------------------------------------------------
+// Y POR QUÉ ESTA PÁGINA EXISTE
+// ---------------------------------------------------------------------
+//
+// Porque el navegador de escritorio no deja pegar código en la consola sin que primero se
+// escriba "permitir pegar", y no todo el mundo lo sabe o quiere hacerlo.
+//
+// Y porque una prueba que hay que escribir a mano es una prueba que no se hace. Esta se abre y
+// se aprieta.
+const S = () => window.supabaseClient;
+
+function ok(s){ return '<span class="ok">' + s + '</span>'; }
+function mal(s){ return '<span class="mal">' + s + '</span>'; }
+function avi(s){ return '<span class="aviso">' + s + '</span>'; }
+
+// ---------------------------------------------------------------------
+// 1) QUIÉN SOY
+// ---------------------------------------------------------------------
+async function quienSoy(){
+  limpiar();
+  linea('=== 1. Sesión ===');
+
+  const { data: sesion, error: e1 } = await S().auth.getSession();
+  if (e1) { linea('ERROR al pedir la sesión: ' + e1.message); volcar(); return; }
+
+  const u = sesion && sesion.session && sesion.session.user;
+  if (!u) {
+    linea(mal('NO HAY SESIÓN.'));
+    linea('');
+    linea('Esto es lo que hay que mirar: sin sesión, la llave que se usa es la ANÓNIMA, y la');
+    linea('política de RLS responde "cualquier usuario activo", así que NO hay activo a nadie.');
+    linea('Lo que salga abajo con esta sesión no dice nada sobre el permiso de los usuarios.');
+    linea('');
+    linea('Para probar bien hay que entrar con un usuario real. Ver la nota del final.');
+  } else {
+    linea('Correo: ' + (u.email || '(sin correo)'));
+    linea('ID:     ' + u.id);
+  }
+
+  linea('');
+  linea('--- roles ---');
+  const { data: roles, error: e2 } = await S().from('perfil_roles').select('rol').eq('user_id', u ? u.id : '00000000-0000-0000-0000-000000000000');
+  if (e2) linea('ERROR: ' + e2.message);
+  else if (!roles || !roles.length) linea(avi('Sin roles. O no hay sesión, o el rol todavía no se creó.'));
+  else roles.forEach(r => linea('  ' + r.rol));
+
+  linea('');
+  linea('--- permisos de remuneración ---');
+  const todos = new Set();
+  if (roles) {
+    const { data: ps } = await S().from('roles_permisos').select('permiso,rol').in('rol', roles.map(r=>r.rol));
+    (ps||[]).forEach(p => todos.add(p.permiso));
+  }
+  ['rem.ver','rem.editar','rem.exportar'].forEach(k => {
+    linea('  ' + k.padEnd(14) + (todos.has(k) ? ok('SÍ') : mal('no')));
+  });
+
+  linea('');
+  linea('--- RLS prendido en las tres tablas ---');
+  const { data: pols, error: e3 } = await S().from('pg_policies').select('*').limit(1);
+  // "pg_policies" no se puede leer desde el navegador, y está bien que no se pueda.
+  linea(avi('Las políticas no se pueden leer desde el navegador.'));
+  linea(avi('Para verlas hay que usar el editor SQL. Ver la otra consulta que te di.'));
+
+  volcar();
+}
+
+// ---------------------------------------------------------------------
+// 2) EL RLS DE TRABAJADORES
+// ---------------------------------------------------------------------
+async function rlsTrabajadores(){
+  limpiar();
+  linea('=== 2. ¿El RLS de "trabajadores" deja pasar datos? ===');
+  linea('');
+  linea('Si esto da "0 filas" y hay trabajadores cargados, el RLS los está ocultando a esta');
+  linea('sesión — que es lo que tiene que pasar con una sesión sin permisos de remuneración.');
+
+  const { data, error } = await S().from('trabajadores').select('code,name').limit(5);
+  if (error) { linea('ERROR: ' + error.message); volcar(); return; }
+
+  if (!data.length) {
+    linea(ok('0 filas.'));
+  } else {
+    linea(mal(data.length + ' filas.'));
+    data.forEach(w => linea('  ' + w.code + '  ' + w.name));
+  }
+  volcar();
+}
+
+// ---------------------------------------------------------------------
+// 3) EL SUELDO, CON LA COLUMNA PEDIDA A PROPOSITO
+// ---------------------------------------------------------------------
+async function pruebaSueldo(){
+  limpiar();
+  linea('=== 3. El sueldo, con la columna pedida a propósito ===');
+  linea('');
+  linea('Esta es LA PRUEBA. La de "sin permiso" dice qué ver, y esta dice qué se puede leer.');
+  linea('');
+  linea('Lo que importa no es la lista: es la DIFERENCIA entre las dos consultas.');
+
+  // 3A: el listado normal, sin pedir la columna.
+  const { data: normal, error: e1 } = await S().from('trabajadores').select('code,name').limit(3);
+
+  // 3B: la misma tabla, con la columna del sueldo.
+  const { data: conSueldo, error: e2 } = await S().from('trabajadores').select('code,sueldo_base').limit(3);
+
+  linea('--- 3A. El listado de siempre (sin el sueldo) ---');
+  if (e1) linea('ERROR: ' + e1.message);
+  else if (!normal.length) linea(avi('0 filas.'));
+  else {
+    linea(normal.length + ' filas:');
+    normal.forEach(w => linea('  ' + w.code + '  ' + w.name + '   sueldo: ' + JSON.stringify(w.sueldo_base)));
+  }
+
+  linea('');
+  linea('--- 3B. Pedindo la columna a propósito ---');
+  if (e2) {
+    linea('ERROR: ' + e2.message);
+    linea('');
+    linea(avi('Si el error dice "column does not exist", la 069 no está aplicada todavía.'));
+  } else if (!conSueldo.length) {
+    linea(avi('0 filas. Con esta sesión no se ve a nadie, así que la prueba no dice nada.'));
+    linea('     Hay que correrla con la sesión de un usuario de verdad.');
+  } else {
+    linea(conSueldo.length + ' filas:');
+    conSueldo.forEach(w => linea('  ' + w.code + '   sueldo_base: ' + JSON.stringify(w.sueldo_base)));
+  }
+
+  // Y el veredicto, que es lo que hay que leer.
+  linea('');
+  linea('--- qué significa ---');
+  if (e2 || !conSueldo.length) {
+    linea(avi('No se puede decidir con esta sesión. Ver la nota del final.'));
+  } else if (conSueldo.every(w => w.sueldo_base === null || w.sueldo_base === undefined)) {
+    linea(ok('LOS SUELDOS VIENEN VACÍOS.'));
+    linea('Eso es lo correcto para alguien sin permiso: el RLS deja pasar las FILAS, pero la');
+    linea('columna no trae el número.');
+  } else {
+    linea(mal('LOS SUELDOS VIENEN CON NÚMERO.'));
+    linea('');
+    linea('Y esa es la prueba que había que hacer. El RLS de PostgreSQL habla de FILAS, no de');
+    linea('COLUMNAS: no sabe que existe una columna llamada "sueldo_base" y no tiene cómo');
+    linea('saberlo. Así que el permiso "rem.ver" decide si el campo aparece en la pantalla, y');
+    linea('NADA impide leer la columna con la llave del navegador.');
+    linea('');
+    linea('La pantalla es de la aplicación y el permiso funciona ahí. Acá es la base sola, sin');
+    linea('pantalla, y la base lo entrega. Ver [rem-01].');
+  }
+
+  volcar();
+}
+
+// ---------------------------------------------------------------------
+// 4) LAS ENTREGAS DE EPP
+// ---------------------------------------------------------------------
+async function pruebaEpp(){
+  limpiar();
+  linea('=== 4. Las entregas de EPP ===');
+  linea('');
+  linea(avi('Lo de esta prueba NO alcanza para saber si "epp_entregas" tiene políticas.'));
+  linea('');
+  linea('La razón es que la respuesta depende de QUIÉN pregunta, y eso no lo decide esta');
+  linea('página:');
+  linea('');
+  linea('  · Sin sesión, el RLS no deja pasar nada a NADIE, y eso da 0 filas tanto si la tabla');
+  linea('    tiene la política correcta como si se quedó sin ninguna.');
+  linea('  · La pregunta real —"¿la tabla se quedó sin políticas?"— es del SERVIDOR de la base,');
+  linea('    y esa pregunta se hace desde el editor SQL, no desde el navegador.');
+  linea('');
+  linea('O sea que el botón 4 solo sirve para ver si la CONSULTA da error, no para concluir.');
+  linea('Para lo otro está el archivo "migrations/diagnostico-epp-entregas.sql", que devuelve un');
+  linea('veredicto y no depende de la sesión. Ese es el que hay que correr.');
+
+  const { data, error } = await S().from('epp_entregas').select('code,id').limit(5);
+
+  if (error) {
+    linea('ERROR: ' + error.message);
+    linea('');
+    linea(mal('Si dice "permission denied" o "row-level security", la tabla está cerrada de más.'));
+    linea('Hay que correr la 071 de nuevo para volver a crear la política.');
+    volcar();
+    return;
+  }
+
+  linea(data.length + ' filas');
+  data.forEach(x => linea('  ' + JSON.stringify(x)));
+  linea('');
+  if (!data.length) {
+    linea(avi('0 filas. Con una sesión normal puede ser correcto —esta sesión puede no ver'));
+    linea('     nada—. La forma de saberlo es la consulta del editor SQL, que no depende de');
+    linea('     la sesión.');
+  } else {
+    linea(ok('La tabla se lee. La política está.'));
+  }
+
+  volcar();
+}
+
+// ===================================================================
+const BOTONES = [
+  ['b1', quienSoy],
+  ['b2', rlsTrabajadores],
+  ['b3', pruebaSueldo],
+  ['b4', pruebaEpp],
+];
+BOTONES.forEach(function (b) {
+  document.getElementById(b[0]).addEventListener('click', function () {
+    BOTONES.forEach(function (x) { document.getElementById(x[0]).disabled = true; });
+    b[1]().then(function () {
+      BOTONES.forEach(function (x) { document.getElementById(x[0]).disabled = false; });
+    }).catch(function (e) {
+      volcar();
+      poner(LOG + '\n\nEXCEPCIÓN: ' + (e && e.message ? e.message : String(e)), '');
+      BOTONES.forEach(function (x) { document.getElementById(x[0]).disabled = false; });
+    });
+  });
+});
+
+document.getElementById('bTodo').addEventListener('click', async function () {
+  BOTONES.forEach(function (x) { document.getElementById(x[0]).disabled = true; });
+  limpiar();
+  for (const b of BOTONES) { await b[1](); }
+  BOTONES.forEach(function (x) { document.getElementById(x[0]).disabled = false; });
+});
+
+// Y una nota al pie, porque sin esto los resultados se leen mal.
+const pie = document.createElement('p');
+pie.className = 'sub';
+pie.style.marginTop = '18px';
+pie.innerHTML =
+  '<b>Si no tenés sesión, esto no decide nada.</b> La página usa la llave que hay en '
+  + '<code>config/supabase.config.js</code>, que es pública por diseño. Sin sesión no hay '
+  + '<i>usuario activo</i>, así que el RLS no deja pasar nada y todos los resultados dan '
+  + 'cero. Con cero no se puede concluir nada: hay que abrirla habiendo iniciado sesión, o '
+  + 'usar las consultas del editor SQL, que no dependen de la sesión. Ver [rem-01] y [rls-01].';
+document.body.appendChild(pie);
+</script>
+</body>
+</html>

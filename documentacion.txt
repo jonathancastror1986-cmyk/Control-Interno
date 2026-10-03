@@ -2597,6 +2597,101 @@ palabra: "i", igual que los demas. El detalle va adentro, en la caja.
 LAS CUATRO FORMAS DE ESCRIBIR UN CAMPO
 ================================================================================
 
+[orden-07] UN GUARDIÁN QUE NO SE PRUEBA NO PROTEGE, Y UNO QUE BLOQUEA LA CORRECCIÓN ES SU OBSTÁCULO
+----------------------------------------------------------------------------------------------------
+Éste es el hallazgo del 3 de octubre de 2026, y salió de una mudanza que no se podía hacer.
+
+EL GUARDIÁN QUE NO DEJABA EDITAR "documentacion.txt"
+--------------------------------------------------------------------------------
+"tools/archivo-seguro.js" tiene una comprobación de los finales de renglón. Escribió: "un renglón
+que era CRLF pasó a ser solo LF", y con el número de renglones CRLF antes y después.
+
+Ese conteo está mal por una razón que no se ve en el mensaje. Contaba los renglones SIN CR —los de
+LF puro— y decía que, si ese número subía, algún renglón de CRLF se había convertido.
+
+El número de los LF puros sube también cuando se insertan renglones en un archivo que ES de LF
+puro. Y en ese caso no se perdió ningún CR, porque no había ninguno que perder.
+
+Medido: "documentacion.txt" tiene 0 CRLF y 5.532 LF puros. O sea que CUALQUIER inserción de un
+renglón lo hacía fallar. El aviso describía una conversión de estilo que no había pasado, y el
+archivo que había que arreglar —una sección pegada al título de la anterior— quedaba sin poder
+arreglarse.
+
+Y de ahí sale la regla: un guardián que bloquea la corrección es el obstáculo de la corrección. No
+es que sea molesto: es que ocupa el lugar del que avisa.
+
+LA REGLA QUE ESTABA, Y LAS TRES QUE HAY
+--------------------------------------------------------------------------------
+    antes   contar los renglones que no son CRLF, y avisar si el número sube
+    ahora   1) ningún renglón del medio puede quedar sin final
+            2) ningún renglón que ya era del archivo puede cambiar de estilo
+            3) los tres arreglos tienen que medir lo mismo
+
+La 1 y la 2 no dependen del estilo DEL ARCHIVO sino de cada renglón, y esa es toda la diferencia.
+
+Y el motivo de que tengan que ser así: el proyecto tiene ONCE archivos mezclados de verdad.
+"administracion.js" tiene 1.992 renglones de CRLF y 6 de LF; "documentos.js", 2.260 y 1. Esos
+renglones de LF están así porque un bloque se movió de un archivo a otro, y no son un defecto.
+
+Con una regla de estado —"si el archivo es de CRLF, todo renglón menos el último tiene que
+terminar en CRLF"— esos once archivos quedaban rechazados para siempre. La regla parecía más
+estricta y protegía menos: rechazaba el archivo entero por algo que ya estaba.
+
+LA REGLA 2 NECESITA SABER CUÁLES RENGLONES SON NUEVOS
+--------------------------------------------------------------------------------
+Y para eso "Archivo" lleva un tercer arreglo, "propio", que dice si cada renglón venía del
+archivo o si lo puso una edición. Los que puso una edición pueden cambiar de estilo —que es lo
+que deja mover un bloque de un archivo a otro— y los que ya estaban no.
+
+Y "estilos" guarda los finales que tenía el archivo AL ABRIRLO. Un final que no está en ese
+conjunto es un final nuevo, y eso es lo que hay que rechazar.
+
+POR QUÉ EL CONTEO NO PODÍA ALCANZAR
+--------------------------------------------------------------------------------
+Porque una conversión y una inserción se compensan. Medido: en un archivo de CRLF se insertó un
+renglón —que gana un CRLF— y se convirtió otro a LF —que pierde uno—. El total queda igual, el
+conteo no baja, y el defecto pasaba. El conteo neto no lo ve porque las dos cosas son del mismo
+signo para él.
+
+LOS CUATRO CASOS DE "tools/prueba-archivo-seguro.js"
+--------------------------------------------------------------------------------
+    1. un archivo de LF puro, y se le inserta un renglón      TIENE QUE ACEPTAR
+    2. un archivo de CRLF, y un renglón pasa a LF             TIENE QUE RECHAZAR
+    3. un archivo de CRLF, y se le inserta un renglón         TIENE QUE ACEPTAR
+    4. un archivo que YA viene mezclado, y se inserta         TIENE QUE ACEPTAR
+
+El caso 1 es el que estaba roto. El caso 4 es el que casi se manda: la regla nueva, escrita sin
+probar contra los archivos del proyecto, habría bloqueado once archivos para siempre.
+
+Y los cuatro corren en un proceso aparte, porque "escribe()" llama a "process.exit(1)" cuando se
+niega: en el mismo proceso, la primera negativa se comería el resto de la prueba.
+
+LO QUE SE COMPROBÓ CONTRA LOS ARCHIVOS DE VERDAD
+--------------------------------------------------------------------------------
+Medido sobre los 104 archivos del proyecto: 71 solo LF, 33 solo CRLF, 11 mezclados, y NINGUNO con
+un renglón pegado con el siguiente. Los cuatro casos pasan.
+
+UNA PRUEBA QUE SÓLO SE PRUEBA CON EL CASO BUENO NO ES UNA PRUEBA
+--------------------------------------------------------------------------------
+Y hay algo más acá que es lo que más costó, y no es técnico.
+
+Cuando el guardián dijo que "[rls-05] está citado sin sección", la explicación fácil era que el
+archivo estaba mal codificado: se leía como 527.780 bytes y 263.890 caracteres, la mitad exacta, y
+eso son dos bytes por carácter, que es UTF-16. Se armó toda una hipótesis sobre la codificación.
+
+Y era FALSA. El archivo tiene 266.061 bytes y 262.516 caracteres: la diferencia son los acentos.
+Está en UTF-8 y se lee bien.
+
+Lo que pasaba es mucho más tonto: la sección nueva tapó a la anterior, y le arrancó la línea de
+guiones. La herramienta decía "no encuentro esto" porque otra cosa se había puesto encima.
+
+Cuando una herramienta dice "no encuentro X" y X existe, hay dos posibilidades: que no lo pueda
+leer, o que lo haya pisado otra cosa. Y la segunda es mucho más frecuente. Para distinguirlas no
+hay que suponer la codificación: hay que abrir el archivo y mirar las dos líneas alrededor del
+punto.
+
+Y esa hipótesis falsa costó tres herramientas y un turno entero antes de descartarla. Ver
+[orden-05], que es la misma familia de error: medir antes de concluir.
 
 [forma-01] UNA MIGRACIÓN, NO UN RETOQUE A LA 058
 ------------------------------------------------
@@ -4573,6 +4668,81 @@ Y el patrón que las atraviesa es uno solo, y se puede decir en una frase:
 Y cada vez que no se guardó algo de eso —el tipo de firma, la fecha, quién preguntó, el texto
 que se le mostró—, el registro dejó de ser evidencia.
 
+[rls-06] LAS ONCE TABLAS QUE LA 067 NO TOCÓ, MIRADAS UNA POR UNA
+--------------------------------------------------------------------------------
+El hallazgo original decía quince tablas cuya política es "cualquier usuario activo". Eso es un
+hecho y sigue siéndolo. Lo que cambia es cuántas de esas quince necesitan algo, y por qué.
+
+Medido el 3 de octubre de 2026 con "tools/mira-las-tablas.js" y "tools/mira-los-catalogos.js",
+que leen los "create table" de las migraciones y no suponen nada.
+
+NINGUNA TIENE "empresa_id"
+--------------------------------------------------------------------------------
+Las quince cuelgan por "code", y el filtro es un JOIN —que es lo que ya hace la 067 con
+"trabajadores". Agregar la columna sería cambiar quince esquemas para resolver lo que un JOIN
+resuelve. Y una columna que hay que mantener sincronizada es una que algún día no lo está. Ver
+[rls-02].
+
+CUELGAN DE OTRA
+--------------------------------------------------------------------------------
+    trabajadores        asistencia           marcajes           tarjetas
+    epp_entregas        herramientas_asignaciones
+    perfiles            epp_entrega_items     inventario_qr
+    epp_kits_cargo      epp_kits
+
+Las primeras siete están resueltas o casi: las cuatro primeras por la 067, y "epp_entregas"
+por la 071, que es una línea con la misma función.
+
+LOS SIETE CATÁLOGOS NO SON UN AGUJERO
+--------------------------------------------------------------------------------
+Y esto es lo que faltaba en el hallazgo original, y es lo que hace que el número baje de quince
+a cuatro.
+
+    herramientas_catalogo   id, nombre, precio
+    feriados_adicionales    fecha, descripcion
+    dia_overrides           fecha, tipo
+    empresa                 id, nombre, logo_url
+    epp_catalogo            codigo, nombre, detalle, requiere_talla, activo
+    epp_tallas              talla, tipo, orden
+    epp_especialidades      id, clave, nombre, descripcion
+
+El mismo grupo de herramientas cuesta lo mismo en todas las obras. Un feriado es un feriado. La
+lista de tallas es la lista de tallas. Ninguna tiene un solo dato de una empresa en particular.
+
+UNA EMPRESA NO PUEDE LEER EL CATÁLOGO DE OTRA PORQUE NO HAY UN CATÁLOGO DE OTRA.
+
+Filtrarlas no protegería nada: agregaría una condición sobre un dato que la tabla no tiene. Y lo
+peor es el efecto en la lista: si quedan anotadas como "tablas sin filtrar", dentro de un año
+alguien las agrega a una migración y escribe un JOIN que no corresponde.
+
+"empresa" es el caso raro: es la tabla de las empresas, y sin filtro cualquiera ve la lista de
+todas. Con razones sociales y rut, eso sí es sensible, y es la única de las siete que hay que
+mirar.
+
+LOS CUATOS QUE SÍ QUEDAN
+--------------------------------------------------------------------------------
+1. "epp_entregas". Cuelga de "trabajadores" por "code". Resuelto por la 071.
+
+2. "inventario_qr", "epp_kits_cargo" y "epp_kits". El camino tiene DOS SALTOS —epp_kits cuelga de
+   epp_entrega_items, que cuelga de trabajadores—. Ahí la pregunta es si hay algo que proteger, y
+   la respuesta puede ser que sí: si alguien puede leer qué lleva puesto cada trabajador, esa es
+   información de personas aunque el elemento sea un catálogo compartido.
+
+3. "perfiles" y "perfil_roles". Cuelgan de "auth.users", no de una empresa, así que el filtro de
+   filas no aplica. El problema es OTRO y puede ser más grave: quién tiene rol de qué empresa.
+   Un usuario con rol de otra empresa es un problema de alcance de rol.
+
+4. "empresa". Ver quién tiene que ver la lista.
+
+Y el orden está en "docs/que-falta-por-empresa.md", con el motivo de cada uno.
+
+LO QUE ESTA SECCIÓN NO DICE
+--------------------------------------------------------------------------------
+No dice que las siete no necesiten permiso. Sigue habiendo un permiso para leerlas y otro para
+modificarlas, y eso es otra cosa: el permiso decide qué botón aparece, y el RLS decide qué filas
+se ven. Que una tabla no sea de una empresa no significa que cualquiera pueda escribir en ella.
+
+Ver [rls-01] para por qué el permiso de pantalla no alcanza.
 
 [sql-01] UN ESQUEMA NO ES UNA TABLA, Y POSTGRES DICE QUE ES OTRA BASE DE DATOS
 --------------------------------------------------------------------------------

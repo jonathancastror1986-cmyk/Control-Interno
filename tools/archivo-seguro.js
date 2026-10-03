@@ -48,6 +48,30 @@ class Archivo {
       this.lineas.push(partes[i]);
       this.fines.push(partes[i + 1] === undefined ? '' : partes[i + 1]);
     }
+
+    // ---------------------------------------------------------------------
+    // Y QUÉ RENGLONES SON DEL ARCHIVO, PARA PODER DECIR QUE UNO CAMBIÓ DE ESTILO
+    // ---------------------------------------------------------------------
+    //
+    // Y esto es lo que faltaba, y la razón por la que el estilo DEL ARCHIVO no alcanza.
+    //
+    // El proyecto tiene archivos MEZCLADOS de verdad: "administracion.js" tiene 1.992 renglones
+    // de CRLF y 6 de LF, y "documentos.js" tiene 2.260 de CRLF y 1 de LF. Esos renglones de LF
+    // están así porque algo se movió de un archivo a otro, y no son un defecto.
+    //
+    // Con una regla de estado —"si el archivo es de CRLF, todo renglón menos el último tiene que
+    // terminar en CRLF"— esos dos archivos quedan rechazados para siempre, y no se pueden editar
+    // más. O sea que la regla parecía más estricta y protegía menos.
+    //
+    // Lo que sí se puede decir es: "un renglón que YA ERA del archivo no puede cambiar de estilo".
+    // Para eso hay que saber cuáles renglones son nuevos, y eso se lleva con un arreglo al
+    // lado, que se mueve con cada cambio como se mueven los otros dos.
+    //
+    // Y el conjunto de estilos es el que se vio AL ABRIR. Un final que no estaba en ese conjunto
+    // es un final nuevo, y es exactamente lo que hay que rechazar.
+    this.propio = this.lineas.map(function () { return true; });
+    this.estilos = new Set(this.fines);
+
     this.verifica('después de partir');
   }
 
@@ -55,25 +79,68 @@ class Archivo {
   // LA COMPROBACIÓN, QUE ESTÁ EN UN SOLO LUGAR
   // -----------------------------------------------------------------
   //
-  // Y además del tamaño, mira que NO HAYA NINGÚN RENGLÓN SIN FINAL cuando el archivo es de
-  // CRLF. Porque un renglón sin final en un archivo de CRLF es un renglón que se pegó al
-  // siguiente, y no se ve.
+  // Y hace TRES cosas, que antes eran una sola y mal:
+  //
+  //   1. Que los tres arreglos midan lo mismo.
+  //   2. Que NINGÚN RENGLÓN DEL MEDIO quede sin final. Un renglón sin final en el medio del
+  //      archivo es un renglón pegado al siguiente, y no se ve en ningún editor.
+  //   3. Que NINGÚN RENGLÓN que ya era del archivo haya cambiado de estilo.
+  //
+  // Y las dos últimas estaban escritas como reglas de ESTADO —"cuántos renglones no son de
+  // CRLF", "el archivo es de CRLF"— y por lo mismo rechazaban once archivos del proyecto que son
+  // mezclados de verdad, para siempre. Ver [orden-04].
   verifica(cuando) {
-    if (this.lineas.length !== this.fines.length) {
+    if (this.lineas.length !== this.fines.length
+      || this.lineas.length !== this.propio.length) {
       console.log('');
       console.log('  *** DESALINEADO ' + cuando + ': ' + this.lineas.length
-        + ' renglones y ' + this.fines.length + ' finales ***');
+        + ' renglones, ' + this.fines.length + ' finales y ' + this.propio.length
+        + ' marcas ***');
       console.log('    NO SE ESCRIBE NADA. Se restauró desde git:');
       console.log('        git checkout -- ' + path.basename(this.ruta));
       process.exit(1);
     }
-    if (this.cr) {
-      const sinFinal = this.fines.filter((x) => x !== '\r\n').length;
-      // Y solo puede haber uno: el último, que no lleva nada detrás.
-      if (sinFinal > 1) {
+
+    // ---------------------------------------------------------------------
+    // 2) NINGÚN RENGLÓN DEL MEDIO SIN FINAL
+    // ---------------------------------------------------------------------
+    //
+    // Y lo que importa no es QUÉ estilo tiene el final, es que el final EXISTA. La regla vieja
+    // —"en un archivo de CRLF, más de un renglón sin final CRLF es un error"— contaba como
+    // "sin final" un renglón que termina en "\n" a secas, que no está pegado a nada. Y en un
+    // archivo mezclado esos hay varios, y son correctos.
+    //
+    // El último renglón sí puede no tener final: es el que no le sigue nada.
+    for (let i = 0; i < this.fines.length - 1; i++) {
+      if (this.fines[i] !== '\r\n' && this.fines[i] !== '\n') {
         console.log('');
-        console.log('  *** ' + sinFinal + ' RENGLONES SIN FINAL DE LÍNEA ***');
-        console.log('    En un archivo de CRLF eso los pega de a dos. NO SE ESCRIBE NADA.');
+        console.log('  *** EL RENGLÓN ' + (i + 1) + ' NO TIENE FINAL DE LÍNEA ***');
+        console.log('    en el medio del archivo eso lo pega con el siguiente. NO SE ESCRIBE NADA.');
+        console.log('    (el último renglón sí puede no tenerlo: no le sigue nada)');
+        process.exit(1);
+      }
+    }
+
+    // ---------------------------------------------------------------------
+    // 3) NINGÚN RENGLÓN QUE YA ERA DEL ARCHIVO CAMBIÓ DE ESTILO
+    // ---------------------------------------------------------------------
+    //
+    // Medido con "tools/prueba-archivo-seguro.js": en un archivo de CRLF se insertó un renglón
+    // —que gana un CRLF— y se convirtió otro a LF —que pierde uno—. El total queda igual, el
+    // conteo no baja, y el defecto pasaba. El conteo neto lo disimula, porque una conversión y
+    // una inserción se compensan.
+    //
+    // Y por eso esto no cuenta: sigue a cada renglón. Uno que ya era del archivo no puede
+    // terminar de una forma que no terminaba antes. Y los renglones nuevos sí pueden, que es
+    // lo que deja mover un bloque de un archivo a otro.
+    for (let i = 0; i < this.fines.length; i++) {
+      if (this.propio[i] && !this.estilos.has(this.fines[i])) {
+        console.log('');
+        console.log('  *** EL RENGLÓN ' + (i + 1) + ' CAMBIÓ DE ESTILO ***');
+        console.log('    ya era del archivo, y ahora termina en '
+          + JSON.stringify(this.fines[i]) + '. NO SE ESCRIBE NADA.');
+        console.log('    los finales que tenía el archivo al abrirlo: '
+          + Array.from(this.estilos).map(function (x) { return JSON.stringify(x); }).join(', '));
         process.exit(1);
       }
     }
@@ -138,6 +205,10 @@ class Archivo {
     const fin = this.fines[i] || this.fines[i - 1] || this.nl;
     this.lineas.splice(i, 1, ...renglones);
     this.fines.splice(i, 1, ...renglones.map(function () { return fin; }));
+    // Y los renglones que entran son NUEVOS: no tienen por qué heredar el estilo del que
+    // reemplazan. Y es lo que deja cambiar el estilo en las líneas de abajo, que es justo lo que
+    // se quiere cuando se mueve un bloque de un archivo a otro.
+    this.propio.splice(i, 1, ...renglones.map(function () { return false; }));
     this.verifica('después de reemplazar L' + (i + 1) + ' con ' + renglones.length);
   }
 
@@ -159,6 +230,7 @@ class Archivo {
     const n = hasta - desde + 1;
     this.lineas.splice(desde, n);
     this.fines.splice(desde, n);
+    this.propio.splice(desde, n);
     this.verifica('después de quitar L' + (desde + 1) + ' a L' + (hasta + 1));
     return n;
   }
@@ -191,6 +263,7 @@ class Archivo {
 
     this.lineas.splice(desde, n, ...renglones);
     this.fines.splice(desde, n, ...renglones.map(function () { return fin; }));
+    this.propio.splice(desde, n, ...renglones.map(function () { return false; }));
     this.verifica('después de reemplazar L' + (desde + 1) + ' a L' + (hasta + 1)
       + ' con ' + renglones.length);
   }
@@ -203,6 +276,9 @@ class Archivo {
       : (this.fines.length ? this.fines[this.fines.length - 1] : this.nl);
     this.lineas.splice(i, 0, ...renglones);
     this.fines.splice(i, 0, ...renglones.map(function () { return fin; }));
+    // Y los renglones insertados son NUEVOS, así que su final no se compara con nada: heredan el
+    // de donde se insertaron, y con eso basta.
+    this.propio.splice(i, 0, ...renglones.map(function () { return false; }));
     this.verifica('después de insertar en L' + (i + 1));
   }
 
@@ -213,6 +289,7 @@ class Archivo {
     }
     this.lineas.splice(i, 1);
     this.fines.splice(i, 1);
+    this.propio.splice(i, 1);
     this.verifica('después de quitar L' + (i + 1));
   }
 
@@ -286,6 +363,13 @@ class Archivo {
   }
 
   escribe() {
+    // Y ESTA COMPROBACIÓN, ANTES QUE NADA.
+    //
+    // Porque "escribe()" no miraba los finales por sí mismo: los miraba el constructor y los
+    // métodos de edición, y si alguien cambia "fines" a mano —que es lo que hace la prueba— la
+    // comprobación se quedaba en el pasado. Escribió el archivo sin volver a mirar.
+    this.verifica('antes de escribir');
+
     const salida = this.arma();
     const d = Buffer.from(salida, 'utf8');
 
@@ -332,18 +416,50 @@ class Archivo {
     // vuelve "\n" es un renglón que cambió de estilo, y eso sí se nota: el archivo queda
     // mitad y mitad.
     //
-    // Y por eso se cuentan los renglones SIN CR —los de LF puro—: si ese número sube, algún
-    // renglón que era de CRLF pasó a ser de LF.
-    const soloLF = (b) => {
+    // ---------------------------------------------------------------------
+    // Y LA SEGUNDA FORMA DE ESCRIBIRLO ESTABA MAL, Y ESTOBÓ UN TURNO ENTERO
+    // ---------------------------------------------------------------------
+    //
+    // Se contaba una cosa distinta: los renglones SIN CR —los de LF puro—. Y si ese número
+    // subía, se decía que "un renglón que era de CRLF pasó a ser de LF".
+    //
+    // El razonamiento parece bueno y no lo es: que el número de los LF puros suba no dice NADA
+    // sobre los CRLF, porque también sube cuando se insertan renglones en un archivo que es de
+    // LF PURO. Y en ese caso no se perdió ningún CR: no había ninguno que perder.
+    //
+    // O sea que el chequeo era más estricto que lo que parecía y no protegía lo que decía
+    // proteger. Consecuencia medida: "documentacion.txt" tiene 0 CRLF y 5.532 LF puros, así que
+    // CUALQUIER inserción de un renglón lo hacía fallar. Por eso no se pudo sacar una sección que
+    // estaba en el lugar equivocado: el editor se negaba a escribir, y el guardián no distinguía
+    // entre "cambiaste el estilo de un renglón" y "agregaste un renglón".
+    //
+    // Un guardián que bloquea la corrección se vuelve el obstacleio de la corrección. Ver
+    // [orden-04].
+    //
+    // Lo que SÍ se mide es lo que se quería medir: cuántos finales hay de CRLF, y que no
+    // DISMINUYAN. En un archivo de CRLF, cada renglón perdido es un "\r" que se volvió "\n", y
+    // el archivo queda mitad y mitad. En un archivo de LF puro el número es 0 antes y 0 después,
+    // y el chequeo no dice nada, que es lo correcto.
+    //
+    // Y para que el chequeo no sea una palabra: "tools/prueba-archivo-seguro.js" arma un archivo
+    // de CRLF a propósito, le quita un CR, y comprueba que el editor se niegue. Y después
+    // inserta un renglón en un archivo de LF puro y comprueba que lo acepte.
+    const crlf = (b) => {
       let n = 0;
-      for (let i = 0; i < b.length; i++) if (b[i] === 10 && (i === 0 || b[i - 1] !== 13)) n++;
+      for (let i = 1; i < b.length; i++) if (b[i] === 10 && b[i - 1] === 13) n++;
       return n;
     };
-    if (soloLF(d) > soloLF(this.antes)) {
-      console.log('  *** ' + (soloLF(d) - soloLF(this.antes))
+    const antesCRLF = crlf(this.antes);
+    const ahoraCRLF = crlf(d);
+    if (ahoraCRLF < antesCRLF) {
+      console.log('  *** ' + (antesCRLF - ahoraCRLF)
         + ' RENGLONES QUE ERAN CRLF PASARON A SER SOLO LF ***');
-      console.log('    ' + soloLF(this.antes) + ' -> ' + soloLF(d) + '. NO SE ESCRIBE.');
+      console.log('    ' + antesCRLF + ' -> ' + ahoraCRLF + '. NO SE ESCRIBE.');
       process.exit(1);
+    }
+    if (antesCRLF === 0) {
+      console.log('    ojo  este archivo es de LF puro (' + ahoraCRLF
+        + ' CRLF), así que el estilo de renglón no se puede perder: no hay.');
     }
     void cr;
 
