@@ -138,9 +138,9 @@ end $$;
 --
 -- Y dos funciones nuevas, y no el "JOIN" repetido catorce veces dentro de cada política.
 --
--- La razón no es laBrevedad. Es que un "JOIN" repetido hay que mantenerlo repetido: el día
+-- La razón no es la brevedad. Es que un "JOIN" repetido hay que mantenerlo repetido: el día
 -- que se agrega un criterio —"y que el trabajador esté activo", por ejemplo— hay que acordarse
--- de cambiarlo en las veinte políticas, y noChanging se acuerda ninguno.
+-- de cambiarlo en las veinte políticas, y no se acuerda ninguno.
 --
 -- Y además el error se ve en un solo lugar.
 create or replace function public.puede_ver_trabajador(worker_code text, uid uuid default auth.uid())
@@ -233,8 +233,8 @@ comment on policy "tarjetas por empresa" on public.tarjetas is
 -- EL BUCKET. -------------------------------------------------------
 -- Y con "epp-respaldos" explícito, porque "storage.objects" es de TODOS los buckets: sin esa
 -- condición, la política también abriría cualquier otro que se creara después.
-drop policy if exists "epp respaldos rw" on public.storage.objects;
-create policy "epp respaldos por empresa" on public.storage.objects for all
+drop policy if exists "epp respaldos rw" on storage.objects;
+create policy "epp respaldos por empresa" on storage.objects for all
   using (
     bucket_id = 'epp-respaldos'
     and public.puede_ver_archivo(name)
@@ -244,13 +244,13 @@ create policy "epp respaldos por empresa" on public.storage.objects for all
     and public.puede_ver_archivo(name)
   );
 
-comment on policy "epp respaldos por empresa" on public.storage.objects is
+comment on policy "epp respaldos por empresa" on storage.objects is
   'Reemplaza "epp respaldos rw", que era "cualquier usuario activo" sobre el bucket de las '
   'FIRMAS. Ver [rls-04].';
 
 -- Y que "storage.objects" tenga RLS prendido, que es lo que hace que estas políticas sirvan
 -- de algo.
-alter table public.storage.objects enable row level security;
+alter table storage.objects enable row level security;
 
 
 -- ===================================================================
@@ -296,6 +296,33 @@ alter table public.storage.objects enable row level security;
 -- Si el segundo lista tiene códigos que el primero no, NO FUNCIONÓ. Y no hay que mirar nada más:
 -- ese es el resultado.
 --
+-- Y la CUARTA es la del BUCKET, y es la que hay que mirar con más calma que las otras
+-- tres, porque el RLS de "storage.objects" tiene una regla que las demás tablas no tienen:
+--
+--     LAS POLÍTICAS SE UNEN CON "O".
+--
+-- O sea que una política nueva NO acota nada si hay OTRA sobre el mismo bucket que también
+-- permita. Agregar la política restrictiva a un bucket que ya tiene una permisiva es no
+-- cambiar nada: las dos se quedan y la que abre gana siempre.
+--
+-- Y en este caso el riesgo es real y no teórico: el panel de Storage de Supabase crea
+-- políticas de un clic, quedan ahí para siempre, y ninguna migración las mira —porque las
+-- solo revisan las del esquema "public", y "storage" es otro esquema—.
+--
+--     select policyname, cmd, roles, qual, with_check
+--     from pg_policies
+--     where schemaname = 'storage' and tablename = 'objects'
+--     order by policyname;
+--
+-- Lo que TIENE que aparecer es una sola política que hable de "epp-respaldos" y use
+-- "puede_ver_archivo". Si aparece alguna más sobre ese bucket, hay que quitarla a mano:
+-- desde el panel de Storage, o con un "drop policy" escrito.
+--
+-- Y las que crea Supabase por su cuenta —"Allow public read access" y parecidas— filtran
+-- por los buckets con "public = true", y "epp-respaldos" es privado, así que no alcanzan.
+-- Pero eso hay que VERLO en la consulta de arriba, y no suponerlo: una suposición sobre
+-- quién puede leer las FIRMAS de todas las empresas no es una suposición admisible.
+--
 -- -------------------------------------------------------------------
 -- PARA VOLVER ATRÁS
 -- -----------------
@@ -315,8 +342,8 @@ alter table public.storage.objects enable row level security;
 -- create policy "tarjetas rw" on public.tarjetas for all
 --   using (exists (select 1 from perfiles p where p.id = auth.uid() and p.activo));
 --
--- drop policy if exists "epp respaldos por empresa" on public.storage.objects;
--- create policy "epp respaldos rw" on public.storage.objects for all
+-- drop policy if exists "epp respaldos por empresa" on storage.objects;
+-- create policy "epp respaldos rw" on storage.objects for all
 --   using (bucket_id = 'epp-respaldos'
 --          and exists (select 1 from perfiles p where p.id = auth.uid() and p.activo));
 --

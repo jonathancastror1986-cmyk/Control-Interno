@@ -4573,6 +4573,63 @@ Y el patrón que las atraviesa es uno solo, y se puede decir en una frase:
 Y cada vez que no se guardó algo de eso —el tipo de firma, la fecha, quién preguntó, el texto
 que se le mostró—, el registro dejó de ser evidencia.
 
+
+[sql-01] UN ESQUEMA NO ES UNA TABLA, Y POSTGRES DICE QUE ES OTRA BASE DE DATOS
+--------------------------------------------------------------------------------
+"storage" no es una tabla del esquema "public". Es un ESQUEMA aparte, que creó Supabase
+para el almacen de archivos, y la tabla se llama "objects". Se escribe "storage.objects".
+
+Escribir "public.storage.objects" dice "la tabla storage, dentro del esquema public", y esa
+tabla no existe. Y el error que sale no dice eso:
+
+    ERROR: 0A000: cross-database references are not implemented: "public.storage.objects"
+
+"cross-database references" suena a permisos o a conexión, y no es ninguna de las dos cosas.
+Lo que pasó es que Postgres NO ENCONTRÓ el primer nombre de la ruta, y cuando no lo
+encuentra interpreta "public" como el nombre de una BASE DE DATOS —porque así se llama una
+base de datos en PostgreSQL—.
+
+Y por eso el mensaje hace perder la tarde: uno busca un problema de permisos, o de que la
+migración se aplicó a la base equivocada, y el problema real es un "public." de más.
+
+LA FORMA CORTA
+
+Si un nombre sale con dos puntos y el error habla de "base de datos", el primer nombre es un
+ESQUEMA que no es "public". Se escribe sin el "public." delante. Y las señales de que es un
+esquema son dos: que lo creó Supabase y no una migración del proyecto, y que no hay ningún
+"create table" suyo en migrations/.
+
+Y el nombre correcto estaba a cuatro líneas de distancia, escrito por otra persona en el
+mismo proyecto: la migración 008 escribe "storage.objects" desde el principio. La 067 lo
+escribió con un "public." de más, en cuatro lugares de código y dos en el bloque de
+deshacer.
+
+LO QUE HIZO PASAR
+
+El guardián que revisa los nombres de las migraciones, "tools/revisa-nombres-sql.js",
+aprobaba el archivo roto y decía "todo lo que nombra existe". Por dos razones que se
+tapaban entre sí:
+
+  · leía UN identificador después de "public." —el primero—, así que de
+    "public.storage.objects" leía "storage";
+
+  · y "storage" estaba en su lista de tablas conocidas, porque es lo que se necesita para que
+    "storage.objects" pase. O sea que leía un esquema, lo buscaba en la lista de tablas, lo
+    encontraba, y decía que estaba todo bien.
+
+Dos errores que se cancelan. Y el peor caso de dos errores que se cancelan no es que no pase
+nada: es que pase lo contrario. Un guardián que aprueba un archivo roto hace más daño que
+uno que no existe, porque ocupa el lugar del que avisa.
+
+El arreglo son dos cosas, y las dos hacen falta. Sacar "auth" y "storage" de la lista de
+tablas —porque son esquemas— y agregar una comprobación que rechace "public." seguido de un
+esquema conocido, que no puede existir nunca.
+
+Y la prueba de que el arreglo funciona no es que el archivo bonne: es ROMPER el guardián a
+propósito. "tools/prueba-revisa-nombres-sql.js" mete los cuatro casos que tienen que fallar
+—el de la 067 textual, con "auth", con "net", y una tabla que no existe— y los tres que
+tienen que pasar, que son las formas correctas. Si el guardián pasara el error de nuevo, la
+comprobación no estaría mirando lo que dice mirar.
 [firma-01] LA FIRMA DIGITAL Y LA APROBACIÓN SON DOS COLUMNAS DISTINTAS
 --------------------------------------------------------------------------------
 La migración 062 agrega una columna a "plantillas_contratacion":

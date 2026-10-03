@@ -65,7 +65,16 @@ leerDel().forEach(function (t) {
 
 // Y un mínimo de los que se usan en el código y no se declaran en una migración, como
 // "trabajadores" y "empresa", que vienen del esquema original de la aplicación.
-['empresa', 'trabajadores', 'auth', 'storage'].forEach(function (t) { existen.add(t); });
+//
+// Y NOTA: aquí ya NO están "auth" ni "storage", y antes sí. Eran ESQUEMAS, no tablas, y estar
+// en la lista de tablas era lo que hacía que el guardián apruebara cualquier
+// "public.storage.cualquierCosa" —porque de ese nombre el guardián solo leía "storage", y
+// "storage" estaba en la lista. Ver [sql-01].
+['empresa', 'trabajadores'].forEach(function (t) { existen.add(t); });
+
+// Los esquemas que existen pero NO son del "public". Se permiten como prefijo, y solo como
+// prefijo: "storage.objects" sí, "public.storage.objects" no.
+const ESQUEMAS_FUERA = ['storage', 'auth', 'net', 'extensions', 'graphql_public'];
 
 console.log('    ' + existen.size + ' tablas conocidas del proyecto');
 
@@ -125,6 +134,59 @@ archivos.forEach(function (f) {
   const nombradas = new Set();
   let m;
   while ((m = re.exec(t)) !== null) nombradas.add(m[1].toLowerCase());
+
+  // -------------------------------------------------------------------
+  // "public." CON UN ESQUEMA QUE NO ES "public"
+  // -------------------------------------------------------------------
+  //
+  // Y esto es una comprobación aparte, y va PRIMERO, porque es la que hubiera cazado el
+  // "public.storage.objects" de la 067.
+  //
+  // El error se ve en la consola como:
+  //
+  //     ERROR: 0A000: cross-database references are not implemented: "public.storage.objects"
+  //
+  // Y "cross-database" es la palabra que despista: no habla de permisos ni de conexión. Habla de
+  // que Postgres NO ENCONTRÓ el primer nombre de la ruta, y cuando no lo encuentra interpreta
+  // "public" como el nombre de una BASE DE DATOS. "public.storage" no existe —"storage" es un
+  // esquema, no una tabla del esquema "public"—, y por eso el mensaje habla de otra base.
+  //
+  // El nombre correcto, cuatro líneas más abajo en el mismo proyecto, está en la 008:
+  // "storage.objects". Y la 067 lo escribió con el "public." de más.
+  //
+  // -------------------------------------------------------------------
+  // POR QUÉ NO LO CECHABA EL GUARDIÁN
+  // -------------------------------------------------------------------
+  //
+  // Por dos razones que se tapaban entre sí, y las dos hay que arreglarlas:
+  //
+  //   · El patrón de abajo leía UN identificador después de "public." —el primero—. De
+  //     "public.storage.objects" leía "storage".
+  //   · Y "storage" estaba en la lista de tablas conocidas. O sea que leía un esquema, lo
+  //     buscaba en la lista de tablas, lo encontraba, y decía "ok".
+  //
+  // Dos errores que se cancelan. Y el peor caso de dos errores que se cancelan no es que no
+  // no pase nada: es que pase LO CONTRARIO. Un guardián que aprueba un archivo roto hace más
+  // daño que uno que no existe, porque ocupa el lugar del que avisa.
+  const reEsquema = new RegExp('\\bpublic\\.(' + ESQUEMAS_FUERA.join('|') + ')(?![a-z0-9_])', 'gi');
+  const esquemasMalPuestos = [];
+  let e;
+  while ((e = reEsquema.exec(t)) !== null) esquemasMalPuestos.push(e[1].toLowerCase());
+
+  if (esquemasMalPuestos.length) {
+    console.log('');
+    console.log('  *** ' + f + ': "public." CON UN ESQUEMA QUE NO ES "public" ***');
+    esquemasMalPuestos.forEach(function (s) {
+      console.log('      public.' + s + '.…');
+      console.log('        "' + s + '" es un ESQUEMA, no una tabla del esquema "public".');
+      console.log('        La tabla se escribe "' + s + '.objeto", sin el "public." delante.');
+    });
+    console.log('');
+    console.log('    El error que sale dice "cross-database references are not implemented",');
+    console.log('    y no habla de permisos: dice que no encontró el nombre y lo tomó por una base');
+    console.log('    de datos. Ver [sql-01].');
+    malas++;
+  }
 
   const malas2 = [];
   nombradas.forEach(function (n) {
