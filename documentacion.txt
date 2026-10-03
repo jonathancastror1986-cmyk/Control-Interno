@@ -4376,3 +4376,179 @@ roto. El guardián estaba bien: le habían pasado un archivo que no podía leer.
 La regla general: un informe que dice "todo bien" y después lista sospechosos obliga a
 elegir cuál de las dos partes leer. Y el que lea siempre la misma parte termina
 ignorando las dos.
+
+
+================================================================================
+LA FAMILIA "rls": EL AISLAMIENTO POR EMPRESA
+================================================================================
+
+Cinco referencias de la migración 067, que aísla por empresa las cuatro tablas donde el
+daño es claro.
+
+La 067 es un archivo que se lee y se aplica. Lo que hay acá es el porqué de cada decisión,
+porque una política de seguridad sin explicación es una política que el próximo cambia sin
+querer.
+
+[rls-01] EL AISLAMIENTO POR EMPRESA ESTÁ EN EL NAVEGADOR, NO EN LA BASE
+--------------------------------------------------------------------------------
+Hay quince tablas con una política de RLS que dice "cualquier usuario activo del sistema",
+sin mirar de qué empresa es. Entre ellas: "asistencia", "marcajes", "tarjetas" y el bucket
+de las firmas.
+
+Y "trabajadores" NO está así: la migración 014 la reemplazó por políticas que filtran con
+"perfil_empresas". Ese trabajo está bien hecho, con "with check" en la escritura.
+
+Que "trabajadores" esté acotado y que las otras no estén no es una contradicción: el RLS
+se evalúa POR TABLA. Cada tabla tiene su política, y la de "asistencia" no sabe nada de
+"trabajadores".
+
+POR QUÉ NO SE NOTÓ. La 014 lo explica en su propio comentario:
+
+    No se agrega empresa_id a asistencia, tarjetas, EPP ni herramientas:
+    todo eso cuelga de trabajadores (por code), así que basta con filtrar
+    la lista de trabajadores para que el resto quede acotado.
+
+Y la premisa es cierta SOLO si la única forma de leer esas tablas es el código de la
+aplicación. Es decir: si uno no puede hacer una consulta a mano.
+
+Y sí puede. La llave anónima está en "config/supabase.config.js", que se carga en todas
+las páginas, y es pública por diseño —es lo que permite que el navegador hable con la base
+sin un servidor—. Con ella:
+
+    supabaseClient.from('marcajes').select()
+
+Y devuelve todas las empresas.
+
+LA REGLA QUE SE LLEVA: "filtrar la lista" es una protección que vive en el cliente, y el
+cliente no es una frontera. Todo lo que tiene que ser una frontera va en la base. Ver
+[rls-02].
+
+Y hay un segundo motivo, que aparece solo: en cuanto exista un SEGUNDO sistema leyendo la
+base —una API, una aplicación móvil, un informe—, ese sistema escribe con la misma llave y
+con las mismas políticas, y hereda el problema sin haberlo pensado.
+
+[rls-02] UN "LIKE" TRATA "%" Y "_" DE COMODINES, Y UN CÓDIGO NO DEBERÍA PODER
+--------------------------------------------------------------------------------
+La política del bucket tiene que decidir si un archivo es de un trabajador. Y el nombre del
+archivo en Supabase Storage es una ruta:
+
+        <código del trabajador>/<id de entrega>/firma.png
+        <código del trabajador>/<id de entrega>/entrega_2026-10-01.pdf
+
+Y eso lo arman "soporte.js:1551" y "app.js:3479", con `${entrega.code}/${entrega.id}`.
+
+LA FORMA OBVIA de compararlo sería un "like":
+
+        storage.objects.name like t.code || '/%'
+
+Y esa forma tiene un problema que no se ve: en un "like", el "%" y el "_" son comodines.
+Así que un trabajador cuyo código fuera "000_" matchearía "0001", "0002" y "0009", que son
+de otros. Y un código con "%" matchearía todo el bucket.
+
+Hoy los códigos son de cuatro dígitos, así que no pasa nada. Pero la base NO los obliga a
+ser dígitos, y una política de seguridad no puede descansar en una convención que nadie
+hizo cumplir.
+
+LA FORMA EXACTA es "split_part" con "=":
+
+        t.code = split_part(storage.objects.name, '/', 1)
+
+Eso compara el código con el texto antes del primer "/", sin comodines. Si el nombre no
+tiene "/" —un archivo suelto en la raíz del bucket—, da cadena vacía y no matchea nada:
+que tampoco es lo que quiere, y también es lo seguro.
+
+La regla: en una política que decide qué puede ver cada quien, "exacto" gana a "parecido",
+aunque "parecido" se escriba más corto.
+
+[rls-03] UNA TARJETA SIN TRABAJADOR QUEDA PARA EL ADMINISTRADOR, Y ESO ES LO SEGURO
+--------------------------------------------------------------------------------
+"tarjetas.code" NO tiene clave foránea a "trabajadores".
+
+        code text not null,   -- código del trabajador al que pertenece
+
+Y eso es deliberado: si la tuviera, al desvincular o borrar un trabajador —o más probable:
+al BORRAR su ficha— las tarjetas se irían con él en cascada, y la credencial que ya se le
+entregó a la persona dejaría de existir en el registro. Para una tarjeta de acceso eso no
+sirve: el papel ya está impreso.
+
+La consecuencia, con la política nueva:
+
+    public.puede_ver_trabajador(tarjetas.code)
+
+pregunta si el código está en "trabajadores" Y si su empresa está en el perfil de quien
+pregunta. Si el trabajador ya no existe, la primera parte falla y la política da falso.
+
+O sea: las tarjetas huérfanas las ve SOLO el administrador.
+
+Y hay que decir que ESO ES LO CORRECTO, porque la reacción natural es "perdimos las
+tarjetas". No se pierde nada: siguen ahí, el administrador las sigue viendo, y lo que deja
+de poder hacer un usuario común es USAR una credencial de la que no sabe a quién pertenece.
+
+La dirección del error importa: un dato que se puede leer de más es un problema. Un dato
+que no se puede leer es un FASTIDIO. Cuando las dos cosas se pueden arreglar, se arregla
+en la que molesta menos al usuario y más al que no debía verlo. Ver [rls-01].
+
+[rls-04] EL BUCKET DE LAS FIRMAS, Y POR QUÉ LA POLÍTICA NOMBRA EL BUCKET
+--------------------------------------------------------------------------------
+El bucket se llama "epp-respaldos" y lo creó la migración 008, que se llama
+"008_epp_firma". Guarda dos cosas: los respaldos de las entregas de EPP y las FIRMAS.
+
+Y la política vieja era:
+
+        create policy "epp respaldos rw" on storage.objects for all
+          using (bucket_id = 'epp-respaldos'
+             and exists (select 1 from perfiles p where p.id = auth.uid() and p.activo));
+
+O sea: cualquier usuario activo del sistema podía leer las firmas de todas las empresas.
+
+UNA FIRMA ES EL DATO MÁS PERSONAL QUE TIENE EL SISTEMA. Es la letra de una persona,
+hecha a mano, y es la prueba de que firmó. Y en un producto que se vende por cumplimiento
+normativo, es exactamente el dato que no debería salir de la empresa que lo generó.
+
+Y "storage.objects" es una tabla de TODOS los buckets. Por eso la política nueva mantiene
+la condición del bucket explícita:
+
+        using ( bucket_id = 'epp-respaldos' and public.puede_ver_archivo(name) )
+
+Sin esa condición, la política también abriría cualquier bucket que se creara después,
+porque el RLS no sabe qué buckets existen: mira filas, no el catálogo.
+
+La regla: una política sobre una tabla compartida por varias "entidades" —buckets, tipos
+de documento, tipos de evento— tiene que nombrar la entidad en la condición, o el día que
+se agregue algo nuevo queda abierto por omisión.
+
+[rls-05] LA MIGRACIÓN QUE NO SE APLICA A CIEGAS
+--------------------------------------------------------------------------------
+La 067 es un archivo, como todas las otras. Se lee y se aplica. No es un cambio vivo que
+este turno haya hecho.
+
+Y tiene cuatro salvaguardas, que son las que hacen que sea segura de aplicar:
+
+UNO — "with check" en escritura. Sin él se puede insertar una fila que después queda
+fuera del alcance de quien la insertó, y esa fila es invisible para el que la escribió.
+Con "using" y "with check" iguales, una escritura solo pasa si el que la hace podría
+leerla después.
+
+DOS — "es_admin()" con salida. Un administrador tiene que ver todo. Y si "es_admin()" se
+rompiera, el síntoma sería "nadie entra", que se ve de inmediato y no en silencio.
+
+TRES — que sea RE-EJECUTABLE. Lleva "drop policy if exists" antes de cada "create policy",
+así que correrla dos veces deja lo mismo en vez de un error.
+
+CUATRO — que no se aplicen a medias. La migración empieza con un "do $$ … $$" que verifica
+que existan "es_admin()" y "tiene_permiso()", y si falta alguna levanta un error ANTES de
+crear una sola política.
+
+Y por qué el "do $$" importa tanto: sin él, el lote falla en la primera política y no se
+aplica ninguna —eso es inofensivo—. Pero si el fallo fuera en la TERCERA, las dos primeras
+quedan aplicadas y la tercera no, y el sistema queda con el aislamiento a medias y
+nadie lo nota. Un error visible a mitad de un lote es peor que un error al principio.
+
+La comprobación que decide, y que hay que correr con la sesión de un usuario de una sola
+empresa:
+
+    workers.map(w => w.code)                              // lo que la app le muestra
+    [...new Set(r.data.map(x => x.code))]                // lo que la base le devuelve
+
+Si el segundo lista tiene códigos que el primero no, NO FUNCIONÓ. Y no hay que mirar nada
+más.
