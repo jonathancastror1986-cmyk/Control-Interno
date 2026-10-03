@@ -4632,6 +4632,54 @@ tienen que pasar, que son las formas correctas. Si el guardián pasara el error 
 comprobación no estaría mirando lo que dice mirar.
 
 [sql-02] UNA TABLA DE SUPABASE NO SE TOCA DESDE EL EDITOR SQL, Y EL ERROR NO LO DICE
+--------------------------------------------------------------------------------
+
+    drop policy if exists "epp respaldos rw" on storage.objects;
+    ERROR: 42501: must be owner of table objects
+
+Y el nombre de la tabla ya estaba bien —que era el error anterior—, así que este es el
+siguiente, y no se arregla escribiendo nada.
+
+POR QUÉ
+
+"storage.objects" no es una tabla del proyecto. La puso Supabase para el almacen de archivos
+y su dueño es un ROL de Supabase —"supabase_storage_admin"—, no el rol con el que corre el
+editor SQL.
+
+En PostgreSQL los permisos de una tabla tienen TRES partes, y para esto solo cuenta una: el
+DUEÑO. Cambiar el RLS —que es lo que ES una política— lo puede hacer el dueño. No sirve con
+tener permiso de lectura, y no sirve con ser "postgres": "postgres" no es el dueño de esa
+tabla.
+
+O sea que la 008 pudo hacerlo porque en ese momento la propiedad era de "postgres", y Supabase
+la movió después. Eso no lo arregla una migración, y no tiene arreglo desde el editor.
+
+LAS DOS VÍAS QUE QUEDAN
+
+El panel: Storage → Buckets → el bucket → Policies → Create policy. Ahí se escribe la
+política a mano, y el panel ya sabe qué bucket es. Y la Management API, con la llave del
+servicio —que es una llave que no debería estar en el navegador de nadie—, que es la vía para
+un script del servidor y no para esta aplicación.
+
+LO QUE NO HAY QUE HACER
+
+Quitarle el RLS a "storage.objects" para poder crear la política. Eso abriría el almacen
+entero, para todos los buckets, y es un agujero mucho más grande que el que se estaba
+tapando.
+
+Y EL AGUJERO QUE ABRE ESTA MIGRACIÓN SI SE APLICA A MEDIAS
+
+Porque una migración con las dos cosas mezcladas no se puede aplicar: se aplica hasta donde
+puede y después falla. Y ese es el peor estado posible, porque el que la corre cree que salió
+bien y en realidad quedó a medias.
+
+Lo que quedó es que la 067 aplica las tres tablas y las dos funciones, y la 068 es un
+documento para hacer a mano —con CERO renglones de código, para que no se pueda correr por
+accidente—. Y las dos se avisan la una a la otra en su primer renglón.
+
+Y entre que se aplica la 067 y se hace la 068 a mano hay un AGUJERO ABIERTO: la política
+vieja del bucket sigue diciendo "cualquier usuario activo" sobre las FIRMAS. Por eso está
+escrito en mayúsculas en las dos, y no en un comentario al pie que nadie lee.
 
 [rem-01] EL SUELDO ES UN DATO QUE NECESITA PERMISO, Y NO UN CAMPO MÁS
 --------------------------------------------------------------------------------
