@@ -100,8 +100,8 @@ archivos.forEach(function (P) {
   // estaba mal era el que le pasó la ruta.
   const completa = path.isAbsolute(P) ? P : path.join(RAIZ, P);
   // Y que el archivo no esté vacío. Un archivo de cero bytes PARSEA, porque un programa vacío
-  // es un programa válido. Y "Copy-Item" con un origen inexistente deja un archivo de cero
-  // bytes sin dar ningún error, que es la forma más común de que esto pase. Ver [cache-18].
+  // es un programa válido. Y "Copy-Item" con un origen que no está deja el destino en cero
+  // bytes sin dar ningún error, que es la forma más común de que esto pase. Ver [arq-27].
   let bytes = 0;
   try { bytes = fs.statSync(completa).size; } catch (e) { bytes = -1; }
 
