@@ -3616,6 +3616,81 @@ La regla para cualquier comprobador de aquí en adelante:
     · que nombre la herramienta que usó, para que el error se ubique
     · queCompruebe algo que se sepa que funciona, antes de acusar al servidor
 
+[tarja-17] LOS NÚMEROS DE DÍA NO FALTABAN: ERAN BLANCOS SOBRE BLANCOS
+-------------------------------------------------------------------
+El 3 de octubre de 2026. En la tarjeta del personal de un supervisor, la fila de los números de
+día se veía como una fila dibujada y vacía: con sus celdas y sus bordes, y sin un solo número.
+
+Y las letras de abajo sí se veían.
+
+LOS NÚMEROS NO FALTABAN
+--------------------------------------------------------------------------------
+"administracion.js" los escribe, y los escribe bien:
+
+    for(let d=1;d<=nd;d++)html+=`<th>${d}</th>`;
+
+Medido en el navegador con octubre de 2026: la primera fila de la tabla tiene 39 celdas de
+encabezado, y las que corresponden a los días dicen "1", "2", "3"… hasta "31". El texto está en
+el DOM.
+
+O sea que el reporte —"faltan los números"— describía algo que no pasaba: los números estaban y
+no se veían. Y esa diferencia es la que cuesta: uno busca en el JavaScript, donde están bien, y
+no encuentra nada.
+
+LA CADENA
+--------------------------------------------------------------------------------
+Hay tres reglas y el defecto está en la relación entre ellas, no en ninguna:
+
+    styles.css L163     th,td{border:1px solid var(--line);padding:6px;text-align:center}
+    styles.css L165     th{background:var(--accent2);color:#fff;font-weight:600}
+    asistencia.css      #v-asistencia #matrixArea th{ … background:var(--card); … }
+
+La de L165 pone el texto blanco sobre "--accent2", que en tema claro es #101a14: casi negro, y
+se lee bien. Esa combinación está pensada y funciona.
+
+La tercera le cambia el FONDO a "--card", que en tema claro es #ffffff. Y no le cambia el color.
+Entonces el "#fff" de L165 se queda pegado y el resultado es BLANCO SOBRE BLANCO.
+
+En tema oscuro no se nota: "--card" es #1e1e1e y el blanco encima se lee. Por eso el defecto
+estuvo tanto tiempo sin verse: en el tema de desarrollo estaba bien, y el que reportaba el
+problema estaba en claro.
+
+Y las letras del día de abajo sí se veían porque son celdas normales: un "td" no tiene "#fff"
+global, hereda el color de texto normal, que funciona sobre cualquier fondo del sistema.
+
+LA REGLA
+--------------------------------------------------------------------------------
+Si una regla le cambia el fondo a un "th", tiene quegele cambiar el color también.
+
+Y no es una preferencia de estilo. El color de una celda no es de la celda: es de la más
+específica que la toca. Cambiar el fondo sin tocar el color deja el color del otro lado de la
+cascada, y del otro lado hay un "#fff" que estaba pensado para un fondo casi negro.
+
+EL GUARDIÁN
+--------------------------------------------------------------------------------
+"tools/comprueba-color-sobre-fondo.js" lee los 13 archivos de CSS, saca las 23 reglas que tocan
+un "th", y avisa de las que ponen un fondo claro —"--card", "--panel", "--bg",
+"--surface-hover"— sin poner color.
+
+Medido: dos reglas estaban así, las dos de la matriz. Una era la de los números y la otra la de
+la primera columna, que también quedaba blanca sobre blanca.
+
+Y "tools/prueba-comprueba-color-sobre-fondo.js" comprueba que el guardián funciona, inyectando la
+regla real sin su color en un árbol de mentira. Los tres casos: la regla con su color pasa, la
+misma sin color falla, y una regla con fondo oscuro sin color pasa.
+
+Y esa prueba tuvo que ser escrita tres veces, porque las dos primeras pasaban por la razón
+equivocada. Ver [orden-07], que es lo mismo aplicado a las pruebas: un guardián que no se ha visto
+fallar no se sabe si funciona, y una prueba que no inyecta el defecto no probó nada.
+
+LO QUE NO SE HIZO
+--------------------------------------------------------------------------------
+No se calculó contraste. Y no es descuido: el problema no es de aritmética sino de estructura. No
+importa si el fondo es "#ffffff" o "#f8faf9", las dos cosas son claras y las dos se rompen igual
+con un texto blanco.
+
+Y no se revisaron los "td", porque un "td" no tiene el "#fff" global: el problema es del
+encabezado.
 
 [afp-22] EL ANCLA CON UN ESPACIO DE MÁS
 --------------------------------------------------------------------------------

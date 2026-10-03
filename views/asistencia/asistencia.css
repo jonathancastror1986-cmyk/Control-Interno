@@ -145,6 +145,26 @@
   top:0;
   z-index:3;
   background:var(--card);
+
+  /* Y EL COLOR VA AQUÍ TAMBIÉN, Y NO ES UN DETALLE. */
+  /* -------------------------------------------------------------------
+    "styles.css" L165 tiene "th{background:var(--accent2);color:#fff}", y eso está bien:
+    "--accent2" es #101a14 en tema claro, casi negro, y el blanco se lee.
+
+    Pero esta regla le CAMBIA EL FONDO a "--card", que en tema claro es #ffffff. Y si no le
+    cambia el color, se queda el "#fff" de la regla global: BLANCO SOBRE BLANCO.
+
+    El resultado eran los números de día de la tarjeta del supervisor, que no se veían. No como
+    un hueco: la fila entera estaba, con sus celdas y sus bordes, y sin un solo número. Los
+    números NO faltaban —el HTML los traía bien— sino que no se veían.
+
+    Y las letras de abajo sí se veían, porque son celdas normales y no heredan el "#fff".
+
+    La regla: si una regla le cambia el fondo a un "th", tiene que cambiarle el color también.
+    El color de una celda no es de la celda: es de la más específica que la toca. Ver [tarja-17].
+  */
+  color:var(--text);
+
   padding:6px 3px;
   line-height:1.35;
   font-size:.68rem;
@@ -211,6 +231,10 @@
   left:0;
   z-index:2;
   background:var(--card);
+  /* Y el color, por la misma razón que arriba: esta regla también cambia el fondo a "--card",
+     y sin esto la celda "Código" queda blanca sobre blanca en tema claro. Es el mismo defecto.
+     Ver [tarja-17]. */
+  color:var(--text);
 }
 
 /* Y la esquina de arriba a la izquierda queda por ENCIMA de las dos, porque es el
