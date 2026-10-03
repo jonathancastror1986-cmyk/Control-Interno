@@ -119,3 +119,53 @@ una línea.
 **Para dejar el botón quieto hasta que se resuelva**, alcanza con sacar el `onclick` del
 `app.html`. El motor y la arnés se pueden usar igual desde
 `tools/pruebas/docx-ida-y-vuelve.html`.
+## Lo que se midió el 3 de octubre de 2026
+----------------------------------------------------------------------------
+
+El botón del formulario sigue sin hacer nada. Esto es lo que se comprobó, con números, y
+lo que se descartó:
+
+**Cierto, y verificado dos veces en el navegador:**
+
+- `typeof window.descargarDocxConDatos` es `"undefined"`, con `?v=63` y con `?v=69`.
+- `descargarPlantillaConDatos`, `descargarPlantillaModelo`, `completarPlantilla` y
+  `cssDeDocumentoParaPantalla` SÍ son globales, del mismo archivo y a dos renglones de
+  distancia.
+- `documentos.js` compila. `tools/compila-javascript.js` lo aprueba.
+- El archivo tiene 53 declaraciones de función y **52 se declaran**. La que no se declara
+  es `descargarDocxConDatos`, en L1466.
+
+**Descartado, con el experimento hecho:**
+
+- *Que esté anidada por una llave sin cerrar.* Falso. Un bloque sin cerrar taparía también
+  las veinte funciones que están DESPUÉS, y todas se declaran.
+- *Que falte una llave después de L1404.* Falso. Se probó ponerla en cinco lugares distintos
+  y en ninguno el archivo compila.
+- *Que sea un carácter de control invisible.* Hay 27 "\r" sueltos en `js/app.js` y el
+  archivo funciona; no es la causa.
+
+**Cierto, y sigue abierto:**
+
+- `views/administracion/documentos.js` tiene **1222 de sus 2262 renglones terminados en
+  "\r\n"**: el retorno de carro duplicado. Lo introdujo el corte del bloque "campos
+  propios y documentos": el guion partió con un `split` que dejó un "\r" pegado al final de
+  cada pedazo y después armó el destino uniendo con "\r\n".
+- Es invisible, no rompe la sintaxis —para el analizador "\r" es espacio en blanco— y por eso
+  `node --check` lo aprueba. **Pero se comprobó que arreglarlo NO hace aparecer la
+  función**: el mismo archivo con los "\r\n" normalizados sigue declarando 52 de 53.
+  Así que es un defecto real y aparte, que hay que arreglar, y no es la causa de esto.
+- Otros cuatro archivos del proyecto también tienen finales raros: `css/tokens.css` (155),
+  `css/vistas.css` (46), `controllers/clima-reloj.js` (412) y `pages/index.html` (29),
+  todos con "\r" como separador y nada de "\r\n".
+
+**Por dónde seguir:**
+
+La pregunta que queda es una sola y es chica: qué hay entre L1404 y L1466 que hace que el
+analizador se salte **una** declaración y solo esa. Todo lo demás está descartado.
+
+Y el camino que no se ha probado todavía es el bueno: **preguntarle al analizador**. Node
+no expone el árbol sintáctico, pero `node --check` con una **sugerencia de contraseña** no
+existe; lo que sí se puede es aislar el archivo entero menos el bloque de comentarios de
+L1406 a L1465, porque un bloque `//` que se.commenta mal es de las pocas cosas que puede
+tragarse una declaración sin romper nada. Esa es la primera prueba que hay que hacer, y es
+barata.
