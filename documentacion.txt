@@ -3396,7 +3396,23 @@ la barra sin partir antes, el "<div id='workerList'>" se va con ella y desaparec
 tabla del listado entera.
 
 
-[tarja-09] Y [tarja-10] LOS TRES FALLOS DEL GUION QUE LAS QUITÓ
+[tarja-09] LOS TRES FALLOS DEL GUION QUE QUITÓ LAS COPIAS
+--------------------------------------------------------------------------------
+
+
+[tarja-10] Y LA COLA QUE DEJABA ".." CON DOS PUNTOS
+--------------------------------------------------------------------------------
+
+La cola —lo que va pegado después del cierre— se comparaba sin quitarle el "\r" final.
+Como el archivo tiene finales CRLF, la cola era SIEMPRE "\r", que en JavaScript es
+verdad, y el "if (cola)" disparaba siempre.
+
+Y un "\r" no es contenido. Es el segundo de los tres fallos del guion, y el más tonto de
+los tres: no hacía falta mirar el archivo para verlo, bastaba con saber que "\r" es
+blanco y que en JavaScript un blanco es verdadero.
+
+La historia completa está en [tarja-09].
+
 --------------------------------------------------------------------------------
 
 El guion que quitó las copias falló tres veces antes de acertar, y las tres son la
@@ -3506,7 +3522,26 @@ La regla para cualquier comprobador de aquí en adelante:
     · queCompruebe algo que se sepa que funciona, antes de acusar al servidor
 
 
-[afp-22] Y [afp-23] DOS ANCLAS QUE NO SE ENCONTRARON
+[afp-22] EL ANCLA CON UN ESPACIO DE MÁS
+--------------------------------------------------------------------------------
+
+
+[afp-23] Y EL ANCLA QUE BUSCABA EL PUNTO Y COMA EQUIVOCADO
+--------------------------------------------------------------------------------
+
+La segunda ancla que no se encontró fue por el final de línea.
+
+El guion buscaba:
+
+    const finGuardar = app.indexOf(';', iGuardar) + 1;
+
+Pero la línea de "afp_nombre" termina en COMA, no en punto y coma: es una propiedad más
+del objeto que se está armando. Buscando el ";" siguiente se comía el resto del objeto
+literal, y las dos propiedades nuevas quedaban FUERA, y el archivo no compilaba.
+
+La línea de fondo es la misma de [afp-22]: escribir el texto como uno se lo imagina, y
+no como está. El final de línea se mide; el carácter de cierre, no.
+
 --------------------------------------------------------------------------------
 
 Las dos del mismo turno, y las dos por escribir el texto como se piensa uno, no como está:

@@ -1,0 +1,75 @@
+#
+# LOS CÓDIGOS QUE EL CÓDIGO CITA Y QUE NO TIENEN SECCIÓN TODAVÍA.
+#
+# Un código por línea. "comprueba-codigos.js" falla por los que NO están en esta lista,
+# porque son nuevos. Los que están, son deuda conocida y se avisan aparte.
+#
+# Para sacarle uno: se lee el comentario del código que lo cita, se escribe la sección con
+# lo que ese comentario YA dice, y después:
+#
+#     node tools/comprueba-codigos.js quitar
+#
+# Para agregar uno que se acaba de romper:
+#
+#     node tools/comprueba-codigos.js poner [nombre-del-codigo]
+#
+afp-14
+aprob-01
+aprob-02
+aprob-03
+aprob-04
+aprob-05
+barra-11
+barra-12
+barra-13
+barra-15
+barra-16
+base-01
+bit-01
+bit-03
+bit-04
+bit-05
+centro-08
+centro-10
+clave-01
+clave-02
+dia-1
+falta-01
+falta-03
+filtro-02
+filtro-03
+firma-01
+firma-02
+firma-03
+firma-04
+firma-05
+firma-06
+firma-07
+firma-08
+firma-09
+firma-10
+firma-11
+firma-12
+firma-13
+firma-14
+foto-01
+fuentes-01
+lista-02
+lista-03
+nombres-01
+nombres-02
+panel-01
+panel-02
+panel-04
+panel-05
+panel-09
+panel-12
+parea-01
+parea-02
+parea-03
+plantillas-02
+salud-01
+tarja-01
+tarja-03
+ver-01
+ver-02
