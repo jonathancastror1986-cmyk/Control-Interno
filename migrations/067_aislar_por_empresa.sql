@@ -59,17 +59,17 @@
 -- hay que mantener sincronizada es una que algún día no lo está.
 --
 -- -------------------------------------------------------------------
--- POR QUÉ SOLO LAS CUATRO DE ESTA MIGRACIÓN
+-- POR QUÉ SOLO LAS TRES DE ESTA MIGRACIÓN
 -- -----------------------------------------
 --
--- Porque son las cuatro donde el daño es claro y el arreglo es el mismo:
+-- Porque son las tres donde el daño es claro y el arreglo es el mismo:
 --
 --   · "asistencia" y "marcajes"  — quién estuvo y cuándo, de todas las empresas.
 --   · "tarjetas"                 — "id" ES el valor del código de barras, con su estado de
 --                                  activa o anulada. Una credencial.
---   · "storage.objects"           — el bucket "epp-respaldos" lo creó la 008, que es la
---                                  migración de la FIRMA. Cualquier usuario activo podía
---                                  leer las firmas de todas las empresas.
+--   · (el bucket "epp-respaldos" va aparte, en la 068. No se puede aplicar desde el
+--                                  panel: "storage.objects" no es nuestra y su dueño no es el
+--                                  rol del editor SQL. Ver [sql-02].)
 --
 -- Las otras once quedan fuera a propósito. No porque no importen, sino porque una migración de
 -- seguridad sin probar con datos reales es un riesgo, y un riesgo grande sobre quince tablas
@@ -230,29 +230,17 @@ comment on policy "tarjetas por empresa" on public.tarjetas is
   'Reemplaza "tarjetas rw", que era "cualquier usuario activo". Las tarjetas cuyo código no '
   'existe en trabajadores quedan solo para el administrador. Ver [rls-03].';
 
--- EL BUCKET. -------------------------------------------------------
--- Y con "epp-respaldos" explícito, porque "storage.objects" es de TODOS los buckets: sin esa
--- condición, la política también abriría cualquier otro que se creara después.
-drop policy if exists "epp respaldos rw" on storage.objects;
-create policy "epp respaldos por empresa" on storage.objects for all
-  using (
-    bucket_id = 'epp-respaldos'
-    and public.puede_ver_archivo(name)
-  )
-  with check (
-    bucket_id = 'epp-respaldos'
-    and public.puede_ver_archivo(name)
-  );
-
-comment on policy "epp respaldos por empresa" on storage.objects is
-  'Reemplaza "epp respaldos rw", que era "cualquier usuario activo" sobre el bucket de las '
-  'FIRMAS. Ver [rls-04].';
-
--- Y que "storage.objects" tenga RLS prendido, que es lo que hace que estas políticas sirvan
--- de algo.
-alter table storage.objects enable row level security;
-
-
+-- EL BUCKET NO ESTÁ AQUÍ. ---------------------------------------------------
+--
+-- "storage.objects" no se puede tocar desde el editor SQL: no es una tabla del proyecto
+-- y su dueño es un rol de Supabase, no el rol con el que corre el editor. Crear una
+-- política sobre ella da "42501: must be owner of table objects". Ver [sql-02].
+--
+-- Está en la 068, que se hace A MANO desde el panel de Storage. Y hay un agujero de
+-- seguridad abierto mientras eso no se haga: la política vieja del bucket sigue siendo
+-- "cualquier usuario activo" y deja ver las FIRMAS de todas las empresas. Ver [rls-04].
+--
+--
 -- ===================================================================
 -- 3) CÓMO SE COMPRUEBA
 -- ===================================================================

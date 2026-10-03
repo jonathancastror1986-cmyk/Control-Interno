@@ -1,0 +1,117 @@
+-- ===================================================================
+-- 068: EL BUCKET DE LAS FIRMAS, A MANO DESDE EL PANEL (2026-10-03)
+-- ===================================================================
+--
+-- -------------------------------------------------------------------
+-- ESTE ARCHIVO NO SE CORRE EN EL EDITOR SQL
+-- -------------------------------------------------------------------
+--
+-- Y no es una recomendación. Es que NO SE PUEDE:
+--
+--     drop policy if exists "epp respaldos rw" on storage.objects;
+--     ERROR: 42501: must be owner of table objects
+--
+-- "storage.objects" no es una tabla del proyecto. La puso Supabase para el almacen de
+-- archivos y su dueño es un rol de Supabase —"supabase_storage_admin"—, no el rol con el que
+-- corre el editor SQL. En PostgreSQL, para cambiar el RLS de una tabla hay que ser su DUEÑO:
+-- no sirve con tener permiso de lectura y no sirve con ser "postgres". Ver [sql-02].
+--
+-- -------------------------------------------------------------------
+-- HAY UN AGUJO ABIERTO HASTA QUE SE HAGA ESTO
+-- -------------------------------------------------------------------
+--
+-- La política vieja del bucket —"epp respaldos rw", de la 008— sigue puesta, y dice:
+--
+--     using (bucket_id = 'epp-respaldos'
+--            and exists (select 1 from perfiles p where p.id = auth.uid() and p.activo));
+--
+-- O sea "cualquier usuario activo". Mientras siga ahí, cualquier usuario con la llave
+-- anónima —que es pública por diseño, está en "config/supabase.config.js"— puede leer las
+-- FIRMAS de todas las empresas. Ver [rls-01] y [rls-04].
+--
+-- Y este archivo no lo arregla: no lo puede. Lo arregla la persona que haga el paso de abajo.
+--
+-- -------------------------------------------------------------------
+-- EL PASO, EN EL PANEL DE SUPABASE
+-- -------------------------------------------------------------------
+--
+-- Storage → Buckets → "epp-respaldos" → Policies → "Create policy". Y en el formulario:
+--
+--   · NOMBRE      "epp respaldos por empresa"
+--   · OPERACIONES SELECT, INSERT, UPDATE, DELETE   —los cuatro
+--   · USING       public.puede_ver_archivo(name)
+--   · WITH CHECK  public.puede_ver_archivo(name)
+--
+-- Y después, BORRAR la que se llama "epp respaldos rw".
+--
+-- ---------------------------------------------------------------------
+-- Y POR QUÉ NO SE ESCRIBE EL "bucket_id = 'epp-respaldos'" EN LA EXPRESIÓN
+-- ---------------------------------------------------------------------
+--
+-- Porque en el panel la política queda atada al bucket que se está editando. El "bucket_id"
+-- ya lo mete el panel. Escribirlo de más no está mal —sería lo mismo— pero confunde, porque
+-- uno lo lee y piensa que el panel no lo pone.
+--
+-- Y en la 008 sí hizo falta, porque esa política se creó desde el editor SQL sobre
+-- "storage.objects", que es de TODOS los buckets: sin esa condición, también abriría
+-- cualquier otro bucket que se creara después. Ver [rls-04].
+--
+-- ---------------------------------------------------------------------
+-- Y POR QUÉ HAY QUE BORRAR LA VIEJA Y NO SOLO AGREGAR LA NUEVA
+-- ---------------------------------------------------------------------
+--
+-- Porque en el RLS las políticas permisivas se unen con "o". Dos políticas sobre el mismo
+-- bucket: si una dice que sí, la fila se puede leer. Agregar la restrictiva sin borrar la
+-- permisiva NO cambia NADA, y en cambio el panel muestra dos políticas y da la impresión de
+-- que el bucket está acotado.
+--
+-- ---------------------------------------------------------------------
+-- CÓMO SE COMPRUEBA, SIN TOCAR LA BASE
+-- ---------------------------------------------------------------------
+--
+-- Con la sesión de un usuario de UNA empresa, en la consola del navegador:
+--
+--     // los archivos que la aplicación le está mostrando a este usuario
+--     archivosDeEpp().then(x => x.map(f => f.name))
+--
+--     // y los que la base le devuelve si pregunta directo
+--     const r = await supabaseClient.storage.from('epp-respaldos').list('');
+--     r.data
+--
+-- Si el segundo lista algo que el primero no, NO FUNCIONÓ.
+--
+-- Y OJO con lo que muestra el segundo: si devuelve un ERROR de permisos en vez de una lista,
+-- eso es lo BUENO —significa que la política nueva está aplicando y la vieja se fue—.
+--
+-- ---------------------------------------------------------------------
+-- SI ALGUIEN NECESITA HACERLO DESDE EL EDITOR SQL
+-- ---------------------------------------------------------------------
+--
+-- No se puede, y no es cosa de esta migración: es cosa de quién es el dueño de la tabla.
+-- Las dos vías que quedan son el panel, o la Management API con la llave del servicio —que
+-- es una llave que no debería estar en el navegador de nadie—.
+
+-- Y lo que NO hay que hacer es quitarle el RLS a "storage.objects" para poder crear la
+-- política. Eso abriría el almacen entero. Ver [rls-04].
+
+-- -------------------------------------------------------------------
+-- LO QUE ESTA MIGRACIÓN SÍ NECESITA QUE EXISTA
+-- -------------------------------------------------------------------
+--
+-- La función "public.puede_ver_archivo(text, uuid)", que crea la 067. Sin ella, el panel no
+-- tiene qué evaluar y el paso del punto 3 falla.
+--
+-- Y se puede comprobar que existe, desde el editor SQL, sin tocar el bucket:
+--
+--     select proname, proargnames
+--     from pg_proc
+--     join pg_namespace n on n.oid = pronamespace
+--     where n.nspname = 'public' and proname like 'puede_ver%';
+
+-- Tiene que salir "puede_ver_archivo" con los dos argumentos "object_name, uid".
+
+-- Y OJO: los argumentos tienen NOMBRE porque la firma es
+-- "puede_ver_archivo(object_name text, uid uuid default auth.uid())". Con lo cual en el panel
+-- hay que llamar la función con el nombre de la columna —"name"—, no con la posición. El
+-- panel no pone argumentos, así que la expresión es exactamente la de arriba, sin paréntesis
+-- de argumento.
