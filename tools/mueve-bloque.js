@@ -32,10 +32,71 @@ const RAIZ = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-as
 const ORIGEN = RAIZ + 'views/asistencia/relojes.js';
 const DESTINO = RAIZ + 'views/administracion/documentos.js';
 
-// Y el bloque arranca acá, y el número sale de leer el archivo, no de memoria. Abajo se
-// COMPRUEBA que en ese renglón esté el título del bloque; si no, no se mueve nada.
-const DESDE = 3396;
-const MARCA = 'KIT DE CONTRATACIÓN';
+// -------------------------------------------------------------------
+// CÓMO SE USA
+// -----------
+//
+//     node tools/mueve-bloque.js <archivo-origen> <archivo-destino> \
+//          <línea-desde> <línea-hasta> <marca-desde> <marca-hasta>
+//
+// Y el "hacer" va adelante de todo:
+//
+//     node tools/mueve-bloque.js hacer relojés.js documentos.js 2542 2950 "EL EDITOR DE PLANTILLAS" "}"
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ LAS LÍNEAS Y LAS MARCAS VIENEN POR PARTE
+// ---------------------------------------------------
+//
+// Porque un número solo no se puede verificar: cuando el archivo cambia, la línea 2542 deja de
+// ser la que era, y el guion happily mueve el bloque equivocado.
+//
+// Y la marca es el TÍTULO del bloque, que es un texto único y legible. Si el archivo cambió y
+// la línea 2542 ya no dice "EL EDITOR DE PLANTILLAS", el guion se para. Eso es lo que hace
+// falta: que se pare cuando el número dejó de significar lo que significaba.
+//
+// Y el guion lo dice, porque un guardián que se para sin decir por qué parece un fallo y se
+// ignora.
+//
+// -------------------------------------------------------------------
+// Y LOS ARCHIVOS TAMBIÉN VAN POR PARTE, Y NO ESCOGIDOS
+// ----------------------------------------------------
+//
+// Y no es porque sea elegante: es porque la lista de archivos escritos a mano hay que
+// acordarse de ampliarla, y la lista es la que decide qué se comprueba. Ya pasó tres veces
+// hoy con listas de este proyecto. Ver [firma-13].
+//
+const REL = (p) => {
+  const limpio = String(p || '').replace(/^['"]|['"]$/g, '');
+  if (!limpio) {
+    console.log('');
+    console.log('  *** FALTA UN NOMBRE DE ARCHIVO ***');
+    console.log('    uso: node tools/mueve-bloque.js <origen> <destino> '
+      + '<desde> <hasta> <marca>');
+    process.exit(1);
+  }
+  return RAIZ + limpio;
+};
+const ORIGEN = REL(process.argv[3]);
+const DESTINO = REL(process.argv[4]);
+const DESDE = Number(process.argv[5] || 0);
+const HASTA = Number(process.argv[6] || 0);
+const MARCA = process.argv[7] || '';
+const MARCA_FIN = process.argv[8] || '';
+const HACER = process.argv[2] === 'hacer';
+
+if (!DESDE || !HASTA || HASTA <= DESDE) {
+  console.log('');
+  console.log('  *** LAS LÍNEAS NO ESTÁN BIEN ***');
+  console.log('    desde=' + DESDE + '  hasta=' + HASTA);
+  console.log('    Y "hasta" tiene que ser MAYOR que "desde".');
+  process.exit(1);
+}
+if (!MARCA) {
+  console.log('');
+  console.log('  *** FALTA LA MARCA DEL BLOQUE ***');
+  console.log('    Sin una marca, el número solo no se puede verificar contra nada.');
+  process.exit(1);
+}
 
 const HACER = process.argv[2] === 'hacer';
 
@@ -153,45 +214,79 @@ const dTxt = fs.readFileSync(DESTINO, 'utf8');
 const oLin = oTxt.split('\n');
 
 console.log('  === antes ===');
-console.log('    relojés.js    ' + (oLin.length - 1) + ' renglones, '
+console.log('    ' + ORIGEN.replace(RAIZ, '') + ': ' + (oLin.length - 1) + ' renglones, '
   + funciones(oTxt).length + ' funciones');
-console.log('    documentos.js ' + (dTxt.split('\n').length - 1) + ' renglones, '
-  + funciones(dTxt).length + ' funciones');
+console.log('    ' + DESTINO.replace(RAIZ, '') + ': ' + (dTxt.split('\n').length - 1)
+  + ' renglones, ' + funciones(dTxt).length + ' funciones');
+console.log('    el bloque pedido: L' + DESDE + ' a L' + HASTA
+  + ', ' + (HASTA - DESDE + 1) + ' renglones');
 
 // -------------------------------------------------------------------
-// 1) QUE EL BORDE ESTÉ DONDE SE DIJO
+// 1) QUE LOS DOS BORDES ESTÉN DONDE SE DIJO
 // -------------------------------------------------------------------
+// Y los DOS, no solo el primero.
+//
+// Y esto es lo que hace falta de verdad: cuando el archivo cambia, los números se corren y el
+// bloque que se mueve es otro. El primer borde avisa. El segundo es el que dice hasta dónde
+// llega, y sin él el guion se lleva de más lo que viene después.
+//
+// Y en el primer corte —el de los campos propios— el bloque llegaba hasta el FINAL del
+// archivo, y eso se comprobaba. Este ya no: ahora hay código después, y la comprobación es
+// otra: que en L(HASTA+1) empiece el bloque siguiente, con el título que se le pasó.
 console.log('');
-console.log('  1) el borde de arranque');
-const linea = oLin[DESDE - 1] || '';
-if (linea.indexOf(MARCA) < 0) {
-  console.log('    *** EL RENGLÓN ' + DESDE + ' NO ES "' + MARCA + '" ***');
-  console.log('      dice: ' + JSON.stringify(linea.slice(0, 60)));
-  console.log('    El número se copió de otra lectura y el archivo cambió.');
+console.log('  1) los dos bordes');
+const lineaDesde = oLin[DESDE - 1] || '';
+if (lineaDesde.indexOf(MARCA) < 0) {
+  console.log('    *** LA LÍNEA ' + DESDE + ' NO TIENE "' + MARCA + '" ***');
+  console.log('      dice: ' + JSON.stringify(lineaDesde.slice(0, 70)));
+  console.log('');
+  console.log('    El número se copió de una lectura anterior y el archivo cambió.');
   console.log('    NO SE MUEVE NADA.');
   process.exit(1);
 }
-console.log('    ok  L' + DESDE + ' es ' + JSON.stringify(linea.trim()));
+console.log('    ok  L' + DESDE + ': ' + JSON.stringify(lineaDesde.trim().slice(0, 62)));
 
-// Y que sea el ÚLTIMO bloque: que después no quede nada. Si quedara, el corte dejaría código
-// huérfano y no nos enteramos.
-console.log('');
-console.log('  2) que el bloque llegue hasta el final del archivo');
-const ultimoVivo = (() => {
-  for (let i = oLin.length - 1; i >= DESDE - 1; i--) {
-    const s = oLin[i].trim();
-    if (s && !s.startsWith('//') && !s.startsWith('*') && !s.startsWith('/*')) return i + 1;
-  }
-  return -1;
-})();
-console.log('    el último renglón con código del bloque: L' + ultimoVivo);
-console.log('    el archivo tiene: L' + (oLin.length - 1));
-if (ultimoVivo < oLin.length - 3) {
-  console.log('    *** QUEDAN ' + (oLin.length - ultimoVivo) + ' RENGLONES DE CÓDIGO DESPUÉS ***');
-  console.log('    El bloque no era el último. El corte dejaría código atrás.');
+const lineaHasta = oLin[HASTA - 1] || '';
+if (MARCA_FIN && lineaHasta.indexOf(MARCA_FIN) < 0) {
+  console.log('    *** LA LÍNEA ' + HASTA + ' NO TIENE "' + MARCA_FIN + '" ***');
+  console.log('      dice: ' + JSON.stringify(lineaHasta.slice(0, 70)));
+  console.log('    NO SE MUEVE NADA.');
   process.exit(1);
 }
-console.log('    ok  el bloque es el último');
+console.log('    ok  L' + HASTA + ': ' + JSON.stringify(lineaHasta.trim().slice(0, 62)));
+
+// Y que después del bloque empiece algo de verdad, no un renglón suelto: si "HASTA" quedara en
+// mitad de una función, el corte partiría una función en dos y el error aparecería en la
+// pantalla.
+console.log('');
+console.log('  2) que el corte caiga entre bloques, y no en medio de una función');
+const prof = (() => {
+  // Y la profundidad del archivo entero HASTA la línea de corte. Tiene que ser cero: si está
+  // en medio de una función, hay llaves abiertas.
+  const m = medir(oTxt);
+  if (m.error) return { error: m.error };
+  let p = 0;
+  const limpio = sinComentariosNiRegex(oTxt).texto.split('\n');
+  for (let i = 0; i < HASTA; i++) {
+    for (let k = 0; k < limpio[i].length; k++) {
+      if (limpio[i][k] === '{') p++;
+      else if (limpio[i][k] === '}') p--;
+    }
+  }
+  return { prof: p };
+})();
+if (prof.error) {
+  console.log('    *** NO SE PUDO MEDIR: ' + prof.error + ' ***');
+  process.exit(1);
+}
+if (prof.prof !== 0) {
+  console.log('    *** EN LA LÍNEA ' + HASTA + ' QUEDAN ' + prof.prof
+    + ' LLAVE(S) ABIERTAS ***');
+  console.log('    El corte parte una función por la mitad. El error aparecería en una');
+  console.log('    pantalla y se buscaría en el archivo equivocado. NO SE MUEVE NADA.');
+  process.exit(1);
+}
+console.log('    ok  en L' + HASTA + ' no queda ninguna llave abierta');
 
 // -------------------------------------------------------------------
 // 3) QUE NO HAYA COLISIÓN DE NOMBRES
@@ -208,7 +303,7 @@ if (medO.error || medD.error) {
 const declO = declaradores(medO);
 const declD = declaradores(medD);
 const declDelBloque = medO.eventos
-  .filter((e) => e.linea >= DESDE)
+  .filter((e) => e.linea >= DESDE && e.linea <= HASTA)
   .map((e) => (e.texto.match(/^(?:const|let|var)\s+([A-Za-z_$][\w$]*)/) || [])[1])
   .filter(Boolean);
 
@@ -230,7 +325,8 @@ console.log('    ok  ninguna colisión');
 // escrita dos veces, y la segunda gana en silencio.
 const fnO = funciones(oTxt);
 const fnD = funciones(dTxt);
-const bloque = oTxt.split('\n').slice(DESDE - 1).join('\n');
+const NL_ = /\r\n/.test(oTxt) ? '\r\n' : '\n';
+const bloque = oLin.slice(DESDE - 1, HASTA).join(NL_);
 const fnDelBloque = funciones(bloque);
 const fnChoca = fnDelBloque.filter((n) => fnD.indexOf(n) >= 0);
 if (fnChoca.length) {
