@@ -31,11 +31,59 @@
 // número es el número, no se puede equivocar de camino. Ver [cache-11].
 //
 const fs = require('fs');
+const path = require('path');
 
 // Y el mismo patrón que usa "scan-rotos.js", para que los dos miren lo mismo.
 const COMILLA = String.fromCharCode(0xA1);   // la inverted: "¡", primer byte tras Ã
 const TILDE = String.fromCharCode(0xFF);     // "ÿ", último byte de una vocal mal escrita
-const MOJIBAKE = new RegExp('[' + String.fromCharCode(0xC3) + '][' + COMILLA + '-' + TILDE + ']');
+
+// -------------------------------------------------------------------
+// Y EL SEGUNDO CARÁCTER NO SE ACOTA A "¡" A "ÿ", Y POR QUÉ
+// ----------------------------------------------------------
+//
+// Antes era:
+//
+//     [Ã][¡-ÿ]
+//
+// O sea: "Ã" seguido de un carácter entre U+00A1 y U+00FF. Y eso solo ve el mojibake cuyo
+// segundo byte cayó dentro del Supplemento Latino-1.
+//
+// El que NO veía es el que cae en PUNTUACIÓN, que es el más común de los cuatro:
+//
+//     'á'  ->  C3 A1  ->  Ã¡      U+00C3 U+00A1     sí lo veía
+//     'ó'  ->  C3 B3  ->  Ã³      U+00C3 U+00B3     sí lo veía
+//     'Ó'  ->  C3 93  ->  Ã“      U+00C3 U+201C    NO lo veía
+//     '“'  ->  E2 80 9C -> â€œ  U+00E2 U+20AC...  NO lo veía
+//
+// O sea que las VOCALES CON ACENTO mayúsculas y las comillas tipográficas pasaban limpias.
+// Y un archivo puede tener cien acentos en minúscula bien y una mayúscula rota, y el
+// guardián dice que está limpio.
+//
+// -------------------------------------------------------------------
+// Y POR QUÉ NO SE BUSCA "Ã" Y LISTO
+// ----------------------------------
+//
+// Porque en este proyecto hay que distinguir DOS cosas:
+//
+//     el mojibake          Ã¡   Ã“   â€œ
+//     el texto normal      Ã£o  —el "ã" de "padrão", o el "Ã" que un comentario nombra—
+//
+// Y si se busca "Ã" sola, salta con las dos. Y "css/movil.css" tiene un "padrão" en un
+// comentario, y eso lo convertiría en un falso positivo el día que alguien lo revisara.
+//
+// LA DIFERENCIA ESTÁ EN LO QUE SIGUE. En el mojibake, después de la "Ã" viene SIEMPRE un
+// carácter que no es una letra: porque el byte que se coló era el segundo de una vocal
+// acentuada, de una comilla o de un símbolo, y ninguno es una letra del abecedario.
+//
+//     Ã¡      la "¡" no es letra
+//     Ã“      la "“" no es letra
+//     Ã£o     la "o" ES letra, y por eso no es mojibake: es "ão"
+//
+// O sea que la condición es: la letra rara seguida de algo que NO sea letra, ni número, ni
+// espacio. Y por eso el espacio está excluido a propósito: un comentario que termina
+// nombrando el carácter —"el byte tras Ã"— no es mojibake, es un comentario.
+const CABEZA = '[\\u00c2\\u00c3\\u00e2\\u00e3]';        // Â Ã â ã
+const MOJIBAKE = new RegExp(CABEZA + '[^a-zA-Z0-9\\s]');
 
 // -------------------------------------------------------------------
 // PROBARLO, ANTES DE USARLO
@@ -60,19 +108,65 @@ const C3 = String.fromCharCode(0xC3);
 const ROTO = 'el ni' + C3 + String.fromCharCode(0xB1) + 'o fue a ma' + C3 + String.fromCharCode(0xB1) + 'ana';
 const SANO = 'aviso: cargar el ni\u00f1o y la ma\u00f1ana, la direcci\u00f3n de Jos\u00e9 y el a\u00f1o';
 
-if (!MOJIBAKE.test(ROTO)) {
+// -------------------------------------------------------------------
+// Y LOS CASOS QUE EL RANGO ANCHO NO VEÍA
+// ---------------------------------------
+//
+// Y se prueban por separado, porque son la razón por la que se cambió el rango. Si solo se
+// probara el "ñ" roto —que es el caso del NOTO— el rango viejo pasaría la prueba igual, y
+// quedaría creyendo que anda.
+//
+// Estos cuatro son los que el rango angosto NO veía:
+//
+//     Ó   C3 93  ->  Ã“        la "“" cae en U+201C, fuera de U+00A1-U+00FF
+//     “   E2 80 9C -> â€œ    el "€" cae en U+20AC, y ni siquiera empieza con Ã
+//     «   C2 AB  ->  Â«        sí lo veía, pero por suerte
+//     °   C2 B0  ->  Â°        ídem
+const ROTO_MAYUS = 'el ni' + C3 + String.fromCharCode(0x93) + 'mero pas' + C3 + String.fromCharCode(0x93) + 'o';
+const ROTO_COMILLA = String.fromCharCode(0xE2) + String.fromCharCode(0x20AC)
+  + String.fromCharCode(0x153) + 'as' + String.fromCharCode(0xE2)
+  + String.fromCharCode(0x20AC) + String.fromCharCode(0x153) + 'as';
+const ROTO_ANGULO = 'la ' + String.fromCharCode(0xC2) + String.fromCharCode(0xAB)
+  + 'palabra' + String.fromCharCode(0xC2) + String.fromCharCode(0xBB);
+
+// Y los que NO son mojibake y tienen una letra rara:
+//
+//     ão   de "padrão"   — la letra rara seguida de LETRA
+//     Ã    solo, al final de un comentario — la letra rara sola
+//     Ã    seguido de espacio
+const SANO_PORTUGUES = 'es um padr' + String.fromCharCode(0xE3) + 'o conhecido';
+const SANO_SOLO = 'el primer byte tras ' + C3;
+const SANO_ESPACIO = 'el byte ' + C3 + ' y el siguiente';
+
+const CASOS = [
+  ['el ni' + C3 + String.fromCharCode(0xB1) + 'o roto, de minúscula', ROTO, true],
+  ['la mayúscula rota, que el rango viejo NO veía', ROTO_MAYUS, true],
+  ['la comilla tipográfica rota, que tampoco', ROTO_COMILLA, true],
+  ['la comilla angular rota', ROTO_ANGULO, true],
+  ['acento normal, que es sano', SANO, false],
+  ['portugués con "ão", que NO es mojibake', SANO_PORTUGUES, false],
+  ['la letra rara sola, al final de un comentario', SANO_SOLO, false],
+  ['la letra rara seguida de espacio', SANO_ESPACIO, false],
+];
+
+let autoprueba = 0;
+CASOS.forEach(function (c) {
+  const vio = MOJIBAKE.test(c[1]);
+  const bien = vio === c[2];
+  if (!bien) autoprueba++;
+  console.log('    ' + (bien ? 'ok  ' : '*** ') + c[0].padEnd(46)
+    + (vio ? 'la ve' : 'no la ve').padEnd(11)
+    + (c[2] ? '(tenía que verla)' : '(tenía que dejarla)'));
+});
+
+if (autoprueba) {
   console.log('');
-  console.log('  *** LA COMPROBACIÓN NO VE EL MOJIBAKE ***');
-  console.log('    La cadena de prueba debería verse rota y no se ve.');
+  console.log('  *** ' + autoprueba + ' CASO(S) MAL ***');
+  console.log('    Una comprobación que falla su propia prueba no puede usarse para probar otra cosa.');
   process.exit(1);
 }
-if (MOJIBAKE.test(SANO)) {
-  console.log('');
-  console.log('  *** LA COMPROBACIÓN MARCA UN ARCHIVO SANO ***');
-  console.log('    Y con eso es peor que no comprobara: siempre dice que hay problema.');
-  process.exit(1);
-}
-console.log('    ok  la ve en el roto y deja pasar el sano');
+console.log('');
+console.log('    ok  la comprobación pesa ' + CASOS.length + ' casos, y no mira lo que no debe');
 
 // -------------------------------------------------------------------
 // Y AHORA SÍ, SOBRE LOS ARCHIVOS QUE SE PIDAN
@@ -84,20 +178,57 @@ if (!rutas.length) {
 }
 
 let malos = 0;
+let seSaltaron = 0;
+
 rutas.forEach((P) => {
+  // -------------------------------------------------------------------
+  // Y ESTE ARCHIVO SE SALTEA A SÍ MISMO
+  // ------------------------------------
+  //
+  // Y no poroises una excepción escondida: porque este archivo ES el que explica qué es el
+  // mojibake, y para explicarlo tiene que escribir mojibake. Las líneas "Ã¡" y "Ã“" de más
+  // arriba están ahí a propósito, y sin esta exención el guardián se quejaría de sí mismo
+  // con veintidós avisos, y nadie leería esos avisos porque son de un archivo que se sabe
+  // que las tiene.
+  //
+  // Y eso tiene un costo que hay que decir: si mañana este archivo SE ROMPE de verdad, no
+  // lo va a avisar. Es un agujero real a cambio de un archivo que se puede leer. Se acepta
+  // porque el alternativa —un guardián que se queja de sus propios ejemplos— no avisa de
+  // nada.
+  //
+  // Y por eso el salto se DICE, cada vez, y con cuántos renglones. Un salto que no se anuncia
+  // es un archivo que no se está mirando.
+  const YO = path.resolve(__filename).toLowerCase();
+  if (path.resolve(P).toLowerCase() === YO) {
+    seSaltaron++;
+    return;
+  }
+
   const t = fs.readFileSync(P, 'utf8');
   t.split('\n').forEach((x, i) => {
-    const donde = x.indexOf(String.fromCharCode(0xC3));
+    // Y se saca la posición del CASO con la misma expresión que decide, y no con un
+    // "indexOf" de la "Ã" sola.
+    //
+    // Porque con el rango ancho hay cuatro letras raras, y "indexOf(Ã)" daba -1 en una línea
+    // rota que empezaba con "Â" —y "slice(max(0, -13), 21)" recortaba desde el principio sin
+    // querer, y el aviso salía sin el trozo malo-.
+    const m = x.match(MOJIBAKE);
+    if (!m) return;
+
     // Y se marca solo la parte mala, no la línea entera: la línea entera en un archivo de
     // tres mil es inútil de leer.
-    if (MOJIBAKE.test(x)) {
-      malos++;
-      console.log('  ' + P + ':' + (i + 1) + ': ' + JSON.stringify(x.slice(Math.max(0, donde - 12), donde + 22)));
-    }
+    malos++;
+    const desde = Math.max(0, m.index - 12);
+    console.log('  ' + P + ':' + (i + 1) + ': ' + JSON.stringify(x.slice(desde, m.index + 22)));
   });
 });
 
 console.log('');
+if (seSaltaron) {
+  console.log('    ojo  y se saltaron ' + seSaltaron + ' archivo(s) por ser esta misma comprobación,');
+  console.log('    que escribe mojibake a propósito para explicarlo. Ver el comentario de arriba.');
+  console.log('');
+}
 if (malos) {
   console.log('  *** ' + malos + ' MOJIBAKE, en ' + rutas.length + ' archivo(s) ***');
   console.log('    Arreglo: git checkout -- <archivo>, y se escribe de nuevo con Node.');
