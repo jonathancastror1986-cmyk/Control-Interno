@@ -20,7 +20,17 @@ console.log('  === probando "comprueba-mojibake.js" ===');
 // Y lo que hay que provar es justo lo que el viejo no veía: una vocal con ACENTO Y MAYÚSCULA,
 // que al romperse deja el segundo byte en U+201C, fuera del rango viejo.
 //
-//     'Ó'  ->  C3 93  ->  Ã“   U+00C3 U+201C
+//     'Ó'  ->  C3 93  ->  U+00C3 U+201C
+//
+// Y los dos números están ARRIBA, en los "fromCharCode", y el resultado NO se escribe acá.
+//
+// La primera versión de este archivo tenía escrita la muestra del mojibake en el comentario —
+// con la letra partida y la comilla partida— y el guardián la detectó. Que es lo único que
+// quería demostrar: que el guardián funciona. Se detectó a sí mismo, y estaba bien.
+//
+// Y esa es una prueba gratis que no hay que construir: después de escribir un guardián de
+// texto, correrlo sobre los archivos que se acaban de escribir. Si se pone rojo, o no
+// funciona, o hay algo que arreglar de verdad.
 //
 const C3 = String.fromCharCode(0xC3);
 const ROTO = 'el ANG' + C3 + String.fromCharCode(0x93) + 'ULO pas' + C3 + String.fromCharCode(0x93) + 'o';

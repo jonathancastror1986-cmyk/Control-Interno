@@ -14,10 +14,19 @@ const MIDE = RAIZ + 'tools/mide-tildes.js';
 // Porque "mide-tildes.js" ya la tiene, probada con ocho casos, y una expresión de mojibake
 // duplicada en dos lugares es una que se arregla en uno.
 //
-// Y esa es una clase de falla que ya pasó en este proyecto: el rango angosto
-// —"/[Ã][¡-ÿ]/"— estaba escrito en "mide-tildes.js" y también pegado dentro de cada
-// guardián, y cuando uno se arregló el otro quedó viejo. O sea que la mitad de los guardianes
-// seguían con el rango que no veía las vocales con mayúscula.
+// Y esa es una clase de falla que ya pasó en este proyecto: el rango angosto estaba escrito
+// en "mide-tildes.js" y también pegado dentro de cada guardián, y cuando uno se arregló el
+// otro quedó viejo. O sea que la mitad de los guardianes seguían con el rango que no veía
+// las vocales con mayúscula.
+//
+// Y el rango viejo NO se escribe acá, ni con los caracteres ni con los números, porque este
+// comentario al explicar el rango antiguo escribía el rango antiguo —con las dos letras que lo
+// forman— y el propio guardián lo marcó. Que es lo que pasó: la primera versión de este
+// archivo hizo fallar su propio guardián con su propio comentario.
+//
+// Lo que queda es decirlo con palabras: "la A mayúscula con tilde, seguida de un carácter
+// entre el signo de apertura y la y minúscula con tilde". Quien lo necesite, lo lee en
+// "mide-tildes.js", que es donde vive y donde está en números.
 //
 // La forma que no se rompe: que el guardián LLAME al que tiene la expresión, y no que la
 // tenga también. Así no hay dos copias y no puede haber una vieja.
