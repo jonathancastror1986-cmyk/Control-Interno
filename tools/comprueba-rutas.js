@@ -155,6 +155,48 @@ htmls.forEach(function (P) {
   }
 });
 
+// -------------------------------------------------------------------
+// Y QUE CADA PÁGINA TENGA "VIEWPORT"
+// --------------------------------
+//
+// Y no es una formalidad. Sin "<meta name="viewport">", el navegador de un teléfono dibuja la
+// página como si fuera de 980 píxeles de ancho y después la achica. O sea que el usuario ve la
+// aplicación en miniatura, con la letra diminuta, y tiene que hacer zoom dos veces.
+//
+// Y "pages/app.html", "login.html", "registro.html" y "reset-password.html" lo tienen.
+// "index.html" NO lo tenía, y "pages/index.html" tampoco —que es justo la que se abre sola
+// cuando alguien entra a "/pages/". Los dos se arreglaron en el mismo turno.
+//
+// Y hay una excepción que se avisa pero no falla: "pages/plantilla-contrato.html" es una
+// plantilla que se imprime, y en un papel el "viewport" no significa nada. Marcarlo como error
+// sería una excepción permanente en el guardián, y las excepciones permanentes son las que
+// hacen que un guardián deje de leerse. Ver [barra-10].
+//
+const SIN_VIEWPORT = ['pages/plantilla-contrato.html'];
+
+console.log('  === el "viewport" ===');
+let sinVp = 0;
+htmls.forEach(function (P) {
+  const t = fs.readFileSync(path.join(RAIZ, P), 'utf8');
+  const tiene = /<meta[^>]*name=["']viewport["']/i.test(t);
+  const excused = SIN_VIEWPORT.indexOf(P) >= 0;
+  if (tiene) {
+    console.log('    ok  ' + P);
+    return;
+  }
+  if (excused) {
+    console.log('    --  ' + P + '  sin viewport, y es una plantilla para imprimir');
+    return;
+  }
+  sinVp++;
+  console.log('    *** ' + P + ' NO TIENE META VIEWPORT ***');
+  console.log('        En un teléfono se ve en miniatura y hay que hacer zoom.');
+});
+if (sinVp) {
+  malas++;
+  console.log('    ' + sinVp + ' página(s) sin viewport.');
+}
+
 console.log('');
 console.log('  === el resultado ===');
 console.log('    ' + htmls.length + ' páginas, ' + totalRutas + ' rutas locales, '
