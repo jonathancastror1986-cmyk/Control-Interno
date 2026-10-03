@@ -104,16 +104,71 @@ console.log('    ' + funciones.size + ' funciones y ' + vistas.size + ' vistas c
 // -------------------------------------------------------------------
 // 2. LEER LAS MIGRACIONES Y VERIFICAR
 // -------------------------------------------------------------------
-// Y solo las que empiezan con 06, que son las nuevas de esta tanda. Las viejas arrastran
-// nombres que ya no existen y arreglarlas no sirve de nada: ya corrieron.
+//
+// Y ahora revisa las SETENTA Y UNA migraciones, no las diez de una tanda. El patrón pasó de
+// "/^06\d/" a "/^0\d\d/", que es la convención del proyecto: 001, 014, 047, 067, 071.
+//
+// Y eso no es gratis: al Ampliar el filtro apareció un nombre que el guardián no conoce,
+//
+//     public.avisos_ingreso_unico_dia
+//
+// que es el ÍNDICE ÚNICO de la 026, no una tabla. Ver "ÍNDICES" más abajo. Y el filtro NO se
+// vuelve atrás: dejar la 071 sin revisar sería peor que revisar de más.
 const archivos = fs.readdirSync(MIG)
-  .filter(function (f) { return /^06\d.*\.sql$/i.test(f); })
+  .filter(function (f) { return /^0\d\d.*\.sql$/i.test(f); })
   .sort();
 
 if (!archivos.length) {
-  console.log('    no hay migraciones 06x para revisar');
+  console.log('    no hay migraciones numeradas para revisar');
   process.exit(0);
 }
+
+// ---------------------------------------------------------------------
+// ÍNDICES, QUE NO SON TABLAS Y EL GUARDIÁN NO LOS CONOCÍA
+// ---------------------------------------------------------------------
+//
+// Y esto no se agrega para tapar el error: se agrega porque es un tipo de objeto que las
+// migraciones usan y que el guardián no leía.
+//
+// "public.avisos_ingreso_unico_dia" aparece en la 026 como "drop index if exists". El
+// guardián lo vio, lo buscó en la lista de tablas, no lo encontró —porque es un índice— y lo
+// reportó como una tabla que no existe.
+//
+// Y el nombre engaña: termina en "_dia" como si fuera una tabla de días. Es un índice único
+// sobre "avisos_ingreso", y se llama así porque evita dos avisos de ingreso el mismo día. Un
+// nombre de índice no dice de qué es índice.
+//
+// Y por qué el filtro estaba ocultando esto: mientras solo revisaba la tanda 06x, ninguna
+// migración vieja con un índice pasaba por acá. Al ampliarlo, aparecieron las 71.
+//
+// ---------------------------------------------------------------------
+// POR QUÉ NO ES SOLO "AGREGAR ESTE ÍNDICE"
+// ---------------------------------------------------------------------
+//
+// Porque la 026 nombra uno y hay otras 70 migraciones. Agregar el nombre de uno es arreglar el
+// síntoma. Lo que se hace es leer los índices de las 71 migraciones, como ya se leen las
+// tablas y las funciones.
+//
+// Y que sea automático importa: un índice escrito a mano en la lista se cae en la migración
+// siguiente que agregue uno, y es el mismo problema de "hay que acordarse".
+const indices = new Set();
+
+function leerIndices(texto) {
+  const sinComentarios = texto
+    .replace(/--[^\r\n]*/g, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  // "create index", "create unique index", "drop index if exists".
+  const re = /(?:create\s+(?:unique\s+)?index|drop\s+index(?:\s+if\s+exists)?)\s+(?:concurrently\s+)?(?:if\s+not\s+exists\s+)?(?:public\.)?"?([a-z_][a-z0-9_]*)"?/gi;
+  let m;
+  while ((m = re.exec(sinComentarios)) !== null) indices.add(m[1].toLowerCase());
+}
+
+fs.readdirSync(path.join(RAIZ, 'supabase'))
+  .filter(function (f) { return f.endsWith('.sql'); })
+  .forEach(function (f) { leerIndices(fs.readFileSync(path.join(RAIZ, 'supabase', f), 'utf8')); });
+leerDel().forEach(function (t) { leerIndices(t); });
+
+console.log('    ' + indices.size + ' índices conocidos del proyecto');
 
 // Y lo que sí existe y está fuera del esquema "public", que no son tablas: funciones,
 // vistas y el catálogo. Se permiten.
@@ -192,6 +247,8 @@ archivos.forEach(function (f) {
   nombradas.forEach(function (n) {
     if (NO_ES_TABLA.test(n)) return;
     if (funciones.has(n) || vistas.has(n)) return;
+    // Y los índices, que son el cuarto tipo de objeto. Ver "ÍNDICES" más arriba.
+    if (indices.has(n)) return;
     if (existen.has(n)) return;
     malas2.push(n);
   });
@@ -202,6 +259,8 @@ archivos.forEach(function (f) {
     malas2.forEach(function (n) {
       console.log('      public.' + n);
       console.log('        ¿es una tabla? ' + (existen.has(n) ? 'sí' : 'NO'));
+      console.log('        ¿es un índice? ' + (indices.has(n) ? 'sí' : 'NO')
+        + (indices.has(n) ? '  (entonces el guardián no lo conocía)' : ''));
     });
     console.log('');
     console.log('    Si no existe, la migración se cae donde lo nombra. Y como los "insert" van');
@@ -218,4 +277,5 @@ if (malas) {
   console.log('  *** ' + malas + ' MIGRACION(ES) CON NOMBRES QUE NO EXISTEN ***');
   process.exit(1);
 }
-console.log('    ok  las ' + archivos.length + ' migraciones 06x nombran solo cosas que existen');
+console.log('    ok  las ' + archivos.length
+  + ' migraciones numeradas nombran solo cosas que existen');
