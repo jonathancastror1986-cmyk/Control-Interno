@@ -264,3 +264,93 @@ await supabaseClient.from('marcajes').select()
 
 Si devuelve códigos que no están en la lista de trabajadores que la propia aplicación le
 mostró a ese usuario, el arreglo no funcionó.
+
+
+================================================================================
+APLICADO Y VERIFICADO (3 de octubre de 2026)
+================================================================================
+
+Lo de arriba sigue siendo cierto: el hallazgo es real y el aislamiento estaba ausente. Lo que
+cambió es que ya no está.
+
+QUÉ SE APLICÓ
+----------------
+
+  · Las 3 tablas: "asistencia", "marcajes" y "tarjetas". Políticas "por empresa", con
+    "with check" en escritura y salida por "es_admin()". Migración 067.
+
+  · Las 2 funciones de apoyo: "puede_ver_trabajador(text, uuid)" y
+    "puede_ver_archivo(text, uuid)".
+
+  · El bucket "epp-respaldos". Eso se hizo A MANO, desde el panel de Storage, porque la tabla
+    "storage.objects" no es del proyecto y su dueño no es el rol del editor SQL. Migración
+    068, que es el procedimiento paso a paso.
+
+CÓMO SE VERIFICÓ
+----------------
+
+Con una consulta que devuelve UN veredicto en una fila, y no tres pantallas. La consulta
+entera está en "migrations/diagnostico-aislamiento.sql", y no se copia acá porque una
+consulta escrita dos veces termina siendo distinta en una de las dos. Salió:
+
+    LISTO. La 067 está completa.
+
+Y para el bucket, una comprobación aparte que se corrió después del paso manual:
+
+    SELECT   USING      ((bucket_id = 'epp-respaldos') AND puede_ver_archivo(name))
+    INSERT   WITH CHECK ((bucket_id = 'epp-respaldos') AND puede_ver_archivo(name))
+    UPDATE   USING      ((bucket_id = 'epp-respaldos') AND puede_ver_archivo(name))
+
+y la vieja "epp respaldos rw" NO aparece. Que es lo que cierra el agujero: mientras las dos
+estuvieran, se sumaban con "o" y la vieja ganaba. Ver [rls-04].
+
+LO QUE NO SE HIZO, Y POR QUÉ
+--------------------------
+
+No se creó la política de DELETE. Porque el código no borra de ese almacén, y se midió en vez
+de suponerse:
+
+    soporte.js:1470   .upload(path, blob, ...)   -> necesita INSERT
+    soporte.js:1475   .download(path)            -> necesita SELECT
+
+Y no hay ningún ".remove(", ".update(" ni ".move(" sobre EPP_BUCKET. Darle un permiso que la
+aplicación no usa es una deuda: el día que alguien escriba la línea que borra, nadie se
+acuerda de abrirla.
+
+Y el UPDATE quedó sin "WITH CHECK", que el panel no permite porque ofrece una sola caja de
+definición. Con eso, un UPDATE sobre una fila visible podría dejarla en una carpeta invisible.
+No se alcanza: haría falta un UPDATE de SQL sobre "storage.objects", y la API de Storage no
+tiene ninguna operación que lo produzca. Es un agujero del modelo, no de la aplicación. Ver
+[sql-02].
+
+LO QUE SIGUE ABIERTO
+--------------------
+
+  · Las 11 tablas que la 067 no tocó, por decisión escrita: una migración de seguridad sobre
+    quince tablas sin datos reales es un riesgo grande. Cada una necesita su propia
+    migración y su propia prueba. Ver [rls-05].
+
+  · La prueba con la sesión de un usuario de UNA empresa, comparando lo que la aplicación le
+    muestra contra lo que la base le devuelve si pregunta directo. Esa es la que falta, y es
+    la que de verdad importa: hasta que corra, se sabe que las políticas están puestas, no que
+    se comporten bien. Ver [rls-01].
+
+LO QUE FALLÓ EN EL CAMINO, Y QUEDÓ ESCRITO
+--------------------------------------------
+
+Porque las tres cosas que se aprendieron hoy no sirven si después no queda escrito el porqué:
+
+  · La 067 decía "public.storage.objects". "storage" es un ESQUEMA, no una tabla del esquema
+    "public". El error que sale —"cross-database references are not implemented"— no habla de
+    permisos ni de conexión: dice que no encontró el primer nombre y lo tomó por una base de
+    datos. Ver [sql-01].
+
+  · El guardián de nombres de SQL aprobó el archivo roto. Dos errores que se tapaban entre
+    sí: leía un identificador después de "public." y "storage" estaba en su lista de tablas,
+    así que leía un esquema, lo encontraba, y decía que todo estaba bien. Ahora tiene 7 casos
+    de prueba en "tools/prueba-revisa-nombres-sql.js".
+
+  · La migración no se puede partir a medias. Corrió dos veces con fallo y las dos veces
+    revirtió todo, porque el editor SQL la ejecuta como una transacción. Quedó separado lo del
+    bucket en su propio archivo, que además tiene CERO renglones de código para que no se
+    pueda correr por accidente. Ver [sql-02].
