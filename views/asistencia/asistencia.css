@@ -15,7 +15,7 @@
   ---------------------------------------------------------
 
   Y se limita a "#v-asistencia" y no a ".attendance-panel" pelado, porque la misma clase
-  la usan los paneles del SUPERVISOR, que son otra cosa y que no semeasured to change. Ver
+  la usan los paneles del SUPERVISOR, que son otra cosa y que llevan otras medidas. Ver
   [panel-04].
 */
 #v-asistencia .attendance-panel.active{
@@ -56,11 +56,14 @@
   margin:0 0 2px;
   line-height:1.2;
 }
+
+/* Y las CUATRO juntas, no una sola: "input", "select", "button" y "small" son el ancho y
+   el alto de la fila. Con tres de las cuatro, el que falta queda con el alto por defecto
+   y empuja la fila hacia abajo. Ver [panel-09]. */
 #v-asistencia .attendance-panel.active > .row input,
 #v-asistencia .attendance-panel.active > .row select,
 #v-asistencia .attendance-panel.active > .row button,
 #v-asistencia .attendance-panel.active > .row small{
-  /* Las TRES juntas. Con una sola, el campo no baja. Ver [panel-09]. */
   box-sizing:border-box;
   min-height:0;
   padding:5px 9px;
@@ -77,15 +80,8 @@
   margin-bottom:6px;
 }
 
-/* -------------------------------------------------------------------
-  3) LA MATRIZ, UN POCO MENOS ALTA POR FILA
-  ---------------------------------------------------------
-
-  Y la DENSIDAD va en una clase propia y no en una regla que alcance a todas las tablas
-  del sistema: esta tabla tiene 31 columnas y sus celdas son de un color de estado, y
-  bajar la fuente sin bajar el color de fondo convierte la matriz en un mar de cuadros
-  del mismo tono. Ver [panel-05].
-*/
+/* Y el botón suelto y el campo de fecha, que están FUERA de los ".row" y por eso no los
+   agarran las reglas de arriba. */
 #v-asistencia .attendance-panel.active > input[type="date"],
 #v-asistencia .attendance-panel.active > .btn{
   box-sizing:border-box;
@@ -93,81 +89,57 @@
   height:30px;
   padding:5px 12px;
   margin-top:4px;
-}#v-asistencia #matrixArea,#v-supervisores #supMatrixArea{
+}
+
+/* -------------------------------------------------------------------
+  3) LA MATRIZ, Y SU DENSIDAD
+  ---------------------------------------------------------
+
+  Y la DENSIDAD va en una clase propia y no en una regla que alcance a todas las tablas
+  del sistema: esta tabla tiene 31 columnas y sus celdas son de un color de estado, y
+  bajar la fuente sin bajar el color de fondo convierte la matriz en un mar de cuadros
+  del mismo tono. Ver [panel-05].
+
+  -------------------------------------------------------------------
+  Y POR QUÉ ESTOS SELECTORES ESTÁN TAN LARGOS
+  ---------------------------------------------------------
+
+  "#v-asistencia #matrixArea" y "#v-supervisores #supMatrixArea", uno por uno, en cada
+  regla.
+
+  Y hay una razón medida para que estén así y no con un "select" agrupado: el proyecto
+  se publica en páginas que se abren en Android de gama media, y un selector ":is()" es de
+  2021. Si esa caja no lo reconoce, descarta la regla COMPLETA Y NO AVISA.
+
+  Con selectores duplicados, si un motor no entiende uno, entiende el otro. La regla se
+  pierde a medias en vez de entera. Ver [panel-13].
+*/
+#v-asistencia #matrixArea,
+#v-supervisores #supMatrixArea{
   font-size:.78rem;
 }
-/*
-  EL ENCABEZADO PEGADO, QUE ES LO QUE HACE FALTA PARA PODER SCROLLEAR
+
+/* -------------------------------------------------------------------
+  4) EL ENCABEZADO PEGADO, QUE ES LO QUE HACE FALTA PARA PODER SCROLLEAR
   ------------------------------------------------------------------
 
   Con 28 filas y 8 a la vista, al bajar no se sabe en qué columna se está. Con esto se
   sabe siempre.
 
-  Y va sobre el "th" y no sobre el "thead": el "thead" pegado con 31 columnas da saltos
-  en varios navegadores, y el "position:sticky" se ignora cuando un ancestro scrollea.
-  Ver [panel-12].
+  Y va sobre el "th" y no sobre el "thead": esta tabla NO tiene "thead". La fila de
+  encabezado es un "tr" suelto con "th" adentro —"administracion.js" la arma como
+  '<table><tr><th>Código</th>...'—, así que el navegador la mete en un "tbody" implícito.
+  Con "thead" en el selector la regla no tocaría NADA, y lo único que quedaría pegado
+  sería la primera celda, por casualidad. Ver [panel-12].
+
+  Y el fondo va ACÁ, y no en la regla de la esquina: con dos filas pegadas —la de las
+  letras y la de los resúmenes— el fondo tiene que estar en las dos, o se ve la de abajo a
+  través de la de arriba.
+
+  Y la sombra va solo en esta fila, que es la que hace de borde. Si la dibujara una masa,
+  no se sabría dónde termina la de arriba.
 */
-/*
-  LA TABLA DE LA TARJA TIENE DOS FILAS DE ENCABEZADO, Y NO PUEDEN LAS DOS PEGADAS
-  --------------------------------------------------------------------------------
-
-  Con "position:sticky" y "top:0" en las dos, la segunda se pinta encima de la primera y
-  los títulos de "Días trab.", "Lluvia" y los demás desaparecen detrás de las letras.
-
-  Y la que se deja pegada es la de las LETRAS, no la de los resúmenes: al scrollear hay
-  que saber en qué día se está, y los resúmenes son nueve celdas que están todas a la
-  derecha y se ven sin fijarlas. Ver [tarja-01].
-*/
-
-/* Y la caja del encabezado, que con dos filas pegadas necesita el fondo en las dos, o se
-   ve la fila de abajo a través de la de arriba. */
-
-  /* Y SIN "thead", porque esta tabla no tiene: la fila de encabezado es un "tr" con
-     "th" adentro del "tbody". Con el "thead" en el selector la regla no tocaba nada y
-     lo único que quedaba pegado era la primera celda, por casualidad. Ver [panel-12]. */
-  position:sticky;
-  top:0;
-  z-index:3;
-  background:var(--card);
-  /* Y la sombra va solo en esta fila, que es la que hace de borde; si la dibujara
-     una sola masa y no se sabe dónde termina la de arriba. *//* Y la primera columna —código y nombre— también pegada a la izquierda,porque al
-   scrollear a la derecha se pierden de vista y no se sabe a quién es la fila. */
-#v-asistencia #matrixArea th:first-child,#v-asistencia #matrixArea td:first-child,/* Y la primera columna —código y nombre— también pegada a la izquierda,porque al
-   scrollear a la derecha se pierden de vista y no se sabe a quién es la fila. */
-#v-supervisores #supMatrixArea th:first-child,#v-supervisores #supMatrixArea td:first-child{
-  position:sticky;
-  left:0;
-  z-index:2;
-  background:var(--card);
-}#v-asistencia #matrixArea th:first-child,#v-supervisores #supMatrixArea th:first-child{z-index:4}/*
-  LA DENSIDAD DE LA TABLA TARJA,Y QUE LOS ENCABEZADOS NO SON COMO LOS DÍAS
-  --------------------------------------------------------------------------------
-
-  La regla de abajo baja las celdas de los DÍAS,que son de un carácter y entran de a
-  treinta y una en la pantalla. Ese era el objetivo.
-
-  Pero los ENCABEZADOS llevan textos de varias líneas —"Días trab. (base 30)","LL Día
-  lluvia"— y con dos píxeles de relleno y 1.25 de interlineado esas celdas quedan de un
-  píxel de alto: la fila entera se ve como un renglón en blanco y no se lee qué columna
-  es cuál. Ver [tarja-03].
-*/
-#v-asistencia #matrixArea td,#v-asistencia #matrixArea th,/*
-  LA DENSIDAD DE LA TABLA TARJA,Y QUE LOS ENCABEZADOS NO SON COMO LOS DÍAS
-  --------------------------------------------------------------------------------
-
-  La regla de abajo baja las celdas de los DÍAS,que son de un carácter y entran de a
-  treinta y una en la pantalla. Ese era el objetivo.
-
-  Pero los ENCABEZADOS llevan textos de varias líneas —"Días trab. (base 30)","LL Día
-  lluvia"— y con dos píxeles de relleno y 1.25 de interlineado esas celdas quedan de un
-  píxel de alto: la fila entera se ve como un renglón en blanco y no se lee qué columna
-  es cuál. Ver [tarja-03].
-*/
-#v-supervisores #supMatrixArea td,#v-supervisores #supMatrixArea th{
-  padding:2px 1px;
-  line-height:1.25;
-}/* Y los encabezados,con aire propio y el texto pegado abajo,que es donde se leen. */
-#v-asistencia #matrixArea th,/* Y los encabezados,con aire propio y el texto pegado abajo,que es donde se leen. */
+#v-asistencia #matrixArea th,
 #v-supervisores #supMatrixArea th{
   position:sticky;
   top:0;
@@ -178,24 +150,72 @@
   font-size:.68rem;
   vertical-align:bottom;
   box-shadow:inset 0 -1px 0 var(--line);
-}/* Y la fila del "Día",que es la segunda y está hecha de celdas normales,pero también
+}
+
+/* -------------------------------------------------------------------
+  5) LA TABLA DE LA TARJA TIENE DOS FILAS DE ENCABEZADO, Y NO PUEDEN LAS DOS PEGADAS
+  --------------------------------------------------------------------------------
+
+  Con "position:sticky" y "top:0" en las dos, la segunda se pinta encima de la primera y
+  los títulos de "Días trab.", "Lluvia" y los demás desaparecen detrás de las letras.
+
+  Y la que se deja pegada es la de las LETRAS, no la de los resúmenes: al scrollear hay
+  que saber en qué día se está, y los resúmenes son nueve celdas que están todas a la
+  derecha y se ven sin fijarlas. Ver [tarja-01].
+*/
+
+/* -------------------------------------------------------------------
+  6) LA DENSIDAD DE LA TABLA TARJA, Y QUE LOS ENCABEZADOS NO SON COMO LOS DÍAS
+  --------------------------------------------------------------------------------
+
+  La regla de abajo baja las celdas de los DÍAS, que son de un carácter y entran de a
+  treinta y una en la pantalla. Ese era el objetivo.
+
+  Pero los ENCABEZADOS llevan textos de varias líneas —"Días trab. (base 30)","LL Día
+  lluvia"— y con dos píxeles de relleno y 1.25 de interlineado esas celdas quedan de un
+  píxel de alto: la fila entera se ve como un renglón en blanco y no se lee qué columna
+  es cuál. Ver [tarja-03].
+*/
+#v-asistencia #matrixArea td,
+#v-asistencia #matrixArea th,
+#v-supervisores #supMatrixArea td,
+#v-supervisores #supMatrixArea th{
+  padding:2px 1px;
+  line-height:1.25;
+}
+
+/* Y la fila del "Día", que es la segunda y está hecha de celdas normales, pero también
    lleva texto de dos líneas cuando el mes tiene feriados marcados. */
-#v-asistencia #matrixArea tbody tr:nth-child(2) td,/* Y la fila del "Día",que es la segunda y está hecha de celdas normales,pero también
-   lleva texto de dos líneas cuando el mes tiene feriados marcados. */
+#v-asistencia #matrixArea tbody tr:nth-child(2) td,
 #v-supervisores #supMatrixArea tbody tr:nth-child(2) td{
   padding:4px 2px;
   line-height:1.3;
-}/* Y la primera columna —código y nombre— pegada a la izquierda,porque al scrollear a la
-   derecha se pierden de vista y no se sabe a quién es la fila. */
-#v-asistencia #matrixArea th:first-child,#v-asistencia #matrixArea td:first-child,/* Y la primera columna —código y nombre— pegada a la izquierda,porque al scrollear a la
-   derecha se pierden de vista y no se sabe a quién es la fila. */
-#v-supervisores #supMatrixArea th:first-child,#v-supervisores #supMatrixArea td:first-child{
+}
+
+/* -------------------------------------------------------------------
+  7) LA PRIMERA COLUMNA PEGADA A LA IZQUIERDA
+  ------------------------------------------------------------------
+
+  Código y nombre quedan pegados a la izquierda, porque al scrollear a la derecha se
+  pierden de vista y no se sabe a quién es la fila.
+
+  Y el "background" es OBLIGATORIO y no un detalle: sin él, la celda es transparente, se ve
+  la celda de al lado por detrás al scrollear, y el código se vuelve ilegible. Esa es la
+  diferencia entre "se mueve" y "no se puede leer".
+*/
+#v-asistencia #matrixArea th:first-child,
+#v-asistencia #matrixArea td:first-child,
+#v-supervisores #supMatrixArea th:first-child,
+#v-supervisores #supMatrixArea td:first-child{
   position:sticky;
   left:0;
   z-index:2;
   background:var(--card);
-}/* Y la esquina de arriba a la izquierda queda por ENCIMA de las dos,porque es el
-   pedazo que se ve siempre. */
-#v-asistencia #matrixArea th:first-child,/* Y la esquina de arriba a la izquierda queda por ENCIMA de las dos,porque es el
-   pedazo que se ve siempre. */
-#v-supervisores #supMatrixArea th:first-child{z-index:4}
+}
+
+/* Y la esquina de arriba a la izquierda queda por ENCIMA de las dos, porque es el
+   pedazo que se ve siempre: la que se ve siempre tiene que tapar a las otras dos. */
+#v-asistencia #matrixArea th:first-child,
+#v-supervisores #supMatrixArea th:first-child{
+  z-index:4;
+}

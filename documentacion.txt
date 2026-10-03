@@ -4904,3 +4904,277 @@ buscar. Un "--" hasta el fin de línea, y un bloque "/* … */".
 La regla: un comprobador de texto busca en CÓDIGO. Y si lee comentarios para encontrar
 nombres —que es lo correcto, porque ahí está la intención—, tiene que distinguirlos de
 las llamadas.
+
+
+================================================================================
+LA FAMILIA "panel": EL PANEL DE ASISTENCIA, LA TARJA Y SUS MEDIDAS
+================================================================================
+
+Ocho referencias de "views/asistencia/asistencia.css" y "views/bodega/plantillas.css".
+
+Este archivo estaba roto de una forma que no se ve: cuatro declaraciones de CSS sueltas sin
+selector, que el navegador no descarta sino que se come por delante la regla que las sigue. La
+regla que se perdía era una copia exacta de otra, de modo que la pantalla estaba bien y el
+archivo tenía una bomba adentro. Está escrito en [panel-14].
+
+[panel-01] EL MÍNIMO DEL PANEL DE CAMPOS SUBE DE 260 A 300, Y LO DECIDIÓ EL RÓTULO MÁS LARGO
+--------------------------------------------------------------------------------
+El panel de la izquierda de "plantillas" tiene un ancho mínimo. Y no es de 260, que era lo
+que tenía, sino de 300.
+
+LA MEDIDA QUE LO DECIDIÓ no es el promedio de los rótulos: es el rótulo más largo, en el
+panel más angosto.
+
+Porque el texto que más alto pone es "CÓMO SE ESCRIBE DENTRO DEL DOCUMENTO". Con 260 de ancho,
+ese rótulo ocupa TRES renglones, el campo queda abajo de todo, y en el medio queda un hueco.
+
+Y el hueco es lo que se ve. El campo se ve bien en cualquier ancho; lo que se ve mal es el
+espacio en blanco entre el rótulo y el campo, y ese espacio crece con cada renglón que el
+rótulo gana.
+
+La regla: cuando un tamaño tiene que crecer, se mide el caso PEOR —el texto más largo en el
+contenedor más angosto— y no el caso típico. El caso típico no es el que se ve, es el que se
+olvida.
+
+[panel-02] UNA VARIABLE POR TAMAÑO, Y EL VALOR POR DEFECTO SE PISA EN "movil.css"
+--------------------------------------------------------------------------------
+La altura que le queda al panel se escribe una sola vez, en una variable:
+
+      :root{ --alto-panel-asistencia: 320px; }
+
+y el panel la usa:
+
+      height:calc(100dvh - var(--alto-panel-asistencia));
+
+Y en "css/movil.css" la misma variable está redefinida con otro valor, para las pantallas
+chicas.
+
+LA VARIABLE Y NO EL NÚMERO PEGADO en el "calc", porque el número aparece en dos lados: en el
+selector y en el cálculo del alto. Si el selector queda en 320 y el cálculo en 280 —o al
+revés—, la diferencia entre lo que se ve y lo que se calcula es de cuarenta píxeles y no hay
+nada en el archivo que lo diga.
+
+Y además el "100dvh" y no el "100vh": el "vh" mide la ventana CON la barra de direcciones del
+móvil, que aparece y desaparece. El "dvh" es el alto que se ve de verdad en ese momento, y
+por eso el panel no salta cuando la barra se esconde.
+
+La regla: un número que aparece en dos lugares es una variable, o es una decisión pendiente
+de que alguien lo cambie en los dos.
+
+[panel-04] LAS REGLAS DEL PANEL NO ALCANZAN AL PANEL DEL SUPERVISOR, Y ESO SE MEDIÓ
+--------------------------------------------------------------------------------
+Todas las reglas de densidad de la matriz empiezan con "#v-asistencia":
+
+      #v-asistencia #matrixArea th,
+      #v-asistencia #matrixArea td{ ... }
+
+Y la matriz del supervisor vive en otro lado, "#supMatrixArea", dentro de "#v-supervisores".
+O sea que ninguna de esas once reglas la tocaban.
+
+Y NO SE NOTÓ, porque una tarja ancha no se ve mal: se ve más ancha. El síntoma era que la
+tarja del supervisor no se leía tan bien, y la respuesta natural fue
+"el supervisor tiene menos gente, no importa tanto".
+
+La diferencia se detectó midiendo el ancho de las dos tarjas con la misma cantidad de gente:
+
+      1447 px   el ancho que pedía la tarja del supervisor
+      1125 px   el ancho que tenía
+
+Y 1125 no era un ancho lindo: era el ancho que le quedaba al overflow horizontal, es decir
+que la tabla se iba de la pantalla y había que arrastrar para verla.
+
+LA REGLA que sale de acá: cuando un selector está acotado a un contenedor, ese contenedor es
+una frontera y hay que preguntarse qué más vive al otro lado. Acotar para no molestar es
+correcto; acotar sin saber a quién dejaste afuera es un límite invisible.
+
+[panel-05] LA DENSIDAD VA EN UNA CLASE PROPIA, Y NO EN TODAS LAS TABLAS DEL SISTEMA
+--------------------------------------------------------------------------------
+La matriz tiene treinta y una columnas, y cada celda es un COLOR DE ESTADO: verde el
+presente, rojo la falta, amarillo la licencia.
+
+La regla que achica las celdas es esta:
+
+      #v-asistencia #matrixArea td{ padding:2px 1px; line-height:1.25; }
+
+Y está acotada a "#matrixArea" a propósito, y no es "table td" ni ".attendance-panel td".
+
+LA RAZÓN es que esta tabla tiene otra naturaleza que las demás. Las otras —trabajadores,
+documentos, permisos— muestran TEXTO, y al bajar la fuente el texto sigue siendo legible.
+Esta muestra un color dentro de un cuadradito de pocos píxeles.
+
+Y al bajar la fuente sin bajar el color de fondo, el cuadrado se achica y el fondo se ve más:
+la matriz se convierte en un mar de cuadros del mismo tono, y se pierde la única información
+que tiene.
+
+La regla: la densidad no es una propiedad de "la pantalla", es una propiedad de "qué se
+muestra". Una grilla de colores necesita más aire que una lista de nombres, y por eso no
+pueden compartir la misma regla.
+
+[panel-09] CUATRO SELECTORES EN UNA REGLA, Y NO CUATRO REGLAS SUELTAS
+--------------------------------------------------------------------------------
+La regla que le da el alto a los controles del panel es una sola, con cuatro selectores:
+
+      #v-asistencia .attendance-panel.active > .row input,
+      #v-asistencia .attendance-panel.active > .row select,
+      #v-asistencia .attendance-panel.active > .row button,
+      #v-asistencia .attendance-panel.active > .row small{
+        box-sizing:border-box;
+        min-height:0;
+        padding:5px 9px;
+        height:30px;
+        font-size:.8rem;
+      }
+
+Y "input", "select", "button" y "small" juntos, y no por capricho.
+
+EL ALTO DE UNA FILA LO MANDA EL ELEMENTO MÁS ALTO. Un "input" con "height:30px" y un
+"button" con su alto por defecto no quedan de 30: quedan del más alto de los dos, y ese es el
+que no se ve porque parece el que manda.
+
+O sea que con tres de los cuatro, el cuarto queda con el alto del navegador y empuja la fila
+hacia abajo. Y el síntoma es "los controles se ven desalineados", que se busca en el margen y
+no en el faltante.
+
+Y "min-height:0" está en la misma regla y por lo mismo: el "min-height" por defecto de un
+formulario del navegador es más alto que 30, y gana sobre el "height". Sin esa línea, los 30
+píxeles no existen.
+
+La regla: cuando varios elementos tienen que quedar IGUALES, van en la misma regla. Separados,
+cada uno gana por su cuenta y el más alto decide sin que se note.
+
+[panel-12] ESTA TABLA NO TIENE "thead", Y POR ESO EL SELECTOR ES "th" PELADO
+--------------------------------------------------------------------------------
+La regla que pega el encabezado arriba es:
+
+      #v-asistencia #matrixArea th{ position:sticky; top:0; ... }
+
+Y dice "th" pelado, y no "thead th". Y no es que "thead" suene más correcto: es que
+ACÁ NO HAY.
+
+La tabla la arma "administracion.js", y la arma así:
+
+      '<div class="overflow"><table><tr><th>Código</th><th>Trabajador</th>'
+
+No hay "<thead>" en ninguna parte. El encabezado es un "<tr>" suelto con "<th>" adentro, y es
+LA PRIMERA fila de la tabla.
+
+Y acá está lo que no es evidente: el navegador mete ese "<tr>" dentro de un "<tbody>" que no
+está escrito en el código pero SÍ existe en el documento. El DOM que termina siendo real es
+
+      <table><tbody><tr><th>Código</th>...</tr><tr>...</tr></tbody></table>
+
+Con "thead" en el selector, la regla no toca NADA. Y no da ningún error: una regla que no
+aplica es idéntica a una regla que no existe.
+
+Y PEOR: como la única celda que quedaba pegada era la primera —por el "left:0" de la regla
+de la primera columna, que sí aplicaba—, parecía que el encabezado estaba medio pegado. Un
+defecto a medias se ve como un defecto de precisión, no como una regla que no llegó.
+
+La regla: el selector tiene que describir el documento que el NAVEGADOR construyó, no el que
+alguien escribió. Y el segundo se parece al primero hasta que deja de parecerse.
+
+[panel-13] NO SE USA ":is()", Y POR QUÉ LOS SELECTORES ESTÁN DUPLICADOS A PROPÓSITO
+--------------------------------------------------------------------------------
+En el archivo hay reglas que llegan a dos contenedores y están escritas con los selectores
+repetidos:
+
+      #v-asistencia #matrixArea th,
+      #v-supervisores #supMatrixArea th{ ... }
+
+Y se podrían escribir en una línea:
+
+      :is(#v-asistencia #matrixArea, #v-supervisores #supMatrixArea) th{ ... }
+
+Y NO SE ESCRIBE, a propósito.
+
+LA RAZÓN: ":is()" es de 2021, y el proyecto se usa en las cajas de la obra, que son Android
+de gama media de hace años. El motor de CSS de esos equipos no conoce ":is()", y lo que hace
+con un selector que no conoce es lo peor que puede hacer:
+
+    descarta la REGLA ENTERA, sin avisar.
+
+No descarta el ":is()" y aplica el resto. No avisa por la consola. Desaparece.
+
+Y la diferencia es esta:
+
+      con ":is()"     la regla se pierde COMPLETA, de golpe
+      con selectores  la regla se pierde A MEDIAS: aplica el que se entiende
+
+A medias se pierde el ajuste de una pantalla, y la otra sigue viva. Completa se pierden las
+dos, y el síntoma es que algo dejó de funcionar sin que se haya tocado nada.
+
+Y hay una segunda razón, que es de espejismo: ":is()" toma la especificidad de su argumento
+MÁS específico, no la de la regla completa. O sea que
+
+      :is(#a, #b.c) th   tiene la especificidad de  #b.c th
+
+que es lo mismo que si "#b.c" se hubiera escrito suelto. Es decir: cambiar a ":is()" puede
+cambiar qué regla gana, sin cambiar ninguna palabra de lo que se ve.
+
+La regla: la sintaxis nueva se usa cuando TODOS los lugares donde corre la entienden, y no solo
+cuando la entiende quien la escribe. Y cuando no se puede evitar la lista larga, la lista larga
+va en una regla con su selectores repetidos, que es larga de leer y barata de fallar.
+
+[panel-14] UNA DECLARACIÓN SUELTA NO SE PIERDE SOLA: SE LLEVA POR DELANTE LA REGLA SIGUIENTE
+--------------------------------------------------------------------------------
+El archivo tenía, en el medio, cuatro renglones sin selector:
+
+        position:sticky;
+        top:0;
+        z-index:3;
+        background:var(--card);
+
+Y la regla que venía justo después —la que pegaba la primera columna a la izquierda—
+NO EXISTÍA para el navegador.
+
+LO QUE SE SIENTE EN UN ARCHIVO, Y QUE ESTÁ MAL, es que una declaración suelta se descarta.
+El navegador descarta lo que no entiende, sigue con lo que viene y no pasa nada.
+
+LO QUE PASA DE VERDAD es que el parser no lee eso como declaraciones. Arriba del todo, cuando
+se topa con un IDENT, arranca una REGLA y se come tokens hasta la LLAVE ABIERTA que sigue. Los
+"punto y coma" no lo detienen.
+
+O sea que esto:
+
+        position:sticky;
+        top:0;
+        #v-asistencia th:first-child{ color:red }
+
+NO es "una declaración descartada y una regla". Es UNA regla, y su selector es
+
+        position:sticky;top:0;#v-asistencia th:first-child
+
+que es un elemento llamado "position" con un pseudo-clase ":sticky" que no existe. Ese selector
+es inválido, y una regla con selector inválido se descarta ENTERA.
+
+Y AQUÍ ESTÁ LO QUE LO HACE GRAVE: la regla que se perdió no era la única que hacía ese
+trabajo. Treinta y cinco renglones más abajo había OTRA regla, igual, que pegaba la primera
+columna a la izquierda. Y esa sí vivía.
+
+O sea que la pantalla estaba bien. El defecto estaba tapado.
+
+Y ESO ES PEOR QUE ESTAR ROTO, porque un defecto tapado se ve igual que un defecto Arreglado:
+no hay nada que mirar. Y el día que alguien borra la regla que lo tapa —porque está repetida,
+porque es "redundante", porque se está limpiando el archivo— aparece un defecto de 400 píxeles
+de ancho sin que nadie haya tocado nada.
+
+SE MIDIÓ ASÍ, en "tools/pruebas/css-reglas-vivas.html", y hay dos cosas que se aprendieron
+midiéndolo y que valen más que el defecto:
+
+UNA — el arnés no alcanza con leer la lista de reglas. Con el defecto puesto, la lista de
+reglas del archivo limpio y la del archivo con las declaraciones sueltas tienen el MISMO
+número: 16 contra 16. La cuenta no lo ve. Lo que cambia es la PANTALLA: la celda queda a −399
+píxeles del borde en vez de a 1.
+
+Y la razón de que no se note al contar es que hay dos reglas de primera columna y una sola
+está viva: cuando se rompe la muerta, la cuenta no baja porque la gemela sigue. Un arnés que
+cuenta reglas tiene que apuntar a la que REALMENTE aplica, o cuenta la que se eliminó.
+
+DOS — el arnés tiene que poder FALLAR, y hay que probarlo con el defecto inyectado. Si se
+declara que el CSS está bueno porque hay una regla, hay que inyectar el defecto y ver que esa
+regla desaparece. Un arnés que sale verde con y sin el defecto está leyendo otra cosa.
+
+La regla: cuando se limpia un archivo, se compara lo que QUEDA contra lo que había, y se mide
+la pantalla, no solo la lista. Un archivo puede quedar con menos reglas y el mismo efecto —eso
+es lo que pasó acá—, o con el mismo número de reglas y un efecto distinto, y eso es más
+difícil de ver.

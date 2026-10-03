@@ -44,12 +44,6 @@ lista-02
 lista-03
 nombres-01
 nombres-02
-panel-01
-panel-02
-panel-04
-panel-05
-panel-09
-panel-12
 parea-01
 parea-02
 parea-03

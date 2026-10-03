@@ -51,7 +51,20 @@ const fs = require('fs');
 const path = require('path');
 
 const RAIZ = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-asistencia-web/';
-const ALVO = RAIZ + 'pages/app.html';
+
+// -------------------------------------------------------------------
+// Y EL HTML QUE MIRA SE PUEDE APUNTAR A OTRO, PARA PODER PROBARLO
+// -------------------------------------------------------------------
+//
+// Por lo mismo que "comprueba-codigos.js" y "comprueba-rutas.js": para comprobar que el
+// guardián MUERDE hay que meterle el defecto, y hay que meterlo en una COPIA. Si se le
+// mete al archivo de verdad, y algo se corta en el medio, "app.html" queda a medias y
+// nadie se entera hasta que alguien lo abre.
+//
+// Y el aviso va en la salida, diciendo qué archivo se está leyendo. Una puerta trasera sin
+// cartel es una puerta trasera.
+const ALVO = process.env.HTML_PROBETA || (RAIZ + 'pages/app.html');
+const ES_PRUEBA = !!process.env.HTML_PROBETA;
 // -------------------------------------------------------------------
 // ESTE GUION SOLO ARREGLA SI SE LE PIDE. SIN NÚMERO, SOLO MIRA.
 //
@@ -155,7 +168,17 @@ LOCALES.forEach((archivo) => {
 //
 // Este es el punto entero del cambio: el guardián anterior se comprobaba a sí mismo.
 const SIN = [];
-const RE_SIN = /(?:href|src)="(\.\.\/(?:css|js)\/[^"?]+)"/g;
+// Y el patrón usa LA MISMA lista de carpetas que se descubrió arriba, y no una escrita a
+// mano con "css|js".
+//
+// Y esa diferencia era un agujero: "app.html" enlaza "views/asistencia/asistencia.css" y
+// "config/auth.js", y con el patrón viejo —que solo miraba "css/" y "js/"— un archivo de
+// "views/" o de "config/" SIN "?v=" pasaba el guardián en verde.
+//
+// O sea que la comprobación no fallaba por un archivo mal versionado: no miraba. Y el mismo
+// guion seSEGURABA de que el archivo no se perdiera, con una lista escrita a mano que ya
+// estaba vieja. Las dos listas manualizadas, en el mismo guion.
+const RE_SIN = new RegExp('(?:href|src)="(\\.\\./(?:' + CARPETAS_LOCALES.join('|') + ')/[^"?]+)"', 'g');
 let m;
 while ((m = RE_SIN.exec(t)) !== null) {
   const rel = m[1].replace('../', '');
@@ -196,16 +219,68 @@ if (cambiados.length) {
 
 const RAW = fs.readFileSync(ALVO, 'utf8');
 
-// Los que tienen que seguir ahí, o la página ni abre.
-['../js/auth.js', '../js/theme.js', '../js/clima-reloj.js', '../js/supabaseConfig.js',
- '../js/supabaseClient.js', '../js/app.js', '../js/nucleo.js', 'app.js'].forEach((x) => {
-  if (RAW.indexOf(x) < 0) {
-    console.log('');
-    console.log('  *** DESAPARECIÓ ' + x + ' ***');
-    process.exit(1);
-  }
+// -------------------------------------------------------------------
+// Y QUE CADA ENLACE LOCAL APUNTE A UN ARCHIVO QUE EXISTA
+// -------------------------------------------------------------------
+//
+// Y ANTES esta comprobación era una lista escrita a mano de los "<script>" que tienen que
+// seguir ahí:
+//
+//     ['../js/auth.js', '../js/theme.js', '../js/clima-reloj.js', ...]
+//
+// Y esa lista se quedó vieja el día que los módulos se movieron a carpetas: "auth.js"
+// pasó a ser "config/auth.js", y el guardián cantó "DESAPARECIÓ ../js/auth.js" en un
+// proyecto donde no faltaba nada.
+//
+// O sea que anunciaba una_rotura con el nombre del archivo viejo. Y eso es peor que no
+// comprobar: un guardián que avisa de algo que no se rompió enseña a ignorar sus avisos, y
+// el próximo "DESAPARECIÓ" se lee como ruido.
+//
+// Y la razón de fondo es la misma de arriba, y ya sale DOS VECES en este guion: una lista
+// escrita a mano hay que acordarse de ampliarla, y la lista es la que decide qué se
+// comprueba. Si el que decide y el que comprueba son el mismo, lo nuevo es invisible.
+//
+// Lo que se comprueba acá no es "estos ocho tienen que estar" sino lo que REALMENTE importa:
+//
+//     todo enlace local de app.html tiene que existir en el disco
+//
+// Y eso no se puede quedar viejo: se lee el HTML, se saca cada ruta, y se mira.
+//
+// Y hay una diferencia importante con la lista: una lista exige NOMBRES. Esto acepta CUALQUIER
+// archivo nuevo sin que nadie se acuerde de agregarlo, que es lo mismo que ya hace el
+// descubrimiento de arriba.
+const REFERENCIAS = (RAW.match(/(?:href|src)="([^"]+)"/g) || [])
+  .map((x) => x.replace(/^(?:href|src)="/, '').replace(/"$/, ''));
+
+const rotas = [];
+REFERENCIAS.forEach((x) => {
+  // Las que no son del proyecto: direcciones de internet, anclas, datos en línea.
+  if (/^(?:https?:)?\/\//.test(x)) return;
+  if (x.charAt(0) === '#') return;
+  if (/^(?:data|mailto|tel|javascript):/i.test(x)) return;
+  if (x === '') return;
+  // Y se le saca la versión antes de buscar el archivo: "../config/auth.js?v=58" es el
+  // archivo "../config/auth.js", y buscarlo con el "?v=58" pegado da que no existe SIEMPRE
+  // —o sea que sin esta línea el guardián sería rojo desde el primer día—.
+  const rel = x.split('?')[0].split('#')[0];
+  if (rel === '') return;
+  // Y la ruta es relativa al HTML que la lleva, que está en "pages/". Resolverla desde la
+  // raíz del repositorio daría "../config/auth.js" desde adentro de "pages/", que existe.
+  const absoluto = path.resolve(path.dirname(ALVO), rel);
+  if (!fs.existsSync(absoluto)) rotas.push(x);
 });
-console.log('    ok  y los que tienen que estar, están');
+
+if (rotas.length) {
+  console.log('');
+  console.log('  *** ' + rotas.length + ' ENLACE(S) LOCALES QUE NO APUNTAN A NINGÚN ARCHIVO ***');
+  rotas.forEach((x) => console.log('      ' + x));
+  console.log('    La página los pide, el servidor no los tiene, y sale un 404 en la consola.');
+  console.log('    No hay lista de nombres: sale del HTML, así que no se puede quedar viejo.');
+  if (ES_PRUEBA) console.log('    *** con un HTML DE PRUEBA ***');
+  process.exit(1);
+}
+console.log('    ok  y los ' + REFERENCIAS.length + ' enlaces de app.html, los '
+  + REFERENCIAS.filter((x) => /^\.\.\//.test(x)).length + ' del proyecto, existen todos');
 
 // Y los "<script>" de CDN siguen igual: si se les toca el nombre, no cargan y no hay error
 // visible, la página abre y no hace nada.
