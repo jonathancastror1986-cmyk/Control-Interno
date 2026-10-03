@@ -1395,6 +1395,93 @@ function wirephoto(inputId,imgId,which){
 wirephoto('w-casual','pre-casual','casual');
 wirephoto('w-safety','pre-safety','safety');
 
+// ------------------------------------------------------------------
+// EL SUELDO BASE, Y QUIÉN LO VE
+// ------------------------------------------------------------------
+//
+// Y el campo se ESCONDE con "puede('rem.ver')", y se GUARDA con un permiso distinto.
+//
+// Y no es lo mismo. Ver es para jefatura, que necesita saber lo que gana su gente para
+// trabajar. Cargar es de recursos humanos. Si los dos fueran el mismo permiso, la mitad de
+// los usuarios del sistema podrían cambiar el sueldo de cualquiera.
+//
+// Y el guardado NO confía en que el campo esté oculto. Un campo oculto es una cuestión
+// de pantalla: el "upsert" se arma en JavaScript y se manda entero, así que reaches "sueldo_base"
+// sin que nadie lo haya escrito. Por eso "leerSueldoParaGuardar" devuelve null cuando no
+// hay permiso, y no el valor que esté en el campo. Ver [rem-01].
+// Y ESTA ES LA DIFERENCIA ENTRE OCULTAR Y GUARDAR
+//
+// Y hay dos criterios, y NO son el mismo a propósito.
+//
+// Para OCULTAR un campo: "no sé todavía" se trata como "sí se puede". Porque mientras
+// cargan los permisos no se quiere tapar nada al usuario, que ve aparecer campos y
+// desaparecerlos. Eso es lo que hace "puede()", y está bien como está.
+//
+// Para GUARDAR un dato: "no sé todavía" se trata como "NO". Porque un permiso que no se
+// conoce es un permiso que no se tiene, y escribir un sueldo sin saber si se puede es
+// escribir un sueldo sin permiso.
+//
+// Y el caso que lo demuestra: sin sesión, "puede" devuelve true para todo —porque
+// "misPermisosCargados" es falso y la función lo trata como "no bloquees nada"—, y con
+// el criterio de "puede" el guardado pasaba sin permiso.
+//
+// Y el caso inverso, que también es real: si "soporte.js" todavía no se cargó, "puede" no
+// está definida, y compararla contra "undefined" no es lo mismo que preguntar si el
+// permiso está. Por eso acá se pregunta por la DEFINICIÓN primero, y por el permiso
+// después. Ver [rem-01].
+function puedeGuardar(permiso){
+  // Si la función no está, no se puede comprobar el permiso: se asume que no se tiene.
+  if(typeof puede!=='function')return false;
+  return puede(permiso)===true;
+}
+
+function mostrarCampoSueldo(){
+  const caja=document.getElementById('w-sueldo-caja');
+  if(!caja)return;
+  const ver=typeof puede==='function'&&puede('rem.ver');
+  caja.style.display=ver?'':'none';
+  if(!ver)return;
+  const aviso=document.getElementById('w-sueldo-aviso');
+  if(aviso){
+    aviso.textContent=!puedeGuardar('rem.editar')
+      ? 'Lo ves pero no lo puedes cambiar.'
+      : '';
+  }
+}
+
+// Y el valor que va al "upsert".
+//
+// Y la diferencia con "el valor del campo" es la que importa: si no hay permiso para
+// cargar, esto devuelve null, y el "upsert" manda null. Y si mandara el valor del campo,
+// bastaría con abrir la consola y llamar a la función de guardado para escribir un sueldo.
+function leerSueldoParaGuardar(worker){
+  if(!puedeGuardar('rem.editar'))return null;
+  const campo=document.getElementById('w-sueldo-base');
+  if(!campo)return null;
+  const escrito=String(campo.value==null?'':campo.value).trim();
+  if(!escrito)return null;
+  // Y el parseo es el MISMO que usa la carga masiva, para que "500.000" y 500000
+  // signifiquen lo mismo en los dos caminos. Ver [rem-02].
+  const n=parseSueldoBase(escrito);
+  if(typeof n!=='number'||!isFinite(n)){
+    alert('El sueldo base no es un número. Escríbelo como 500000, o como 500.000.');
+    return worker&&worker.sueldo_base!=null?worker.sueldo_base:null;
+  }
+  return n;
+}
+
+// Y el valor para EDITAR uno que ya existe: se muestra aunque no haya permiso para cambiarlo,
+// porque de nada sirve ver un campo que siempre está vacío.
+function llenarSueldoParaEditar(worker){
+  mostrarCampoSueldo();
+  const campo=document.getElementById('w-sueldo-base');
+  if(!campo)return;
+  campo.value=(worker&&worker.sueldo_base!=null)?String(worker.sueldo_base):'';
+  const editable=typeof puede==='function'&&puede('rem.editar');
+  campo.readOnly=!editable;
+  campo.disabled=!editable;
+}
+
 function clearForm(){
   // Y los cinco de la 056 van en la lista. Si no, quedan con lo de la ficha anterior y
   // el siguiente trabajador nace con el apellido del otro: es el peor lugar para que un
@@ -1411,6 +1498,9 @@ function clearForm(){
   fillWorkerEmpresaSelect();
   document.getElementById('pre-casual').src='';
   document.getElementById('pre-safety').src='';
+  // Y el campo del sueldo, al final. Que se muestre o no depende del permiso, no de
+  // que haya datos. Ver [rem-01].
+  mostrarCampoSueldo();
   tempCasual=null;tempSafety=null;
 }
 // Al crear un trabajador se ofrece solo las empresas que puede ver quien
@@ -1567,6 +1657,10 @@ async function saveWorker(){
     name:componerNombre({nombres,apellido_paterno:apellidoPaterno,apellido_materno:apellidoMaterno}),
     direccion:document.getElementById('w-direccion').value.trim(),
     correo:document.getElementById('w-correo').value.trim(),
+        // El sueldo base, con permiso propio. Va antes que el resto porque es el único
+        // campo que puede salir en null aunque el usuario lo haya escrito: sin
+        // "rem.editar" no se manda. Ver [rem-01].
+        sueldo_base: leerSueldoParaGuardar(worker),
     afp_codigo:document.getElementById('w-afp-codigo').value.trim(),
     afp_nombre:document.getElementById('w-afp-nombre').value.trim(),
     spec,
@@ -2388,6 +2482,9 @@ function editWorker(code){
   seleccionarGrupoYCargo(document.getElementById('w-grupo'),document.getElementById('w-cargo'),w.especialidad_clave||'');
   document.getElementById('w-phone').value=w.phone||'';
   document.getElementById('w-rut').value=w.rut||'';
+  // Y el sueldo. Va con el trabajador entero porque necesita dos cosas: el valor que ya
+  // tenía, y permiso para verlo. Ver [rem-01].
+  llenarSueldoParaEditar(w);
   document.getElementById('w-is-supervisor').checked=!!w.is_supervisor;
   document.getElementById('w-fecha-ingreso').value=w.fecha_ingreso||'';
   document.getElementById('w-tipo-trabajador').value=w.tipo_trabajador||'interno';

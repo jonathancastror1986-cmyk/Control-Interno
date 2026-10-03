@@ -20,19 +20,19 @@ proyecto: cero build, cero "node_modules". -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=75"></script>
-<script src="../config/supabase.client.js?v=75"></script>
-<script src="../config/auth.js?v=75"></script>
-<script src="../controllers/theme.js?v=75"></script>
-<script src="../controllers/clima-reloj.js?v=75"></script>
-<link rel="stylesheet" href="../css/base.css?v=75">
+<script src="../config/supabase.config.js?v=77"></script>
+<script src="../config/supabase.client.js?v=77"></script>
+<script src="../config/auth.js?v=77"></script>
+<script src="../controllers/theme.js?v=77"></script>
+<script src="../controllers/clima-reloj.js?v=77"></script>
+<link rel="stylesheet" href="../css/base.css?v=77">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=75">
-<link rel="stylesheet" href="../css/grupos.css?v=75">
-<link rel="stylesheet" href="../css/styles.css?v=75">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=75">
+<link rel="stylesheet" href="../css/tokens.css?v=77">
+<link rel="stylesheet" href="../css/grupos.css?v=77">
+<link rel="stylesheet" href="../css/styles.css?v=77">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=77">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=75"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=77"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,13 +68,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=75">
-<link rel="stylesheet" href="../css/vistas.css?v=75">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=75">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=75">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=75">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=75">
-<link rel="stylesheet" href="../css/movil.css?v=75" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=77">
+<link rel="stylesheet" href="../css/vistas.css?v=77">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=77">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=77">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=77">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=77">
+<link rel="stylesheet" href="../css/movil.css?v=77" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -253,6 +253,27 @@ retroceder en el tiempo.
 
 
 </details></label><input type="date" id="w-fecha-ingreso"></div>
+        <div id="w-sueldo-caja" style="display:none">
+          <label>Sueldo base mensual <details class="ayuda"><summary class="ayuda-ico" title="Qué es y por qué lo ven pocos">i</summary>
+          <div class="ayuda-caja">
+          <b>Es la remuneración mensual, en pesos.</b> Se escribe como número: 500000, o
+          500.000, y el programa lo entiende igual. No es el sueldo por hora ni el total con
+          horas extra: es el monto mensual del contrato.
+          <br><br>
+          <b>Vacío NO es cero.</b> Vacío significa que no está cargado, y cero significa que
+          el sueldo es cero. Son cosas distintas y una planilla las trata distinto.
+          <br><br>
+          <b>Lo ven y lo cargan tres tipos de usuario.</b> Recursos humanos lo mantiene;
+          jefatura directa y técnica lo ven para el de su gente. Si el recuadro no aparece,
+          es que tu rol no lo tiene.
+          <br><br>
+          <b>Cada cambio queda registrado.</b> Con el valor anterior y el nuevo, para poder
+          explicar después por qué el número es ese.
+          </div></details></label>
+          <input id="w-sueldo-base" type="number" min="0" step="1" inputmode="numeric"
+                 placeholder="500000">
+          <small id="w-sueldo-aviso" style="display:block;margin-top:4px"></small>
+        </div>
         <div><label>Grupo del cargo <details class="ayuda"><summary class="ayuda-ico" title="Por qué se deduce del cargo y se deja vacío">i</summary>
 
 
@@ -2785,20 +2806,20 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=75"></script>
-<script src="../views/porteria/escaner.js?v=75"></script>
+<script src="../js/nucleo.js?v=77"></script>
+<script src="../views/porteria/escaner.js?v=77"></script>
 
-<script src="../views/asistencia/relojes.js?v=75"></script>
-<script src="../views/soporte/soporte.js?v=75"></script>
-<script src="../views/administracion/administracion.js?v=75"></script>
-<script src="../views/bodega/bodega.js?v=75"></script>
+<script src="../views/asistencia/relojes.js?v=77"></script>
+<script src="../views/soporte/soporte.js?v=77"></script>
+<script src="../views/administracion/administracion.js?v=77"></script>
+<script src="../views/bodega/bodega.js?v=77"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
-<script src="../views/administracion/docx.js?v=75"></script>
-<script src="../views/administracion/documentos.js?v=75"></script>
-<script src="../views/supervisores/supervisores.js?v=75"></script>
-<script src="../js/app.js?v=75"></script>
+<script src="../views/administracion/docx.js?v=77"></script>
+<script src="../views/administracion/documentos.js?v=77"></script>
+<script src="../views/supervisores/supervisores.js?v=77"></script>
+<script src="../js/app.js?v=77"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
