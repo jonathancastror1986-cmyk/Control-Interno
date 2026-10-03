@@ -4552,3 +4552,355 @@ empresa:
 
 Si el segundo lista tiene códigos que el primero no, NO FUNCIONÓ. Y no hay que mirar nada
 más.
+
+
+================================================================================
+LA FAMILIA "firma": CÓMO SE FIRMAN LOS PAPELES, Y QUÉ HAY QUE PODER MOSTRAR
+================================================================================
+
+Catorce referencias de las migraciones 059, 062 y 063, y del guardián que las revisó.
+
+Es la familia más larga que queda, y es la que tiene más detrás: el ORD. N°1318 de 2023 y
+el N°0789/015 de la Dirección del Trabajo. Los textos están citados en las migraciones con
+el número de dictamen, para que se puedan verificar contra la fuente y no contra este
+archivo.
+
+Y el patrón que las atraviesa es uno solo, y se puede decir en una frase:
+
+    para que un documento sea válido hay que poder mostrar no solo lo que se firmó,
+    sino lo que el trabajador sabía y aceptó cuando lo firmó.
+
+Y cada vez que no se guardó algo de eso —el tipo de firma, la fecha, quién preguntó, el texto
+que se le mostró—, el registro dejó de ser evidencia.
+
+[firma-01] LA FIRMA DIGITAL Y LA APROBACIÓN SON DOS COLUMNAS DISTINTAS
+--------------------------------------------------------------------------------
+La migración 062 agrega una columna a "plantillas_contratacion":
+
+      modo_firma text not null default 'manuscrita'
+        check (modo_firma in ('manuscrita','digital','mixto'))
+
+Y la 061 había agregado otra:
+
+      requiere_aprobacion
+
+Y a primera vista se parecen: las dos hablan de un papel que tiene que pasar por
+alguien. No son lo mismo, y por eso son dos columnas:
+
+      requiere_aprobacion   si el papel pasa por alguien ANTES de entregarse
+      modo_firma            si se firma con certificado o a mano
+
+Un contrato puede llevar firma digital y no pasar por aprobación. Una declaración de
+salud puede pasar por aprobación y firmarse a mano. Son dos preguntas, con dos
+respuestas que se combinan de cuatro maneras.
+
+CON UNA SOLA BANDERA no se pueden pedir las dos. El día que aparezca un documento que
+necesite las dos —y ese documento llega, siempre llega— hay que agregar una columna en
+plano, con datos ya guardados, y adivinar qué quería decir cada valor.
+
+La regla: cuando dos banderas se cruzan, no son una bandera con más valores. Son dos
+preguntas.
+
+[firma-02] TRES MODOS DE FIRMA, Y POR QUÉ NO SON UN BOOLEANO
+--------------------------------------------------------------------------------
+La lista de "modo_firma" tiene tres valores y no dos:
+
+      'manuscrita'  se firma en pantalla, se genera el PDF y se escanea
+      'digital'     lleva firma digital, con certificado de entidad autorizada
+      'mixto'       el supervisor con certificado y el trabajador a mano
+
+El tercero es el que decide. Un booleano —"¿es digital?"— tiene dos respuestas, y
+"el supervisor con certificado y el trabajador a mano" no es ninguna de las dos: los dos
+firman EL MISMO papel, con métodos distintos, y cada uno tiene su regla.
+
+Es el mismo motivo por el que el campo "firmas" es texto y no booleano, y por el que
+"estado" es texto y no número. Tres casos no entran en dos.
+
+Y el valor por defecto es "manuscrita" PORQUE ES LO QUE YA ANDA: todas las plantillas
+que están en la tabla se firman a mano hoy, hay un lienzo de firma y el PDF se genera con
+lo que sale de ahí. Con otro valor por defecto, de golpe todos los papeles que ya se
+venían entregando pasarían a pedir certificado.
+
+El valor por defecto de una columna nueva es una decisión de migración de datos que se
+tiene que pensar, no un valor neutro. Ver [firma-01].
+
+[firma-03] "MIXTO" SE PUEDE DEJAR SIN HACER, Y SE DICE PARA QUE NO PAREZA OLVIDO
+--------------------------------------------------------------------------------
+La migración 062 deja los tres modos en el "select" del formulario, incluido "mixto",
+aunque no haya nada implementado para él.
+
+LO QUE YA ANDA:
+
+    el lienzo de firma, con el dedo o el mouse
+    "montarFirmaPapel", que la pone en el papel
+    el PDF, con jspdf y html2canvas
+    el bucket de almacenamiento, para subirlo
+
+LO QUE NO ESTÁ, y que el campo decide a quién le toca:
+
+    la firma digital con certificado, que necesita un proveedor externo
+    subir el PDF escaneado de un papel firmado en papel
+
+Y "mixto" es el único de los tres que necesita LAS DOS cosas, y es el menos frecuente.
+Se puede dejar en la lista y que por ahora caiga en el camino manuscrito, en vez de
+bloquear el resto.
+
+Y DECIRLO ACÁ es lo importante. Una opción en un "select" que no hace nada parece un
+olvido, y el próximo que la ve la quita —o la deja y la ofrece, y el usuario elige una
+cosa que el sistema no hace—. Escribírselo en la migración es lo que la convierte en una
+decisión y no en un error.
+
+La regla: una opción visible que no hace nada tiene que estar escrita en algún lado
+como decisión, o alguien la va a "arreglar" sin saber qué estaba pensando.
+
+[firma-04] EL TEXTO DE UNA OPCIÓN AVISA LO QUE NO HAY, ANTES DE GUARDAR
+--------------------------------------------------------------------------------
+En el formulario de la plantilla, el "select" de "cómo se firma" dice:
+
+      A mano, en pantalla — el PDF se escanea después
+      Digital, con certificado — todavía no integrado
+      El supervisor con certificado y el trabajador a mano
+
+El "todavía no integrado" es lo que hace el trabajo. Está en el TEXTO DE LA OPCIÓN, que se
+lee antes de elegir, y no en un aviso que aparece después de guardar.
+
+La diferencia es de momento. Un aviso que sale cuando se guarda obligan a dos pasos —
+elegir, guardar, descubrir— y el daño ya está hecho: la plantilla quedó con un modo que el
+sistema no puede cumplir, y hay que acordarse de volver a corregirla.
+
+Y el aviso que aparece después es un aviso que nadie lee: el que acaba de guardar algo
+ya pasó a otra cosa.
+
+La regla: lo que el sistema NO puede hacer se dice en la opción, no en el error.
+
+[firma-05] EL TIPO DE FIRMA TIENE QUE QUEDAR REGISTRADO, Y NO ES UN CHECKBOX
+--------------------------------------------------------------------------------
+La Dirección del Trabajo, en el ORD. N°1318 de 2023:
+
+    la normativa vigente requiere que la autorización del trabajador incluya
+    EL TIPO DE FIRMA (electrónica o manuscrita)
+
+Y en el mismo dictamen:
+
+    si el trabajador no aceptara la utilización de medios electrónicos para los fines
+    señalados, respecto de él se deberá operar siempre en soporte de papel y, cuando un
+    documento requiera firma, ella deberá ser HOLOGRÁFICA
+
+Traducción: hay que poder mostrar que el trabajador autorizó, Y cuál fue el tipo de firma
+que autorizó.
+
+Un checkbox que alguien tilda en una pantalla, sin fecha y sin saber quién lo preguntó, no
+es una autorización: es un dato sin respaldo. Y eso es justo lo que va a preguntar un
+fiscalizador.
+
+La migración 063 crea la tabla que guarda ese registro. Ver [firma-06] para por qué es una
+tabla y no una columna, y [firma-07] para la parte que suele olvidarse.
+
+El texto legal está citado en la migración, con el número de dictamen, para que se pueda
+verificar contra la fuente y no contra este archivo.
+
+[firma-06] UNA TABLA Y NO UNA COLUMNA, PORQUE ES UN SUCESO Y NO UN ATRIBUTO
+--------------------------------------------------------------------------------
+La 063 podría haber agregado una columna a "trabajadores", del tipo
+"acepta_electronica boolean". No lo hizo, y la razón es la que decide todo lo demás.
+
+Es un SUCESO, no un atributo. El trabajador puede cambiar de opinión: hoy acepta la firma
+electrónica y mañana la rechaza.
+
+Con una columna se guarda solo la ÚLTIMA respuesta. Y lo que hay que poder mostrar no es
+"¿qué dice ahora?", sino "¿qué aceptó usted, y cuándo?".
+
+Y POR QUÉ SE GUARDA EL HISTORIAL COMPLETO, y no solo el último:
+
+Si el trabajador acepta hoy y rechaza mañana, el papel que se le entregó cuando aceptaba
+sigue valiendo, porque estaba firmado cuando él sabía lo que firmaba. Con una sola fila,
+esa línea desaparece —porque la segunda respuesta la sobrescribe— y con ella desaparece
+la prueba de que el papel era válido cuando se entregó.
+
+Ese es el patrón general de un dato que se audita: se guarda la HISTORIA de los cambios,
+no el estado final. El estado final es una comodidad; la historia es la evidencia. Y en
+un sistema que se vende por cumplimiento, la diferencia entre las dos es la diferencia
+entre responder y no poder responder.
+
+[firma-07] EL "EXPLICADO": LO QUE EL TRABAJADOR VIÓ, GUARDADO TAL COMO SE LE MOSTRÓ
+--------------------------------------------------------------------------------
+Un registro que dice "aceptó firma electrónica" no dice que se le explicó QUÉ estaba
+aceptando. El ORD. N°0789/015 exige que el sistema se le muestre al trabajador, y sin eso el
+registro es una afirmación sin respaldo.
+
+Y por eso el texto de la explicación se guarda TAL COMO SE MOSTRÓ, no un código que apunte
+a la versión actual:
+
+    explicado  text   el texto tal cual se mostró, no el identificador del texto
+
+Porque las explicaciones cambian. El próximo que las cambie —y van a cambiar, porque las
+revisa un abogado— reescribe el texto, y si los registros guardaran un código, todos los
+registros viejos pasarían a decir lo que se le muestra hoy a alguien que vio otra cosa.
+
+Eso es una reconstrucción: el sistema afirma que el trabajador leyó un texto que nunca
+vio. Y en una auditoría es la diferencia entre un registro y una mentira.
+
+El costo es que el texto se repite en cada fila. El beneficio es que cada fila dice la
+verdad de esa fila.
+
+La regla: un registro de lo que alguien vio, guarde lo que vio. Un código que apunta a la
+versión actual solo sirve mientras la versión no cambia, y esa es una promesa que ningún
+texto de consentimiento puede hacer.
+
+[firma-08] EL NOMBRE DE QUIEN PREGUNTÓ, Y NO SU IDENTIFICADOR
+--------------------------------------------------------------------------------
+La columna que guarda quién tomó la autorización es una sola:
+
+    consultado_por      text
+
+Y es el NOMBRE, y no el identificador del usuario. Esa es la decisión, y hay que decirla
+porque lo contrario parece más útil: un identificador se puede relacionar, un nombre no.
+
+Y el motivo es que el usuario se puede eliminar, y el registro tiene que seguir diciendo
+quién fue.
+
+Es el mismo criterio que usa "plantillas_contratacion" con el nombre de la plantilla: el
+identificador sirve para relacionar, y el nombre sirve para leer. Un registro que dice
+"el usuario 3" obliga a buscarlo; un registro que dice "J. Castro" se lee de una.
+
+Y hay un motivo más fuerte, que es de auditoría: si el usuario se elimina y el registro
+guarda solo el identificador, el registro queda apuntando a algo que no existe, y no hay
+forma de saber quién tomó la decisión. Con el nombre, la respuesta sobrevive a la persona.
+
+La regla: cuando un registro se pueda auditar, tiene que decir QUIÉN, con algo que sobreviva a
+la persona. Un identificador no sobrevive a que borren la cuenta.
+
+[firma-09] UN REGISTRO QUE SE PUEDE MODIFICAR NO ES UN REGISTRO
+--------------------------------------------------------------------------------
+Las políticas de RLS de la tabla separan DOS cosas, y esa separación es el diseño:
+
+    leer      cualquiera que abra la ficha
+    escribir  quien tenga el permiso "documentos.autorizar_firma"
+
+Ver es para cualquiera. Escribir es para quien tiene el permiso, porque escribir ahí es
+firmar EN NOMBRE del trabajador, y eso no lo hace cualquiera.
+
+Y "actualizar" y "borrar" están cerrados con "false".
+
+Y esa es la parte que casi siempre se olvida: si la tabla permite "update" o "delete",
+ninguna de las otras dos protecciones sirve. Un registro de autorización que se puede
+modificar no es un registro: es una anotación, y una anotación que alguien puede
+cambiar no prueba nada.
+
+Es la misma razón por la que la bitácora —la 028— no tiene política de borrado: para que
+sea un registro tiene que ser inmodificable, y eso se dice en la base, no en la
+aplicación.
+
+La regla: un dato que tiene que probar algo se cierra contra "update" y "delete" en la
+base. Si depende de que la aplicación no los ofrezca, no depende de nada.
+
+[firma-10] UN PERMISO QUE NO ESTÁ EN EL CATÁLOGO DEJA LA TABLA SIN NADIE QUE ESCRIBA
+--------------------------------------------------------------------------------
+Las políticas de la 063 usan dos permisos:
+
+      documentos.ver
+      documentos.autorizar_firma
+
+Y si esos permisos no están en el catálogo, "tiene_permiso" devuelve falso SIEMPRE. La
+tabla queda con permiso de leer para quien está en la empresa, y SIN permiso de escribir
+para nadie.
+
+Y ESO NO DA NINGÚN ERROR. La tabla se crea, las políticas se crean, y el primer ingreso de
+una autorización falla con un "no se pudo insertar la fila" que no dice nada de un permiso
+que falta.
+
+Es un estado a medio hacer que no dice que está a medio hacer. El síntoma aparece en la
+pantalla de la ficha, no en la migración, y se lee como "el sistema no guarda las
+autorizaciones" en vez de "no le dimos el permiso a nadie".
+
+Y por qué "documentos.autorizar_firma" es APARTE de "plantillas.gestionar", a propósito:
+
+    crear un papel es una cosa.
+    registrar que el trabajador autorizó a firmarlo es OTRA,
+    y la segunda es la que queda registrada a nombre de la empresa.
+
+Quien puede armar el contrato no tiene por qué poder firmar en nombre del trabajador.
+Son dos responsabilidades y dos permisos.
+
+[firma-11] UN PERMISO QUE EXISTE Y QUE NINGÚN ROL TIENE ES UN PERMISO QUE NADIE TIENE
+--------------------------------------------------------------------------------
+Al final de la 063 hay un aviso, y es el paso que hay que hacer a mano:
+
+    select r.rol, p.clave
+      from public.roles_sistema r, public.permisos p
+     where p.clave like 'documentos.%'
+     order by r.rol, p.clave;
+
+Los permisos nuevos no se les dan solos a los demás roles. Se le dan al administrador, y
+los demás hay que decidirlos.
+
+Y por eso está escrito como un paso y no como un "insert" más: lo que salga en esa consulta
+es una DECISIÓN. Qué roles, de los que manejan obras, pueden registrar la autorización de
+un trabajador no se deduce: se decide, y depende de cada empresa.
+
+La regla: cuando una migración agrega un permiso, deja escrito cómo ver los que faltan.
+Porque el permiso existir no es que alguien pueda usarlo: es que existe la casilla.
+
+[firma-12] EL GUARDIÁN DE NOMBRES SQL, Y POR QUÉ EXISTE
+--------------------------------------------------------------------------------
+La primera versión de la 063 decía "from public.roles", "r.clave" y "r.sistema".
+
+No existe una tabla "roles". La que hay es "roles_sistema", con la clave en la columna
+"rol", y no tiene columna "sistema": el rol con acceso total es el que se llama "admin", y
+es un valor de "rol", no una bandera.
+
+Con "public.roles" el "insert" tiraba "42P01: relation public.roles does not exist" —y
+como iba AL FINAL, después de crear la tabla y las políticas, la migración se caía en el
+último paso: la tabla quedaba creada, las políticas hechas, y los permisos sin dárselos a
+nadie.
+
+Un estado a medio hacer que no dice que está a medio hacer. Y nadie lo notó porque el error
+se lee en la consulta que el usuario estaba haciendo, no en la migración.
+
+POR ESO EXISTE "tools/revisa-nombres-sql.js": lee las tablas que existen de verdad, de
+los "create table" del proyecto, y revisa que cada "public.<tabla>" que una migración
+menciona exista. Y lo lee de los comentarios también, porque los comentarios dicen
+"public.roles_permisos" y de ahí sale fácil escribir "public.roles". Ver [firma-14].
+
+Es la misma regla de [rls-01] aplicada al nombre: no alcanza con leer lo que dice el
+código, hay que compararlo contra lo que hay.
+
+[firma-13] EL GUARDIÁN MIRA TODO EL PROYECTO, NO EL ARCHIVO QUE ESTÁ REVISANDO
+--------------------------------------------------------------------------------
+Una migración puede usar una función que DEFINIÓ otra migración.
+
+Y si el guardián solo mira el archivo que está revisando, esa función no la encuentra y la
+marca como si fuera una tabla que no existe.
+
+Lo que es peor: el resultado es un error FALSO, y el natural es "el guardián tiene razón,
+esta migración está mal". Cuando el culpable es el guardián, arreglar la migración rompe
+una que andaba.
+
+Por eso lee de los "create function" de todo el proyecto, no solo de las migraciones que
+están en revisión. Las funciones viejas tienen el mismo nombre que las nuevas —el
+proyecto reescribe "es_admin()" en casi todas—, y buscar solo en un archivo da una lista
+distinta cada vez.
+
+La regla: un comprobador que busca en un subconjunto y concluye sobre el conjunto está
+reportando sobre lo que miró, no sobre lo que hay.
+
+[firma-14] Y QUE LOS COMENTARIOS NO CUENTEN COMO CÓDIGO
+--------------------------------------------------------------------------------
+El guardián lee las migraciones buscando "public.<algo>", y lo hace sobre el archivo
+ENTERO.
+
+Incluidos los comentarios. Y en un archivo donde el error está explicado en un comentario,
+el guardián leía el texto donde se explicaba el error y lo tomaba POR EL ERROR.
+
+La 063 es exactamente ese caso: el comentario que explica el "public.roles" malo está en
+el mismo archivo, y decía "public.roles", y el guardián lo marcaba.
+
+O sea que el archivo iba a fallar porque explica el fallo. Y el mensaje del guardián no
+decía "esto está en un comentario".
+
+La solución es la misma que usa "comprueba-rutas.js": borrar los comentarios antes de
+buscar. Un "--" hasta el fin de línea, y un bloque "/* … */".
+
+La regla: un comprobador de texto busca en CÓDIGO. Y si lee comentarios para encontrar
+nombres —que es lo correcto, porque ahí está la intención—, tiene que distinguirlos de
+las llamadas.
