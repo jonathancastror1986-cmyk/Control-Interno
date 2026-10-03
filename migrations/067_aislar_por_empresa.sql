@@ -200,6 +200,16 @@ comment on function public.puede_ver_archivo(text, uuid) is
 
 -- ASISTENCIA. -------------------------------------------------------
 drop policy if exists "asistencia rw" on public.asistencia;
+-- Y ESTE SEGUNDO DROP ES PORQUE LA MIGRACIÓN CORRE DOS VECES.
+--
+-- El de arriba borra la política que había antes de esta migración. El de abajo borra la
+-- que crea ESTA migración, para que volver a correrla no choque con ella.
+--
+-- Sin el segundo, la segunda corrida da: policy "asistencia por empresa" already exists.
+-- Y eso no es inocuo: el primer drop ya corrió, así que la tabla puede quedar sin
+-- políticas —y con el RLS prendido, sin políticas no la lee nadie, ni un administrador.
+--
+drop policy if exists "asistencia por empresa" on public.asistencia;
 create policy "asistencia por empresa" on public.asistencia for all
   using (public.puede_ver_trabajador(asistencia.code))
   with check (public.puede_ver_trabajador(asistencia.code));
@@ -209,6 +219,16 @@ comment on policy "asistencia por empresa" on public.asistencia is
 
 -- MARCAJES. --------------------------------------------------------
 drop policy if exists "marcajes rw" on public.marcajes;
+-- Y ESTE SEGUNDO DROP ES PORQUE LA MIGRACIÓN CORRE DOS VECES.
+--
+-- El de arriba borra la política que había antes de esta migración. El de abajo borra la
+-- que crea ESTA migración, para que volver a correrla no choque con ella.
+--
+-- Sin el segundo, la segunda corrida da: policy "marcajes por empresa" already exists.
+-- Y eso no es inocuo: el primer drop ya corrió, así que la tabla puede quedar sin
+-- políticas —y con el RLS prendido, sin políticas no la lee nadie, ni un administrador.
+--
+drop policy if exists "marcajes por empresa" on public.marcajes;
 create policy "marcajes por empresa" on public.marcajes for all
   using (public.puede_ver_trabajador(marcajes.code))
   with check (public.puede_ver_trabajador(marcajes.code));
@@ -222,6 +242,16 @@ comment on policy "marcajes por empresa" on public.marcajes is
 -- código ya no está. Esas quedan para el administrador solo, que es la dirección segura: una
 -- credencial que nadie puede leer, nadie puede usar.
 drop policy if exists "tarjetas rw" on public.tarjetas;
+-- Y ESTE SEGUNDO DROP ES PORQUE LA MIGRACIÓN CORRE DOS VECES.
+--
+-- El de arriba borra la política que había antes de esta migración. El de abajo borra la
+-- que crea ESTA migración, para que volver a correrla no choque con ella.
+--
+-- Sin el segundo, la segunda corrida da: policy "tarjetas por empresa" already exists.
+-- Y eso no es inocuo: el primer drop ya corrió, así que la tabla puede quedar sin
+-- políticas —y con el RLS prendido, sin políticas no la lee nadie, ni un administrador.
+--
+drop policy if exists "tarjetas por empresa" on public.tarjetas;
 create policy "tarjetas por empresa" on public.tarjetas for all
   using (public.puede_ver_trabajador(tarjetas.code))
   with check (public.puede_ver_trabajador(tarjetas.code));

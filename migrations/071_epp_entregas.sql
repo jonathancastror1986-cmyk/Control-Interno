@@ -91,6 +91,16 @@ end $$;
 -- ===================================================================
 
 drop policy if exists "epp entregas rw" on public.epp_entregas;
+-- Y ESTE SEGUNDO DROP ES PORQUE LA MIGRACIÓN CORRE DOS VECES.
+--
+-- El de arriba borra la política que había antes de esta migración. El de abajo borra la
+-- que crea ESTA migración, para que volver a correrla no choque con ella.
+--
+-- Sin el segundo, la segunda corrida da: policy "epp entregas por empresa" already exists.
+-- Y eso no es inocuo: el primer drop ya corrió, así que la tabla puede quedar sin
+-- políticas —y con el RLS prendido, sin políticas no la lee nadie, ni un administrador.
+--
+drop policy if exists "epp entregas por empresa" on public.epp_entregas;
 create policy "epp entregas por empresa" on public.epp_entregas for all
   using (public.puede_ver_trabajador(epp_entregas.code))
   with check (public.puede_ver_trabajador(epp_entregas.code));
