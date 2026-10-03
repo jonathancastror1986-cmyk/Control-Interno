@@ -23,7 +23,7 @@
 */
 .trabTablaCaja{
   overflow:auto;
-  max-height:min(66vh,720px);
+  max-height:min(84vh,1200px);
   border:1px solid var(--line);
   border-radius:10px;
 }
@@ -31,7 +31,7 @@
   width:100%;
   border-collapse:separate;
   border-spacing:0;
-  font-size:.86rem;
+  font-size:.78rem;
 }
 .trabTabla th{
   position:sticky;
@@ -39,16 +39,16 @@
   z-index:2;
   background:var(--panel);
   text-align:left;
-  font:600 .72rem 'Montserrat',system-ui,sans-serif;
+  font:600 .68rem 'Montserrat',system-ui,sans-serif;
   text-transform:uppercase;
   letter-spacing:.06em;
   color:var(--muted);
-  padding:10px 12px;
+  padding:7px 9px;
   border-bottom:1px solid var(--line);
   white-space:nowrap;
 }
 .trabTabla td{
-  padding:9px 12px;
+  padding:5px 9px;
   border-bottom:1px solid var(--line);
   vertical-align:middle;
 }

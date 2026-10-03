@@ -29,8 +29,6 @@ const fs = require('fs');
 const path = require('path');
 
 const RAIZ = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-asistencia-web/';
-const ORIGEN = RAIZ + 'views/asistencia/relojes.js';
-const DESTINO = RAIZ + 'views/administracion/documentos.js';
 
 // -------------------------------------------------------------------
 // CÓMO SE USA
@@ -98,7 +96,6 @@ if (!MARCA) {
   process.exit(1);
 }
 
-const HACER = process.argv[2] === 'hacer';
 
 // -------------------------------------------------------------------
 // EL MEDIDOR DE NIVEL SUPERIOR, QUE YA ESTÁ PROBADO

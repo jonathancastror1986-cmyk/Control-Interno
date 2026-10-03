@@ -20,19 +20,19 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=62"></script>
-<script src="../config/supabase.client.js?v=62"></script>
-<script src="../config/auth.js?v=62"></script>
-<script src="../controllers/theme.js?v=62"></script>
-<script src="../controllers/clima-reloj.js?v=62"></script>
-<link rel="stylesheet" href="../css/base.css?v=62">
+<script src="../config/supabase.config.js?v=63"></script>
+<script src="../config/supabase.client.js?v=63"></script>
+<script src="../config/auth.js?v=63"></script>
+<script src="../controllers/theme.js?v=63"></script>
+<script src="../controllers/clima-reloj.js?v=63"></script>
+<link rel="stylesheet" href="../css/base.css?v=63">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=62">
-<link rel="stylesheet" href="../css/grupos.css?v=62">
-<link rel="stylesheet" href="../css/styles.css?v=62">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=62">
+<link rel="stylesheet" href="../css/tokens.css?v=63">
+<link rel="stylesheet" href="../css/grupos.css?v=63">
+<link rel="stylesheet" href="../css/styles.css?v=63">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=63">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=62"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=63"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,13 +68,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=62">
-<link rel="stylesheet" href="../css/vistas.css?v=62">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=62">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=62">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=62">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=62">
-<link rel="stylesheet" href="../css/movil.css?v=62" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=63">
+<link rel="stylesheet" href="../css/vistas.css?v=63">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=63">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=63">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=63">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=63">
+<link rel="stylesheet" href="../css/movil.css?v=63" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -136,7 +136,7 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
 
 <section class="view active v-administracion" id="v-nuevo-trabajador">
   <div class="card">
-    <h2 class="con-ayuda">Nuevo trabajador
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap"><h2 class="con-ayuda" style="flex:1;min-width:0">Nuevo trabajador
       <!--
       LAS AYUDAS, EN EL ICONO Y NO EN LA PANTALLA
       ===========================================
@@ -171,6 +171,9 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
       es la forma fácil de mandarle a alguien la charla del oficio equivocado.
       </div></details>
     </h2>
+        <button class="btn secondary" type="button" onclick="showView('listado-trabajadores')"
+          title="Ver los trabajadores ya cargados">Ir a listado de trabajadores</button>
+      </div>
     <div class="w-seccion">
       <h4>Datos personales</h4>
       <div class="row w-campos">
@@ -1285,14 +1288,13 @@ duplica nada: la base lo sabe y lo cuenta.
     <h2>Administrar kits por especialidad</h2>
     <small>Una especialidad puede tener varios kits (por ejemplo <b>Pintor A</b> y <b>Pintor B</b>). Define qué EPP lleva cada uno. Esto es solo configuración: la entrega y la firma van en "Asignar y entregar".</small>
     <div class="row">
-      <div><label>Nombre de la especialidad</label><input id="esp-nombre" placeholder="Ej. Enlucidor, Hormigón"></div>
+      <div><label>Nombre de la especialidad</label><input id="esp-nombre" placeholder="Ej. Enlucidor, Hormigón"</div>
       <div><label>Descripción</label><input id="esp-desc" placeholder="A qué se dedica"></div>
       <div style="display:flex;align-items:flex-end"><button class="btn" type="button" onclick="addEspecialidad()">Crear especialidad</button></div>
     </div>
     <div class="row" style="align-items:flex-start;margin-top:6px">
       <div style="flex:0 0 260px;min-width:220px">
         <label>Especialidades</label>
-        <div class="espList" id="espList"></div>
       </div>
       <div style="flex:0 0 230px;min-width:200px">
         <label>Kits de la especialidad</label>
@@ -2782,20 +2784,20 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=62"></script>
-<script src="../views/porteria/escaner.js?v=62"></script>
+<script src="../js/nucleo.js?v=63"></script>
+<script src="../views/porteria/escaner.js?v=63"></script>
 
-<script src="../views/asistencia/relojes.js?v=62"></script>
-<script src="../views/soporte/soporte.js?v=62"></script>
-<script src="../views/administracion/administracion.js?v=62"></script>
-<script src="../views/bodega/bodega.js?v=62"></script>
+<script src="../views/asistencia/relojes.js?v=63"></script>
+<script src="../views/soporte/soporte.js?v=63"></script>
+<script src="../views/administracion/administracion.js?v=63"></script>
+<script src="../views/bodega/bodega.js?v=63"></script>
   Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
   la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
   del mismo módulo y el motor es el que se apoya en el resto, no al revés.
-<script src="../views/administracion/docx.js?v=62"></script>
-<script src="../views/administracion/documentos.js?v=62"></script>
-<script src="../views/supervisores/supervisores.js?v=62"></script>
-<script src="../js/app.js?v=62"></script>
+<script src="../views/administracion/docx.js?v=63"></script>
+<script src="../views/administracion/documentos.js?v=63"></script>
+<script src="../views/supervisores/supervisores.js?v=63"></script>
+<script src="../js/app.js?v=63"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
