@@ -115,3 +115,52 @@
 -- hay que llamar la función con el nombre de la columna —"name"—, no con la posición. El
 -- panel no pone argumentos, así que la expresión es exactamente la de arriba, sin paréntesis
 -- de argumento.
+
+-- ===================================================================
+-- CÓMO QUEDÓ, EN LA PRÁCTICA
+-- ===================================================================
+--
+-- Esto se escribió el 3 de octubre de 2026, después de hacer el paso. Va al final a propósito:
+-- lo de arriba explica POR QUÉ el paso es manual, y eso no cambia.
+--
+-- El panel no deja crear UNA política "for all". Crea UNA POR OPERACIÓN, con un código
+-- hexadecimal pegado al final del nombre. Así que en vez de una política hay tres:
+--
+--     SELECT   USING      ((bucket_id = 'epp-respaldos') AND puede_ver_archivo(name))
+--     INSERT   WITH CHECK ((bucket_id = 'epp-respaldos') AND puede_ver_archivo(name))
+--     UPDATE   USING      ((bucket_id = 'epp-respaldos') AND puede_ver_archivo(name))
+--
+-- Y la vieja "epp respaldos rw" quedó BORRADA. Ese era el paso que de verdad importaba:
+-- mientras estuviera, las dos reglas se sumaban con "o" y la vieja ganaba.
+--
+-- -------------------------------------------------------------------
+-- NO SE CREÓ LA DE DELETE, Y NO ES UN AGUERO
+-- -------------------------------------------------------------------
+--
+-- Porque el código no borra de ese almacén. Medido sobre el código, no supuesto:
+--
+--     soporte.js:1470   .upload(path, blob, ...)   -> necesita INSERT
+--     soporte.js:1475   .download(path)            -> necesita SELECT
+--
+-- Y no hay ningún ".remove(", ".update(" ni ".move(" sobre EPP_BUCKET. Los demás ".remove("
+-- del proyecto son de elementos de la página.
+--
+-- Darle un permiso que la aplicación no usa es una deuda: el día que alguien escriba la línea
+-- que borra, no hay que acordarse de abrir nada, y por lo tanto nadie se acuerda.
+--
+-- -------------------------------------------------------------------
+-- EL UPDATE NO TIENE "WITH CHECK", Y NO SE PUEDE TENER
+-- -------------------------------------------------------------------
+--
+-- Porque el panel ofrece UNA sola caja de definición, y para UPDATE la pone como USING.
+-- No hay dónde escribir un WITH CHECK.
+--
+-- Lo que queda es que un UPDATE sobre una fila que se ve podría dejarla en una carpeta que no
+-- se ve: mover un archivo propio a la carpeta de otra empresa.
+--
+-- Por qué no se alcanza: hacer falta un UPDATE de SQL sobre "storage.objects", y la API de
+-- Storage no tiene ninguna operación que loProduzca —"move" es un "copy" seguido de un
+-- "remove"—. Y desde el navegador no se llega a un UPDATE de SQL con el RLS puesto.
+--
+-- Es un agujero del modelo, no de la aplicación. Queda anotado para que no se pierda.
+
