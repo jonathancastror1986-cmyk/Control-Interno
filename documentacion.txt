@@ -4632,6 +4632,126 @@ tienen que pasar, que son las formas correctas. Si el guardián pasara el error 
 comprobación no estaría mirando lo que dice mirar.
 
 [sql-02] UNA TABLA DE SUPABASE NO SE TOCA DESDE EL EDITOR SQL, Y EL ERROR NO LO DICE
+
+[rem-01] EL SUELDO ES UN DATO QUE NECESITA PERMISO, Y NO UN CAMPO MÁS
+--------------------------------------------------------------------------------
+La 069 agrega "trabajadores.sueldo_base". Y el campo es lo más fácil de esa migración; lo
+que cuesta es lo que lo rodea.
+
+LO QUE PASA SI NO HAY PERMISO
+
+El permiso "trabajadores.ver" lo tienen OCHO roles. Es el permiso de "abrir el listado", y es
+razonable que lo tengan tantos: ver la lista de trabajadores de la propia empresa lo necesita
+casi todo el mundo.
+
+Y si el sueldo está en el listado, los ocho lo ven. Sin que lo busquen: no hay que abrir nada
+ni apretar nada, está en la pantalla de siempre, al lado del cargo y del teléfono.
+
+Eso es un permiso que no se pidió y que se otorga por herencia: el campo entró en una tabla que
+ya era legible para todos, y quedó legible para todos.
+
+LO QUE HAY, Y POR QUÉ
+
+Tres permisos nuevos, con la convención de las otras 24 —"area.accion"—, y no uno:
+
+    rem.ver      Ver el sueldo base
+    rem.editar   Cargar y modificar el sueldo base
+    rem.exportar Exportar una planilla con sueldos
+
+Y ver y editar están separados a propósito. Ver lo que se le paga a tu gente es parte del
+trabajo de una jefatura. ESCRIBIR el sueldo es responsabilidad de recursos humanos. Si los dos
+van juntos, entonces la mitad de los usuarios del sistema pueden cambiar un número que tiene
+efecto en la vida de otra persona, y no hay forma de saber después quién lo cambió.
+
+Quién quedó con qué:
+
+    rrhh         ver, editar, exportar      — es quien mantiene el dato
+    supervisores ver                        — jefatura directa, ve el de su gente
+    tecnica      ver                        — lo que se pidió
+    oficina      ver                        — decisión explícita, ver abajo
+    admin        los tres                   — por cómo se le dieron en la 013
+
+Y POR QUÉ "OFICINA" ENTRA SOLO A VER. Su descripción es "Ingresos, licencias y
+remuneraciones", lo que hace pensar que le corresponde entero. Es exactamente el tipo de
+permiso que hay que decidir y no dejar para después, porque "después" es el synonym de
+"nadie lo miró". Se le da "rem.ver" y no "rem.editar" porque cargar un sueldo es de RRHH, y
+dejar que dos roles lo escriban es la forma más corta de que el número esté mal y nadie sepa
+quién lo puso. Si más adelante hace falta, es un "insert" más.
+
+EL CERO NO ES "NO CARGADO"
+
+Y esa es la parte que se ha equivocado en campos parecidos. Una persona puede tener sueldo
+cero, y eso es un dato. Y una persona sin sueldo cargado no tiene sueldo cero: tiene un dato
+que falta. Son cosas distintas y la columna es "null" en el segundo caso.
+
+El código lo respeta en las dos partes que tocan el dato:
+
+  · la escritura, en "nucleo.js", que no convierte "null" en cero;
+  · y la carga masiva, que deja lo que ya estaba cuando el archivo no trae la columna.
+
+Y esto no es理论. El "upsert" de PostgREST manda TODAS las columnas del objeto, no solo las
+que cambiaron —está escrito en el archivo, con el comentario—. Así que si "sueldo_base" no
+fuera en "workerToDb", CUALQUIER guardado lo pondría en null: editar un teléfono de
+emergencia, un alta nueva, la carga del Excel. Y se perdería sin avisar, porque el
+trabajador sigue con todos sus datos y solo el sueldo volvió a vacío.
+
+Y eso ya pasó una vez con la fecha de término: la carga masiva perdía la fecha de todas las
+fichas desvinculadas cada vez que se recargaba el CSV. Por eso "fecha_termino" está en el
+"upsert" con ocho líneas de comentario. Ver [rem-02].
+
+EL RASTRO DE QUIÉN LO CAMBIÓ
+
+Una tabla, "sueldo_base_historial", con el valor ANTERIOR y el NUEVO. Porque "cambió el
+sueldo" sin el valor anterior no dice nada: si alguien lo bajó de 800.000 a 500.000, hace
+falta poder ver que antes eran 800.000.
+
+Y NO tiene política de "update" ni de "delete". Sin una política que las permita, esas
+operaciones se niegan. Un historial del que se puede borrar un registro no es un historial.
+
+[rem-02] UN SUELDO LLEGA ESCRITO DE CUATRO FORMAS, Y "Number()" NO ENTIENDE TRES
+--------------------------------------------------------------------------------
+La carga masiva acepta la columna "sueldo_base", y el valor llega como lo escribió la persona.
+Que son por lo menos cuatro formas, y todas valen lo mismo:
+
+    500000         número pelado
+    500.000        con punto de miles, que es como lo escribe la gente
+    $500.000       con el signo de pesos adelante
+    "500 000"      con espacio, que es lo que sale al pegar de una tabla
+
+Y "Number('500.000')" da "NaN".
+
+POR QUÉ UN NaN ES PEOR QUE UN ERROR
+
+Porque un error se ve. Un "NaN" en una columna numérica lo acepta PostgreSQL y lo guarda como
+si fuera CERO. O sea que el sueldo de alguien se vuelve 0 sin que nadie lo note: el trabajador
+aparece en todos los listados, con todos sus datos, y su sueldo es cero.
+
+Y eso no se descubre mirando la ficha. Se descubre meses después, cuando alguien pregunta
+por qué la planilla de marzo no cuadró.
+
+LO QUE HACE "parseSueldoBase"
+
+Quita todo lo que no es dígito —puntos, espacios, signo de pesos— y convierte el resto. Pero
+con una condición: si al quitar lo que no es número queda algo que NO era separador, es otro
+número, y devuelve error en vez de devolver una parte.
+
+Eso es lo que separa "500.000" de "500abc". Las dos tienen dígitos, y la diferencia es que la
+primera se puede convertir y la segunda no. Con un "replace" a secas, las dos darían 500.
+
+Y un sueldo negativo devuelve error, no el número. Un sueldo negativo es un error de tipeo, y
+la migración 069 tiene un "check" que lo rechaza —pero el mensaje que llega es de Postgres y no
+dice qué hacer. Acá se dice antes.
+
+EL "CHECK" DE LA COLUMNA
+
+Y el "check" de la migración es la red que está debajo, no la primera línea de defensa:
+
+    check (sueldo_base is null or sueldo_base >= 0)
+
+Es la que impide que un negativo quede guardado aunque venga de una consulta a mano. Y no
+tiene política de "update" ni de "delete" la tabla del historial, porque sin permiso para
+esas operaciones se niegan solas. Ver [rem-01].
+
 --------------------------------------------------------------------------------
 La 067 separa el bucket a la 068 por esto:
 
