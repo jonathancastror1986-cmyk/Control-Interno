@@ -3514,7 +3514,24 @@ async function addEspecialidad(){
   const descripcion=document.getElementById('esp-desc').value.trim();
   if(!nombre){alert('Escribe el nombre de la especialidad.');return;}
   const clave=normalizarCargo(nombre);
-  if(especialidades.some(e=>e.clave===clave)){alert('Ya existe la especialidad "'+nombre+'".');return;}
+  // Y SI YA EXISTE, SE SELECCIONA. Y no se avisa que existe.
+  //
+  // Antes salía un "alert" con "ya existe", que es una respuesta y no ayuda a seguir:
+  // el usuario escribió el nombre, ya existe, y lo único que había que hacer era tomarla.
+  // El aviso lo mandaba a buscarla en una lista, que es un paso de más.
+  //
+  // Y encaja con el filtro del mismo campo: si la lista se está filtrando mientras se
+  // escribe, la especialidad que se quiere ya está a la vista, y tomarla es un clic.
+  if(especialidades.some(e=>e.clave===clave)){
+    especialidadSeleccionada=clave;
+    renderEspecialidades();
+    renderKitAdminList();
+    renderKitDetalleAdmin();
+    fillEspecialidadSelect();
+    const ya=document.getElementById('espFiltroAviso');
+    if(ya)ya.textContent='— esa ya existe';
+    return;
+  }
   const {error}=await window.supabaseClient.from('epp_especialidades').insert({clave,nombre,descripcion:descripcion||null});
   if(error){alert('No se pudo crear la especialidad: '+error.message);return;}
   document.getElementById('esp-nombre').value='';
@@ -3524,11 +3541,56 @@ async function addEspecialidad(){
   renderEspecialidades();
   fillEspecialidadSelect();
 }
+// -------------------------------------------------------------------
+// FILTRAR LAS ESPECIALIDADES CON LO QUE SE ESCRIBE ARRIBA
+// -------------------------------------------------------------------
+//
+// Y el campo "Nombre de la especialidad" filtra la lista de abajo mientras se escribe.
+//
+// Y está en el campo de ARRIBA y no en un buscador aparte, porque el campo ya está ahí
+// con el botón "Crear especialidad" al lado. Un buscador aparte obliga a escribir el mismo
+// nombre dos veces: una para buscar y otra para crear. Y la segunda daba el aviso de
+// "ya existe".
+//
+// Y el filtro es sobre el NOMBRE y no sobre la clave, porque el que escribe es una
+// persona que ve "Albanil" y no "albanil".
+//
+// Y EL FILTRO ES UNA VARIABLE, no un atributo del "<div>", porque
+// "renderEspecialidades()" repinta el "<div>" entero. En un atributo, el repintado lo
+// borraría y la lista volvería a mostrar todo sin avisar —que es el peor resultado: el
+// filtro parecería roto y en realidad se habría deshecho solo—.
+let filtroEspecialidades=null;
+
+// Y sin tildes, porque "Enlucidor" y "Enlucídor" tienen que salir en la misma búsqueda.
+function sinAcentos(s){
+  return String(s==null?'':s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+
+function filtrarEspecialidades(){
+  const campo=document.getElementById('esp-nombre');
+  const aviso=document.getElementById('espFiltroAviso');
+  if(!campo)return;
+  const nf=sinAcentos((campo.value||'').trim());
+  filtroEspecialidades=nf
+    ?especialidades.filter(function(e){
+        return sinAcentos(e.nombre).includes(nf)||String(e.clave||'').toLowerCase().includes(nf);
+      })
+    :null;
+  renderEspecialidades();
+  // Y el aviso dice cuántas de cuántas, porque si no alguien cree que la especialidad se
+  // borró en vez de que se filtró.
+  if(aviso)aviso.textContent=nf?('— '+filtroEspecialidades.length+' de '+especialidades.length):'';
+}
+
+
 function renderEspecialidades(){
   const el=document.getElementById('espList');
   if(!el)return;
+  // Y LA LISTA QUE SE PINTA ES LA FILTRADA, o todas si no hay filtro. Y el filtro vive en
+  // una variable y no en un atributo del "<div>", porque esta función repinta el "<div>".
+  const lista=filtroEspecialidades||especialidades;
   if(!especialidades.length){el.innerHTML='<small>No hay especialidades creadas.</small>';return;}
-  el.innerHTML=especialidades.map(e=>{
+  el.innerHTML=lista.map(e=>{
     const nKits=kitsDeEspecialidad(e.id).length;
     return `<div class="espItem ${e.clave===especialidadSeleccionada?'sel':''}" onclick="seleccionarEspecialidad('${e.clave}')">
       <span style="flex:1;min-width:0">
@@ -3541,6 +3603,13 @@ function renderEspecialidades(){
     </div>`;
   }).join('');
 }
+  // Y se limpia el filtro del campo de arriba, porque si queda puesto la lista sigue
+  // mostrando una sola especialidad y la que se elige puede no estar entre ellas.
+  const campoEsp=document.getElementById('esp-nombre');
+  if(campoEsp)campoEsp.value='';
+  filtroEspecialidades=null;
+  const avisoEsp=document.getElementById('espFiltroAviso');
+  if(avisoEsp)avisoEsp.textContent='';
 function seleccionarEspecialidad(clave){
   especialidadSeleccionada=clave;
   const esp=especialidadPorClave(clave);
