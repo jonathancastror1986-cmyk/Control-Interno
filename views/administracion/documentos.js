@@ -3540,3 +3540,126 @@ function pantallaDeEsperaReloj(){
 }
 
 
+
+// ------------------------------------------------------------------
+// EL GUARDAR EL TOKEN DESDE LA PANTALLA DE RELOJES
+// ------------------------------------------------------------------
+// Tres cosas estaban mal, y las tres terminan con un reloj que no marca y
+// sin que nadie sepa por qué.
+//
+// 1) NO COMPROBABA EL TOKEN ANTES DE GUARDARLO.
+//
+//    El reloj, en su pantalla, comprueba el token antes de usarlo. Esta
+//    pantalla no: guardaba lo que se le pegara. Se podía instalar el
+//    token de otro reloj, o cortado al pegar, y la pantalla decía
+//    "guardado". El error aparecía recién en el primer marcaje, en la
+//    portería, con la gente esperando.
+//
+//    Y hay una razón de fondo para que sea grave: guardar un token
+//    equivocado es una de las pocas acciones que deja al sistema sin
+//    registrar, y sin que en la planilla se note que falta nada.
+//
+// 2) NO ACTUALIZABA EL ESTADO DE LA PANTALLA.
+//
+//    El texto de arriba decía "este reloj NO está instalado en este
+//    navegador". Después de apretar Instalar, seguía diciendo exactamente
+//    eso, con el token recién guardado. La pantalla le mintió a la
+//    persona justo después de hacer lo que le pedía.
+//
+// 3) NO DISTINGUÍA "NO PUDO COMPROBAR" DE "NO SIRVE".
+//
+//    Un corte de conexión de un segundo y un token equivocado dan el
+//    mismo error de la base. No pueden llevar la misma respuesta: con el
+//    primero no se toca nada y se reintenta; con el segundo no se guarda
+//    y hay que rotar el token.
+//
+// Lo que sigue: el token se comprueba contra la base antes de guardarlo,
+// el estado se repinta después, y el diálogo se cierra para que la
+// persona pueda ir a probarlo.
+
+function guardarTotemToken(code){
+  code=code||document.getElementById('tokenRelojCodigo').value;
+  const inp=document.getElementById('tokenInstalarCampo');
+  const t=inp.value.trim();
+  if(!t){alert('Pegá el token.');return;}
+  const reloj=relojPorCodigo(code);
+  if(!reloj){alert('Ese código de reloj no existe.');return;}
+
+  // Que no se pueda apretar Instalar dos veces: la comprobación va a la
+  // base y puede tardar, y dos llamadas a la vez guardarían la segunda.
+  const btn=document.querySelector('#dlgToken button[onclick^="guardarTotemToken"]');
+  const textoBtn=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Comprobando...';}
+
+  // Un reloj, para que el boton no se quede en "Comprobando..." para
+  // siempre si la llamada se cuelga. Una red que no corta sino que se
+  // queda colgada es distinta de una que no hay, y sin esto no hay manera
+  // de volver a apretar.
+  //
+  // Se llama "espera" y no "reloj" porque en esta misma función ya hay una
+  // variable "reloj", que es el reloj de la lista. Declararla dos veces es
+  // un error de sintaxis, y tumba el script entero.
+  const espera=setTimeout(()=>{
+    if(btn){btn.disabled=false;btn.textContent=textoBtn||'Instalar';}
+    alert('La base no contesto en 20 segundos.\n\n'
+      +'Puede ser que no haya senal en la obra. No se guardo nada, para no dejar '
+      +'el reloj con un token que no se comprobo. Proba de nuevo en un rato.');
+  },20000);
+  comprobarTokenEnLaBase(code,t).then(r=>{
+    clearTimeout(espera);
+    if(btn){btn.disabled=false;btn.textContent=textoBtn||'Instalar';}
+
+    // ----------------------------------------------------------------
+    // NO SE PUDO COMPROBAR: NO SE TOCA NADA
+    // ----------------------------------------------------------------
+    // Puede ser que la obra se haya quedado sin internet un segundo. Si
+    // el token que ya está instalado es el mismo que se está por
+    // guardar, se deja todo como está: puede estar perfectamente bien, y
+    // borrarle el token a alguien que sí marcaba es el peor resultado
+    // posible.
+    if(r.sinRed){
+      if(totemTokenDe(code)===t){
+        pintarEstadoToken(code,true);
+        alert('No se pudo comprobar con la base, pero el token de este reloj\n'
+          +'ya estaba instalado en este equipo. Se dejó como estaba.\n\n'
+          +'Si marcaba y ahora no marca, el problema no es el token.');
+        return;
+      }
+      alert('No se pudo comprobar el token: la base no respondió.\n\n'
+        +'No se guardó nada, para no dejar el reloj sin token. '
+        +'Probá de nuevo cuando haya conexión.');
+      return;
+    }
+
+    // ----------------------------------------------------------------
+    // EL TOKEN NO SIRVE: NO SE GUARDA, Y SE DICE POR QUÉ
+    // ----------------------------------------------------------------
+    if(!r.ok){
+      alert('Ese token no sirve para el reloj '+code+'.\n\n'
+        +r.motivo
+        +'\n\nNo se guardó nada.');
+      return;
+    }
+
+    // ----------------------------------------------------------------
+    // SIRVE: AHORA SÍ SE GUARDA
+    // ----------------------------------------------------------------
+    try{
+      localStorage.setItem('totemToken_'+code,t);
+    }catch(error){
+      alert('No se pudo guardar: '+error.message
+        +'\n\nSi el navegador está en modo privado, no guarda nada y el token '
+        +'hay que ponerlo cada vez.');
+      return;
+    }
+    // El estado se repinta con la verdad, y el diálogo se cierra para ir a
+    // probarlo. Dejarlo abierto con el texto viejo diciendo que no está
+    // instalado era la peor de las dos opciones.
+    pintarEstadoToken(code,true);
+    document.getElementById('dlgToken').close();
+    alert('Token de '+reloj.nombre+' guardado en este equipo.\n\n'
+      +'Para probarlo, abrí la pantalla de marcaje de ese reloj con "Abrir pantalla".');
+  });
+}
+
+
