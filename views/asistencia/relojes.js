@@ -2771,21 +2771,6 @@ function llenarFiltroRelojesMarcajes(){
 }
 
 // ------------------------------------------------------------------
-// EL CENTRO DE COSTO
-// ------------------------------------------------------------------
-// El filtro por reloj no contesta "¿quién trabajó en la obra Norte?". El
-// reloj es el aparato; el centro de costo es contra qué se paga, y es lo que
-// necesita la planilla. Son dos cosas distintas y se piden las dos.
-function llenarFiltroCentrosMarcajes(){
-  const sel=document.getElementById('marcajesFiltroCentro');
-  if(!sel)return;
-  const actual=sel.value;
-  sel.innerHTML='<option value="">Todos los centros</option>'+
-    centrosCosto.map(c=>'<option value="'+escHtml(c.id)+'">'+escHtml(c.code)+' — '+escHtml(c.nombre)+'</option>').join('');
-  if([...sel.options].some(o=>o.value===actual))sel.value=actual;
-}
-
-// ------------------------------------------------------------------
 // EL RANGO
 // ------------------------------------------------------------------
 function leerRangoMarcajes(){
