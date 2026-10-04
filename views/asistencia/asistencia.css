@@ -685,3 +685,73 @@
 #v-asistencia{
   max-width:none;
 }
+
+/* -------------------------------------------------------------------
+  LAS PESTAÑAS COMPACTAS, Y LAS COLUMNAS DE CÓDIGO Y DE NOMBRE
+  -------------------------------------------------------------------
+
+  -------------------------------------------------------------------
+  1) LAS PESTAÑAS SE AGRANDARON AL QUITAR EL TOPE DE LA VISTA
+  -------------------------------------------------------------------
+
+  La regla era "repeat(auto-fit,minmax(190px,1fr))". Con la vista angosta entraban cuatro columnas
+  de 190 y las cuatro quedaban del tamaño de su texto. Al quitarle el "max-width" a la vista, la
+  pantalla pasó de 991 a 1820 píxeles, y con 1820 "auto-fit" calcula nueve columnas de 190: como
+  hay cuatro pestañas, las cuatro se reparten el ancho entero y cada una mide 450.
+
+  MEDIDO antes: cuatro pestañas de unos 450px, con el rótulo perdido en medio. */
+.attendance-tabs{
+  display:grid;
+  grid-auto-flow:column;
+  grid-auto-columns:200px;
+  justify-content:start;
+  align-items:stretch;
+  max-width:100%;
+  gap:8px;
+  margin-bottom:14px;
+}
+
+/* Y 200 y no "1fr" ni "max-content": con "1fr" se reparten el sobrante, que ahora es toda la
+   pantalla, y con "max-content" quedarían de cuatro anchos distintos. El número sale de la
+   medición: el rótulo más largo pide 190 con su borde y su ícono, y 200 es lo que sobra con
+   margen. */
+@media (max-width:900px){
+  .attendance-tabs{
+    grid-auto-flow:row;
+    grid-auto-columns:auto;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width:560px){
+  .attendance-tabs{
+    grid-template-columns:minmax(0,1fr);
+  }
+}
+
+  -------------------------------------------------------------------
+  2) LA COLUMNA "CÓDIGO" SE COMÍA MEDIA TABLA
+  -------------------------------------------------------------------
+
+  Eso es del "table-layout:fixed" que se puso para que los días fueran iguales. Con "fixed" manda
+  la primera fila, y las celdas SIN ancho se reparten el sobrante.
+
+  MEDIDO: "Código" medía 465 píxeles y "Trabajador" 465, de una caja de 933. Las dos columnas sin
+  ancho se llevaron el 100% y los días quedaron fuera de la pantalla.
+
+  Y con "fixed" no alcanza con decir que la columna es angosta: hay que DECIR de cuánto. Si no se
+  dice, el motor la reparte con la otra que tampoco lo tiene, y las dos se llevan todo.
+
+  Los dos anchos salen de la medición:
+
+      el código    86px   con "0001" de cuatro dígitos
+      el nombre   220px   con nombres como "Jonathan Antonio Castro Rocha" */
+#v-asistencia #matrixArea tr:first-child > *:first-child,
+#v-supervisores #supMatrixArea tr:first-child > *:first-child{
+  width:86px;
+}
+
+#v-asistencia #matrixArea tr:first-child > *:nth-child(2),
+#v-supervisores #supMatrixArea tr:first-child > *:nth-child(2){
+  width:220px;
+}
