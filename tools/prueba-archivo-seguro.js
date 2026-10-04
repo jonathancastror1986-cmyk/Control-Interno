@@ -188,10 +188,46 @@ CASOS.forEach(function (c) {
   console.log('');
 });
 
+// ---------------------------------------------------------------------
+// 5. BORRAR RENGLONES DE UN ARCHIVO DE CRLF
+// ---------------------------------------------------------------------
+//
+// Y este caso se agregó después de que el guardián bloqueara una corrección, y es el que explica
+// por qué el conteo no sirve.
+//
+// El guardián pedía "que el número de CRLF no baje". Quitar cinco renglones de un archivo de CRLF
+// lo baja de 153 a 148, y eso NO es una conversión de estilo: es un renglón que se fue. El conteo
+// no puede distinguir las dos cosas, porque las dos lo hacen bajar.
+//
+// Y el daño es el de siempre: el guardián se negó a escribir, y un documento con dos secciones que
+// se contradecían quedó sin poder corregirse.
+const ruta5 = path.join(temporal, 'crlf3.txt');
+fs.writeFileSync(ruta5,
+  Array.from({ length: 12 }, (x, i) => 'linea ' + (i + 1)).join('\r\n') + '\r\n', 'utf8');
+fs.writeFileSync(path.join(temporal, 'quita.js'), [
+  'const { Archivo } = require(' + JSON.stringify(LIB.replace(/\\/g, '/')) + ');',
+  'const a = new Archivo(process.argv[2]);',
+  'for (let k = 0; k < 5; k++) a.quita(1);',
+  'a.escribe();',
+  '',
+].join('\n'), 'utf8');
+
+const antes5 = renglonesDe(ruta5);
+const r5 = spawnSync(process.execPath, [path.join(temporal, 'quita.js'), ruta5], { encoding: 'utf8' });
+const despues5 = renglonesDe(ruta5);
+const ok5 = r5.status === 0 && despues5 === antes5 - 5;
+if (!ok5) malas++;
+console.log('  ' + (ok5 ? 'ok  ' : '*** ')
+  + '5. un archivo de CRLF, y se le borran cinco renglones');
+console.log('        salida ' + r5.status + ', ' + antes5 + ' -> ' + despues5 + ' renglones');
+console.log('        TIENE QUE ACEPTAR. Borrar renglones baja el numero de CRLF, y eso no es una');
+console.log('        conversion: es un renglon que se fue. Un guardian que no distingue las dos cosas');
+console.log('        bloquea borrar, que es una correccion tan legitima como agregar.');
+
 fs.rmSync(temporal, { recursive: true, force: true });
 
 if (malas) {
   console.log('  *** ' + malas + ' de ' + CASOS.length + ' casos');
   process.exit(1);
 }
-console.log('  ok  los ' + CASOS.length + ' casos: acepta lo que debe y rechaza lo que debe.');
+console.log('  ok  los ' + (CASOS.length + 1) + ' casos: acepta lo que debe y rechaza lo que debe.');

@@ -450,27 +450,39 @@ if (AntesSueltos) {
     // el archivo queda mitad y mitad. En un archivo de LF puro el número es 0 antes y 0 después,
     // y el chequeo no dice nada, que es lo correcto.
     //
-    // Y para que el chequeo no sea una palabra: "tools/prueba-archivo-seguro.js" arma un archivo
-    // de CRLF a propósito, le quita un CR, y comprueba que el editor se niegue. Y después
-    // inserta un renglón en un archivo de LF puro y comprueba que lo acepte.
-    const crlf = (b) => {
-      let n = 0;
-      for (let i = 1; i < b.length; i++) if (b[i] === 10 && b[i - 1] === 13) n++;
-      return n;
-    };
-    const antesCRLF = crlf(this.antes);
-    const ahoraCRLF = crlf(d);
-    if (ahoraCRLF < antesCRLF) {
-      console.log('  *** ' + (antesCRLF - ahoraCRLF)
-        + ' RENGLONES QUE ERAN CRLF PASARON A SER SOLO LF ***');
-      console.log('    ' + antesCRLF + ' -> ' + ahoraCRLF + '. NO SE ESCRIBE.');
+    // ---------------------------------------------------------------------
+    // Y EL CHEQUEO POR CONTEO SE SACÓ, PORQUE BLOQUEA BORRAR
+    // ---------------------------------------------------------------------
+    //
+    // Aquí hubo dos versiones, y las dos bloquearon una corrección.
+    //
+    // La primera contaba los renglones SIN CR. En un archivo de LF puro el número de esos
+    // renglones sube con cada inserción, así que rechazaba toda inserción en "documentacion.txt",
+    // que tiene 5.532. No se podía arreglar una sección que estaba en el lugar equivocado.
+    //
+    // La segunda contaba los CRLF y rechazaba si el número BAJABA. Y esa bloquea BORRAR: quitar
+    // cinco renglones de un archivo de CRLF baja el conteo a 153 - 5 = 148, y eso no es una
+    // conversión de estilo, es un renglón que se fue.
+    //
+    // El conteo no puede distinguir las dos cosas, porque las dos hacen lo mismo: el número baja.
+    //
+    // ---------------------------------------------------------------------
+    // Y QUÉ LO QUEDA EN SU LUGAR
+    // ---------------------------------------------------------------------
+    //
+    // La regla que sí distingue, y que está en "verifica": un renglón que YA ERA del archivo no
+    // puede cambiar de estilo. Sigue a cada renglón con el arreglo "propio", y no cuenta nada.
+    //
+    // Esa regla acepta las dos cosas que hay que aceptar —insertar en un archivo de LF puro, y
+    // borrar renglones de uno de CRLF— y rechaza la única que hay que rechazar: convertir.
+    //
+    // Y "tools/prueba-archivo-seguro.js" la prueba con cuatro casos, que incluyen los dos que
+    // estas dos versiones rompían.
+    if (!this.estilos || this.estilos.size === 0) {
+      console.log('  *** NO SE SABE CON QUÉ ESTILO ABRIMOS EL ARCHIVO ***');
+      console.log('    NO SE ESCRIBE NADA.');
       process.exit(1);
     }
-    if (antesCRLF === 0) {
-      console.log('    ojo  este archivo es de LF puro (' + ahoraCRLF
-        + ' CRLF), así que el estilo de renglón no se puede perder: no hay.');
-    }
-    void cr;
 
     // Y el más importante: que el archivo PARSEE. Antes de escribir, no después.
     // Y el temporal tiene que TERMINAR en ".js".

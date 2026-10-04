@@ -78,26 +78,68 @@ donde vive la información de las personas y es la tabla con más permisos metid
 empresa, porque un usuario con rol de otra empresa es un problema de alcance de rol, no de
 filas.
 
-TRES: `inventario_qr`, `epp_kits_cargo`, `epp_kits`.
+TRES: las que de verdad seguían abiertas — y no eran las que estaban anotadas
+--------------------------------------------------------------------------------
 
-Cuelgan de `epp_entrega_items` y de `herramientas`, que a su vez cuelgan de `trabajadores`. El
-camino del JOIN tiene dos saltos, y ese es el caso donde conviene medir en vez de suponer: si
-un kit se puede leer, se puede saber qué lleva puesto cada trabajador, que es información de
-personas aunque el kit en sí sea un catálogo.
+Acá el documento tenía un error, y está corregido porque es el que hace que alguien escriba un
+JOIN que no existe.
 
-CUATRO: `epp_entregas`.
+Las tres que estaban anotadas —`inventario_qr`, `epp_kits_cargo` y `epp_kits`— NO colgaban de
+`epp_entrega_items` ni de `herramientas`. Sus columnas:
 
-Cuelga de `trabajadores` por `code`, y es la que registra qué se le entregó a quién y cuándo.
-Tiene el mismo patrón que `asistencia`, que la 067 ya resolvió con `puede_ver_trabajador`. El
-cambio sería una línea más.
+    inventario_qr    id, tipo, herramienta_id, epp_codigo, nombre, precio, estado,
+                     motivo_anulacion, created_at
+    epp_kits_cargo    cargo, epp_codigo, cantidad, orden, especialidad_id, talla_sugerida
+    epp_kits          id, especialidad_id, nombre, descripcion, orden, activo, created_at
+
+Ninguna tiene una columna que apunte a un trabajador, y ninguna cuelga de `epp_entrega_items`. La
+ruta que se describía no existe. Son catálogos: una herramienta o un EPP con código QR, qué EPP
+necesita cada cargo, y los kits de una especialidad. No hay por dónde filtrarlas, y no hace
+falta: su contenido es el mismo para todas las empresas.
+
+Las dos que SÍ seguían con "cualquier usuario activo", y que no estaban en la lista, son las de
+la cadena de datos de personas:
+
+    herramientas_asignaciones   qué herramienta tiene CADA trabajador
+      001_schema.sql L125
+      code text not null references trabajadores(code)
+      usando: exists (select 1 from perfiles p where p.id = auth.uid() and p.activo)
+
+    epp_entrega_items            QUÉ EPP se le entregó a cada uno: el detalle
+      008_epp_firma.sql L112
+      entrega_id uuid not null references epp_entregas(id) on delete cascade
+      usando: la misma condición
+
+Esa condición no menciona ninguna empresa: la cumple cualquier usuario activo, de cualquier
+empresa. No es una inferencia: es el texto de la política.
+
+Y el caso de `herramientas_asignaciones` es el más raro de todos: tiene `code` contra
+`trabajadores`, o sea **exactamente** la forma de un salto que la 067 ya resolvió en
+`asistencia`, `marcajes` y `tarjetas`. La 067 la pasó por alto. No es un JOIN difícil: es la misma
+línea, escrita y probada cuatro veces.
+
+CUATRO: `epp_entregas` y su detalle.
+--------------------------------------------------------------------------------
+
+`epp_entregas` la cerró la 071. Pero su detalle, `epp_entrega_items`, NO tiene `code`: hay que
+sacarlo de `epp_entregas`. Dos saltos.
+
+O sea que con la 071 sola las cabeceras estaban cerradas y los renglones abiertos: se veía a
+QUIÉN se le entregó EPP y no QUÉ. Y al revés también, porque la condición del detalle no miraba
+la entrega. Un paso, no el final — y la 071 lo dejó escrito al final para que no se leyera como
+"el EPP quedó cerrado".
+
+Las dos las cierra la 072, que además agrega `puede_ver_entrega()`: la función del segundo salto.
 
 El orden que propongo
 --------------------------------------------------------------------------------
 1. `epp_entregas` — una línea, con la función que ya existe y ya está probada.
 
-2. `inventario_qr`, `epp_kits_cargo` y `epp_kits` — los tres con el JOIN de dos saltos. Primero
-   midiendo qué se ve hoy con la llave anónima, porque la pregunta es si hay algo que
-   proteger.
+2. `herramientas_asignaciones` y `epp_entrega_items` — las dos que seguían con "cualquier
+   usuario activo". La 072 las cierra: la primera con la misma línea de un salto que la 067 ya
+   escribió cuatro veces, y la segunda con `puede_ver_entrega()`, que es la función del segundo
+   salto. Antes hay que correr el diagnóstico de la cadena, para saber en cuál de los cuatro
+   estados está cada una.
 
 3. `perfiles` y `perfil_roles` — el alcance de los roles, que es un problema distinto y puede
    ser más grave que cualquier filtro de filas.
