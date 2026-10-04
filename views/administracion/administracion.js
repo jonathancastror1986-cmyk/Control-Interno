@@ -1081,7 +1081,13 @@ function buildMatrixHtml(y,m,lista,modo){
   // de abajo hay que volver a arrastrar a la izquierda, y eso esconde la grilla. La
   // leyenda es de la persona, no de la tabla. Ver [tarja-07].
   let html='<div class="overflow"><table><tr><th>Código</th><th class="attendance-name-column">Trabajador</th>';
-  for(let d=1;d<=nd;d++)html+=`<th>${d}</th>`;
+  // Y LAS CELDAS DE DÍA LLEVAN CLASE, PORQUE SU ANCHO NO SE PUEDE DEJAR AL AZAR
+    //
+    // MEDIDO sin ella: los días 1 al 9 salían de 18 a 27 píxeles y los del 20 al 30 de 27 a 30. El
+    // motivo es que "table-layout:auto" sin un ancho da a cada columna lo que pide su contenido, y
+    // un "1" pide menos que un "28". Con 18 píxeles y 2 de relleno por lado, la letra del día de la
+    // semana no entra. Ver [tarja-21].
+    for(let d=1;d<=nd;d++)html+=`<th class="tarjaDia">${d}</th>`;
   // Y LAS SEIS COLUMNAS DEL RESUMEN, CON LA LETRA Y NO CON LA FRASE
   //
   // Antes cada encabezado decía la frase entera --"Días lluvia (LL)"-- y la columna quedaba
@@ -1111,7 +1117,7 @@ function buildMatrixHtml(y,m,lista,modo){
     const dow=new Date(y,m-1,d).getDay();
     const fer=isFeriado(y,m,d);
     const iso=`${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    html+=`<td class="${fer?'day-feriado day-label-holiday':'day-lab'}" style="cursor:pointer" onclick="toggleDay('${iso}')" title="Click para alternar laborable/feriado"><small>${diaSemanaLetra[dow]}</small></td>`;
+    html+=`<td class="tarjaDia ${fer?'day-feriado day-label-holiday':'day-lab'}" style="cursor:pointer" onclick="toggleDay('${iso}')" title="Click para alternar laborable/feriado"><small>${diaSemanaLetra[dow]}</small></td>`;
   }
   html+='<td colspan="6"></td></tr>';
   lista.forEach(w=>{
@@ -1132,7 +1138,7 @@ function buildMatrixHtml(y,m,lista,modo){
       const est=rec?rec.estado:(autoHoliday?'X':'');
       if(est==='X'){if(holiday)cHolidayX++;else cX++;}
       else if(est==='F')cF++;else if(est==='P')cP++;else if(est==='L')cL++;else if(est==='A')cA++;else if(est==='PP')cPP++;else if(est==='V')cV++;else if(est==='LL')cLL++;
-      const cellClass=['attendance-cell',holiday?'day-feriado':'day-lab',est?`state-${est.toLowerCase()}`:'',autoHoliday?'day-auto-attendance':'',holiday&&est==='X'?'day-compensatory-x':''].filter(Boolean).join(' ');
+      const cellClass=['tarjaDia','attendance-cell',holiday?'day-feriado':'day-lab',est?`state-${est.toLowerCase()}`:'',autoHoliday?'day-auto-attendance':'',holiday&&est==='X'?'day-compensatory-x':''].filter(Boolean).join(' ');
       const encodedCode=encodeURIComponent(w.code).replace(/'/g,'%27');
       // modo "supervisores" abre el modal de solicitud; el resto, el editor directo
       const abrir=modo==='supervisores'?'abrirModalSolicitud':'editAttendanceCell';
