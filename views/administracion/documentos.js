@@ -3958,3 +3958,48 @@ function avisarFicha(texto){
 }
 
 
+
+// -------------------------------------------------------------------
+// CARGAR LOS MARCAJES DE HOY, UNA VEZ AL ABRIR EL TÓTEM
+// -------------------------------------------------------------------
+// Y UNA SOLA VEZ, no una por marcaje. Esa era la razón por la que el código viejo
+// no consultaba nada: la pantalla se abre en la portería, muchas veces al mismo
+// tiempo, y un aparato viejo se pone lento si cada marcaje va a la base.
+//
+// La diferencia es que antes no se consultaba NUNCA, y "nunca" en la portería es
+// "nunca": no hay nadie abriendo la planilla del día en un aparato de la portería.
+// Una consulta al abrir, y después el número vive en la memoria.
+//
+// Y si falla, se guarda el motivo y se sigue: el reloj tiene que poder MARCAR
+// aunque los contadores no se pinten. Un contador que bloquea el marcaje es peor que
+// un contador en "—".
+async function cargarMarcajesTotem(){
+  if(!window.supabaseClient)return;
+  totemMarcajesError='';
+  try{
+    const r=await window.supabaseClient
+      .from('marcajes')
+      .select('code,fecha,estado,justificacion_id,centro_costo_id')
+      .eq('fecha',fechaLocalISO(new Date()))
+      .limit(5000);
+    if(r.error){
+      totemMarcajesCargados=false;
+      totemMarcajesError=r.error.message||'sin detalle';
+      pintarTotemContadores();
+      return;
+    }
+    // Y SOLO se acepta si el reloj sigue abierto: si alguien cerró el tótem
+    // mientras cargaba, el resultado ya no le sirve a nadie y pintar un número en
+    // una pantalla cerrada es trabajo perdido.
+    if(!totemActual)return;
+    totemMarcajesHoy=r.data||[];
+    totemMarcajesCargados=true;
+    pintarTotemContadores();
+  }catch(e){
+    totemMarcajesCargados=false;
+    totemMarcajesError=(e&&e.message)||'sin detalle';
+    pintarTotemContadores();
+  }
+}
+
+
