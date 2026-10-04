@@ -591,3 +591,30 @@
 #v-supervisores .tarjaTabla > .overflow th{
   top:0;
 }
+
+/* -------------------------------------------------------------------
+  LA TARJETA QUE NO APLASTABA A LA TABLA
+  -------------------------------------------------------------------
+
+  MEDIDO: personas / contenido / caja de la tarjeta / lo que recortaba
+
+      47 filas   922px   349px   573px
+      10 filas   708px   349px   359px
+       3 filas   565px   349px   216px   <- con tres personas, y sobrando pantalla
+
+  El alto NO esta declarado en ninguna de las trece hojas del proyecto: se recorrieron una por
+  una y no hay ninguna regla que lo pise. El 350px que media el motor es un valor USADO. */
+
+/* Y el culpable: la tarjeta es un flex de columna y sus hijos traen "flex-shrink:1", asi que
+   cuando el alto no alcanza se encogen. A "#matrixArea" le tocaron 175 de los 1006 pixeles que
+   la tabla necesitaba. */
+#v-asistencia .attendance-panel.active > *,
+#v-supervisores .attendance-panel.active > *{
+  flex:0 0 auto;
+}
+
+/* Y sin alto fijo, para que la tarjeta mida lo que necesita. */
+#v-asistencia .attendance-panel.active,
+#v-supervisores .attendance-panel.active{
+  height:auto;
+}

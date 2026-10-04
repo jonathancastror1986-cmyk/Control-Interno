@@ -3925,6 +3925,74 @@ encabezado.
 
   La correccion es "table-layout:fixed" con anchos explicitos por columna, que con una tabla de
   este tamanho es la forma correcta y no un parche. Queda pendiente.
+[tarja-22] LA TARJETA QUE SE COMIA LA TARJA
+-----------------------------------------------------------------------------
+
+  MEDIDO, con el alto que el motor le daba a la tarjeta y lo que recortaba:
+
+      personas    contenido    caja de la tarjeta    recortaba
+           47         922px                 349px        573px
+           10         708px                 349px        359px
+            3         565px                 349px        216px
+
+  La tercera fila es la que duele: con TRES personas la grilla entra de sobra en cualquier
+  pantalla, y la tarjeta le cortaba 216 píxeles. O sea que "que se vea completa si hay espacio"
+  no se cumplía nunca.
+
+  ---------------------------------------------------------------------
+  EL ALTO NO ESTÁ DECLARADO EN NINGÚN LADO
+  ---------------------------------------------------------------------
+
+  Se recorrieron las trece hojas de estilo del proyecto, una por una, buscando reglas que le
+  pisen el alto a la tarjeta y a la sección. Cero. El "getComputedStyle().height" devuelve
+  350.4px, que es el valor USADO por el motor, no uno declarado.
+
+  Eso es lo que hace que el número aparezca en las mediciones sin que haya una regla de donde
+  sacarlo, y es la razón de que esta MEDIDA valga más que cualquier búsqueda de texto.
+
+  ---------------------------------------------------------------------
+  EL CULPABLE: "flex-shrink", QUE APLASTA A LOS HIJOS
+  ---------------------------------------------------------------------
+
+  La tarjeta es "display:flex; flex-direction:column". En un contenedor así, cuando el alto no
+  alcanza, los hijos se encogen: por defecto todos traen "flex-shrink:1".
+
+  Y con "flex-basis:auto", el motor mide cada hijo por su contenido y después reparte lo que
+  sobra. Lo que sobra era la tabla: a "#matrixArea" le tocaron 175 de los 1006 píxeles que
+  necesitaba.
+
+  ---------------------------------------------------------------------
+  LA CORRECCIÓN
+  ---------------------------------------------------------------------
+
+  "flex:0 0 auto" en los hijos: no crecen, no se encogen, miden lo que miden. Y "height:auto" en
+  la tarjeta, para que tome la altura que le corresponde.
+
+  Y no se le puso un alto fijo a propósito. Uno nuevo se rompería apenas alguien agregara una
+  fila a la pantalla, que es exactamente el defecto que se estaba corrigiendo.
+
+  ---------------------------------------------------------------------
+  MEDIDO DESPUÉS: LA TARJA SE VE COMPLETA SI HAY ESPACIO
+  ---------------------------------------------------------------------
+
+      personas    la tabla necesita    la caja de la tabla    se ve completa
+            3               109px                  126px    SI
+  O sea que la 21 veía la barra donde no se llegaba, y esta explica por qué, con la barra puesta,
+  la tabla seguía sin verse. Son la misma causa en dos pasos distintos.
+
+  Y con cuarenta y siete la caja mide 483, que entra en la pantalla de 670, con las dos barras
+  a la vista. O sea: primero se ve completa, y sólo scrollea cuando de verdad no cabe.
+
+  ---------------------------------------------------------------------
+  Y POR QUÉ ESTA SECCIÓN REMATA A LA [tarja-21]
+  ---------------------------------------------------------------------
+
+  Porque la 21 queda corta y hay que decirlo. Ella concluyo que faltaba el alto máximo de la
+  tabla, y eso era verdad: sin él no había barra. Lo que no sabía es que aunque estuviera, la
+  tarjeta se lo iba a comer entero, porque el "flex-shrink" de sus hijos lo repartía.
+
+  O sea que la 21 veía la barra donde no se llegaba, y esta explica por qué, con la barra puesta,
+  la tabla seguía sin verse. Son la misma causa en dos pasos distintos.
 [afp-22] EL ANCLA CON UN ESPACIO DE MÁS
 --------------------------------------------------------------------------------
 
