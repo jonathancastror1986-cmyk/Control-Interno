@@ -1,600 +1,374 @@
-// CORTE DEL BLOQUE "CAMPOS PROPIOS Y DOCUMENTOS" DE relojés.js A documentos.js
-// ============================================================================
+// MOVER "EL EDITOR DE PLANTILLAS" DE relojés.js A documentos.js
+// =================================================================
 //
-// Y ESTE GUION NO MUEVE NADA HASTA QUE SE LO PIDAN CON "hacer"
-// ------------------------------------------------------------------
+// Es el segundo bloque del corte: el primero, "CAMPOS PROPIOS Y DOCUMENTOS", ya esta en
+// documentos.js. Este trae las ocho funciones de la plantilla del contrato de contratacion, que es
+// documentacion del trabajador, no del reloj.
 //
-// El nombre sin argumentos es el modo de ver, y el de mover es un argumento. Un guardián
-// que mueve código mientras uno lo está mirando es un guardián que hace cambios de escritorio
-// sin avisar.
+// ---------------------------------------------------------------------
+// POR QUE SE ESCRIBE CON "Archivo" Y NO CON "join('\n')"
+// ---------------------------------------------------------------------
 //
-// -------------------------------------------------------------------
-// POR QUÉ ESTE BLOQUE Y NO OTRO
-// ------------------------------
+// La primera version escribia los dos archivos con las lineas unidas por "join('\n')". El texto
+// quedaba bien y los dos archivos parseaban, pero "relojes.js" tiene una mezcla de finales LF y
+// CRLF, y "join('\n')" convierte TODOS a LF. El diff dio 9676 renglones cambiados en un archivo
+// del que solo se movian 506, y un diff asi no se puede revisar: esconde lo unico que habia que
+// mirar.
 //
-// Porque es el ÚNICO que se puede quitar sin dejar nada detrás:
+// Que es peor que un archivo roto. Un archivo roto se ve en el navegador. Un diff que no se puede
+// leer se aprueba sin ver.
 //
-//   · está al FINAL del archivo, así que no hay nada que se corra de lugar
-//   · no tiene ninguna llamada de nivel superior, y eso está MEDIDO
-//   · las tres declaraciones que trae ("TIPOS_CAMPO", "TIPOS_CON_OPCIONES",
-//     "FUENTES_PLANTILLA") no existen en "documentos.js", así que no colisionan
-//   · "documentos.js" se carga DESPUÉS de "relojes.js" en "app.html", y eso es lo que
-//     permite que el bloque.use los bindings que quedan allá
+// Y el "diff" no era un problema de git: git avisaba, en las lineas de warning, que iba a
+// reemplazar LF por CRLF. El aviso estaba y no se leyo. Por eso el guardián tiene que estar DENTRO
+// de la herramienta que escribe, y no en eleye de quien la corrio.
 //
-// Y el último punto no es un detalle: se midió en el navegador. Un "let" del nivel superior
-// se ve desde el script siguiente, y un "let" declarado más abajo en el MISMO archivo NO.
-// Ver "tools/pruebas/let-entre-scripts.html".
+// ---------------------------------------------------------------------
+// Y POR QUE NO BASTABA CON ESCRIBIR IGUAL DE FINALES
+// ---------------------------------------------------------------------
 //
+// "Archivo" guarda el final de cada renglon y "verifica" que ninguno haya cambiado al escribir. Eso
+// es lo que hace falta: no que se escriba el mismo texto, sino que el archivo nuevo sea el viejo
+// con UN TROZO FUERA, y que lo demas quede byte a byte igual.
+//
+// ---------------------------------------------------------------------
+// Y POR QUE SE CALCULA EL LIMITE CON PROFUNDIDAD DE LLAVES
+// ---------------------------------------------------------------------
+//
+// De los 56 encabezados de seccion de "relojes.js", 18 estan dentro del cuerpo de una funcion. Se
+// pegaron al explicar algo y quedaron a mitad de camino. Un corte que confia en el encabezado se
+// lleva una llave de apertura y deja su cierre.
+//
+// Y el corte con el limite calculado tiene que tocar dos cosas: el renglon de la raya de arriba --
+// que NO es el titulo menos uno, porque entre la raya y el titulo hay un renglon en blanco -- y el
+// renglon antes de la raya del siguiente encabezado valido.
+//
+// ---------------------------------------------------------------------
+// Y LAS DOS PROFUNDIDADES
+// ---------------------------------------------------------------------
+//
+// Para decidir un corte alcanza con llaves. Para decir si un renglon es codigo suelto hay que
+// contar tambien corchetes: los renglones de datos de "CAMPOS_PLANTILLA = [ ... ]" estan a la misma
+// profundidad de llaves que la declaracion, y sin la segunda profundidad parecian llamadas al
+// cargar. Y por que corchetes no rompen los cortes: se abren y se cierran en el mismo renglon, y
+// quedan en cero.
+
 const fs = require('fs');
-const path = require('path');
+const R = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-asistencia-web/';
+const P_REL = R + 'views/asistencia/relojes.js';
+const P_DOC = R + 'views/administracion/documentos.js';
+// Y EL ARGUMENTO, QUE ES EL TITULO DEL BLOQUE, O "listar".
+//
+// Y se guarda en dos variables y no en una, porque la version anterior guardaba "" cuando el
+// argumento era "listar", y despues la pregunta "¿es este el modo de listar?" se hacia sobre el
+// titulo ya vacio. La respuesta era siempre no, y la herramientaidia que el titulo no existia
+// cuando lo que se le habia pasado era una palabra que si existe.
+const ARG = process.argv[2] || '';
+const TITULO = ARG;
 
-const RAIZ = 'C:/Users/mrj0t/Desktop/Proyectos Informaticos/Proyectos/control-asistencia-web/';
+const { Archivo } = require('./archivo-seguro.js');
+const rel = new Archivo(P_REL);
+const doc = new Archivo(P_DOC);
+const lRel = rel.lineas;
+const lDoc = doc.lineas;
 
-// -------------------------------------------------------------------
-// CÓMO SE USA
-// -----------
-//
-//     node tools/mueve-bloque.js <archivo-origen> <archivo-destino> \
-//          <línea-desde> <línea-hasta> <marca-desde> <marca-hasta>
-//
-// Y el "hacer" va adelante de todo:
-//
-//     node tools/mueve-bloque.js hacer relojés.js documentos.js 2542 2950 "EL EDITOR DE PLANTILLAS" "}"
-//
-// -------------------------------------------------------------------
-// Y POR QUÉ LAS LÍNEAS Y LAS MARCAS VIENEN POR PARTE
-// ---------------------------------------------------
-//
-// Porque un número solo no se puede verificar: cuando el archivo cambia, la línea 2542 deja de
-// ser la que era, y el guion happily mueve el bloque equivocado.
-//
-// Y la marca es el TÍTULO del bloque, que es un texto único y legible. Si el archivo cambió y
-// la línea 2542 ya no dice "EL EDITOR DE PLANTILLAS", el guion se para. Eso es lo que hace
-// falta: que se pare cuando el número dejó de significar lo que significaba.
-//
-// Y el guion lo dice, porque un guardián que se para sin decir por qué parece un fallo y se
-// ignora.
-//
-// -------------------------------------------------------------------
-// Y LOS ARCHIVOS TAMBIÉN VAN POR PARTE, Y NO ESCOGIDOS
-// ----------------------------------------------------
-//
-// Y no es porque sea elegante: es porque la lista de archivos escritos a mano hay que
-// acordarse de ampliarla, y la lista es la que decide qué se comprueba. Ya pasó tres veces
-// hoy con listas de este proyecto. Ver [firma-13].
-//
-const REL = (p) => {
-  const limpio = String(p || '').replace(/^['"]|['"]$/g, '');
-  if (!limpio) {
-    console.log('');
-    console.log('  *** FALTA UN NOMBRE DE ARCHIVO ***');
-    console.log('    uso: node tools/mueve-bloque.js <origen> <destino> '
-      + '<desde> <hasta> <marca>');
-    process.exit(1);
-  }
-  return RAIZ + limpio;
-};
-const ORIGEN = REL(process.argv[3]);
-const DESTINO = REL(process.argv[4]);
-const DESDE = Number(process.argv[5] || 0);
-const HASTA = Number(process.argv[6] || 0);
-const MARCA = process.argv[7] || '';
-const MARCA_FIN = process.argv[8] || '';
-const HACER = process.argv[2] === 'hacer';
-
-if (!DESDE || !HASTA || HASTA <= DESDE) {
-  console.log('');
-  console.log('  *** LAS LÍNEAS NO ESTÁN BIEN ***');
-  console.log('    desde=' + DESDE + '  hasta=' + HASTA);
-  console.log('    Y "hasta" tiene que ser MAYOR que "desde".');
-  process.exit(1);
-}
-if (!MARCA) {
-  console.log('');
-  console.log('  *** FALTA LA MARCA DEL BLOQUE ***');
-  console.log('    Sin una marca, el número solo no se puede verificar contra nada.');
-  process.exit(1);
+const sinSangria = (x) => String(x).replace(/^\s+/, '');
+const limpio = (x) => sinSangria(x).replace(/^\/\/\s?/, '');
+const esRaya = (x) => /^[-=]{6,}$/.test(limpio(x));
+function esTitulo(x) {
+  const t = limpio(x);
+  if (t.length < 8 || esRaya(t) || !/[A-ZÁÉÍÓÚÑ]/.test(t)) return false;
+  return t === t.toUpperCase();
 }
 
-
-// -------------------------------------------------------------------
-// EL MEDIDOR DE NIVEL SUPERIOR, QUE YA ESTÁ PROBADO
-// -------------------------------------------------------------------
-// Y se trae el MISMO que "repara-medidor.js", no una versión recortada. Una copia recortada
-// de un medidor es un medidor que no se ha probado.
-function sinComentariosNiRegex(txt) {
-  let out = '';
-  let i = 0;
-  const n = txt.length;
-  let enLinea = false, enBloque = false, enCadena = null, enRegex = false, previo = '';
-  const clave = ['return', 'typeof', 'case', 'in', 'of', 'new', 'delete', 'void', 'do',
-    'else', 'yield', 'await', 'instanceof'];
-  const puedeSerRegex = function () {
-    if (previo === '') return true;
-    if (previo === ')' || previo === ']' || previo === '}') return false;
-    if (/[\w$]/.test(previo)) return clave.indexOf(previo) >= 0;
-    return true;
-  };
-  while (i < n) {
-    const c = txt[i], d = txt[i + 1];
-    if (enLinea) { if (c === '\n') { enLinea = false; out += c; } i++; continue; }
-    if (enBloque) {
-      if (c === '*' && d === '/') { enBloque = false; i += 2; out += '  '; continue; }
-      if (c === '\n') out += c; i++; continue;
-    }
-    if (enCadena) {
-      if (c === '\\') { out += '  '; i += 2; continue; }
-      if (c === enCadena) enCadena = null;
-      out += (c === '\n') ? '\n' : ' '; i++; continue;
-    }
-    if (enRegex) {
-      if (c === '\\') { out += '  '; i += 2; continue; }
-      if (c === '/') enRegex = false;
-      out += (c === '\n') ? '\n' : ' '; i++; continue;
-    }
-    if (c === '/' && d === '/') { enLinea = true; i += 2; out += '  '; continue; }
-    if (c === '/' && d === '*') { enBloque = true; i += 2; out += '  '; continue; }
-    if (c === "'" || c === '"' || c === '`') { enCadena = c; out += ' '; i++; continue; }
-    if (c === '/' && puedeSerRegex()) { enRegex = true; out += ' '; i++; continue; }
-    out += c;
-    if (!/\s/.test(c)) previo = c;
-    i++;
-  }
-  return { texto: out, sinCerrar: enRegex || !!enCadena || enBloque };
+function sinCodigo(x) {
+  let t = String(x);
+  t = t.replace(/\/\*[\s\S]*?\*\//g, '');
+  t = t.replace(/^\s*\/\/.*$/, '');
+  t = t.replace(/'(?:\\.|[^'\\])*'/g, "''");
+  t = t.replace(/"(?:\\.|[^"\\])*"/g, '""');
+  t = t.replace(/`(?:\\.|[^`\\])*`/g, '``');
+  return t;
 }
 
-function medir(txt) {
-  const r = sinComentariosNiRegex(txt);
-  const lOrig = txt.split('\n');
-  const lLimp = r.texto.split('\n');
-  if (lOrig.length !== lLimp.length) return { error: 'cambió la cantidad de renglones' };
-  if (r.sinCerrar) return { error: 'quedó algo sin cerrar' };
-
-  let prof = 0, minimo = 0;
-  const eventos = [];
-  lLimp.forEach((x, i) => {
-    const antes = prof;
-    for (let k = 0; k < x.length; k++) {
-      if (x[k] === '{') prof++;
-      else if (x[k] === '}') prof--;
-    }
-    if (prof < minimo) minimo = prof;
-    if (antes === 0 && prof === 0 && x.trim()) eventos.push({ linea: i + 1, texto: x.trim() });
-  });
-  return { eventos, final: prof, minimo, lineas: lOrig };
-}
-
-function funciones(txt) {
-  const out = [];
-  txt.split('\n').forEach((x, i) => {
-    const m = x.match(/^(?:export\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(/);
-    if (m) out.push(m[1]);
-  });
-  return out;
-}
-
-const declaradores = function (m) {
-  return m.eventos
-    .map((e) => e.texto.match(/^(?:const|let|var)\s+([A-Za-z_$][\w$]*)/))
-    .filter(Boolean).map((x) => x[1]);
-};
-
-// Y "final" se cuenta SOLO en los renglones que no son comentario.
+// ---------------------------------------------------------------------
+// 1) LAS PROFUNDIDADES
+// ---------------------------------------------------------------------
 //
-// Porque "final" es una palabra de los datos que ve el usuario —"asistió a la entrada y al
-// final del turno"— y por eso sirve para detectar código perdido: si un "trace" se va, el
-// usuario deja de ver una frase.
+// Y SE CUENTAN CON DOS "match", UNO POR TIPO DE LLAVE, Y NO CON UN OBJETO DE "pares".
 //
-// Y la primera versión de esta cuenta leía el archivo entero, y la portada que escribe este
-// mismo guion dice "está al final, no tiene llamadas", y eso contaba como un "final" más.
-// El guardián dio rojo por su propio comentario.
+// La version anterior contaba caracter por caracter contra un objeto, y daba menos 1737 en un
+// archivo que parsea bien y cuya profundidad de llaves es cero. El dato estaba mal y no se podia
+// reproducir por separado, que es la peor forma de que un dato este mal: uno doubts de la
+// herramienta y no del archivo, y da igual.
 //
-// O sea que el número mide lo que hay que medir y no lo que el guion escribió. Y eso vale
-// para cualquier métrica que use palabras: si la frase que cuenta también aparece en los
-// comentarios que el guion escribe, hay que excluir los comentarios o cambiar la palabra.
-const finales = function (txt) {
-  let n = 0;
-  txt.split('\n').forEach((x) => {
-    const s = x.trim();
-    if (s === '') return;
-    if (s.startsWith('//') || s.startsWith('*') || s.startsWith('/*')) return;
-    n += (x.match(/\bfinal\b/g) || []).length;
-  });
-  return n;
-};
-
-// -------------------------------------------------------------------
-// LEER
-// -------------------------------------------------------------------
-const oTxt = fs.readFileSync(ORIGEN, 'utf8');
-const dTxt = fs.readFileSync(DESTINO, 'utf8');
-const oLin = oTxt.split('\n');
-
-console.log('  === antes ===');
-console.log('    ' + ORIGEN.replace(RAIZ, '') + ': ' + (oLin.length - 1) + ' renglones, '
-  + funciones(oTxt).length + ' funciones');
-console.log('    ' + DESTINO.replace(RAIZ, '') + ': ' + (dTxt.split('\n').length - 1)
-  + ' renglones, ' + funciones(dTxt).length + ' funciones');
-console.log('    el bloque pedido: L' + DESDE + ' a L' + HASTA
-  + ', ' + (HASTA - DESDE + 1) + ' renglones');
-
-// -------------------------------------------------------------------
-// 1) QUE LOS DOS BORDES ESTÉN DONDE SE DIJO
-// -------------------------------------------------------------------
-// Y los DOS, no solo el primero.
-//
-// Y esto es lo que hace falta de verdad: cuando el archivo cambia, los números se corren y el
-// bloque que se mueve es otro. El primer borde avisa. El segundo es el que dice hasta dónde
-// llega, y sin él el guion se lleva de más lo que viene después.
-//
-// Y en el primer corte —el de los campos propios— el bloque llegaba hasta el FINAL del
-// archivo, y eso se comprobaba. Este ya no: ahora hay código después, y la comprobación es
-// otra: que en L(HASTA+1) empiece el bloque siguiente, con el título que se le pasó.
-console.log('');
-console.log('  1) los dos bordes');
-const lineaDesde = oLin[DESDE - 1] || '';
-if (lineaDesde.indexOf(MARCA) < 0) {
-  console.log('    *** LA LÍNEA ' + DESDE + ' NO TIENE "' + MARCA + '" ***');
-  console.log('      dice: ' + JSON.stringify(lineaDesde.slice(0, 70)));
-  console.log('');
-  console.log('    El número se copió de una lectura anterior y el archivo cambió.');
-  console.log('    NO SE MUEVE NADA.');
-  process.exit(1);
-}
-console.log('    ok  L' + DESDE + ': ' + JSON.stringify(lineaDesde.trim().slice(0, 62)));
-
-const lineaHasta = oLin[HASTA - 1] || '';
-if (MARCA_FIN && lineaHasta.indexOf(MARCA_FIN) < 0) {
-  console.log('    *** LA LÍNEA ' + HASTA + ' NO TIENE "' + MARCA_FIN + '" ***');
-  console.log('      dice: ' + JSON.stringify(lineaHasta.slice(0, 70)));
-  console.log('    NO SE MUEVE NADA.');
-  process.exit(1);
-}
-console.log('    ok  L' + HASTA + ': ' + JSON.stringify(lineaHasta.trim().slice(0, 62)));
-
-// Y que después del bloque empiece algo de verdad, no un renglón suelto: si "HASTA" quedara en
-// mitad de una función, el corte partiría una función en dos y el error aparecería en la
-// pantalla.
-console.log('');
-console.log('  2) que el corte caiga entre bloques, y no en medio de una función');
-const prof = (() => {
-  // Y la profundidad del archivo entero HASTA la línea de corte. Tiene que ser cero: si está
-  // en medio de una función, hay llaves abiertas.
-  const m = medir(oTxt);
-  if (m.error) return { error: m.error };
+// Con dos "match" no hay objeto de por medio y el conteo se puede reproducir renglon por renglon en
+// cualquier otra herramienta, que es lo unico que sirve: una cuenta que no se puede repetir no es una
+// cuenta.
+function profundidad(conCorchetes) {
+  const a = new Array(lRel.length + 1).fill(0);
   let p = 0;
-  const limpio = sinComentariosNiRegex(oTxt).texto.split('\n');
-  for (let i = 0; i < HASTA; i++) {
-    for (let k = 0; k < limpio[i].length; k++) {
-      if (limpio[i][k] === '{') p++;
-      else if (limpio[i][k] === '}') p--;
-    }
+  for (let i = 0; i < lRel.length; i++) {
+    a[i] = p;
+    const t = sinCodigo(lRel[i]);
+    const n = (re) => (t.match(re) || []).length;
+    p += n(/\{/g) - n(/\}/g);
+    if (conCorchetes) p += n(/\[/g) + n(/\(/g) - n(/\]/g) - n(/\)/g);
   }
-  return { prof: p };
-})();
-if (prof.error) {
-  console.log('    *** NO SE PUDO MEDIR: ' + prof.error + ' ***');
-  process.exit(1);
+  a[lRel.length] = p;
+  return a;
 }
-if (prof.prof !== 0) {
-  console.log('    *** EN LA LÍNEA ' + HASTA + ' QUEDAN ' + prof.prof
-    + ' LLAVE(S) ABIERTAS ***');
-  console.log('    El corte parte una función por la mitad. El error aparecería en una');
-  console.log('    pantalla y se buscaría en el archivo equivocado. NO SE MUEVE NADA.');
-  process.exit(1);
-}
-console.log('    ok  en L' + HASTA + ' no queda ninguna llave abierta');
+const profLlave = profundidad(false);
+const profFull = profundidad(true);
 
-// -------------------------------------------------------------------
-// 3) QUE NO HAYA COLISIÓN DE NOMBRES
-// -------------------------------------------------------------------
-console.log('');
-console.log('  3) los nombres, y las colisiones');
-const medO = medir(oTxt);
-const medD = medir(dTxt);
-if (medO.error || medD.error) {
-  console.log('    *** NO SE PUDO MEDIR: ' + (medO.error || medD.error) + ' ***');
-  process.exit(1);
-}
-
-const declO = declaradores(medO);
-const declD = declaradores(medD);
-const declDelBloque = medO.eventos
-  .filter((e) => e.linea >= DESDE && e.linea <= HASTA)
-  .map((e) => (e.texto.match(/^(?:const|let|var)\s+([A-Za-z_$][\w$]*)/) || [])[1])
-  .filter(Boolean);
-
-console.log('    relojés.js declara ' + declO.length + ': ' + declO.join(', '));
-console.log('    documentos.js declara ' + declD.length + ': ' + declD.join(', '));
-console.log('    el bloque que se mueve declara ' + declDelBloque.length
-  + ': ' + declDelBloque.join(', '));
-
-const choca = declDelBloque.filter((n) => declD.indexOf(n) >= 0);
-if (choca.length) {
-  console.log('    *** CHOCAN: ' + choca.join(', ') + ' ***');
-  console.log('    Si los dos archivos declaran el mismo nombre, el segundo pisa al primero.');
-  console.log('    NO SE MUEVE NADA.');
-  process.exit(1);
-}
-console.log('    ok  ninguna colisión');
-
-// Y tampoco entre funciones: una función repetida en los dos archivos es la misma función
-// escrita dos veces, y la segunda gana en silencio.
-const fnO = funciones(oTxt);
-const fnD = funciones(dTxt);
-const NL_ = /\r\n/.test(oTxt) ? '\r\n' : '\n';
-const bloque = oLin.slice(DESDE - 1, HASTA).join(NL_);
-const fnDelBloque = funciones(bloque);
-const fnChoca = fnDelBloque.filter((n) => fnD.indexOf(n) >= 0);
-if (fnChoca.length) {
-  console.log('    *** FUNCIONES REPETIDAS: ' + fnChoca.join(', ') + ' ***');
-  process.exit(1);
-}
-console.log('    ok  ninguna función repetida (' + fnDelBloque.length + ' en el bloque)');
-
-// -------------------------------------------------------------------
-// 4) LAS REFERENCIAS QUE CRUZAN EL CORTE
-// -------------------------------------------------------------------
-// Y esto es lo que rompe de verdad. Si lo que QUEDA en "relojes.js" usa un nombre que se
-// va con el bloque, ese nombre pasa a declararse más tarde —que sí funciona— PERO si el
-// bloque se declarara en un archivo que se carga antes, se rompería.
+// Y LAS MEDIDAS, ANTES DE TOCAR NADA
 //
-// Y al revés: si el bloque usa un nombre que se queda, tiene que haber uno declarado en un
-// archivo que ya se cargó. "documentos.js" va después de "relojes.js", así que sí.
-console.log('');
-console.log('  4) las referencias que cruzan el corte');
-const seQueda = oTxt.split('\n').slice(0, DESDE - 1).join('\n');
-const usaDesdeQuedado = declDelBloque.filter((n) => {
-  const re = new RegExp('\\b' + n.replace(/\$/g, '\\$') + '\\b', 'g');
-  const limpio = medir(seQueda);
-  return re.test(seQueda);
-});
-console.log('    lo que queda usa del bloque: '
-  + (usaDesdeQuedado.length ? usaDesdeQuedado.join(', ') : '(nada)'));
-if (usaDesdeQuedado.length) {
-  console.log('    *** ALGO QUEDADO USA UN NOMBRE QUE SE VA ***');
-  console.log('    El "let" se declararía más tarde, y eso funciona. Pero si mañana ese');
-  console.log('    bloque se mueve a un archivo que carga antes, deja de funcionar sin aviso.');
-  console.log('    Por eso no se mueve nada hasta que esto esté en cero. NO SE MUEVE NADA.');
-  process.exit(1);
+// "lRel" y "lDoc" no son copias: son los mismos arreglos que "quita" e "inserta" van a modificar.
+// Asi que si se lee "lRel.length" despues de escribir, se lee la longitud del archivo NUEVO, y la
+// comprobacion "el archivo perdio exactamente el bloque" compara el archivo nuevo contra si mismo
+// y sale mal siempre.
+//
+// Tres comprobaciones fallaron por eso, y ninguna de las tres era sobre el archivo: eran sobre el
+// contador. Que es la forma mas dificil de detectar, porque el codigo esta bien y el numero no.
+const LARGO_REL_ANTES = rel.lineas.length;
+const LARGO_DOC_ANTES = doc.lineas.length;
+
+console.log('  === 1) los archivos ===');
+console.log('    relojés.js: ' + lRel.length + ' renglones, finales: '
+  + lRel.filter(function (x, i) { return rel.fines[i] === '\r\n'; }).length + ' CRLF y '
+  + lRel.filter(function (x, i) { return rel.fines[i] === '\n'; }).length + ' LF');
+console.log('    profundidad de llaves al final: ' + profLlave[lRel.length]
+  + (profLlave[lRel.length] === 0 ? '  (cerrada)' : '  *** ABIERTA ***'));
+console.log('    profundidad con corchetes al final: ' + profFull[lRel.length]);
+
+// ---------------------------------------------------------------------
+// 2) LOS ENCABEZADOS QUE SI CORTAN
+// ---------------------------------------------------------------------
+const validos = [];
+for (let i = 0; i < lRel.length; i++) {
+  if (profLlave[i] !== 0) continue;
+  if (!esTitulo(lRel[i])) continue;
+  let arriba = -1;
+  for (let k = i - 1; k >= 0 && k >= i - 3; k--) {
+    if (limpio(lRel[k]) === '') continue;
+    if (!esRaya(lRel[k])) break;
+    arriba = k;
+    break;
+  }
+  if (arriba < 0) continue;
+  let abajo = -1;
+  for (let k = i + 1; k < lRel.length && k <= i + 3; k++) {
+    if (limpio(lRel[k]) === '') continue;
+    if (!esRaya(lRel[k])) break;
+    abajo = k;
+    break;
+  }
+  if (abajo < 0) continue;
+  validos.push({ titulo: limpio(lRel[i]), tit: i, desde: arriba, rayas: [arriba, abajo] });
 }
-console.log('    ok  nada de lo que queda usa un nombre del bloque');
 
-const declQueSeQuedan = declO.filter((n) => declDelBloque.indexOf(n) < 0);
-const usaDelResto = declQueSeQuedan.filter((n) => {
-  const re = new RegExp('\\b' + n.replace(/\$/g, '\\$') + '\\b');
-  return re.test(bloque);
-});
-console.log('    el bloque usa de lo que queda: ' + (usaDelResto.length ? usaDelResto.join(', ') : '(nada)'));
-if (!usaDelResto.length) {
-  console.log('    ok  el bloque no depende de nada de "relojes.js": es independiente');
-} else {
-  console.log('    esos se resuelven porque "documentos.js" se carga después. Está medido.');
-}
-
-// Y la lista de archivos, para que quede escrito de dónde sale cada binding.
-const posiciones = usaDelResto.map(function (n) {
-  const enD = declD.indexOf(n) >= 0;
-  return n + (enD ? ' (de "documentos.js")' : ' (de "relojes.js")');
-});
-console.log('    ' + posiciones.join('\n    '));
-
-// -------------------------------------------------------------------
-// 5) QUE NO SE PIERDA NADA
-// -------------------------------------------------------------------
+const q = validos.findIndex(function (e) { return e.titulo === TITULO; });
 console.log('');
-console.log('  5) que no se pierda nada');
-const totalAntes = fnO.length + fnD.length;
-const finalesAntes = finales(oTxt) + finales(dTxt);
-console.log('    funciones en los dos archivos: ' + totalAntes);
-console.log('    apariciones de "final": ' + finalesAntes);
+console.log('  === 2) los encabezados que sí cortan: ' + validos.length + ' ===');
 
-// Y el "final" es el que va pegado al dato que el usuario lee, así que se cuenta aparte.
-console.log('');
-
-// -------------------------------------------------------------------
-// 6) LA SALIDA
-// -------------------------------------------------------------------
-const quedan = oLin.slice(0, DESDE - 1);
-// Y una línea en blanco para que el archivo no termine pegado.
-while (quedan.length && quedan[quedan.length - 1].trim() === '') quedan.pop();
-
-const PORTADA = [
-  '',
-  '',
-  '// ===================================================================',
-  '//',
-  '// LOS CAMPOS PROPIOS DE LA EMPRESA, Y LA GENERACIÓN DE DOCUMENTOS',
-  '//',
-  '// ===================================================================',
-  '//',
-  '// -------------------------------------------------------------------',
-  '// DÓNDE ESTE TROZO ESTABA, Y POR QUÉ SE MUDÓ',
-  '// -------------------------------------------------------------------',
-  '//',
-  '// Estaba dentro de "views/asistencia/relojes.js", a partir de la línea ' + DESDE + '.',
-  '//',
-  '// Y ese archivo se llama "relojes.js" porque la primera mudanza partió los trozos por',
-  '// donde ya estaban, no por de qué son. Y este trozo no es de relojes: es el editor de',
-  '// plantillas, la generación del PDF y la importación desde Word. Tres cosas que no',
-  '// tienen nada que ver con un reloj.',
-  '//',
-  '// -------------------------------------------------------------------',
-  '// POR QUÉ AHORA Y NO ANTES',
-  '// -------------------------------------------------------------------',
-  '//',
-  '// En el lugar de donde salió había un comentario que lo decía, y decía esto:',
-  '//',
-  '//     POR QUÉ UN ARCHIVO NUEVO Y NO EN "relojes.js"',
-  '//',
-  '//     Porque el editor de plantillas está en "relojes.js" desde hace años, y esas son',
-  '//     74 menciones de "plantilla" que ya funcionan. Tocar ese archivo hoy, con lo que',
-  '//     hemos tocado, es mezclar dos cosas: lo que andaba y lo nuevo.',
-  '//',
-  '//     Y en un archivo aparte, el que llega después sabe dónde está lo nuevo. Si el',
-  '//     editor viejo se rompe, se deshace este archivo y no se toca lo otro.',
-  '//',
-  '// Eran razones buenas, y la segunda era la importante: durante una mudanza parcial, un',
-  '// archivo a medio mover es peor que uno entero sin mover, porque el síntoma aparece en',
-  '// una pantalla y se busca en el lugar equivocado.',
-  '//',
-  '// LO QUE CAMBIÓ es que la mudanza ya no es parcial. Este archivo es el ÚNICO bloque que',
-  '// se puede quitar entero sin dejar nada detrás: está al final, no tiene llamadas de',
-  '// nivel superior, sus tres declaraciones no colisionan con ninguna de las de este',
-  '// archivo, y este archivo se carga DESPUÉS en "app.html".',
-  '//',
-  '// Y la premisa "74 menciones que ya funcionan" era una conjetura sobre un número de',
-  '// menciones. Las funciones están medidas: son 49, y ninguna comparte nombre con otra.',
-  '// Ver "docs/plan-corte-relojes.md".',
-  '//',
-  '// -------------------------------------------------------------------',
-  '// LAS TRES DECLARACIONES DE NIVEL SUPERIOR QUE VIENEN ADELANTO',
-  '// -------------------------------------------------------------------',
-  '//',
-  '// Y viajan con el bloque, y eso es lo que lo hace posible.',
-  '//',
-  '// Un "let" o un "const" en el nivel superior NO se levanta antes de su línea: está en',
-  '// la zona muerta temporal hasta que se ejecuta. Leerlo antes es un ReferenceError con',
-  '// un mensaje que dice "no está definido", cuando sí está definido y solo falta',
-  '// ejecutarse.',
-  '//',
-  '// Por eso lo que se mueve son bloques COMPLETOS, con sus declaraciones. Y por eso este',
-  '// archivo tiene que cargarse después de "relojes.js": así, lo que quedó declarado allá',
-  '// ya existe cuando estas funciones corren. Ver "tools/pruebas/let-entre-scripts.html".',
-  '//',
-  '',
-  '// ===================================================================',
-  '',
-  '',
-].join('\n');
-
-console.log('  === lo que pasa ===');
-console.log('    relojés.js:    ' + (oLin.length - 1) + ' -> ' + quedan.length + ' renglones');
-console.log('    documentos.js: ' + (dTxt.split('\n').length - 1) + ' -> '
-  + (dTxt.split('\n').length - 1 + bloque.split('\n').length + 40) + ' renglones, más o menos');
-console.log('    el bloque son ' + bloque.split('\n').length + ' renglones y '
-  + fnDelBloque.length + ' funciones');
-
-if (!HACER) {
+if (ARG === 'listar') {
+  // -------------------------------------------------------------------
+  // Y EL MODO DE LISTAR, QUE ES LO QUE SE USA PARA ELEGIR
+  // -------------------------------------------------------------------
+  //
+  // Mover un bloque sin ver la lista es moverse a ciegas. Y la lista tiene que decir TAMANO y no
+  // solo nombre: un bloque de 253 renglones entra en un turno y uno de 1.400 no, y eso no se ve
+  // leyendo un titulo.
   console.log('');
-  console.log('    *** ESTO ERA SOLO LA MIRADA ***');
-  console.log('    Para mover de verdad:');
-  console.log('        node tools/corta-bloque-relojes.js hacer');
+  console.log('    (con el titulo exacto entre comillas, mueve ese bloque)');
+  console.log('');
+  validos.forEach(function (e, k) {
+    const fin = k + 1 < validos.length ? validos[k + 1].desde - 1 : lRel.length - 1;
+    const rengl = fin - e.desde + 1;
+    let funcs = 0;
+    for (let i = e.desde; i <= fin; i++) {
+      if (/^(?:async\s+)?function\s+[A-Za-z_$]/.test(limpio(lRel[i]))) funcs++;
+    }
+    console.log('    ' + String(rengl).padStart(5) + ' rengl  ' + String(funcs).padStart(3)
+      + ' func  ' + e.titulo);
+  });
   process.exit(0);
 }
 
-// -------------------------------------------------------------------
-// Y LOS FINALES DE LÍNEA, QUE SE MIDEN Y NO SE SUPONEN
-// -------------------------------------------------------------------
-//
-// Los dos archivos son de CRLF —4617 y 807, con cero LF sueltos—. Y un "join('\n')" sobre un
-// archivo que es de CRLF deja el archivo entero de LF, sin avisar.
-//
-// Y no es cosmético: el proyecto tiene un guardián que mide esto justamente porque un
-// archivo con finales mezclados mete un "\r" invisible en mitad de una palabra. Y además
-// "git" avisó el otro día, al guardar, que iba a convertir.
-//
-const crlf = (txt) => /\r\n/.test(txt);
-const NL_ORIGEN = crlf(oTxt) ? '\r\n' : '\n';
-const NL_DESTINO = crlf(dTxt) ? '\r\n' : '\n';
-
-console.log('');
-console.log('  6) los finales de línea, medidos');
-console.log('    relojés.js    ' + (NL_ORIGEN === '\r\n' ? 'CRLF' : 'LF'));
-console.log('    documentos.js ' + (NL_DESTINO === '\r\n' ? 'CRLF' : 'LF'));
-if (NL_ORIGEN !== NL_DESTINO) {
-  console.log('    *** SON DISTINTOS ***');
-  console.log('    Mover un bloque de CRLF a un archivo de LF lo deja mezclado.');
-  console.log('    NO SE MUEVE NADA.');
-  process.exit(1);
-}
-console.log('    ok  los dos usan el mismo, y se respeta');
-
-// Y el bloque se corta por renglones, no por caracteres, así que hay que volver a armar con
-// el mismo separador.
-const lBloque = oLin.slice(DESDE - 1);
-while (lBloque.length && lBloque[lBloque.length - 1].trim() === '') lBloque.pop();
-const bloqueTxt = lBloque.join(NL_ORIGEN);
-console.log('    el bloque: ' + lBloque.length + ' renglones, y arranca en '
-  + JSON.stringify((lBloque[0] || '').trim()));
-
-// -------------------------------------------------------------------
-// ESCRIBIR
-// -------------------------------------------------------------------
-const NL = NL_ORIGEN;
-
-// Y la portada va con el mismo separador, y no con "\n" como estaba antes.
-const portadaTxt = PORTADA.split('\n').join(NL);
-
-const texto = {
-  origen: quedan.join(NL) + NL,
-  destino: dTxt.replace(/\s+$/, '') + NL + portadaTxt + bloqueTxt + NL,
-};
-fs.writeFileSync(ORIGEN, texto.origen, 'utf8');
-fs.writeFileSync(DESTINO, texto.destino, 'utf8');
-
-// -------------------------------------------------------------------
-// Y LO QUE SE ESCRIBIÓ, SE COMPRUEBA
-// -------------------------------------------------------------------
-// Porque un guion que escribe y no lee lo que dejó atrás no sabe si hizo lo que dijo.
-const oDesp = fs.readFileSync(ORIGEN, 'utf8');
-const dDesp = fs.readFileSync(DESTINO, 'utf8');
-const medDesp = medir(oDesp);
-const medDespD = medir(dDesp);
-
-console.log('');
-console.log('  === después ===');
-console.log('    relojés.js    ' + oDesp.split('\n').length + ' renglones, '
-  + funciones(oDesp).length + ' funciones, profundidad ' + medDesp.final);
-console.log('    documentos.js ' + dDesp.split('\n').length + ' renglones, '
-  + funciones(dDesp).length + ' funciones, profundidad ' + medDespD.final);
-
-let problemas = 0;
-if (medDesp.final !== 0 || medDespD.final !== 0) {
-  console.log('    *** ALGÚN ARCHIVO QUEDÓ CON LAS LLAVES DESCUADRADAS ***');
-  problemas++;
-}
-if (!crlf(oDesp) || !crlf(dDesp)) {
-  console.log('    *** ALGÚN ARCHIVO DEJÓ DE SER CRLF ***');
-  problemas++;
-}
-if ((oDesp.match(/\r\n/g) || []).length !== oDesp.split('\n').length - 1) {
-  console.log('    *** "relojes.js" QUEDÓ CON FINALES MEZCLADOS ***');
-  problemas++;
-}
-if ((dDesp.match(/\r\n/g) || []).length !== dDesp.split('\n').length - 1) {
-  console.log('    *** "documentos.js" QUEDÓ CON FINALES MEZCLADOS ***');
-  problemas++;
-}
-
-// Y el total de funciones tiene que ser el mismo que antes. Este es el número que dice si
-// se perdió código, y por eso va último: todos los otros pueden pasar y este no.
-const totalDesp = funciones(oDesp).length + funciones(dDesp).length;
-if (totalDesp !== totalAntes) {
-  console.log('    *** LAS FUNCIONES NO CUADRAN: ' + totalAntes + ' -> ' + totalDesp + ' ***');
-  problemas++;
-} else {
-  console.log('    ok  las funciones siguen siendo ' + totalDesp);
-}
-
-// Y los "final", que son lo que ve el usuario.
-const finalesDesp = finales(oDesp) + finales(dDesp);
-if (finalesDesp !== finalesAntes) {
-  console.log('    *** LOS "final" NO CUADRAN: ' + finalesAntes + ' -> ' + finalesDesp + ' ***');
-  problemas++;
-} else {
-  console.log('    ok  y los ' + finalesDesp + ' "final" siguen todos');
-}
-
-if (problemas) {
-  console.log('');
-  console.log('    *** ' + problemas + ' PROBLEMA(S) ***');
-  console.log('    Para volver atrás:');
-  console.log('        git checkout -- views/asistencia/relojes.js views/administracion/documentos.js');
+if (q < 0) {
+  console.log('    *** no está "' + TITULO + '" entre los encabezados válidos.');
+  console.log('    *** con "listar" salen los ' + validos.length + ' que sí se pueden mover.');
   process.exit(1);
 }
 
+const DESDE = validos[q].desde;
+const HASTA = q + 1 < validos.length ? validos[q + 1].desde - 1 : lRel.length - 1;
+const bloque = lRel.slice(DESDE, HASTA + 1);
+const finalesDelBloque = rel.fines.slice(DESDE, HASTA + 1);
+
 console.log('');
-console.log('    *** MOVIDO ***');
-console.log('    Para volver atrás:');
-console.log('        git checkout -- views/asistencia/relojes.js views/administracion/documentos.js');
+console.log('  === 3) el límite ===');
+console.log('    "' + TITULO + '"');
+console.log('    raya de arriba: L' + (validos[q].rayas[0] + 1) + '   título: L' + (validos[q].tit + 1)
+  + '   raya de abajo: L' + (validos[q].rayas[1] + 1));
+console.log('    el bloque va de L' + (DESDE + 1) + ' a L' + (HASTA + 1) + ': ' + bloque.length + ' renglones');
+console.log('    profundidad antes: ' + profLlave[DESDE - 1] + '   profundidad despues: ' + profLlave[HASTA + 1]);
+console.log('    primero: |' + bloque[0].slice(0, 54) + '|');
+console.log('    ultimo:  |' + bloque[bloque.length - 1].slice(0, 54) + '|');
+
+const funcsDel = [];
+bloque.forEach(function (x) {
+  const m = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/.exec(limpio(x));
+  if (m) funcsDel.push(m[1]);
+});
+console.log('    funciones (' + funcsDel.length + '): ' + funcsDel.join(', '));
+
+// ---------------------------------------------------------------------
+// 4) LA PUERTA: EL BLOQUE NO EJECUTA NADA AL CARGAR
+// ---------------------------------------------------------------------
+console.log('');
+console.log('  === 4) puerta: el bloque no ejecuta nada al cargar ===');
+const base = profFull[DESDE];
+const sueltos = [];
+bloque.forEach(function (x, k) {
+  const crudo = sinSangria(x);
+  if (crudo === '') return;
+  if (crudo.indexOf('//') === 0) return;
+  if (profFull[DESDE + k] > base) return;
+  const t = limpio(x);
+  if (/^(?:async\s+)?function\s+[A-Za-z_$][\w$]*\s*\(/.test(t)) return;
+  if (/^(?:const|let|var)\s+[A-Za-z_$][\w$]*/.test(t)) return;
+  if (/^[)\]}\s]*;?\s*$/.test(t)) return;
+  sueltos.push('    L' + (DESDE + k + 1) + '  ' + t.slice(0, 54));
+});
+if (sueltos.length) {
+  console.log('    *** ' + sueltos.length + ' renglones sueltos:');
+  sueltos.slice(0, 10).forEach(function (x) { console.log(x); });
+} else {
+  console.log('    ok  todo el bloque son comentarios, declaraciones y sus continuaciones');
+}
+
+// ---------------------------------------------------------------------
+// 5) LA ESCRITURA, CON ARCHIVO
+// ---------------------------------------------------------------------
+console.log('');
+console.log('  === 5) escribir ===');
+
+// En relojés.js: quitar el bloque. Cada quita mueve el renglon de arriba al lugar del que se fue,
+// con su final, asi que el archivo queda con los finales que tenia.
+for (let k = 0; k < bloque.length; k++) rel.quita(DESDE);
+
+// En documentos.js: el bloque va al final, con un renglon en blanco de separacion. Y va con SUS
+// finales, los del renglon donde estaba: si el bloque vivia en un archivo con LF mayoritario,
+// queda con LF, y no se convierte el archivo entero.
+// Y EL PUNTO DE INSERCION, QUE NO SIEMPRE ES EL FINAL DEL ARCHIVO
+//
+// "documentos.js" termina con un renglon que NO tiene final de linea. Insertar en la posicion final
+// deja ese renglon en el medio, pegado al siguiente, y el guardián de "Archivo" lo ataja: es lo que
+// paso antes con un CSS.
+//
+// Y no alcanza con insertar una posicion antes: "inserta" toma el final del renglon donde inserta,
+// y si ese renglon no tiene final, los renglones nuevos salen sin final tambien. Por eso antes de
+// insertar se le pone un final de verdad a ese renglon -- y no importa cual sea, porque despues se
+// pisa con los finales del bloque, que son los que tiene que quedar.
+//
+// Y el punto de insercion se ANOTA antes de insertar, porque al insertar N renglones el primero
+// queda en el indice que tenia la longitud, no en "longitud menos N". Sacar el numero DESPUES de
+// insertar es el error clasico, y escribe los finales del bloque sobre los de las ultimas lineas.
+const ultimoSinFinal = doc.fines[doc.fines.length - 1] === '';
+const LARGO_DOC = doc.lineas.length - (ultimoSinFinal ? 1 : 0);
+if (ultimoSinFinal) doc.fines[LARGO_DOC] = doc.fines[LARGO_DOC - 1] || '\n';
+doc.inserta(LARGO_DOC, [''].concat(bloque));
+
+// Y los finales del bloque se ponen a mano, porque "inserta" pone los del punto de insercion y
+// estos son los que tenia donde estaba. El renglon en blanco de separacion toma el final del
+// ultimo renglon del bloque, que era el final del archivo del que se movio.
+const finalesNuevos = finalesDelBloque.concat([finalesDelBloque[finalesDelBloque.length - 1]]);
+doc.fines.splice(LARGO_DOC, finalesNuevos.length, ...finalesNuevos);
+
+rel.escribe();
+doc.escribe();
+
+console.log('    relojés.js:    ' + lRel.length + ' -> ' + rel.lineas.length + ' renglones');
+console.log('    documentos.js: ' + lDoc.length + ' -> ' + doc.lineas.length + ' renglones');
+
+// ---------------------------------------------------------------------
+// 6) LAS COMPROBACIONES, DESPUES DE ESCRIBIR
+// ---------------------------------------------------------------------
+console.log('');
+console.log('  === 6) las comprobaciones ===');
+
+const nuevoRel = fs.readFileSync(P_REL, 'utf8');
+const nuevoDoc = fs.readFileSync(P_DOC, 'utf8');
+const textoBloque = bloque.join('\n');
+
+function cuentaFuncs(l) {
+  const s = new Set();
+  l.forEach(function (x) {
+    const m = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/.exec(limpio(x));
+    if (m) s.add(m[1]);
+  });
+  return s;
+}
+const relF = cuentaFuncs(rel.lineas);
+const docF = cuentaFuncs(doc.lineas);
+const total = relF.size + docF.size;
+const antesTotal = 161;
+
+// Y EL FINAL DE RENGLON, QUE ES LO QUE SE ROMPIO LA PRIMERA VEZ
+const crlfRelViejo = (function () {
+  const b = fs.readFileSync(P_REL);
+  let n = 0;
+  for (let i = 0; i < b.length - 1; i++) if (b[i] === 0x0d && b[i + 1] === 0x0a) n++;
+  return n;
+})();
+
+const CHEQUEOS = [
+  ['el archivo entero tiene las llaves cerradas', profLlave[LARGO_REL_ANTES] === 0],
+  ['el bloque no ejecuta nada al cargar', sueltos.length === 0],
+  ['las dos puntas del bloque estaban en profundidad cero',
+    profLlave[DESDE - 1] === 0 && profLlave[HASTA + 1] === 0],
+  ['el bloque empieza en la raya de guiones', esRaya(bloque[0])],
+  ['las ' + funcsDel.length + ' funciones quedaron en documentos.js',
+    funcsDel.every(function (n) { return docF.has(n); })],
+  ['ninguna se quedó en relojés.js', funcsDel.every(function (n) { return !relF.has(n); })],
+  ['el total de funciones sigue siendo ' + antesTotal, total === antesTotal],
+  // Y LA COMPARACION DEL BLOQUE, RENGLON POR RENGLON, Y NO POR TEXTO
+  //
+  // Unir con "\n" y buscar esa cadena en el archivo NO puede funcionar: el archivo tiene finales
+  // "\r\n", y la cadena unida tiene "\n". La busqueda falla siempre, y lo que se ve es "el bloque
+  // no llego", cuando en realidad llego entero y con los finales correctos.
+  //
+  // La forma que si sirve es comparar los renglones del bloque contra los renglones del archivo, uno
+  // por uno, en la posicion donde se insertaron. Ahi no hay finales de por medio: hay exactamente
+  // los mismos textos en el mismo orden.
+  ['los ' + bloque.length + ' renglones del bloque están en documentos.js, en orden', (function () {
+    for (let k = 0; k < bloque.length; k++) {
+      if (doc.lineas[LARGO_DOC + 1 + k] !== bloque[k]) return false;
+    }
+    return true;
+  })()],
+  ['el bloque no quedó en relojés.js', rel.lineas.indexOf(bloque[bloque.length - 2]) < 0
+    || rel.lineas.join('\n').indexOf(bloque.join('\n')) < 0],
+  ['relojés.js perdió exactamente el bloque',
+    rel.lineas.length === LARGO_REL_ANTES - bloque.length],
+  ['documentos.js ganó el bloque más un renglón en blanco',
+    doc.lineas.length === LARGO_DOC_ANTES + bloque.length + 1],
+  ['ningún renglón se perdió: los dos juntos son los dos de antes',
+    rel.lineas.length + doc.lineas.length
+      === (LARGO_REL_ANTES - bloque.length) + (LARGO_DOC_ANTES + bloque.length + 1)],
+  ['relojés.js conserva sus finales CRLF', crlfRelViejo > 0],
+  ['documentos.js terminó en salto de línea', /\n$/.test(nuevoDoc)],
+  ['no hay nombre repetido entre los dos archivos',
+    [...relF].every(function (n) { return !docF.has(n); })],
+];
+
+let malas = 0;
+CHEQUEOS.forEach(function (c) {
+  if (!c[1]) malas++;
+  console.log('  ' + (c[1] ? 'ok  ' : '*** ') + c[0]);
+});
+
+console.log('');
+console.log('    los CRLF que quedaron en relojés.js: ' + crlfRelViejo);
+console.log('  ' + (malas ? '*** ' + malas + ' *** HAY QUE VOLVER A HEAD Y REHACERLO'
+  : 'ok  todo en verde.'));
