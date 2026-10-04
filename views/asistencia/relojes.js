@@ -2441,49 +2441,6 @@ async function comprobarContratacion(){
 // ===================================================================
 // ============================================================
 // ============================================================
-// ============================================================
-// ¿ES UN USUARIO RELOJ?
-
-// ============================================================
-//
-// Un usuario con SOLO el rol `reloj` no es una persona: es un aparato. No
-// tiene panel, no tiene planilla, no tiene nombre de otro trabajador. Lo
-// único que hace es marcar.
-//
-// Por eso la app no le muestra nada más. Si se le dejara el panel, el rol
-// serviría para mirar quién sale a qué hora, que es justo lo que no se
-// quiere que un reloj vea.
-const PERMISOS_DE_MARCAR=['relojes.marcaje','relojes.totem'];
-function soyUsuarioReloj(){
-  // ANTES DE QUE CARGUEN LOS PERMISOS, ESTA FUNCION DEVUELVE FALSE.
-  //
-  // Sin esta guarda, el recorrido del catalogo no encuentra nada (todavia
-  // esta vacio), no encuentra ningun permiso ajeno, y concluye que esta
-  // persona es un aparato. Con eso, el ADMINISTRADOR entra a la app, ve
-  // la pantalla de "Cuenta de reloj" y no ve NADA del panel. Es lo que
-  // pasó: con el catalogo vacio, "no tiene ningún otro permiso" es
-  // cierto de mentira.
-  if(typeof misPermisosCargados!=='undefined'&&!misPermisosCargados)return false;
-  const catalogo=(typeof catalogoPermisos!=='undefined')?catalogoPermisos:null;
-  if(!catalogo||!catalogo.length)return false;
-  if(!PERMISOS_DE_MARCAR.some(k=>puede(k)))return false;
-  // Que tenga el permiso de marcar NO la convierte en aparato. Lo que la
-  // define es no tener NADA mas.
-  //
-  // Un jefe de turno puede tener el rol reloj y el de supervisor, y a ese
-  // no se le esconde el panel: esconderselo seria dejar sin acceso a una
-  // persona que si lo necesita, por un permiso que no le hace falta para
-  // marcar.
-  //
-  // Se recorre el catalogo REAL, asi que un permiso que se agregue mas
-  // adelante no queda adelante por olvido.
-  for(const fila of catalogo){
-    const clave=fila&&fila.clave?fila.clave:fila;
-    if(PERMISOS_DE_MARCAR.includes(clave))continue;
-    if(puede(clave))return false;
-  }
-  return true;
-}
 // ------------------------------------------------------------------
 // LOS DOS SECRETOS DEL RELOJ, Y POR QUE SON DOS
 // ------------------------------------------------------------------
