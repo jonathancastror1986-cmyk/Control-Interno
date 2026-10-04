@@ -2651,3 +2651,173 @@ function editarReloj(code){
   abrirFormularioReloj(code);
 }
 
+
+// ------------------------------------------------------------------
+// OLVIDAR LO GUARDADO
+// ------------------------------------------------------------------
+// Lo que hay guardado en el navegador no se puede recuperar desde la base,
+// y no hay forma de cambiarlo salvo rotando el token. Así que borrarlo desde acá tiene
+// que ser fácil: es la salida cuando lo que hay guardado no sirve.
+//
+// Con la ruta de la portería, que es donde se usa, un token equivocado guardado es un
+// reloj que no marca y sin forma de arreglarlo sin ir a la oficina. Por eso
+// el boton está al lado del campo y no escondido en un menú. Si estuviera escondido, la
+// persona no lo encuentra justo cuando lo necesita.
+function olvidarTokenReloj(){
+  const code=document.getElementById('tokenRelojCodigo').value;
+  if(!code){
+    alert('No hay ningún reloj elegido.');
+    return;
+  }
+  if(!totemTokenDe(code)){
+    alert('No hay ningún token guardado para el reloj '+code+' en este navegador.');
+    return;
+  }
+  if(!confirm('Borrar el token guardado del reloj '+code+' en ESTE navegador?É\n\n'
+    +'Si ese token era el bueno, el reloj deja de marcar desde acá y hay que volver a '
+    +'pegarlo. El tótem del aparato no se toca: esto solo es lo que tiene guardado '
+    +'este navegador.'))return;
+  try{
+    localStorage.removeItem('totemToken_'+code);
+  }catch(error){
+    alert('No se pudo borrar: '+error.message
+      +'\n\nSi el navegador está en modo privado, no guarda nada y por lo tanto tampoco hay '
+      +'nada que borrar.');
+    return;
+  }
+  const campo=document.getElementById('tokenInstalarCampo');
+  if(campo)campo.value='';
+  pintarEstadoToken(code,false);
+  alert('Listo: se borró lo que tenía guardado el reloj '+code+' en este navegador.\n\n'
+    +'Ahora pegá el token bueno y apretá Instalar.');
+}
+
+// COPIAR EL TOKEN
+// ------------------------------------------------------------------
+// El token hay que llevarlo al Android TV Box, que está en otra obra. A mano
+// se pierde un carácter, y un token equivocado responde TOKEN_INVALIDO, que
+// no dice "te equivocaste al copiar": dice que el reloj no existe, y se
+// pierde tiempo buscando el problema en el lugar equivocado.
+function copiarTokenReloj(){
+  // Primero lo que está pegado, después lo que se mostró. Al revés pasaba lo
+  // contrario: quien abría la pantalla, pegaba un token y aprieta Copiar se
+  // llevaba el token viejo, que era justo el que ya no servía.
+  const v=document.getElementById('tokenInstalarCampo').value.trim()
+    ||document.getElementById('tokenValor').value.trim();
+  if(!v){
+    alert('No hay un token en pantalla para copiar.\n\n'
+      +'Si lo perdiste, cerrá esto y presioná "Rotar token" en la lista de relojes.');
+    return;
+  }
+  // La API del portapapeles no funciona sin HTTPS, y esta app se sirve por
+  // HTTP en la red de la obra. Se avisa igual, pero se deja el texto
+  // seleccionado para que se copie a mano: si no, la persona pierde el token
+  // por un requisito del navegador.
+  if(!navigator.clipboard||!navigator.clipboard.writeText){
+    seleccionarTokenParaCopiar();
+    return;
+  }
+  navigator.clipboard.writeText(v).then(
+    ()=>alert('Token copiado.\n\nPegalo en el apartado "Pegar el token" del equipo donde vaya a marcar.'),
+    ()=>{
+      seleccionarTokenParaCopiar();
+      alert('El navegador no dejó copiar solo.\n\nEl token quedó seleccionado: copialo con Ctrl+C.');
+    }
+  );
+}
+function seleccionarTokenParaCopiar(){
+  const i=document.getElementById('tokenValor');
+  i.focus();i.select();
+  try{document.execCommand('copy');}catch(error){}
+}
+
+function abrirFormularioToken(codePedido){
+  // El código que se pasa gana sobre el del selector. Sin esto, apretar
+  // "Instalar token" en RELOJ-002 abría el formulario con el RELOJ-001 que
+  // estuviera de primero en la lista, y el token se guardaba en el reloj
+  // equivocado: el nuevo no marcaba y el viejo sí, que es peor.
+  const code=codePedido
+    ||document.getElementById('totemReloj').value
+    ||(relojes.filter(r=>r.activo)[0]||{}).code;
+  if(!code){
+    alert('Primero creá un reloj. El token es de un reloj, no de la app.');
+    return;
+  }
+  document.getElementById('tokenRelojCodigo').value=code;
+  // El selector queda en ese reloj, para que el texto de abajo no hable de
+  // otro mientras se pega el token de este.
+  const sel=document.getElementById('totemReloj');
+  if(sel&&[...sel.options].some(o=>o.value===code))sel.value=code;
+  // Y se muestra el token que YA está instalado en este equipo, para que
+  // quien rota vea el estado real en vez de un campo vacío.
+  const instalado=totemTokenDe(code);
+  // El campo arranca VACIO a proposito.
+  //
+  // Antes se rellenaba con lo que habia guardado, que es justo el problema:
+  // lo guardado puede ser cualquier cosa. Quedo un id de usuario guardado
+  // como si fuera el token de un reloj, de una instalacion de antes de que
+  // existiera la comprobacion. Entonces la persona veia el campo lleno,
+  // apretaba Instalar, y la base decia que no era de este reloj.
+  //
+  // Vacio, y no con el ejemplo puesto como valor: un valor de ejemplo es un
+  // token que no existe, y alguien lo va a instalar sin querer. Como texto
+  // de ayuda del campo no se puede instalar por accidente.
+  document.getElementById('tokenInstalarCampo').value='';
+  pintarEstadoToken(code,!!instalado);
+  document.getElementById('dlgToken').showModal();
+}
+function totemTokenDe(code){
+  try{return localStorage.getItem('totemToken_'+code)||'';}
+  catch(error){return '';}
+}
+
+
+
+// ------------------------------------------------------------------
+// EL ESTADO DEL TOKEN, DICHO ANTES DE PREGUNTAR
+// ------------------------------------------------------------------
+// La pregunta "no encuentro el token del reloj" viene de abrir el formulario
+// y ver un campo vacío. Un campo vacío no dice si hay que pegar algo, si ya
+// está instalado, o si hay que rotarlo. Con las tres respuestas posibles
+// escritas, la persona sabe qué hacer sin preguntar.
+// El campo de pegar el token, y el boton de olvidarlo.
+//
+
+
+// ------------------------------------------------------------------
+// LA HORA, AL CENTRO Y GRANDE
+// ------------------------------------------------------------------
+// Estaba en la esquina superior derecha, chica. En un cartel de portería,
+// colgado a la altura de la cabeza, a dos metros: la hora es lo primero
+// que la gente mira para decidir si su marcación fue correcta, y si hay
+// que acercarse a leerla, no sirve.
+//
+// Va centrada y con el segundero parado cuando la lectura es correcta. Es
+// el mismo número que se acaba de guardar, y no el del reloj del aparato:
+// si los dos difieren, hay que ver los dos, y verlos juntos muestra de
+// una dónde está el desfase (casi siempre, en el reloj del aparato).
+function pintarHoraTotem(){
+  const d=new Date();
+  const h=document.getElementById('totemHoraActual');
+  if(h)h.textContent=String(d.getHours()).padStart(2,'0')
+    +':'+String(d.getMinutes()).padStart(2,'0')
+    +':'+String(d.getSeconds()).padStart(2,'0');
+  const f=document.getElementById('totemFechaActual');
+  if(f)f.textContent=d.toLocaleDateString('es-CL',{weekday:'long',day:'2-digit',month:'long'});
+}
+
+
+
+// -------------------------------------------------------------------
+// LOS MARCAJES DE HOY, PARA EL TÓTEM
+// -------------------------------------------------------------------
+// Aparte de la variable "marcajes" de la planilla, y POR PROPOSITO, no por
+// descuido:
+//
+// La "marcajes" la llena "loadMarcajesDia()", que es la que corre al abrir la
+// PESTAÑA de la planilla del día, y pide 60 días. El tótem no puede pedir 60 días
+// en una portería para pintar un número que es de HOY. Y si compartieran variable,
+// abrir la planilla pisaría lo del tótem con 60 días y abrir el tótem la dejaría
+// con un día: cada pantalla con lo suyo.
+//
+
