@@ -563,3 +563,31 @@
 .tarjaNota:empty{
   display:none;
 }
+
+/* -------------------------------------------------------------------
+  LA TABLA SCROLLEA DENTRO DE SU CAJA, Y SUS DOS BARRAS A LA VISTA
+  -------------------------------------------------------------------
+
+  La barra horizontal YA existía y YA funcionaba: el ".overflow" tiene 965px de caja y 1342 de
+  contenido. Lo que pasaba es que estaba ABAJO, después de las cuarenta y siete filas del
+  equipo -- a tres mil píxeles de donde uno está mirando. No faltaba el scroll: era
+  inalcanzable. Y eso es peor que no tenerlo, porque no se ve que exista. Ver [tarja-21]. */
+
+/* Y el alto máximo va en "vh" y no en píxeles: con píxeles funciona en el monitor de la prueba
+   y se sale en uno más chico. El 72vh deja el equivalente a un tercio de pantalla para la barra
+   del navegador, los controles y el encabezado de la tarjeta. */
+#v-asistencia .tarjaTabla > .overflow,
+#v-supervisores .tarjaTabla > .overflow{
+  max-height:72vh;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:8px;
+}
+
+/* Y los encabezados pegados al borde de la CAJA, no al de la página. Con la tabla scrolleando
+   adentro, el "sticky" pasa a pegarse al borde de la caja -- y ahora se ve al bajar dentro de
+   la tabla, que es lo único que servía de tenerlos pegados. */
+#v-asistencia .tarjaTabla > .overflow th,
+#v-supervisores .tarjaTabla > .overflow th{
+  top:0;
+}
