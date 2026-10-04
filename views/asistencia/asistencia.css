@@ -413,3 +413,86 @@
     max-width:none;
   }
 }
+
+/* -------------------------------------------------------------------
+  LAS LETRAS DE LAS COLUMNAS DEL RESUMEN
+  -------------------------------------------------------------------
+
+  Los seis encabezados del resumen llevan la LETRA, no la frase. El nombre entero quedó en el
+  "title" del encabezado y en el cartel de información, que es donde se consulta. Ver [tarja-18]. */
+
+/* Y la columna se aprieta a lo que mide la letra, con "width:1%" y sin partir. Es el mismo
+   truco de "table-layout:auto": el navegador da a cada columna lo que su contenido pide, y esta
+   pide dos o tres letras. Sin el "width:1%", el sobrante se reparte con las de los días, que
+   son las que de verdad necesitan espacio. */
+.tarjaColRes{
+  width:1%;
+  white-space:nowrap;
+}
+
+/* Y la letra, en un recuadro. Porque "30" pelado en una fila de días se lee como un día del
+   mes: está en la fila de los 1 a 31. Con el recuadro se ve que es una etiqueta y no un
+   valor, y el peso alto la separa del número de abajo sin inventar otro color. */
+.tarjaLetra{
+  display:inline-block;
+  min-width:22px;
+  padding:1px 5px;
+  border:1px solid var(--line);
+  border-radius:4px;
+  background:var(--bg);
+  font-size:.68rem;
+  font-weight:700;
+  letter-spacing:0;
+  text-align:center;
+  cursor:help;
+}
+
+/* Y el botón de información, que va al final de esa misma fila de columnas. Es pequeño a
+   propósito: es un ayuda, no una acción, y al lado de las letras dice "preguntá acá". */
+.tarjaColRes .btn-info{
+  width:22px;
+  min-width:22px;
+  padding:1px 0;
+  font-size:.7rem;
+  line-height:1.4;
+}
+
+/* -------------------------------------------------------------------
+  EL CARTEL FLOTANTE DE LAS COLUMNAS
+  -------------------------------------------------------------------
+
+  Se llama ".ayuda-suelta" y no ".ayuda-caja" a propósito: son dos cosas distintas con la misma
+  piel. La otra es absoluta y vive dentro de un ".row", que no recorta. Esta es fija y vive en
+  "<body>", porque la tabla vive dentro de un ".overflow" que recorta en los dos ejes -- en CSS,
+  si un eje deja de ser "visible", el otro también. Ver [tarja-19]. */
+.ayuda-suelta{
+  position:fixed;
+  z-index:60;
+  max-height:min(70vh,520px);
+  overflow-y:auto;
+  width:min(340px,78vw);
+  padding:10px 12px;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:8px;
+  box-shadow:0 10px 30px -8px rgba(0,0,0,.35);
+  font-size:.78rem;
+  line-height:1.45;
+  color:var(--ink);
+  text-align:left;
+  animation:ayudaEntra .16s cubic-bezier(.25,.46,.45,.94);
+}
+
+/* Y el botón "i", que es el mismo círculo de las otras ayudas del sistema. Se le pone la clase
+   "ayuda-ico" desde el HTML justamente para que sea el mismo y no uno parecido: dos círculos
+   de información con dos medidas distintas se ven como dos cosas distintas. */
+.tarjaColRes .btn-info.ayuda-ico{
+  width:20px;
+  min-width:20px;
+  padding:0;
+  border-radius:50%;
+  font-size:.7rem;
+  font-style:italic;
+  font-weight:700;
+  cursor:help;
+}

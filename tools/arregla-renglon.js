@@ -39,7 +39,17 @@ if (!P || !LINEA || !NUEVO) {
 }
 
 const antes = fs.readFileSync(P, 'utf8');
-const lineas = antes.split(/\r\n|\n|\r/);
+// Y EL CORTE TIENE QUE SER EL MISMO EN LOS DOS LUGARES
+//
+// El archivo se lee con "split(/\r\n|\n|\r/)", que saca el "\r" de los finales CRLF. Y la
+// comprobación de abajo partía con "split('\n')", que lo deja. O sea que comparaba renglones con
+// "\r" contra renglones sin "\r": TODOS distintos, y el "sólo cambió ese renglón" daba falso.
+//
+// En un archivo con finales LF los dos cortes coinciden y el aviso no aparece nunca. En uno con
+// CRLF --que es casi todo este proyecto-- la herramienta no servía para nada: se quejaba siempre,
+// y lo que hacía era enseñar a ignorar el aviso.
+const cortar = (t) => t.split(/\r\n|\n|\r/);
+const lineas = cortar(antes);
 
 console.log('  === 1) el renglón ===');
 console.log('    archivo: ' + P);
@@ -72,12 +82,12 @@ console.log('  === 3) las comprobaciones ===');
 
 const CHEQUEOS = [
   ['el archivo no cambió de renglones',
-    despues.split('\n').length === antes.split('\n').length],
+    cortar(despues).length === cortar(antes).length],
   ['el renglón no tiene caracteres de otro idioma',
     !/[\u0400-\u04ff\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\uff01-\uff60]/.test(lineas[LINEA - 1])],
   ['el renglón nuevo no está vacío', lineas[LINEA - 1].trim() !== ''],
   ['sólo cambió ese renglón',
-    antes.split('\n').filter(function (x, i) { return x !== lineas[i]; }).length === 1],
+    cortar(antes).filter(function (x, i) { return x !== lineas[i]; }).length === 1],
 ];
 
 let malas = 0;

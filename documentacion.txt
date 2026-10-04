@@ -3692,6 +3692,116 @@ con un texto blanco.
 Y no se revisaron los "td", porque un "td" no tiene el "#fff" global: el problema es del
 encabezado.
 
+[tarja-18] LA LETRA EN LA COLUMNA, Y LA FRASE EN EL CARTEL
+-----------------------------------------------------------------------------
+
+  Las seis columnas del resumen tenían el nombre entero en el encabezado: "Días lluvia (LL)",
+  "Lic./Acc. (L,A)", "Inasist. (F,P)". La letra estaba al final, entre paréntesis, como una nota
+  al pie de la frase.
+
+  Y lo pedido es al revés: que en la columna esté la LETRA, y la frase quede donde se consulta.
+
+  ---------------------------------------------------------------------
+  POR QUÉ NO ES COSMÉTICA
+  ---------------------------------------------------------------------
+
+  MEDIDO, en la tarjeta de asistencia:
+
+      columna             antes      ahora
+      Días trab. (base 30)   140px     28px
+      Días efectivos         140px     29px
+      Días lluvia (LL)       140px     28px
+      Días reales trabaj.    140px     29px
+      Lic./Acc. (L,A)        140px     29px
+      Inasist. (F,P)         140px     29px
+
+  Cada columna lleva adentro un número de dos o tres dígitos, y estaba tomando el ancho de la
+  frase. Seis columnas así se comen la grilla, que es lo que hay que mirar.
+
+  Y el "width:1%" con "white-space:nowrap" es lo que hace que se aprieten: el navegador da a
+  cada columna lo que su contenido pide, y esta pide dos letras. Sin eso, el sobrante se reparte
+  con las de los días, que son las que de verdad necesitan espacio.
+
+  ---------------------------------------------------------------------
+  LAS TRES LETRAS QUE NO ESTABAN
+  ---------------------------------------------------------------------
+
+  Tres ya estaban en el rótulo viejo, entre paréntesis: LL, L-A y F-P. Lo que se hizo fue dejar
+  la letra y llevarse la frase. Las otras tres NO tenían letra, y se les puso una:
+
+      30   la base de treinta días
+      EF   días efectivos
+      RT   días realmente trabajados
+
+  Y la lista es una sola, "COLUMNAS_TARJA", y de ella salen el encabezado, el "title" y el
+  cartel. Escritos por separado serían tres verdades, y el día que uno cambie los otros dos
+  quedan diciendo la cosa vieja.
+
+  ---------------------------------------------------------------------
+  Y LA LETRA VA EN UN RECUADRO
+  ---------------------------------------------------------------------
+
+  Porque "30" pelado, en una fila que tiene los días del 1 al 31, se lee como un día del mes. Con
+  el recuadro se ve que es una etiqueta y no un valor, y el peso alto la separa del número de
+  abajo sin inventar otro color.
+[tarja-19] EL CARTEL DE AYUDA QUE NO PUEDE REUSARSE, POR EL RECORTE
+-----------------------------------------------------------------------------
+
+  El botón de información de las columnas quedó pegado a la última de las seis, y no en la barra
+  de controles de arriba.
+
+  ---------------------------------------------------------------------
+  DÓNDE VA Y POR QUÉ
+  ---------------------------------------------------------------------
+
+  Porque el que no entiende "LL" tiene el botón al lado de la "LL". Puesto arriba, entre el año
+  y el mes, queda a tres campos de distancia de lo que no entiende.
+
+  ---------------------------------------------------------------------
+  Y POR QUÉ NO SE REUSA EL "<details class=ayuda>" QUE YA HAY
+  ---------------------------------------------------------------------
+
+  Porque ése es un bloque normal con el cartel absoluto adentro, y el absoluto se recorta con el
+  primer ancestro que tenga overflow. En el resto del proyecto eso no pasa: las ayudas viven
+  adentro de un ".row", y un ".row" no recorta.
+
+  Acá el botón vive dentro de la tabla, y la tabla vive adentro de un ".overflow" con
+  "overflow-x:auto". En CSS, si un eje deja de ser "visible", el otro deja de serlo también: el
+  ".overflow" recorta en los dos ejes.
+
+  Y no es teórico. La tabla tiene 31 columnas de días más las seis del resumen, así que el ancho
+  SIEMPRE pasa del de la tarjeta. El cartel se abriría y se vería cortado por la derecha.
+
+  La solución es "position:fixed" colgado de "<body>", que no depende de ningún ancestro. Y la
+  piel es la misma de ".ayuda-caja" -- mismo ancho, mismo borde, misma sombra--, con otro nombre:
+  ".ayuda-suelta". Dos círculos de información con dos medidas distintas se ven como dos cosas
+  distintas.
+
+  ---------------------------------------------------------------------
+  Y EL CARTEL NO CABE, Y ABRIR SIEMPRE ABAJO LO SACABA DE LA PANTALLA
+  ---------------------------------------------------------------------
+
+  MEDIDO: el cartel mide 728px, y la ventana del navegador 670px. O sea que no cabe de ninguna
+  manera, y abrirlo siempre hacia abajo lo sacaba por el borde de abajo justo cuando el botón
+  está a media altura -- que es donde está la tabla.
+
+  Así que se comparan los dos lados y se abre del que hay más lugar, y el alto se recorta al de
+  ese lado con scroll adentro. MEDIDO después del arreglo, con la ventana de 670px: abre para
+  ARRIBA, queda entero en la pantalla, y scrollea.
+
+  Y es mejor un cartel con scroll que uno cortado: lo que se pierde al recortarse es justo la
+  parte de abajo, que es donde están las columnas del resumen.
+
+  ---------------------------------------------------------------------
+  Y EL ESCUCHADOR DEL CIERRE, UNA SOLA VEZ
+  ---------------------------------------------------------------------
+
+  El clic afuera y el Escape cierran el cartel. Y el escuchador se arma UNA vez, con un guardián,
+  porque si se agrega cada vez que se abre el cartel, y se abre veinte veces en una tarde,
+  quedan veinte escuchadores que hacen lo mismo veinte veces en cada clic.
+
+  Eso no falla: no hay error ni aviso, sólo la pantalla se pone más lenta. Y es la clase de
+  defecto que no se busca, porque nada dice que esté mal.
 [afp-22] EL ANCLA CON UN ESPACIO DE MÁS
 --------------------------------------------------------------------------------
 

@@ -768,22 +768,148 @@ function renderSupervisorMatrix(){
 //
 // Y las dos filas de abajo no son estados: son combinaciones y fondos, que no están en
 // "ESTADOS_TARJA" porque no se eligen a mano.
-function alternarLeyendaTarja(boton){
-  const caja=document.getElementById('supLeyendaCeldas');
+// Y EL CARTEL ES EL MISMO EN LAS DOS TARJAS, Y POR QUÉ
+//
+// Las dos pantallas -- la del supervisor y la mensual -- arman la grilla con la misma función, "buildMatrixHtml", y por eso muestran las mismas letras con el mismo significado. Si cada una tuviera su cartel, uno se actualiza y el otro no, y quedan dos verdades.
+//
+// Así que el cartel se arma una vez, en un función aparte, y las dos pantallas la llaman. Lo único que cambia es el identificador de la caja donde se muestra, y eso va como argumento en vez de estar escrito adentro: si estuviera escrito, la segunda pantalla no encontraría su caja y no se vería nada.
+//
+// Y un botón que no abre nada no falla en la consola: no se ve. Es el peor de los errores de JavaScript, porque la pantalla está bien y no hay nada en el log que mirar.
+function armarLeyendaTarja(){
+  const letra=e=>'<b>'+escHtml(e.v)+'</b> '+escHtml((e.t||'').split('—').pop().trim());
+  return '<b>Códigos de estado</b><div class="tarjaLeyendaGrid">'
+    +ESTADOS_TARJA.map(letra).join('')+'</div>'
+    +'<b>Combinaciones</b><div class="tarjaLeyendaGrid">'
+    +'<span><b>X+V+PP+LL</b> y X en feriados: día efectivo</span>'
+    +'<span><b>PP</b> permiso pagado · <b>LL</b> día lluvia</span>'
+    +'</div>'
+    +'<b>Fondos</b><div class="tarjaLeyendaGrid">'
+    +'<span>Celda con fondo de color: feriado — hacé clic en el día para alternar laborable/feriado.</span>'
+    +'<span>Celda en negro: anterior a la fecha de ingreso o posterior a la de desvinculación. No se puede editar.</span>'
+    +'</div>'
+    // Y LAS SEIS COLUMNAS DEL RESUMEN, DE LA MISMA LISTA QUE LOS ENCABEZADOS
+    //
+    // Si los dos textos estuvieran escritos por separado, el encabezado y el cartel serían dos
+    // verdades. Con "COLUMNAS_TARJA" salen de los mismos seis objetos: no pueden separarse.
+    +'<b>Columnas del resumen</b><div class="tarjaLeyendaGrid">'
+    +COLUMNAS_TARJA.map(c=>'<span><b>'+escHtml(c.v)+'</b> '+escHtml(c.t)+'</span>').join('')
+    +'</div>';
+}
+
+// ---------- EL CARTEL FLOTANTE DE LAS COLUMNAS ----------
+//
+// Y NO SE REUSA EL "<details class=ayuda>" QUE YA HAY EN EL PROYECTO
+//
+// Porque ése es un bloque normal con el cartel absoluto adentro, y acá el cartel va dentro de la
+// tabla. Y la tabla vive adentro de un ".overflow", que tiene "overflow-x:auto" -- y en CSS, si un
+// eje no es "visible", el otro deja de serlo también. O sea que el ".overflow" recorta en los dos
+// ejes, y un cartel absoluto dentro de él se cortaría al llegar al borde de la tabla.
+//
+// Eso no es teórico: la tabla tiene 31 columnas de días más las seis del resumen, y el ancho
+// siempre va a pasar del de la tarjeta. El cartel se abriría y se vería cortado por la derecha.
+//
+// Por eso el cartel se cuelga de "<body>" con "position:fixed", y se coloca con las medidas del
+// botón. "fixed" no lo recorta ningún ancestro, porque no depende de ninguno: se posiciona contra
+// la pantalla.
+//
+// Y se reutiliza la APARIENCIA de ".ayuda-caja" --mismo ancho, mismo borde, misma sombra--, que es
+// lo que hace que se vea igual que las otras ayudas del sistema y no como un invento nuevo.
+function alternarAyudaColumnas(boton){
+  armarAyudaColumnas();
+  let caja=document.getElementById('ayudaColumnas');
+  if(caja&&caja.dataset.boton===String(boton.dataset.col||'')){
+    caja.remove();
+    boton.setAttribute('aria-expanded','false');
+    return;
+  }
+  if(caja)caja.remove();
+  caja=document.createElement('div');
+  caja.id='ayudaColumnas';
+  caja.className='ayuda-suelta';
+  caja.setAttribute('role','tooltip');
+  caja.dataset.boton=String(boton.dataset.col||'');
+  caja.innerHTML=armarLeyendaTarja();
+  document.body.appendChild(caja);
+  boton.setAttribute('aria-expanded','true');
+
+  // Y SE COLOCA DEL LADO QUE HAY LUGAR, Y CON EL ALTO QUE SE PIDE
+  //
+  // El alto se mide DESPUÉS de estar en el DOM, porque antes no tiene: un elemento que no está en
+  // la página no tiene caja, y un "getBoundingClientRect" de eso da ceros.
+  //
+  // Y el cartel mide 728px, que es más que media pantalla. Así que hay dos cosas que decidir: de qué
+  // lado abrir, y hasta qué alto. Abrir siempre hacia abajo lo saca de la pantalla cuando el botón
+  // está a media altura, que es donde está la tabla en una pantalla normal.
+  //
+  // Se comparan los dos lados y se elige el más grande. Y si ninguno alcanza, el alto se recorta al
+  // del lado elegido y el cartel scrollea adentro: es mejor un cartel con scroll que uno cortado
+  // por el borde, porque lo que se perdió es justo la parte de abajo, que es donde están las
+  // columnas del resumen.
+  const b=boton.getBoundingClientRect();
+  const margen=12;
+  const arriba=b.top-margen*2;
+  const abajo=window.innerHeight-b.bottom-margen*2;
+  const Arriba=arriba>=abajo;
+  const alto=Math.max(160,Math.min(728, Arriba?arriba:abajo));
+  caja.style.maxHeight=Math.round(alto)+'px';
+
+  // Y el ancho primero, porque si queda pegado a la derecha de la pantalla se corrige con el
+  // ancho que ya se sabe, y no con un "!important" después de verlo mal.
+  caja.style.left=Math.round(b.left)+'px';
+  const w=caja.offsetWidth;
+  if(b.left+w>window.innerWidth-margen)caja.style.left=Math.max(margen,window.innerWidth-margen-w)+'px';
+  caja.style.top=(Arriba
+    ? Math.round(Math.max(margen,b.top-alto-margen))
+    : Math.round(Math.min(window.innerHeight-alto-margen,b.bottom+margen)))+'px';
+}
+
+// Y SE CIERRA SOLO, CON UN CLIC AFUERA O CON LA TECLA DE ESCAPE
+//
+// Porque un cartel que no se cierra solo se queda pegado en la pantalla y tapa la grilla, que es
+// justo lo que se fue a buscar la persona. Y Escape es lo que espera cualquiera que abra algo y
+// quiera cerrarlo sin mover el mouse.
+function cerrarAyudaColumnas(){
+  const caja=document.getElementById('ayudaColumnas');
+  if(!caja)return;
+  document.querySelectorAll('.tarjaColRes .ayuda-ico[aria-expanded="true"]').forEach(function(b){
+    b.setAttribute('aria-expanded','false');
+  });
+  caja.remove();
+}
+
+// Y SE ARMA UNA SOLA VEZ EL ESCUCHADOR DEL CIERRE, NO UNO POR CARTEL
+//
+// Porque si se agrega un escuchador cada vez que se abre el cartel, y se abre veinte veces en una
+// tarde, quedan veinte escuchadores que hacen lo mismo veinte veces cada vez que se hace clic en
+// cualquier parte. La pantalla se pone pesada sin que nada falle: no hay error, no hay aviso, sólo
+// va más lenta.
+//
+// El guardián es "¿ya está armado?". Y tiene que estar en la función que ARMA el cartel, no en la
+// que lo cierra, porque si estuviera en la que cierra nunca se llega a armar.
+let ayudaColumnasEscuchada=false;
+
+function armarAyudaColumnas(){
+  if(ayudaColumnasEscuchada)return;
+  ayudaColumnasEscuchada=true;
+  document.addEventListener('click', function(ev){
+    const caja=document.getElementById('ayudaColumnas');
+    if(!caja)return;
+    // Y si el clic fue DENTRO del cartel, no se cierra. Sin esta pregunta, cualquier clic para
+    // leer el texto lo cerraba, y no se podía seleccionar una palabra de la explicación.
+    if(caja.contains(ev.target))return;
+    if(ev.target.closest && ev.target.closest('.tarjaColRes .ayuda-ico'))return;
+    cerrarAyudaColumnas();
+  });
+  document.addEventListener('keydown', function(ev){
+    if(ev.key==='Escape')cerrarAyudaColumnas();
+  });
+}
+
+function alternarLeyendaTarja(boton, idCaja){
+  const caja=document.getElementById(idCaja||'supLeyendaCeldas');
   if(!caja)return;
   if(!caja.dataset.armada){
-    const letra=e=>'<b>'+escHtml(e.v)+'</b> '+escHtml((e.t||'').split('—').pop().trim());
-    let html='<b>Códigos de estado</b><div class="tarjaLeyendaGrid">'
-      +ESTADOS_TARJA.map(letra).join('')+'</div>'
-      +'<b>Combinaciones</b><div class="tarjaLeyendaGrid">'
-      +'<span><b>X+V+PP+LL</b> y X en feriados: día efectivo</span>'
-      +'<span><b>PP</b> permiso pagado · <b>LL</b> día lluvia</span>'
-      +'</div>'
-      +'<b>Fondos</b><div class="tarjaLeyendaGrid">'
-      +'<span>Celda con fondo de color: feriado — hacé clic en el día para alternar laborable/feriado.</span>'
-      +'<span>Celda en negro: anterior a la fecha de ingreso o posterior a la de desvinculación. No se puede editar.</span>'
-      +'</div>';
-    caja.innerHTML=html;
+    caja.innerHTML=armarLeyendaTarja();
     caja.dataset.armada='1';
   }
   const abierto=caja.hidden;
@@ -918,6 +1044,31 @@ function buildWorkedWeeks(){
   });
   return weeks;
 }
+// ---------- LAS SEIS COLUMNAS DE RESUMEN, CON SU LETRA ----------
+//
+// Y ES UNA LISTA, Y NO SEIS TEXTOS SUELTOS EN EL ENCABEZADO
+//
+// Porque el rótulo corto y el significado largo tienen que salir del mismo lugar. Si el
+// encabezado dice "LL" escrito a mano y el cartel dice "días de lluvia" escrito a mano, son dos
+// verdades: el día que uno cambie, el otro queda diciendo la cosa vieja. Y el que lee la grilla
+// ve "LL" y no tiene de dónde saber qué es.
+//
+// Con la lista, el encabezado y el cartel salen de los mismos seis objetos. No pueden
+// separarse.
+//
+// Y las letras NO SON INVENTADAS: tres ya estaban en el rótulo viejo --"Días lluvia (LL)",
+// "Lic./Acc. (L,A)", "Inasist. (F,P)"-- y lo que se hizo fue dejar la letra yllevar la
+// palabras al "title" y al cartel. Las otras tres no tenían letra, y se les puso una que se
+// lea: "30" es la base, "EF" son efectivos, "RT" son reales. Ver [tarja-18].
+const COLUMNAS_TARJA=[
+  {v:'30', t:'Días trabajados, contados sobre una base de 30 días'},
+  {v:'EF', t:'Días efectivos: los que suman asistencia'},
+  {v:'LL', t:'Días de lluvia'},
+  {v:'RT', t:'Días realmente trabajados'},
+  {v:'LA', t:'Licencias y accidentes'},
+  {v:'FP', t:'Faltas y permisos'}
+];
+
 function buildMatrixHtml(y,m,lista,modo){
   modo=modo||'normal';
   const nd=daysInMonth(y,m);
@@ -931,7 +1082,30 @@ function buildMatrixHtml(y,m,lista,modo){
   // leyenda es de la persona, no de la tabla. Ver [tarja-07].
   let html='<div class="overflow"><table><tr><th>Código</th><th class="attendance-name-column">Trabajador</th>';
   for(let d=1;d<=nd;d++)html+=`<th>${d}</th>`;
-  html+='<th>Días trab. (base 30)</th><th>Días efectivos</th><th>Días lluvia (LL)</th><th>Días reales trabajados</th><th>Lic./Acc. (L,A)</th><th>Inasist. (F,P)</th></tr>';
+  // Y LAS SEIS COLUMNAS DEL RESUMEN, CON LA LETRA Y NO CON LA FRASE
+  //
+  // Antes cada encabezado decía la frase entera --"Días lluvia (LL)"-- y la columna quedaba
+  // ancha por la frase, no por el número que lleva adentro. Con dos dígitos dentro, una columna
+  // de 140px es un desperdicio, y seis columnas así se comen la grilla.
+  //
+  // Y el "title" queda en cada una, que es lo que se ve al pasar el puntero por encima: el
+  // nombre entero sigue ahí para quien lo necesite, sin estar escrito en la celda todo el día.
+  //
+  // Y la última celda es el botón de información. Va AQUÍ, al final de la fila de las columnas, y
+  // no en la barra de controles de arriba: el que no entiende "LL" tiene el botón al lado de la
+  // "LL", que es donde está la pregunta. Puesto arriba, entre el año y el mes, queda a tres
+  // campos de distancia de lo que no entiende.
+  html+='<th class="tarjaColRes"><span class="tarjaLetra" title="Días trabajados, contados sobre una base de 30 días">30</span></th>'
+    +'<th class="tarjaColRes"><span class="tarjaLetra" title="Días efectivos: los que suman asistencia">EF</span></th>'
+    +'<th class="tarjaColRes"><span class="tarjaLetra" title="Días de lluvia">LL</span></th>'
+    +'<th class="tarjaColRes"><span class="tarjaLetra" title="Días realmente trabajados">RT</span></th>'
+    +'<th class="tarjaColRes"><span class="tarjaLetra" title="Licencias y accidentes">LA</span></th>'
+    +'<th class="tarjaColRes"><span class="tarjaLetra" title="Faltas y permisos">FP</span></th>'
+    +'<th class="tarjaColRes"><button class="btn-info ayuda-ico" type="button" data-col="resumen"'
+    +' onclick="alternarAyudaColumnas(this)"'
+    +' title="Qué significa cada letra y cada columna"'
+    +' aria-label="Qué significa cada letra y cada columna" aria-expanded="false">i</button></th>'
+    +'</tr>';
   html+='<tr><td></td><td><i>Día</i></td>';
   for(let d=1;d<=nd;d++){
     const dow=new Date(y,m-1,d).getDay();
