@@ -39,7 +39,7 @@
 -- ---------------------------------------------------------------------
 --
 -- "marcajes" y "tarjetas" dan cero, y las dos son tablas de la misma familia. "asistencia" da 117.
--- Las tres were_closed juntas por la misma migración, o no se cerraron juntas y sólo dos quedaron
+-- Las tres se cerraron juntas por la misma migración, o no se cerraron juntas y sólo dos quedaron
 -- bien. Esta consulta dice cuál de las dos es.
 --
 -- ---------------------------------------------------------------------
@@ -54,6 +54,37 @@
 -- en el listado de la consulta anterior. Esta trae TODAS las políticas de todas las tablas, así que
 -- si existe, sale.
 
+-- Y LA COLUMNA "sin_empresa", Y POR QUÉ NO ES LO QUE PARECE
+--
+-- Cuenta las políticas cuyo TEXTO no dice "empresa_id". Y eso incluye a todas las que delegan en
+-- una función, como "epp entregas por empresa", que llama a "puede_ver_entrega" y no menciona la
+-- empresa por nombre. O sea que la columna marca como sospechosa justamente a las que funcionan.
+--
+-- La versión anterior de este archivo la tomaba como veredicto: "*** REVISAR: hay N politica(s) sin
+-- empresa ***". Con "epp_entregas", "marcajes" y "tarjetas" — las tres dan CERO filas con la llave
+-- anónima — la columna ponía "REVISAR" en las tres. Una columna así no es inútil: enseña a
+-- desconfiar de lo que está bien, que es peor que no dar ningún dato.
+--
+-- Así que acá la columna se llama por lo que hace, y NO decide nada. Para saber si una tabla está
+-- abierta hay que preguntar a la base con el rol "anon", que es lo que hace
+-- "diagnostico-llave-anonima.sql". Esta consulta cuenta textos; esa cuenta filas. Y no son lo
+-- mismo: la misma tabla puede estar escrita de diez formas y abrir lo mismo.
+--
+-- Y "rls apagado" sí es concluyente por sí solo, porque con el RLS apagado no se consulta ninguna
+-- política. Eso queda como veredicto aparte y es el único de esta consulta que no necesita la otra.
+
+-- ---------------------------------------------------------------------
+-- Y LO QUE ESTA CONSULTA YA NO AFIRMA
+-- ---------------------------------------------------------------------
+--
+-- "rls apagado" sí es concluyente por sí solo, porque con el RLS apagado no se consulta ninguna
+-- política. Eso queda como veredicto.
+--
+-- "tiene políticas sin empresa" NO lo es, y esta consulta ya no lo afirma. Contar textos no es
+-- contar filas: una política puede estar escrita de diez formas y abrir lo mismo, y una puede estar
+-- escrita de una sola forma y no abrir nada. La cuenta de filas la hace
+-- "diagnostico-llave-anonima.sql", con el rol "anon", que es el que decide.
+
 select c.relname                                                     as tabla,
        c.relrowsecurity                                              as rls,
        case when not c.relrowsecurity
@@ -62,26 +93,20 @@ select c.relname                                                     as tabla,
        has_table_privilege('anon', c.oid, 'select')                 as anon_lee,
        coalesce(p.cuantas, 0)                                        as politicas,
        coalesce(p.nombres, '(ninguna)')                              as cuales,
-       coalesce(p.sin_empresa, 0)                                   as politicas_sin_empresa,
+       coalesce(p.sin_texto, 0)                                      as sin_texto_empresa,
        case
          when not c.relrowsecurity and has_table_privilege('anon', c.oid, 'select')
               then '*** ABIERTA: sin RLS y anon puede leer ***'
          when not c.relrowsecurity
               then 'rls apagado, pero anon no tiene permiso'
-         when coalesce(p.sin_empresa, 0) > 0
-              then '*** REVISAR: hay ' || p.sin_empresa || ' politica(s) sin empresa ***'
-         when coalesce(p.cuantas, 0) = 0 and has_table_privilege('anon', c.oid, 'select')
-              then 'cerrada: rls prendido y sin politicas'
-         when coalesce(p.cuantas, 0) = 0
-              then 'cerrada: rls prendido y sin politicas, y anon no lee'
-         else 'con politicas, todas con empresa: mirarlas a ojo'
+         else 'no concluyente: hay que contar filas como anon'
        end                                                          as veredicto
   from pg_class c
   join pg_namespace n on n.oid = c.relnamespace
   left join lateral (
-         select count(*)::int                as cuantas,
+         select count(*)::int                   as cuantas,
                 string_agg(x.policyname, ' | ') as nombres,
-                count(*) filter (where coalesce(x.qual, 'x') !~* 'empresa_id')::int as sin_empresa
+                count(*) filter (where coalesce(x.qual, 'x') !~* 'empresa_id')::int as sin_texto
            from pg_policies x
           where x.schemaname = n.nspname
             and x.tablename  = c.relname
@@ -92,5 +117,4 @@ select c.relname                                                     as tabla,
    -- Y LO PEOR PRIMERO, QUE ES PARA LO QUE SE ABRE ESTA CONSULTA
    (not c.relrowsecurity) desc,
    has_table_privilege('anon', c.oid, 'select') desc,
-   coalesce(p.sin_empresa, 0) desc,
    c.relname;
