@@ -3241,3 +3241,26 @@ function fichaVacia(w){
 
 
 
+
+// -------------------------------------------------------------------
+// Y POR QUÉ ANTES NO SALÍAN, Y POR QUÉ NO SE PREGUNTABA NADA
+// -------------------------------------------------------------------
+// Antes los tres números se contaban sobre "marcajes", que solo se llena al abrir
+// la pestaña de la planilla. El tótem es otra pantalla: se abre con "abrirTotem()",
+// y esa función no cargaba marcajes.
+//
+// O sea que los números salían solo si alguien, ANTES de ir a la portería, había
+// abierto la planilla del día. En un aparato de la portería eso no pasa nunca.
+//
+// El código viejo lo decía sin ver la consecuencia: "se cuentan sobre lo que YA
+// está cargado en la memoria, y no con una consulta nueva. La razón no es ahorrar:
+// es que la pantalla del reloj se abre en la portería, muchas veces al mismo
+// tiempo, y una consulta por cada marcaje y por cada reloj abierto es exactamente
+// lo que hace que un aparato viejo se ponga lento."
+//
+// Lo que dice es cierto: una consulta POR MARCAJE es Mala idea en un aparato viejo.
+// Lo que no decía es que "lo que ya está cargado" en la portería es NADA. De ahí
+// salía el "—". La diferencia ahora es que hay UNA consulta al abrir, y ninguna
+// por marcaje.
+//
+
