@@ -2869,3 +2869,27 @@ function llenarFiltroCentrosMarcajes(){
 }
 
 
+
+// ------------------------------------------------------------------
+// EL RANGO
+// ------------------------------------------------------------------
+function leerRangoMarcajes(){
+  return {
+    desde:document.getElementById('marcajesFiltroDesde')?.value||'',
+    hasta:document.getElementById('marcajesFiltroHasta')?.value||''
+  };
+}
+
+// La fecha local, en AAAA-MM-DD.
+//
+// toISOString() NO sirve: convierte a UTC, y Chile está cuatro horas atrás.
+// Entre las 20:00 y las 24:00 devuelve el día SIGUIENTE. Un filtro de "hoy"
+// que a las 21:00 muestra las marcas de mañana no es un detalle de formato:
+// hace creer que alguien@Api marcó antes de existir.
+function fechaLocalISO(d){
+  return d.getFullYear()+'-'
+    +String(d.getMonth()+1).padStart(2,'0')+'-'
+    +String(d.getDate()).padStart(2,'0');
+}
+
+
