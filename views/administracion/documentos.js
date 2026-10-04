@@ -3412,3 +3412,62 @@ function pintarEstadoToken(code,instalado){
 }
 
 
+
+// ------------------------------------------------------------------
+// LEER LA FILA DE UNA FUNCIÓN QUE DEVUELVE TABLA
+// ------------------------------------------------------------------
+// PostgREST responde distinto según lo que devuelva la función:
+//
+//   returns table  ->  un ARRAY de filas:  [{ok:true}]
+//   returns json   ->  {ok:true}
+//   returns text   ->  el valor solo:     "algo"
+//
+// Y según la versión y el esquema, la fila puede venir envuelta con el
+// nombre de la función. Por eso se prueban las tres formas y se devuelve
+// la primera que tenga la forma de una fila.
+//
+// Es una función chiquita, pero es la que decide si el token se instala o
+// no. Cuando la respuesta se leyó mal, el síntoma fue "el token no sirve"
+// para un token que sí servía: un error de lectura disfrazado de error de
+// la base, que es la forma más difícil de pillar que hay.
+function leerFilaDeTabla(data,nombreDeLaFuncion){
+  if(data==null)return null;
+  // Un array: la forma de "returns table", que es lo normal acá.
+  if(Array.isArray(data))return data.length?data[0]:null;
+  // Un objeto: puede ser la fila, o la fila envuelta con el nombre.
+  if(typeof data==='object'){
+    if(nombreDeLaFuncion&&data[nombreDeLaFuncion]!=null){
+      const envuelto=data[nombreDeLaFuncion];
+      return Array.isArray(envuelto)?(envuelto.length?envuelto[0]:null):envuelto;
+    }
+    if(typeof data.ok==='boolean'||typeof data.motivo==='string')return data;
+    return null;
+  }
+  return null;
+}
+
+// Cada motivo de la base, traducido a lo que la persona puede hacer. Un
+// "no sirve" a secas no dice si hay que volver a copiar, activar el reloj
+// o rotar el token, y con eso no se puede hacer nada.
+function explicarTokenInvalido(motivo,code){
+  switch(motivo){
+    case 'RELOJ_INEXISTENTE':
+      return 'No hay ningún reloj con el código "'+code+'" en esta empresa.';
+    case 'RELOJ_INACTIVO':
+      return 'El reloj está marcado como inactivo. Activalo con "Configurar" antes de instalar el token.';
+    case 'TOKEN_VACIO':
+      return 'No pegaste ningún token.';
+    case 'TOKEN_MAL_CORRIDO':
+      // El token es un UUID: 36 caracteres, con guiones, en hexadecimal.
+      // Lo decide rotar_token_reloj(), que genera gen_random_uuid().
+      return 'El texto pegado no tiene forma de token. Son 36 caracteres, '
+        +'con guiones, como 3f2504e0-4f89-11d3-9a0c-0305e82c3301. '
+        +'Si está cortado al copiar, vuelve a copiarlo entero.';
+    case 'TOKEN_INVALIDO':
+      return 'El token es válido pero no es el de este reloj. Cada reloj tiene el suyo: '
+        +'cerrá esto y apretá "Rotar token" en la lista, y instalá el nuevo.';
+    default:
+      return 'El token no corresponde a este reloj.';
+  }
+}
+
