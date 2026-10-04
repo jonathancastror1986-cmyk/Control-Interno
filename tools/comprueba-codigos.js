@@ -195,9 +195,27 @@ lineas.forEach(function (x, i) {
 // -------------------------------------------------------------------
 let archivos;
 try {
-  archivos = execFileSync('git', ['ls-files'], {
+  // ---------------------------------------------------------------------
+  // Y TAMBIÉN LOS ARCHIVOS NUEVOS, QUE TODAVÍA NO ESTÁN VERSIONADOS
+  // ---------------------------------------------------------------------
+  //
+  // "git ls-files" lista lo que ya está en el índice, y nada más. O sea que un archivo recién
+  // escrito es INVISIBLE para esta comprobación: uno crea "074_las_dos_acceso_total.sql", le pone
+  // un "[rls-09]" que no existe en la documentación, y el guardián dice que no hay ninguna
+  // referencia nueva sin sección. Lo que acaba de pasar.
+  //
+  // Y es al revés de cómo se lee: uno supone que el guardián revisa lo que está escribiendo, y lo
+  // que revisa es lo que ya estaba escrito. El hueco cae justo en el archivo nuevo, que es el
+  // único que todavía se puede arreglar sin romper nada publicado.
+  //
+  // "--others --exclude-standard" da los no versionados, saltando los que están en el .gitignore.
+  // Se unionan los dos listados y se quitan las repeticiones, porque un archivo puede estar en
+  // ambos durante un "git add" a medio hacer.
+  const salida = execFileSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], {
     cwd: RAIZ, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024,
-  }).split('\n').map(function (x) { return x.trim(); })
+  });
+  archivos = salida.split('\n').map(function (x) { return x.trim(); })
+    .filter(Boolean)
     .filter(function (p) { return /\.(js|html|css|sql|md)$/.test(p); });
 } catch (e) {
   console.log('');

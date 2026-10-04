@@ -5025,6 +5025,119 @@ Para eso está "es_admin()", que las dos políticas buenas ya contemplan.
 Y si hay una pantalla que lo necesita LEGÍTIMAMENTE —un informe de la casa, una consolidación—, tiene
 que pasar por una función con "security definer" que verifique el permiso en el servidor. No por una
 política que dice "true": eso no es un permiso, es no tener permiso. Ver [rls-01].
+[rls-09] UNA POLÍTICA POR TABLA, ESCRITA A MANO, Y NI UNA MIGRACIÓN LAS VEÍA
+-----------------------------------------------------------------------------
+
+  MEDIDO, CON LA LLAVE ANÓNIMA DEL NAVEGADOR, QUE ES LA MISMA QUE USA CUALQUIERA QUE NO
+
+      tabla              filas    antes
+      asistencia           117      117
+      trabajadores           1       47
+      epp_entregas           0        -
+      marcajes               0        -
+      tarjetas               0        -
+
+  Y los nombres, del listado de políticas:
+
+      asistencia   acceso_total_asistencia | asistencia por empresa
+      perfiles     acceso_total_perfiles   | perfiles read | perfiles write
+      trabajadores                       trabajadores por empresa read | write
+
+  ---------------------------------------------------------------------
+  UNA POLÍTICA POR TABLA, CON EL MISMO NOMBRE
+  ---------------------------------------------------------------------
+
+  Hay tres que se llaman "acceso_total_<tabla>": una en "trabajadores", otra en "asistencia" y
+  otra en "perfiles". Y las tres son lo que el nombre dice: acceso total.
+
+  Y las tres se crearon a mano, en el panel de Supabase. No hay ni una migración del proyecto
+  que las cree, y hasta la 074 ninguna que las borre. Es decir: el código del repositorio no
+  describía la base, y por eso las migraciones anteriores no las encontraron.
+
+  Esto ya se sabía para una, y se arreglo en la 073. Lo que faltaba era saber si eran una o
+  tres. Y son tres, y dos quedan vivas.
+
+  ---------------------------------------------------------------------
+  POR QUÉ UNA ANULA A LAS QUE ESTÁN AL LADO
+  ---------------------------------------------------------------------
+
+  Porque con varias políticas, PostgreSQL las suma con OR entre las permisivas. Una sola que pase
+  sin preguntar deja pasar la fila, por muy acotada que esté la otra.
+
+  O sea que "asistencia por empresa" puede estar perfecta y no importa: mientras exista
+  "acceso_total_asistencia" al lado, la fila entra igual. Las 117 filas no vienen de que la
+  buena esté mala. Vienen de que hay una segunda que no pregunta nada.
+
+  ---------------------------------------------------------------------
+  POR QUÉ QUITARLAS, Y NO ESCRIBIR OTRA POLÍTICA
+  ---------------------------------------------------------------------
+
+  Porque las buenas ya existen y son correctas. "acceso_total_asistencia" no anula a
+  "asistencia por empresa": la desarma. Y cuando desaparece la que no pregunta, la buena vuelve
+  a ser la que decide.
+
+  Escribir una política nueva para "arreglar" esto sería lo contrario de lo que hay que hacer:
+  dejaría tres políticas que se suman y taparía el síntoma sin saber cuál era.
+
+  ---------------------------------------------------------------------
+  Y POR QUÉ LA 073 BAJÓ 47 A 1, Y NO A CERO
+  ---------------------------------------------------------------------
+
+  Eso NO está explicado, y es lo que sigue pendiente. Con dos políticas acotadas por empresa y
+  el RLS prendido --las dos cosas comprobadas-- la llave anónima no debería ver ni una fila.
+
+  Y se ve una. Las opciones son pocas y ninguna es buena: que quede una tercera política que
+  "pg_policies" no está mostrando, o que la llave anónima no sea tan anónima como se cree. Por eso
+  la 074 no toca "trabajadores": escribir una migración para tapar un agujero que no se conoce es
+  la forma de romper la tabla en vez de arreglarla.
+
+  Lo que decide es "diagnostico-llave-anonima.sql", que cuenta filas y no policies.
+
+  ---------------------------------------------------------------------
+  Y EL DIAGNÓSTICO QUE FALLA CON ESTO
+  ---------------------------------------------------------------------
+
+  "diagnostico-trabajadores.sql" declaraba "*** ABIERTA ***" sobre las dos políticas de
+  "trabajadores", que sí están acotadas. Y la razón es una sola:
+
+      when p.qual like '%puede_ver_trabajador%' then 'acotada por empresa'
+      else '*** ABIERTA ***'
+
+  Sólo contaba como acotado lo que LLAMARA a esa función. Las dos buenas no la llaman: traen un
+  EXISTS escrito, que compara "perfil_empresas.empresa_id" contra "trabajadores.empresa_id".
+
+  El defecto de fondo es peor que el síntoma: "no reconocí esta forma" y "está abierta" eran la
+  misma respuesta. Una política escrita de una manera nueva daba alarma, y la reacción correcta,
+  que es ir a mirarla, se convertía en "arreglar algo que no está roto".
+
+  ---------------------------------------------------------------------
+  Y LA COLUMNA QUE MARCABA COMO SOSPECHOSA A LAS QUE SÍ FUNCIONAN
+  ---------------------------------------------------------------------
+
+  "diagnostico-rls-real.sql" contó, en la primera versión, las políticas cuyo TEXTO no dice
+  "empresa_id". Y toda política que delega en una función no lo dice. Entonces marcó como
+  sospechosa a "epp entregas por empresa", "marcajes por empresa" y "tarjetas por empresa": las
+  tres que dan CERO filas con la llave anónima.
+
+  Una columna así no es inútil: es contraproducente, porque enseña a desconfiar de lo que está
+  bien. Esa columna ahora se llama por lo que hace, "sin_texto_empresa", y no decide nada.
+
+  Contar textos no es contar filas. Una política puede estar escrita de diez formas y abrir lo
+  mismo, y de una sola forma y no abrir nada.
+
+  ---------------------------------------------------------------------
+  Y EL GUARDIÁN QUE NO VEÍA LOS ARCHIVOS NUEVOS
+  ---------------------------------------------------------------------
+
+  Al escribir la 074, que cita este código, "comprueba-codigos.js" dijo que no había ninguna
+  referencia nueva sin sección. Y este código no existía.
+
+  La causa es una línea: la lista de archivos salía de "git ls-files", que lista lo versionado y
+  nada más. Un archivo recién escrito es invisible para el guardián, y es al revés de cómo se lee:
+  uno supone que revisa lo que está escribiendo, y revisa lo que ya estaba escrito.
+
+  El hueco cae justo en el archivo nuevo, que es el único que todavía se puede arreglar sin
+  romper nada publicado. Ahora usa "git ls-files --cached --others --exclude-standard".
 [sql-01] UN ESQUEMA NO ES UNA TABLA, Y POSTGRES DICE QUE ES OTRA BASE DE DATOS
 --------------------------------------------------------------------------------
 "storage" no es una tabla del esquema "public". Es un ESQUEMA aparte, que creó Supabase
