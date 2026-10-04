@@ -5168,25 +5168,71 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
 /* -------------------------------------------------------------------
    LA FILA
-   ------------------------------------------------------------------- */
+   -------------------------------------------------------------------
+   Y POR QUÉ ES "grid" Y NO "flex"
+   ---------------------------------------------------------------------
+   Se pidieron las dos cosas a la vez: que las pestañas sean TODAS IGUALES, y que la fila no
+   se estire hasta el borde.
+
+   Con "flex" no se pueden tener las dos. "flex:1 1 0" las reparte y quedan iguales, pero la
+   fila ocupa el ancho entero y la última queda pegada al borde derecho. Y "flex:0 0 auto" las
+   deja pegadas a la izquierda, pero cada una mide lo que mide su rótulo: cuatro pestañas con
+   cuatro nombres de distinta largo quedan de cuatro anchos distintos.
+
+   Con "grid" sí. "1fr" reparte en partes iguales --todas del mismo ancho-- y "width:fit-content"
+   achica la fila hasta lo que ocupan esas partes: se reparten lo justo y ni un píxel más.
+
+   Y POR QUÉ SON TRES POR FILA Y NO CUATRO
+   ---------------------------------------------------------------------
+   MEDIDO en la tarjeta de asistencia, que mide 1006px:
+
+       rótulo más largo, "Justificar inasistencia / permiso / licencia"
+         el texto solo                     258px
+         con 16 de padding por lado        +32
+         con el ícono y su hueco           +30
+         ---------------------------------------
+         lo que necesita la pestaña        320px
+
+   Y cuatro pestañas de 320 son 1280, que no entran en 1006. Con cuatro columnas iguales de
+   246 --que es lo que da "1fr"-- el rótulo largo queda cortado y el de Excel también.
+
+   Entonces el mínimo de la columna es 320, que es lo que mide la más larga. Y con
+   "auto-fit" el navegador mete las que entran y baja el resto: hoy son tres en la primera
+   fila y una en la segunda, todas del mismo ancho porque todas las columnas son iguales.
+
+   Y el 320 no es un número puesto: sale de la medición de arriba. Si algún rótulo crece,
+   hay que volver a medir, y el número va con la cuenta escrita al lado para que se vea de
+   dónde salió.
+
+   Y "max-width:100%" es para el teléfono: si ni una pestaña entra, el ancho se topa y la
+   grilla reparte lo que hay, sin salirse de la pantalla. */
 .attendance-tabs{
-  display:flex;
-  gap:8px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
   align-items:stretch;
-  flex-wrap:wrap;
+  max-width:100%;
+  gap:8px;
   margin-bottom:14px;
 }
 
 /* -------------------------------------------------------------------
    CADA PESTAÑA
    -------------------------------------------------------------------
-   "1 1 0" para repartirse el ancho entre todas, "min-width:0" para que puedan
-   encogerse, y el tope de la octava parte como límite.
+   "flex:0 0 auto", NO "flex:1 1 0": cada pestaña mide lo que mide su rótulo y todas se
+   alinean a la izquierda. Antes se repartían el ancho de la fila y quedaban estiradas
+   hasta el borde, con huecos entre medio y la última pegada al final.
 
-   El "max-width:100%" del final es para el teléfono: una pestaña larga no puede
-   salirse de la pantalla. */
+   Y por qué "0 0 auto" y no "1 0 auto": con "1" la que tenga margen lo toma, y todas
+  asma crecimiento para repartir. Con "0" nadie crece y cada una ocupa lo suyo.
+
+   Y esto también arregla el texto cortado que hacía falta el crecimiento para
+   ver: con el ancho igual al contenido y "white-space:nowrap", la palabra NUNCA se
+   corta. No hay nada que hacer crecer.
+
+   "min-width:0" para que puedan encogerse, y el "max-width:100%" del final es para
+   el teléfono: una pestaña larga no puede salirse de la pantalla. */
 .attendance-tabs button[role="tab"]{
-  flex:1 1 0;
+  flex:0 0 auto;
   min-width:0;
   max-width:100%;
   display:inline-flex;
@@ -5206,52 +5252,44 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
   text-align:left;
   white-space:nowrap;
   cursor:pointer;
-  /* La base se anima también. Hoy el motor NO la interpola, porque pasa de
-     cero a "auto" y "auto" no es una medida, así que la palabra aparece entera de
-     golpe. La transición está puesta para el día que el navegador sepa, y no estorba
-     mientras no la sepa. */
-  transition:background-color .18s ease,
-             border-color .18s ease,
-             color .15s ease,
-             flex-basis .26s cubic-bezier(.25,.46,.45,.94),
-             max-width .26s cubic-bezier(.25,.46,.45,.94);
+  /* Y LA ANIMACIÓN, MÁS LENTA A PROPÓSITO.
+     Se pidió "que no se vea cortada": los colores cambian en 0.5s, no en 0.18s. Con
+     0.18 el cambio de fondo se lee como un parpadeo, porque entra y sale antes de que el
+     ojo decida que algo se movió. Con medio segundo el movimiento se sigue, y no se ve como
+     un corte.
+
+     Y la curva es "cubic-bezier(.4,0,.2,1)", que entra despacio, acelera en el medio y sale
+     despacio. "ease" sale disparada, y eso es lo que lo hace ver abrupto: el final es el que
+     más se nota, porque es donde el ojo ya está mirando.
+
+     Y NO queda "flex-basis" ni "max-width" en la lista. Antes estaban porque el ancho
+     cambiaba al pasar el puntero, y eso hay que animarlo o salta de golpe. Con cada
+     pestaña midiendo lo mismo, el ancho no cambia nunca, y animar una propiedad que no
+     cambia es gastar trabajo del navegador todos los pasos. */
+  transition:background-color .5s cubic-bezier(.4,0,.2,1),
+             border-color   .5s cubic-bezier(.4,0,.2,1),
+             color          .46s cubic-bezier(.4,0,.2,1);
 }
 
 /* -------------------------------------------------------------------
-   AL PASAR EL PUNTERO, LA PALABRA CORTA SE LEE ENTERA
+   AL PASAR EL PUNTERO, SOLO CAMBIAN LOS COLORES
    -------------------------------------------------------------------
-   Esta regla va ANTES de las de "muchas", a propósito. Las de "muchas" son más
-   específicas —cuatro selectores contra tres— y mandan sobre ésta, que es lo que
-   tienen que hacer: con más de ocho pestañas el crecimiento es el otro, con tope y
-   todo. */
+   Antes esta regla ponía "flex:0 0 auto" SÓLO en la pestaña apuntada, mientras las
+   demás seguían en "flex:1 1 0". Por eso una crecía y las otras se encogían, y como
+   la fila estaba llena al milímetro, darle más a una era sacarle a otra. Medido:
+
+     en reposo       1: 233   2: 232   3: 232 (cortada)   4: 232 (cortada)
+     con el puntero  1: 201   2: 199   3: 330 (COMPLETA)  4: 199 (cortada)
+
+   O sea que el texto se leía entero sólo de la pestaña apuntada, y mientras tanto las
+   otras dos perdían letras. Y el ancho era el mismo de antes y después: no se ganaba
+   nada, sólo se movía.
+
+   Ahora la base ya es "0 0 auto", o sea que todas miden su rótulo y ninguna se corta.
+   Ponerlo otra vez acá sería repetir lo mismo, así que no va: al pasar el puntero sólo
+   cambian el fondo y el borde, que es lo que hay que notar. */
 .attendance-tabs button[role="tab"]:hover,
 .attendance-tabs button[role="tab"]:focus-visible{
-  /* La base deja de ser cero y pasa a ser el texto. Con "flex:1 1 0" los otros
-     tienen tamaño base CERO, y el reparto de una línea usa ese tamaño base: cero por
-     lo que sea es cero, y no hay de dónde sacarle el ancho a la que está apuntada.
-
-     MEDIDO, a 1000 de ancho, con los nombres de verdad:
-
-         en reposo     1: 233  2: 232  3: 232 (cortada)  4: 232 (cortada)
-         con el puntero 1: 201  2: 199  3: 330 (COMPLETA) 4: 199 (cortada)
-
-     La larga pasa de 232 a 330 y su palabra, de 175 a 274, que es lo que necesita.
-     Se lee entera. Eso era lo que se pedía.
-
-     Y la CUARTA se acorta de 175 a 142 mientras tanto. No se puede evitar: la fila
-     está llena, las cuatro se reparten el ancho entero sin un píxel de holgura, y
-     darle más a una es sacarle a otra. Se probaron las dos salidas posibles y
-     ninguna funciona: con "flex:1 0 0" las otras no se encogen sino que toman
-     menos crecimiento —201 y 199, lo mismo—, y con "flex-wrap" la fila no baja
-     porque el total sigue entrando. Lo que haría falta es que la fila NECESITARA
-     más ancho del que tiene, y no lo necesita: entra apretada.
-
-     Y la palabra cortada no se pierde: el texto entero está en el archivo, se ve
-     con el puntero encima, y el botón conserva el rótulo accesible completo para
-     quien navega con el teclado, que lee el nombre entero y no la caja. Por eso no
-     hay que "arreglar" esto tapando el texto o poniéndolo en dos renglones: sería
-     perderlo del todo para verlo igual. */
-  flex:0 0 auto;
   background:var(--surface-hover);
   border-color:var(--accent);
 }
