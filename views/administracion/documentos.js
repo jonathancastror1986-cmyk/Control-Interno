@@ -4133,3 +4133,167 @@ function copiarCampoFicha(campo,boton){
 }
 
 
+
+// ------------------------------------------------------------------
+// LA HORA QUE SE ACABA DE GUARDAR
+// ------------------------------------------------------------------
+// Cuando la marcación es correcta, la pantalla muestra la hora guardada y
+// no la del reloj del aparato. Es lo que la persona necesita ver: la hora
+// que le va a figurar en la planilla.
+//
+// Si las dos no coinciden, se dicen las dos. Un desfase de reloj es un
+// problema real y hay que verlo, no taparlo: si el reloj del aparato va
+// 5 minutos atrasado, TODAS las marcaciones de esa obra van 5 minutos
+// atrasadas, y eso se impugna después.
+function marcarHoraDeLaMarcaja(horaGuardada){
+  const caja=document.getElementById('totemHoraMarcada');
+  if(!caja)return;
+  const d=new Date();
+  const ahora=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+  const guardado=String(horaGuardada||'').slice(0,5);
+  if(!guardado){caja.textContent='';return;}
+  if(guardado===ahora){
+    caja.textContent='Marcaje registrado a las '+guardado;
+    caja.className='totem-marcaje-ok';
+    return;
+  }
+  caja.textContent='Marcaje registrado a las '+guardado
+    +' (el reloj del aparato marca '+ahora+')';
+  caja.className='totem-marcaje-desfasado';
+}
+
+let relojTotemTimer=null;
+function arrancarHoraTotem(){
+  pintarHoraTotem();
+  // Un solo intervalo. Si se llama dos veces sin parar el anterior, quedan
+  // dos timers y la hora avanza al doble: se ve en el segundero.
+  if(relojTotemTimer)clearInterval(relojTotemTimer);
+  relojTotemTimer=setInterval(pintarHoraTotem,1000);
+}
+function pararHoraTotem(){
+  if(relojTotemTimer){clearInterval(relojTotemTimer);relojTotemTimer=null;}
+}
+
+// LA EMPRESA, EN LA PANTALLA DEL RELOJ
+//
+// El logo se sube en Configurar y queda en la empresa como un data-URL
+// (columna "logo"). Esto lo trae a la pantalla del reloj.
+//
+// Va debajo de la camara, no arriba del todo, porque arriba esta la hora
+// y la hora es lo que la persona viene a ver. La empresa va con la
+// camara porque son las dos cosas que confirman que la persona esta
+// donde debe: la camara es donde apunta la cara, y la empresa es de
+// quien es el reloj.
+//
+// Si no hay logo, no se dibuja nada: queda solo el nombre. Un rectangulo
+// vacio con un borde seria peor, porque parece que falta algo.
+// EL PLACEHOLDER DEL CAMPO, SEGUN COMO LEE EL RELOJ
+//
+// El mensaje grande de arriba ya decia lo correcto: "frente a la camara" con
+// camara, y "o pasala por el lector" con lector USB. Lo que decia mal era el
+// placeholder del campo, que siempre mencionaba la camara.
+//
+// Ahora el placeholder se pone segun el lector, y no al reves. Un texto que
+// dice una cosa y la pantalla dice otra es peor que un texto generico: la
+// persona se queda con la instruccion que ve mas grande.
+//
+// Con camara: el campo es el respaldo, para cuando el QR no se lee. Se dice
+// eso, y no "presenta la tarjeta", porque la camara ya se encarga.
+//
+// Con lector USB: la tarjeta se pasa por ahi y el campo queda solo para
+// escribir el numero a mano. Que es lo unico que sirve hacer en el.
+function ponerPlaceholderTotem(){
+  const campo=document.getElementById('totemCampo');
+  if(!campo)return;
+  const conCamara=totemActual&&totemActual.tipo_lector==='camara';
+  campo.placeholder=conCamara
+    ? 'Si la cámara no lee, escribe el código y presiona Enter'
+    : 'O escribe el código a mano y presiona Enter';
+}
+
+function pintarEmpresaEnTotem(){
+  const cajaNombre=document.getElementById('totemEmpresaNombre');
+  if(!cajaNombre)return;
+  // ------------------------------------------------------------------
+  // LA EMPRESA DEL RELOJ, NO LA DEL DESPLEGABLE
+  // ------------------------------------------------------------------
+  // Antes usaba empresaDelPapel(), que devuelve la empresa seleccionada arriba.
+  // En la portería eso no sirve: en la portería nadie selecciona nada, y el
+  // reloj es de una empresa sola. Con el desplegable en "todas las empresas" o
+  // en otra, el tótem mostraba el nombre y el logo de la empresa equivocada.
+  //
+  // Y no es un detalle: el logo es lo que dice de quién es el papel que se está
+  // firmando ahí. Con dos empresas en el sistema se firmaba con el logo de la
+  // otra.
+  //
+  // Si la empresa del reloj no está en la lista que esta persona puede ver, se
+  // deja el nombre en el número de id: es mejor un código que un nombre
+  // equivocado.
+  const lista=(typeof empresas!=='undefined'&&empresas)?empresas:[];
+  let empresa=null;
+  const idDelReloj=totemActual?totemActual.empresa_id:null;
+  if(idDelReloj!=null)empresa=lista.find(e=>mismoId(e.id,idDelReloj))||null;
+  if(!empresa)empresa=empresaDelPapel();
+
+  cajaNombre.textContent=empresa
+    ?(empresa.nombre||('#'+idDelReloj))
+    :(idDelReloj!=null?('#'+idDelReloj):'');
+
+  const centro=document.getElementById('totemEmpresaCentro');
+  if(centro)centro.textContent=totemActual?centroDe(totemActual):'';
+
+  const logo=document.getElementById('totemLogo');
+  if(!logo)return;
+  const url=empresa&&empresa.logo?String(empresa.logo):'';
+  if(url){
+    logo.src=url;
+    logo.classList.add('visible');
+  }else{
+    // Se saca el src y no solo la classe: un logo que se oculto por CSS
+    // sigue cargado, y en un reloj con poca memoria sobra tener en la
+    // memoria una imagen que no se ve.
+    logo.removeAttribute('src');
+    logo.classList.remove('visible');
+  }
+}
+function pintarTotemInicial(){
+  // Se borra la hora del marcaje anterior. Si queda, alguien que pasa
+  // después ve la hora del compañero y cree que ya marcó.
+  const cajaMarcada=document.getElementById('totemHoraMarcada');
+  if(cajaMarcada){cajaMarcada.textContent='';cajaMarcada.className='totem-marcaje';}
+  const t=document.getElementById('totemMensaje');
+  // Se devuelve el recuadro al estado de reposo, CON SU CLASE. Antes no
+  // hacia falta porque el reposo era lo unico que habia; ahora hay un
+  // estado mas, el amarillo del aviso, y sin esto el "presenta tu
+  // tarjeta" se queda pintado encima del amarillo de un aviso ya
+  // cerrado, que se lee como una contradiccion.
+  t.className='totem-idle';
+  t.innerHTML='<div class="totem-idle">'
+    +'<div class="totem-idle-icono">▮</div>'
+    +'<div class="totem-idle-texto">'
+    +'<b>'+escHtml(totemActual?totemActual.nombre:'')+'</b>'
+    +(totemActual&&centroDe(totemActual)?'<br><span>'+escHtml(centroDe(totemActual))+'</span>':'')
+    +'<br>Presenta tu tarjeta'
+    +(totemActual&&totemActual.tipo_lector==='camara'
+      ?' frente a la cámara'
+      :' o pásala por el lector')
+    +'</div></div>';
+  // El boton de avisos se limpia al entrar. Si quedara el de la persona
+  // anterior, en la porteria se veria "1 aviso" y no seria de nadie: el
+  // aviso de uno no es del que marco despues.
+  const botonAviso=document.getElementById('totemVerAviso');
+  if(botonAviso){botonAviso.classList.remove('visible');botonAviso.textContent='';}
+  avisosDelReloj=[];
+  const caja=document.getElementById('totemCodigoLeido');
+  caja.textContent='';
+  pintarEmpresaEnTotem();
+  // El placeholder se pone al abrir, no al escribir el codigo: si se
+  // pusiera en el handler, al recargar la pagina quedaria el texto viejo.
+  ponerPlaceholderTotem();
+  const barraCentro=document.getElementById('totemCentroActual');
+  if(barraCentro)barraCentro.textContent=totemActual?centroDe(totemActual):'';
+  pintarTotemContadores();
+  document.getElementById('totemRelojActual').textContent=
+    (totemActual?totemActual.code+' · ':'')+(totemActual?centroDe(totemActual):'');
+}
+
