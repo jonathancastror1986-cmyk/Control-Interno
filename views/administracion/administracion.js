@@ -685,6 +685,49 @@ async function trasladarTrabajador(){
   renderSupervisorList();
   alert('Trabajador reasignado.');
 }
+// ---------- LA LETRA DE UNA CELDA ----------
+//
+// Y devuelve SIEMPRE el código, nunca el texto. Tres casos:
+//
+//   ''                la celda no tiene estado: vacía. Que es lo que tiene que verse.
+//   'X'               ya es un código: sale tal cual.
+//   'Permiso Pagado'  llega el texto entero: se busca el código que empieza con esas letras y se
+//                     devuelve ESE. Si no hay ninguno, se devuelve ''.
+//
+// Y por qué vacío en vez de lo que vino: una celda con un texto largo rompe el ancho de la columna
+// y empuja toda la grilla. Una vacía se nota en un segundo. Ver [tarja-08].
+function letraDeEstado(valor){
+  const s=String(valor==null?'':valor).trim();
+  if(!s)return '';
+  const mayus=s.toUpperCase();
+
+  // UNO: el código exacto, tal cual viene de la base. Es el caso normal.
+  const exacto=ESTADOS_TARJA.find(e=>e.v===s||e.v===mayus);
+  if(exacto)return exacto.v;
+
+  // DOS Y TRES: por la DESCRIPCIÓN.
+  //
+  // Y "ESTADOS_TARJA" guarda el texto como '"X — Presente"': el CÓDIGO, un guion largo, y la
+  // descripción. La descripción va DESPUÉS del guion, no antes —que es lo que se lee mirando la
+  // lista, pero no es lo que se le ocurre escribir—, y por eso la primera versión buscaba antes
+  // del guion y no encontraba nada: "Falta" volvía vacío.
+  //
+  // Y el que más diferencia DENTRO del texto gana, porque "Permiso" está dentro de "Permiso
+  // Pagado". Si gana el primero, un permiso pagado se cuenta como un permiso, y eso suma en dos
+  // columnas distintas del resumen.
+  const descripcionDe=e=>(e.t||'').split('—').slice(1).join('—').trim().toUpperCase();
+  const exacta=ESTADOS_TARJA.find(e=>descripcionDe(e)===mayus&&descripcionDe(e).length>=2);
+  if(exacta)return exacta.v;
+
+  const dentro=ESTADOS_TARJA.filter(e=>descripcionDe(e).length>=2
+    && mayus.indexOf(descripcionDe(e))>=0)
+    .sort((a,b)=>descripcionDe(b).length-descripcionDe(a).length);
+  if(dentro.length)return dentro[0].v;
+
+  // CUATRO: no se reconoce. Celda vacía, que se ve al tiro y no descuadra el conteo.
+  return '';
+}
+
 function renderSupervisorMatrix(){
   const supCode=document.getElementById('sup-view').value;
   const y=parseInt(document.getElementById('supYear').value);
@@ -695,11 +738,57 @@ function renderSupervisorMatrix(){
     area.innerHTML='<small>Ese equipo no es el tuyo.</small>';
     return;
   }
-  const equipo=equipoDe(supCode);
-  if(!equipo.length){area.innerHTML='<small>Este supervisor no tiene trabajadores asignados.</small>';return;}
+  // EL FILTRO DE ACTIVOS E INACTIVOS. "activos" por defecto.
+  //
+  // Y sale del select porque se pidio asi: un Desvinculado no tiene nada que marcar en el mes, y
+  // mixinglo con los que si lo tienen hace que el conteo de arriba no cierre con lo que uno ve.
+  //
+  // Y el valor vacio es "los dos", que no es lo mismo que "ninguno": es para cuando uno esta
+  // revisando un mes viejo y quiere ver a quien estaba y a quien no.
+  const filtroEstado=(document.getElementById('supEstadoEquipo')||{}).value;
+  let equipo=equipoDe(supCode);
+  if(filtroEstado)equipo=equipo.filter(w=>String(w.status||'activo')===filtroEstado);
+  if(!equipo.length){
+    area.innerHTML='<small>'+(filtroEstado==='desvinculado'
+      ?'Este supervisor no tiene trabajadores desvinculados.'
+      :'Este supervisor no tiene trabajadores activos.')+'</small>';
+    return;
+  }
   // modo "supervisores": al hacer clic en un día se abre el modal de solicitud
   area.innerHTML=buildMatrixHtml(y,m,equipo,'supervisores');
   if(typeof marcarTarjaSoloLectura==='function')marcarTarjaSoloLectura();
+}
+
+// ---------- LA LEYENDA DE LAS LETRAS ----------
+//
+// Y se ARMA con "ESTADOS_TARJA", que es la lista real. No escrita a mano.
+//
+// Porque una leyenda escrita a mano se desactualiza en silencio: se agrega un estado a la lista y
+// el cartel sigue diciendo ocho. Y el que lo lee Cree que ese estado no existe.
+//
+// Y las dos filas de abajo no son estados: son combinaciones y fondos, que no están en
+// "ESTADOS_TARJA" porque no se eligen a mano.
+function alternarLeyendaTarja(boton){
+  const caja=document.getElementById('supLeyendaCeldas');
+  if(!caja)return;
+  if(!caja.dataset.armada){
+    const letra=e=>'<b>'+escHtml(e.v)+'</b> '+escHtml((e.t||'').split('—').pop().trim());
+    let html='<b>Códigos de estado</b><div class="tarjaLeyendaGrid">'
+      +ESTADOS_TARJA.map(letra).join('')+'</div>'
+      +'<b>Combinaciones</b><div class="tarjaLeyendaGrid">'
+      +'<span><b>X+V+PP+LL</b> y X en feriados: día efectivo</span>'
+      +'<span><b>PP</b> permiso pagado · <b>LL</b> día lluvia</span>'
+      +'</div>'
+      +'<b>Fondos</b><div class="tarjaLeyendaGrid">'
+      +'<span>Celda con fondo de color: feriado — hacé clic en el día para alternar laborable/feriado.</span>'
+      +'<span>Celda en negro: anterior a la fecha de ingreso o posterior a la de desvinculación. No se puede editar.</span>'
+      +'</div>';
+    caja.innerHTML=html;
+    caja.dataset.armada='1';
+  }
+  const abierto=caja.hidden;
+  caja.hidden=!abierto;
+  if(boton)boton.setAttribute('aria-expanded',abierto?'true':'false');
 }
 
 // ---------- marcaje manual ----------
@@ -876,7 +965,17 @@ function buildMatrixHtml(y,m,lista,modo){
       const tip=modo==='supervisores'
         ? (holiday&&est==='X'?'X en feriado (día compensado) — clic para solicitar un cambio':'Clic para solicitar un cambio de estado')
         : (holiday&&est==='X'?'X en feriado: día compensado':'Clic para editar el estado');
-      html+=`<td class="${cellClass}" data-code="${encodedCode}" data-date="${iso}" data-state="${rec?rec.estado:''}" data-auto="${autoHoliday}" onclick="${abrir}(this)" title="${tip}">${est}</td>`;
+      // Y LA CELDA MUESTRA SOLO LA LETRA, SIEMPRE.
+      //
+      // Antes se ponía "est" a pelo, que es el código que viene de la base. Si algún día un estado
+      // llega con el texto entero en vez del código —"Permiso Pagado" en vez de "PP"— la celda
+      // muestra un párrafo entero, la grilla se rompe de una sola fila, y el conteo de arriba
+      // sigue diciendo lo mismo porque cuenta por código.
+      //
+      // "letraDeEstado" no hace eso. Devuelve siempre el código, y si no lo reconoce devuelve una
+      // celda VACÍA en vez de texto: una celda en blanco se ve al tiro y no descuadra nada; un
+      // párrafo en una celda no se ve hasta que la tabla ya está toda mal.
+      html+=`<td class="${cellClass}" data-code="${encodedCode}" data-date="${iso}" data-state="${rec?rec.estado:''}" data-auto="${autoHoliday}" onclick="${abrir}(this)" title="${tip}">${letraDeEstado(est)}</td>`;
     }
     const diasReales=cX;
     const diasEfectivos=cX+cHolidayX+cV+cPP+cLL;
