@@ -4003,3 +4003,133 @@ async function cargarMarcajesTotem(){
 }
 
 
+
+// ------------------------------------------------------------------
+// LEER UN CAMPO
+// ------------------------------------------------------------------
+// El valor crudo, tal como esta en el objeto. Devuelve '' en vez de
+// undefined, porque un undefined pegado en un archivo pone la palabra
+// "undefined" y eso ya no se sabe de donde salio.
+function valorDeCampo(w,campo){
+  if(!w)return '';
+  const v=w[campo.clave];
+  return v==null?'':String(v);
+}
+
+// CADA CAMPO EN EL FORMATO DEL ARCHIVO
+// -------------------------------------
+// Un RUT con guiones y un telefono con guiones NO se escriben igual. Un
+// sistema de remuneraciones que espera el RUT con guiones rechaza el que
+// viene sin ellos, y uno que espera el telefono con guiones al reves.
+//
+// Por eso el formato se declara campo por campo. Si no se dice, cada
+// quien lo escribe como quiere y el archivo no entra en ningun lado.
+function valorParaArchivo(w,campo){
+  const crudo=valorDeCampo(w,campo);
+  if(!crudo)return '';
+  switch(campo.formato){
+    case 'rut':{
+      // "13.199.887-2" se deja con guiones, que es como lo escribe la
+      // gente y como lo muestra casi todo. Un RUT sin puntos se lee como
+      // un numero y se confunde con el codigo del trabajador.
+      const solo=crudo.replace(/[^0-9kK]/g,'').toUpperCase();
+      if(solo.length<2)return crudo;
+      const cuerpo=solo.slice(0,-1);
+      const dv=solo.slice(-1);
+      const puntos=cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+      return puntos+'-'+dv;
+    }
+    case 'telefono':{
+      // Sin guiones ni espacios: el telefono se usa para hacer un
+      // contacto, no para leerlo. Un espacio en el medio rompe el envio
+      // de un mensaje.
+      return crudo.replace(/[^\d+]/g,'');
+    }
+    case 'fecha':{
+      // AAAA-MM-DD. Es el unico formato que no se malinterpreta: el
+      // 03/04/2026 es el 3 de abril en Chile y el 4 de marzo en
+      // Estados Unidos, y en un archivo que viaja entre dos países eso
+      // termina en el fecha de ingreso equivocada de un trabajador.
+      const d=new Date(crudo);
+      if(isNaN(d.getTime()))return crudo;
+      const mes=String(d.getMonth()+1).padStart(2,'0');
+      const dia=String(d.getDate()).padStart(2,'0');
+      return d.getFullYear()+'-'+mes+'-'+dia;
+    }
+    default:
+      // Los textos pueden traer saltos de linea y comas. En un archivo
+      // separado por comas, un salto de linea parte el dato en dos y la
+      // fila se corrige. Se aplanan.
+      return crudo.replace(/\s+/g,' ').trim();
+  }
+}
+
+// ------------------------------------------------------------------
+// COPIAR
+// ------------------------------------------------------------------
+// Por que no se usa el portapapeles a secas: cuando la pagina no esta
+// en https, o cuando el navegador lo niegue, navigator.clipboard no
+// existe o falla, y la excepcion se come el error. En una obra, con la
+// aplicacion instalada en un equipo viejo o abierta como archivo, eso
+// pasa seguido.
+//
+// Por eso hay un camino de reserva con un textarea invisible, que es lo
+// que funcione siempre. Y en los dos caminos el boton dice que copio:
+// copiar en silencio deja a la persona creyendo que quedo en el
+// portapapeles cuando no quedo, y eso es peor que no copiar.
+function copiarTextoFicha(texto,boton){
+  const original=boton?boton.textContent:'';
+  const bien=()=>{marcarBotonFicha(boton,'Copiado',true);};
+  const mal=()=>{
+    marcarBotonFicha(boton,'No se pudo copiar',false);
+    if(original)setTimeout(()=>marcarBotonFicha(boton,original,false),1600);
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(texto).then(bien).catch(()=>copiarPorReserva(texto,bien,mal));
+    return;
+  }
+  copiarPorReserva(texto,bien,mal);
+}
+
+// El camino de reserva: un textarea invisible, se selecciona, y el
+// comando de copiar. Es de 1995 y funciona en todas partes.
+function copiarPorReserva(texto,bien,mal){
+  try{
+    const caja=document.createElement('textarea');
+    caja.value=texto;
+    caja.setAttribute('readonly','');
+    caja.style.position='fixed';
+    caja.style.left='-9999px';
+    caja.style.opacity='0';
+    document.body.appendChild(caja);
+    caja.select();
+    caja.setSelectionRange(0,caja.value.length);
+    const ok=document.execCommand&&document.execCommand('copy');
+    document.body.removeChild(caja);
+    ok?bien():mal();
+  }catch(error){mal();}
+}
+
+// El boton que dice si copio. El cambio dura un instante y se vuelve
+// solo: si el texto se queda puesto, la pantalla queda llena de
+// "Copiado" y no se ve mas nada.
+function marcarBotonFicha(boton,texto,bueno){
+  if(!boton)return;
+  boton.textContent=texto;
+  boton.classList.add(bueno?'copiado':'copiadoNo');
+  setTimeout(()=>{
+    boton.classList.remove('copiado','copiadoNo');
+    if(bueno)boton.textContent='Copiar';
+  },1200);
+}
+function copiarCampoFicha(campo,boton){
+  const w=fichaEnPantalla;
+  const valor=valorParaArchivo(w,campo);
+  if(!valor){
+    marcarBotonFicha(boton,'Vacio',false);
+    return;
+  }
+  copiarTextoFicha(valor,boton);
+}
+
+
