@@ -1,78 +1,90 @@
 -- ===================================================================
--- ¿QUÉ POLÍTICAS TIENE "epp_entregas" AHORA MISMO?
+-- EL VEREDICTO DE "epp_entregas" — UNA CONSULTA, DE PRIMEERO A ÚLTIMO
 -- ===================================================================
 --
--- Y es lo primero que hay que correr, antes de arreglar cualquier archivo.
---
--- La 071 falló en la segunda corrida con "policy already exists". El "drop" de la política
--- vieja corrió ANTES de que el "create" fallara, y eso deja dos posibilidades:
---
---   · el editor SQL usa transacción y revirtió el "drop"  ->  todo sigue como estaba
---   · el editor NO usa transacción                          ->  la tabla quedó SIN políticas
---
--- Y la segunda es un problema serio: con el RLS prendido y sin ninguna política, la tabla no
--- la lee nadie. Ni siquiera un administrador. La pantalla de EPP se vería vacía para todos.
---
 -- ---------------------------------------------------------------------
--- LA CONSULTA
+-- POR QUÉ ESTE ARCHIVO ESTÁ ORDENADO AL REVÉS
 -- ---------------------------------------------------------------------
 --
--- Y es un veredicto en una fila, porque con las políticas a la vista hay que compararlas a
--- mano con la lista de lo que debería haber, y ese es trabajo de quien lee.
+-- La versión anterior empezaba por el veredicto y terminaba con el detalle. Y el editor SQL de
+-- Supabase muestra SOLO el resultado de la ÚLTIMA sentencia. O sea que el veredicto —que es lo
+-- único que servía— no se veía nunca, y lo que aparecía era la tabla de "¿el RLS está prendido?",
+-- que es un dato pero no es la respuesta.
+--
+-- Y eso es lo peor que puede hacer una herramienta de diagnóstico: parecer queQV funciona, y que
+-- lo que muestra no conteste lo que uno fue a preguntar. Un guardián que no avisa del defecto que
+-- vigila, y encima ocupa el lugar del que sí avisa. Ver [orden-07].
+--
+-- Ahora el archivo va de menor a mayor: primero los datos, y AL FINAL, y en una sola sentencia, el
+-- veredicto. Lo que se ve en pantalla es la respuesta.
+--
+-- ---------------------------------------------------------------------
+-- CÓMO SE USA
+-- ---------------------------------------------------------------------
+--
+-- Correr TODO el archivo, y mirar el ÚLTIMO panel de resultados. Ese es el veredicto.
 
-select case
-  when (select count(*) from pg_policies
-         where schemaname='public' and tablename='epp_entregas') = 0
-    then '*** SIN POLÍTICAS: la tabla no la lee nadie. Hay que crear la de la 071 YA. ***'
-  when (select count(*) from pg_policies
-         where schemaname='public' and tablename='epp_entregas'
-           and policyname='epp entregas por empresa') = 1
-    then 'LISTO. La política correcta está puesta y la vieja ya no está.'
-  when (select count(*) from pg_policies
-         where schemaname='public' and tablename='epp_entregas') > 1
-    then '*** HAY MÁS DE UNA: la vieja sigue puesta y las dos se suman con "o". ***'
-  else '*** HAY UNA PERO NO ES LA DE LA 071. Ver el detalle de abajo. ***'
-end as veredicto;
+-- ===================================================================
+-- 1) EL RLS, Y LAS POLÍTICAS, PARA TENERLOS A LA VISTA
+-- ===================================================================
 
--- Y el detalle, que siempre va después del veredicto.
+select relname as tabla,
+       relrowsecurity as rls_prendido,
+       relforcerowsecurity as rls_forzado
+  from pg_class
+ where relname = 'epp_entregas';
 
 select policyname,
        cmd,
        coalesce(qual, '(sin condición)')      as usando,
        coalesce(with_check, '(sin condición)') as al_escribir
   from pg_policies
- where schemaname='public' and tablename='epp_entregas'
+ where schemaname = 'public' and tablename = 'epp_entregas'
  order by policyname;
 
--- Y si el RLS está prendido, que es lo que hace que todo esto sirva de algo.
+-- ===================================================================
+-- 2) EL VEREDICTO — LA ÚLTIMA SENTENCIA, LA QUE SE LEE
+-- ===================================================================
 --
--- Un detalle que parece obvio y no lo es: "alter table ... enable row level security" en la
--- 071 CORRIÓ en la primera aplicación, y en la segunda no llegó a correr porque el editor la
--- cortó en el error. O sea que debería estar prendido. Se confirma.
+-- Y es una sola sentencia, para que quepa en un panel y se lea sin desplazar.
+--
+-- Los cuatro estados posibles, y el que importa es el último:
+--
+--   SIN POLÍTICAS   el RLS está prendido y no hay ninguna: NO LA LEE NADIE. Ni un
+--                   administrador. No da error, no da excepción: la pantalla de EPP se ve vacía
+--                   para todos y el resto de la aplicación funciona. Es lo que dejó la segunda
+--                   corrida de la 071, porque el "drop" de la política vieja corrió antes de que
+--                   el "create" fallara.
+--
+--   LISTO           está la de la 071 y no está la vieja.
+--
+--   MÁS DE UNA      las dos están. Y las políticas se suman con "or", o sea que la vieja sigue
+--                   abriendo lo que la nueva cierra. Hay que borrar la vieja a mano.
+--
+--   OTRA            hay una sola, pero no es la de la 071: la 071 se corrió a medias.
 
-select relname as tabla,
-       relrowsecurity as rls_prendido,
-       relforcerowsecurity as rls_forzado
-  from pg_class
- where relname='epp_entregas';
+select case
+  when (select relrowsecurity from pg_class where relname = 'epp_entregas') is not true
+    then '*** EL RLS NO ESTÁ PRENDIDO: la política no sirve de nada. ***'
+       || ' Hay que correr: alter table public.epp_entregas enable row level security;'
 
--- ---------------------------------------------------------------------
--- LO QUE HAY QUE HACER CON CADA RESPUESTA
--- ---------------------------------------------------------------------
---
---   "SIN POLÍTICAS" -> correr la 071 completa. El "do" del principio pasa porque
---      "puede_ver_trabajador" ya existe de la 067, y el "drop" no encuentra nada para borrar,
---      y el "create" la crea. Queda bien.
---
---   "LISTO" -> no hay nada que hacer. La segunda corrida no rompió nada.
---
---   "MÁS DE UNA" -> hay que borrar la vieja a mano:
---
---      drop policy if exists "epp entregas rw" on public.epp_entregas;
---
---   "UNA PERO NO ES LA DE LA 071" -> mirar el detalle y ver cuál es. Casi seguro es la vieja,
---      y en ese caso la 071 se corrió a medias.
---
--- Y "el detalle" también sirve para lo otro: si "usando" trae
--- "exists (select 1 from perfiles p ...)" sinmentionar "puede_ver_trabajador", es la VIEJA y
--- hay que borrarla.
+  when (select count(*) from pg_policies
+         where schemaname = 'public' and tablename = 'epp_entregas') = 0
+    then '*** SIN POLÍTICAS: la tabla NO LA LEE NADIE, ni un administrador. ***'
+       || ' Hay que correr la 071 de nuevo. Ya es re-ejecutable.'
+
+  when (select count(*) from pg_policies
+         where schemaname = 'public' and tablename = 'epp_entregas'
+           and policyname = 'epp entregas por empresa') = 0
+    then '*** HAY UNA PERO NO ES LA DE LA 071. La 071 se corrió a medias. ***'
+       || ' Mirar el panel de arriba, ver cuál es, y borrarla a mano.'
+
+  when (select count(*) from pg_policies
+         where schemaname = 'public' and tablename = 'epp_entregas'
+           and policyname = 'epp entregas rw') = 1
+    then '*** ESTÁN LAS DOS: la vieja sigue puesta y las dos se suman con "o". ***'
+       || ' Hay que correr: drop policy if exists "epp entregas rw" on public.epp_entregas;'
+
+  else 'LISTO. La política correcta está puesta y la vieja ya no está.'
+       || ' Lo que sigue es solo para confirmarlo a ojo.'
+end as veredicto;

@@ -1,78 +1,39 @@
 -- ===================================================================
--- ¿QUÉ POLÍTICAS TIENEN LAS SEIS TABLAS DE LA CADENA, AHORA MISMO?
+-- EL VEREDICTO DE LA CADENA — UNA CONSULTA, AL FINAL
 -- ===================================================================
 --
 -- ---------------------------------------------------------------------
--- POR QUÉ ESTE DIAGNÓSTICO ES MÁS ANCHO QUE EL DE "epp_entregas"
+-- POR QUÉ EL VEREDICTO VA AL FINAL Y NO AL PRINCIPIO
 -- ---------------------------------------------------------------------
 --
--- Porque la 072 toca DOS tablas y porque hay que ver el estado de las SEIS de la cadena, no el de
--- una. El detalle importa: las cabeceras de las entregas pueden estar cerradas y el detalle
--- abierto, y eso no se ve si se mira una tabla por vez.
+-- Porque el editor SQL de Supabase muestra SOLO el resultado de la ÚLTIMA sentencia. Un
+-- diagnóstico con el veredicto primero no tiene veredicto: tiene un dato, y el que lo corre se va
+-- creyendo que el archivo noBescontestó lo que preguntaba.
 --
--- Lo que se está buscando, en orden de gravedad:
+-- Ya pasó con este mismo archivo, y con el de "epp_entregas". Ver [orden-07].
 --
---   *** SIN POLÍTICAS   con el RLS prendido y sin políticas, la tabla NO LA LEE NADIE. Ni un
---                       administrador. Es lo que dejó la segunda corrida de la 071, y es el peor
---                       estado posible porque no da error.
---
---   *** ABIERTA        la política dice "exists (select 1 from perfiles p where p.id = auth.uid()
---                       and p.activo)". Eso no menciona ninguna empresa: la cumple cualquier
---                       usuario activo, de cualquier empresa.
---
---   LISTO              la política llama a "puede_ver_trabajador" o a "puede_ver_entrega" y trae
---                       "with check".
+-- Ahora: los datos primero, y al final, en UNA sola sentencia, la respuesta.
 --
 -- ---------------------------------------------------------------------
--- POR QUÉ ESTO NO SE PUEDE PROBAR CON LA LLAVE ANÓNIMA
+-- LAS SIETE TABLAS DE LA CADENA DE DATOS DE PERSONAS
 -- ---------------------------------------------------------------------
 --
--- Porque con la llave anónima "auth.uid()" es null, y
--- "exists (select 1 from perfiles p where p.id = null …)" es falso. O sea que la llave anónima
--- devuelve CERO FILAS tanto si la política está como si no.
+-- De abajo hacia arriba en el orden de la cadena, porque así se lee: primero a quién se le
+-- entregó, después qué, después qué herramienta tiene, y en el medio los estados de cada día.
 --
--- La prueba de datos tiene que ser con la sesión de un usuario de verdad, y eso se hace desde la
--- aplicación. Este diagnóstico dice si la política está puesta, que es otra cosa y también
--- necesaria.
+-- Lo que mira cada una:
+--
+--   SIN POLÍTICAS   con el RLS prendido y sin políticas, no la lee nadie. Ni un administrador.
+--                   No da error: la pantalla sale vacía para todos y el resto funciona.
+--
+--   ABIERTA         la política dice "exists (select 1 from perfiles p where p.id = auth.uid()
+--                   and p.activo)". No menciona ninguna empresa: la cumple cualquier usuario
+--                   activo, de cualquier empresa.
+--
+--   LISTO           llama a "puede_ver_trabajador" o a "puede_ver_entrega", y trae "with check".
 
 -- ===================================================================
--- 1) EL VEREDICTO, UNA FILA POR TABLA
--- ===================================================================
-
-select t.tabla,
-       (select count(*) from pg_policies p
-         where p.schemaname='public' and p.tablename = t.tabla) as cuantas,
-       case
-         when (select count(*) from pg_policies p
-                where p.schemaname='public' and p.tablename = t.tabla) = 0
-           then '*** SIN POLÍTICAS: no la lee nadie, ni un administrador ***'
-         when (select count(*) from pg_policies p
-                where p.schemaname='public' and p.tablename = t.tabla
-                  and (p.qual like '%puede_ver_trabajador%'
-                       or p.qual like '%puede_ver_entrega%')) = 0
-           then '*** ABIERTA A CUALQUIER USUARIO ACTIVO ***'
-         when (select count(*) from pg_policies p
-                where p.schemaname='public' and p.tablename = t.tabla) > 1
-           then '*** MÁS DE UNA: las políticas se suman con "o" ***'
-         when exists (select 1 from pg_policies p
-                       where p.schemaname='public' and p.tablename = t.tabla
-                         and p.with_check is null)
-           then '*** SIN "with check": se puede escribir en una empresa ajena ***'
-         else 'LISTO'
-       end as veredicto,
-       (select bool_or(c.relrowsecurity) from pg_class c
-         where c.relname = t.tabla) as rls_prendido
-  from (values ('trabajadores'),
-               ('asistencia'),
-               ('marcajes'),
-               ('tarjetas'),
-               ('herramientas_asignaciones'),
-               ('epp_entregas'),
-               ('epp_entrega_items')) as t(tabla)
- order by t.tabla;
-
--- ===================================================================
--- 2) EL DETALLE, QUE VA SIEMPRE DESPUÉS DEL VEREDICTO
+-- 1) LAS POLÍTICAS, PARA TENERLAS A LA VISTA
 -- ===================================================================
 
 select tablename,
@@ -81,74 +42,76 @@ select tablename,
        coalesce(qual, '(sin condición)')      as usando,
        coalesce(with_check, '(sin condición)') as al_escribir
   from pg_policies
- where schemaname='public'
-   and tablename in ('herramientas_asignaciones','epp_entrega_items',
-                     'epp_entregas','asistencia','marcajes','tarjetas')
+ where schemaname = 'public'
+   and tablename in ('herramientas_asignaciones', 'epp_entrega_items', 'epp_entregas',
+                     'asistencia', 'marcajes', 'tarjetas', 'trabajadores')
  order by tablename, policyname;
 
--- Y el RLS prendido de las siete, que es lo que hace que todo esto sirva de algo.
+-- Y el RLS de las siete.
 
 select relname as tabla,
        relrowsecurity as rls_prendido,
        relforcerowsecurity as rls_forzado
   from pg_class
- where relname in ('trabajadores','asistencia','marcajes','tarjetas',
-                   'herramientas_asignaciones','epp_entregas','epp_entrega_items')
+ where relname in ('herramientas_asignaciones', 'epp_entrega_items', 'epp_entregas',
+                   'asistencia', 'marcajes', 'tarjetas', 'trabajadores')
  order by relname;
 
--- ===================================================================
--- 3) LA FUNCIÓN DEL SEGUNDO SALTO
--- ===================================================================
-
--- "puede_ver_entrega" es lo que hace que "epp_entrega_items" se pueda acotar: esa tabla no tiene
--- "code", hay que sacarlo de "epp_entregas".
+-- Y las dos funciones, probadas con usuario nulo: tienen que dar FALSO, no error.
 --
--- Y se la prueba con null a propósito: si con null da ERROR en vez de false, la función se creó
--- mal y la política que la usa va a fallar en tiempo de consulta, que es cuando alguien la está
--- usando.
-
-select case
-  when not exists (select 1 from pg_proc p
-                    join pg_namespace n on n.oid = p.pronamespace
-                    where n.nspname='public' and p.proname='puede_ver_entrega') then
-    '*** NO EXISTE. Si la 072 se corrió a medias, "epp_entrega_items" tiene una política que llama a una función inexistente, y cada consulta a esa tabla falla. ***'
-  when (select public.puede_ver_entrega(null, null)) then
-    '*** CON NULL DA VERDADERO. La función tiene un agujero: sin usuario devolvería que sí. ***'
-  else 'ok  la función existe y con null responde falso, que es lo correcto.'
-end as veredicto_de_la_funcion;
-
--- Y qué dicen las dos funciones de un trabajador, con null de usuario. Las dos tienen que dar
--- falso: sin usuario no se ve nada.
+-- Porque si dan error, la política que las usa va a fallar en tiempo de consulta, que es cuando
+-- alguien la está usando. Y con "auth.uid()" nulo, la llave anónima devuelve cero filas tanto si la
+-- política está como si no: la prueba anónima no dice nada sobre esto.
 
 select 'puede_ver_trabajador' as funcion,
-       coalesce((select public.puede_ver_trabajador('cualquier', null))::text, '(null)') as con_usuario_null
+       coalesce((select public.puede_ver_trabajador('cualquier', null))::text, '(null)') as con_usuario_nulo
 union all
 select 'puede_ver_entrega', coalesce((select public.puede_ver_entrega(null, null))::text, '(null)');
 
 -- ===================================================================
--- LO QUE HAY QUE HACER CON CADA RESPUESTA
+-- 2) EL VEREDICTO — LA ÚLTIMA SENTENCIA
 -- ===================================================================
 --
--- Todas las filas "LISTO" y ningún "*** SIN POLÍTICAS": correr la 072 de nuevo, que es
--- RE-EJECUTABLE. Deja todo bien y no rompe nada de lo que ya estaba.
+-- Y sale EN VERTICAL, con una fila por tabla, para que se lea sin desplazar.
 --
--- "SIN POLÍTICAS" en alguna: correr la 072 igual. El "do" del principio pasa porque las funciones
--- ya existen, los "drop" no encuentran nada que borrar, y los "create" crean las políticas.
---
--- "ABIERTA A CUALQUIER USUARIO ACTIVO": es el estado de HOY en "herramientas_asignaciones" y en
--- "epp_entrega_items", si la 072 todavía no se corrió. Después de correrla tienen que decir
--- "LISTO".
---
--- "MÁS DE UNA": hay una política vieja que sigue puesta, y las políticas se suman con "o". O sea
--- que la vieja sigue abriendo lo que la nueva cierra. Hay que borrarla a mano:
---
---     drop policy if exists "asignaciones rw" on public.herramientas_asignaciones;
---     drop policy if exists "epp items rw" on public.epp_entrega_items;
---
--- "SIN WITH CHECK": la política está puesta pero no controla la escritura. Se puede insertar una
--- fila en una empresa propia que después queda en la ajena, y esa fila es invisible para el que
--- la escribió. La 072 lo trae; si falta, la 072 se corrió a medias.
---
--- Y el detalle del punto 2 sirve para lo mismo a ojo: si "usando" trae
--- "exists (select 1 from perfiles p …)" sin mencionar "puede_ver_trabajador" ni
--- "puede_ver_entrega", es la VIEJA.
+-- Y tiene una fila de arriba que resume: cuántas tablas quedan por arreglar. Porque un veredicto
+-- de siete filas hay que contarlo a ojo, y contar a ojo es donde se pierde uno.
+
+with v as (
+  select t.tabla,
+         (select count(*) from pg_policies p
+           where p.schemaname = 'public' and p.tablename = t.tabla) as cuantas,
+         (select count(*) from pg_policies p
+           where p.schemaname = 'public' and p.tablename = t.tabla
+             and (p.qual like '%puede_ver_trabajador%'
+                  or p.qual like '%puede_ver_entrega%')) as acotadas,
+         (select count(*) from pg_policies p
+           where p.schemaname = 'public' and p.tablename = t.tabla
+             and p.with_check is null) as sin_check,
+         (select relrowsecurity from pg_class c where c.relname = t.tabla) as rls
+    from (values ('trabajadores'), ('asistencia'), ('marcajes'), ('tarjetas'),
+                 ('herramientas_asignaciones'), ('epp_entregas'), ('epp_entrega_items')) as t(tabla)
+)
+select (select count(*) from v where rls is true and acotadas > 0) as tablas_listas,
+       (select count(*) from v where rls is not true or acotadas = 0) as tablas_por_arreglar,
+       case
+         when (select count(*) from v where rls is not true or acotadas = 0) = 0
+           then 'LISTO. Las siete tablas de la cadena están acotadas por empresa.'
+         when (select count(*) from v where rls is not true) > 0
+              and (select count(*) from v where rls is true and cuantas = 0) > 0
+           then '*** HAY TABLAS SIN POLÍTICAS: no las lee nadie, ni un administrador. ***'
+           when (select count(*) from v where rls is true and acotadas = 0) > 0
+           then '*** HAY TABLAS ABIERTAS A CUALQUIER USUARIO ACTIVO. ***'
+         else '*** MIXTO: hay tablas listas y tablas por arreglar. Ver el detalle de abajo. ***'
+       end as el_resumen,
+       tabla,
+       coalesce(cuantas::text, '-') as politicas,
+       case
+         when rls is not true then '*** SIN RLS ***'
+         when cuantas = 0      then '*** SIN POLÍTICAS: nadie la lee ***'
+         when acotadas = 0     then '*** ABIERTA A CUALQUIER USUARIO ACTIVO ***'
+         when sin_check > 0    then '*** SIN "with check" ***'
+         else 'LISTO'
+       end as veredicto
+  from v
+ order by (select 1 from v x where x.tabla = v.tabla and x.acotadas = 0) desc, tabla;

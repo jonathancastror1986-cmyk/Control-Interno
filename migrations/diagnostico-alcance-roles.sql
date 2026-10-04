@@ -177,3 +177,30 @@ select p.id, p.nombre, coalesce(p.telefono, '(sin teléfono)') as telefono,
 -- Y cualquiera de las dos respuestas tiene una consecuencia que conviene mirar: si "admin" es de
 -- la casa, entonces un administrador de una empresa cliente NO debe tener ese rol. Para eso están
 -- los roles "oficina", "portería" y "bodega", que dan lo mismo sin ver las otras empresas.
+
+-- ===================================================================
+-- LA MISMA CONSULTA, AL FINAL, PORQUE ES LO QUE SE LEE
+-- ===================================================================
+--
+-- El editor SQL de Supabase deja abierto el panel de resultados de la ULTIMA sentencia, y solo
+-- ese. Un veredicto en el medio del archivo no se ve nunca: se ve el dato de arriba, que es
+-- cierto y no contesta lo que se fue a preguntar.
+--
+-- As que esta consulta esta dos veces en el archivo. Es una consulta de solo lectura, no
+-- escribe nada, y correrla dos veces no cambia nada. Lo que cambia es que ahora la respuesta
+-- esta donde uno mira.
+--
+-- Y lo mismo paso con los otros dos diagnosticos, y por eso los tresbring veredicto al final.
+-- Ver [orden-07]: un guardian que no avisa del defecto que vigila ocupa el lugar del que si.
+
+select case
+  when (select count(*) from perfil_roles where rol = 'admin') = 0
+    then 'No hay ningun admin. O no se inicializo la base, o ya se quitaron los admins.'
+  when (select count(*) from perfil_roles where rol = 'admin') = 1
+    then 'Hay UN admin. Entonces "admin ve todas" no es un problema: es el dueno del servicio. '
+         || 'Dejarlo asi, y dejarlo ESCRITO, porque el dia que se le de admin a un segundo '
+         || 'usuario hay que decidir si ese tambien ve todas.'
+  else '*** HAY VARIOS ADMINS. Cada uno ve TODAS las empresas, sin importar su "perfil_empresas". *** '
+       || 'Si alguno de esos es de una empresa cliente y no del servicio, esta viendo los '
+       || 'trabajadores de todos los clientes. Hay que decidir el alcance del admin.'
+end as veredicto_del_alcance;
