@@ -5184,31 +5184,36 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
    Y POR QUÉ SON TRES POR FILA Y NO CUATRO
    ---------------------------------------------------------------------
-   MEDIDO en la tarjeta de asistencia, que mide 1006px:
+   MEDIDO en la tarjeta de asistencia, que mide 1006px. Con cuatro pestañas y un hueco de 8:
 
-       rótulo más largo, "Justificar inasistencia / permiso / licencia"
-         el texto solo                     258px
-         con 16 de padding por lado        +32
-         con el ícono y su hueco           +30
-         ---------------------------------------
-         lo que necesita la pestaña        320px
+       (1006 - 3 x 8) / 4  =  246px  para cada una
 
-   Y cuatro pestañas de 320 son 1280, que no entran en 1006. Con cuatro columnas iguales de
-   246 --que es lo que da "1fr"-- el rótulo largo queda cortado y el de Excel también.
+   Y lo que necesita la más larga, con los rótulos de hoy:
 
-   Entonces el mínimo de la columna es 320, que es lo que mide la más larga. Y con
-   "auto-fit" el navegador mete las que entran y baja el resto: hoy son tres en la primera
-   fila y una en la segunda, todas del mismo ancho porque todas las columnas son iguales.
+       texto solo                128px     "Justificar inasistencia"
+       con 16 de padding         +32
+       con el ícono y su hueco    +30
+       ---------------------------------
+       lo que necesita la pestaña 190px
 
-   Y el 320 no es un número puesto: sale de la medición de arriba. Si algún rótulo crece,
-   hay que volver a medir, y el número va con la cuenta escrita al lado para que se vea de
-   dónde salió.
+   Y 190 < 246, así que entran las cuatro en una línea. Ese es el número que va abajo.
 
-   Y "max-width:100%" es para el teléfono: si ni una pestaña entra, el ancho se topa y la
-   grilla reparte lo que hay, sin salirse de la pantalla. */
+   Y POR QUÉ HABÍA QUE ACORTAR DOS RÓTULOS PARA QUE ENTRARA
+   ---------------------------------------------------------------------
+   Antes el más largo era "Justificar inasistencia / permiso / licencia", de 258px de texto. Con
+   el borde y el ícono, 320. Y cuatro de 320 son 1280, en una tarjeta de 1006.
+
+   O sea que no cabían: no era un problema de la regla, eran los textos. Con "Justificar
+   inasistencia" y "Cargar desde Excel" entran las cuatro, y el texto entero de las dos quedó en
+   el "title" del botón, que es lo que se ve al pasar el puntero y lo que lee el que navega con
+   el teclado.
+
+   Y con "auto-fit" el mínimo hace el trabajo solo: si el ancho alcanza para cuatro, van cuatro;
+   si no, entran las que quepan y las demás bajan. En un teléfono angosto se parten en dos filas
+   sin que haya que escribir un "@media" para eso. */
 .attendance-tabs{
   display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+  grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
   align-items:stretch;
   max-width:100%;
   gap:8px;
