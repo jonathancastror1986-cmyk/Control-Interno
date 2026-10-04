@@ -3264,3 +3264,104 @@ function fichaVacia(w){
 // por marcaje.
 //
 
+
+// ------------------------------------------------------------------
+// COMPROBAR EL TOKEN CONTRA LA BASE
+// ------------------------------------------------------------------
+// La migración 036. Devuelve tres cosas y no un sí o un no, porque son
+// tres casos que la persona tiene que distinguir:
+//
+//   - sinRed: la base no respondió. NO se toca lo que hay instalado.
+//   - ok:     el token sirve para este reloj.
+//   - motivo: por qué no sirve, en palabras.
+//
+// Un token puede estar mal por cinco razones, y cada una se arregla con
+// una acción distinta. Que la base diga cuál es, y que esta función solo
+// la traduzca, es lo que hace que el mensaje sirva de algo.
+
+function comprobarTokenEnLaBase(code,token){
+  // Se anota desde cuándo se está comprobando. Si la llamada se cuelga, el
+  // reloj de 20 segundos avisa, pero con esto también se puede ver en la
+  // consola cuánto tardó, que es el dato que hace falta para distinguir
+  // "la base está lenta" de "la base no responde".
+  const desde=Date.now();
+  return window.supabaseClient.rpc('comprobar_token_reloj',{p_code:code,p_token:token})
+    .then(({data,error})=>{
+      // ----------------------------------------------------------------
+      // QUÉ CONTESTÓ LA BASE, EN LA CONSOLA
+      // ----------------------------------------------------------------
+      // Se imprime siempre. Antes no se imprimía nada, y eso fue lo que
+      // hizo que esta falla costara tres vueltas: el mensaje en pantalla
+      // decía una cosa y no había forma de ver qué había contestado de
+      // verdad la base.
+      //
+      // Con esto, si algo vuelve a fallar, la consola dice exactamente
+      // qué llegó, y no hay que deducirlo. Se escribe "respuesta de la
+      // base" para que se encuentre con un solo filtro.
+      console.log('[token] comprobando el de '+code+' ('+Date.now()-desde+' ms)');
+      if(error){
+        console.warn('[token] la base lo rechazó:',error.message||error);
+      }else{
+        console.log('[token] respuesta de la base:',JSON.stringify(data));
+      }
+      // La función es de la migración 036. Si todavía no está, el error
+      // lo dice con nombre, y el mensaje dice qué aplicar.
+      if(error&&/42883|does not exist|no existe/i.test(error.message)){
+        return {ok:false,motivo:'La base todavía no tiene esta comprobación. '
+          +'Falta aplicar la migración 036_comprobar_token_reloj.sql.'};
+      }
+      if(error){
+        if(/fetch|network|failed|conex/i.test(error.message))return {sinRed:true};
+        // Un 42501 es de permiso: no es que el token esté malo.
+        if(/42501|SIN_PERMISO/i.test(error.message)){
+          return {ok:false,motivo:'Tu usuario no tiene permiso para comprobar tokens. '
+            +'Pídele a un administrador que te habilite reloj.ver.'};
+        }
+        return {ok:false,motivo:'La base lo rechazó: '+error.message};
+      }
+      // ----------------------------------------------------------------
+      // LEER LA RESPUESTA, QUE VIENE EN ARRAY
+      // ----------------------------------------------------------------
+      // Esto era el bug que impedía instalar un token que estaba bien.
+      //
+      // comprobar_token_reloj devuelve "table (ok boolean, motivo text)",
+      // y PostgREST responde a una función que devuelve tabla con un
+      // ARRAY: [{ok:true, motivo:'OK'}].
+      //
+      // El código leía data.comprobar_token_reloj, que no existe en un
+      // array, y se quedaba con el array entero. Entonces r.ok era
+      // undefined, que es distinto de false, así que caía en la rama del
+      // error y anunciaba "el token no es de este reloj".
+      //
+      // O sea: la base decía QUE SÍ, y la pantalla decía QUE NO. El
+      // token estaba bien, el hash estaba bien, y no se podía instalar.
+      //
+      // En el resto de la aplicación el patrón correcto ya estaba usado:
+      // "Array.isArray(data) ? data[0] : data". Acá no se usó, y por eso
+      // el fallo era invisible: la respuesta era válida, solo que mal
+      // leída.
+      const r=leerFilaDeTabla(data,'comprobar_token_reloj');
+
+      // Y si la fila se pudo leer, se dice cuál de los dos casos es, con el
+      // motivo que devolvió la base. Así no hay que cruzarlo con la base a
+      // mano para saber qué pasó.
+      if(r)console.log('[token] leído:',r.ok?'sirve':'no sirve, motivo '+(r.motivo||'sin motivo'));
+
+      // Y si no se pudo leer, NO se acusa al token. Un problema de lectura
+      // y un token malo tienen que decir cosas distintas: con el primero
+      // se reintenta, con el segundo hay que rotar.
+      if(!r||typeof r.ok!=='boolean'){
+        return {ok:false,motivo:'La base contestó algo que esta versión no entiende, '
+          +'así que no se puede decir si el token sirve. Probá de nuevo. '
+          +'Detalle: '+JSON.stringify(data).slice(0,140)};
+      }
+      if(r.ok)return {ok:true};
+      return {ok:false,motivo:explicarTokenInvalido(String(r.motivo||'TOKEN_INVALIDO'),code)};
+    })
+    .catch(error=>{
+      // La llamada ni siquiera llegó: eso es red, no un token malo.
+      return {sinRed:true,motivo:String(error&&error.message)};
+    });
+}
+
+
