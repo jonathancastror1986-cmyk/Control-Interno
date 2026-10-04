@@ -4930,6 +4930,101 @@ empresas y filtrarlas no protegería nada. Ver [rls-06].
 Y queda una cosa que NO es de filas: "sueldo_base" vive en "trabajadores", y el RLS no acota
 columnas, así que el número se puede leer con la llave del navegador mientras esté ahí. Ver
 [rem-01].
+
+[rls-08] UNA POLÍTICA CREADA A MANO DESARMABA TODAS LAS OTRAS
+------------------------------------------------------------------
+El 4 de octubre de 2026. Es el hallazgo más grave de los cinco que salieron de medir la cadena, y
+lo encontró un diagnóstico, no una revisión.
+
+QUÉ PASÓ
+--------------------------------------------------------------------------------
+"trabajadores" tiene TRES políticas:
+
+    acceso_total_trabajadores        for all   usando (true)   with check (true)
+    trabajadores por empresa read    for select   usando (es_admin() OR …)
+    trabajadores por empresa write   for all      usando (es_admin() OR …)   with check (…)
+
+Las dos últimas las escribió la 014_multi_empresa.sql, en L288 y L299. O sea que la tabla
+ESTABA ACOTADA POR EMPRESA DESDE LA MIGRACIÓN 014, y nadie lo notó porque las tres convivían.
+
+POR QUÉ LAS TRES JUNTAS ABREN TODO
+--------------------------------------------------------------------------------
+Las políticas de PostgreSQL se SUMAN con "or": una fila se ve si CUALQUIERA de las políticas de la
+tabla lo permite. No es que la mala gane: es que las tres se aplican a la vez.
+
+Con "usando (true)", una fila siempre se ve. Y las dos buenas que preguntan por empresa no sirven
+para nada, porque su respuesta se combina con un "sí" constante.
+
+O sea que la tabla no estaba sin filtrar: estaba filtrada tres veces y desfiltrada una.
+
+LO QUE ABRE
+--------------------------------------------------------------------------------
+La llave anónima —que está en el código del navegador y es pública por diseño— lee los 47
+trabajadores de las 47 empresas: nombre, RUT, teléfono, correo, fecha de ingreso y sueldo.
+
+Medido en el navegador: una consulta a "trabajadores" con la llave anónima y SIN sesión devuelve 47
+filas. Las demás tablas de la cadena dan cero sin sesión. Esa diferencia ES esta política, porque es
+la única que no pregunta por "auth.uid()".
+
+Y "with check (true)" además deja escribir. No es solo una fuga de lectura: es de escritura.
+
+POR QUÉ NO ESTÁ EN NINGUNA MIGRACIÓN
+--------------------------------------------------------------------------------
+Porque se creó a mano, en el panel de Supabase. No hay ningún archivo del proyecto que la cree, ni
+ninguno que la borre, y no hay forma de saber cuándo se hizo.
+
+Y eso tiene una consecuencia concreta y grave: la 067, la 071 y la 072 se escribieron contra lo que
+dicen las migraciones, y las tres estaban equivocadas respecto a la base real. No por culpa de
+ellas: porque leyeron los archivos, que es lo que se puede leer, y la base tenía una cosa más.
+
+Lo que se ve aquí: las dos herramientas queUse el proyecto leen ARCHIVOS. Ninguna lee el esquema
+real. Y para esto no alcanza con tener los archivos al día.
+
+LA REGLA
+--------------------------------------------------------------------------------
+Una migración que asum que una tabla está acotada tiene que DECIR de qué política lo saca. No
+"deja la que hay", sino "esta es la que estaba, y esta es la que la reemplaza".
+
+Porque "lo que hay" no es lo que dicen los archivos. Y esa diferencia no se ve hasta que alguien
+mira la base.
+
+Y al revés también: una migración que quita una política tiene que comprobar que queda otra que
+abra lo mismo, ANTES de quitarla. La 073 lo hace: si no están las dos políticas buenas de
+"trabajadores", aborta. Porque borrar la mala sin las buenas deja la tabla sin políticas, y con el
+RLS prendido eso no da error: da una pantalla vacía para todos, ni un administrador.
+
+LA SEGUNDA CORRECCIÓN, Y POR QUÉ LA 071 NO LA HIZO
+--------------------------------------------------------------------------------
+"epp_entregas" tiene dos políticas: la de la 071, correcta, y "epp rw", la vieja.
+
+La 071 borra 'drop policy if exists "epp entregas rw"'. Ese no es el nombre. El verdadero es
+"epp rw", y lo puso la 001_schema.sql L121.
+
+O sea que la 071 nunca borró la vieja. Se ejecutó, dio "Success", y su diagnóstico dio LISTO — las
+dos cosas ciertas: la política de la 071 estaba puesta, y la que se llama "epp entregas rw" no
+estaba. El nombre que buscaba no era el que existía.
+
+Un diagnóstico que busca por nombre y no encuentra lo que busca tiene que decir "no encontré NADA
+con ese nombre", no "no está,_LISTO". Ese segundo caso es el que mintió: el nombre no estaba, y lo
+interpretó como que la política no existía.
+
+LA CORRECCIÓN
+--------------------------------------------------------------------------------
+La 073 quita dos políticas y no toca ninguna más:
+
+    acceso_total_trabajadores     en trabajadores      usando (true)
+    epp rw                        en epp_entregas      la vieja, sin "with check"
+
+Y deja las dos buenas de "trabajadores" y la de la 071 donde estaban. Es el cambio más pequeño que
+arranca el problema, y el único que se puede deshacer.
+
+PARA QUÉ QUEDA, ALGUIÓN NECESITA VER TODAS LAS EMPRESAS
+--------------------------------------------------------------------------------
+Para eso está "es_admin()", que las dos políticas buenas ya contemplan.
+
+Y si hay una pantalla que lo necesita LEGÍTIMAMENTE —un informe de la casa, una consolidación—, tiene
+que pasar por una función con "security definer" que verifique el permiso en el servidor. No por una
+política que dice "true": eso no es un permiso, es no tener permiso. Ver [rls-01].
 [sql-01] UN ESQUEMA NO ES UNA TABLA, Y POSTGRES DICE QUE ES OTRA BASE DE DATOS
 --------------------------------------------------------------------------------
 "storage" no es una tabla del esquema "public". Es un ESQUEMA aparte, que creó Supabase
