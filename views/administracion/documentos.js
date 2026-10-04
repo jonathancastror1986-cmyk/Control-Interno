@@ -2830,3 +2830,25 @@ function pintarHoraTotem(){
 // LOS MARCAJES
 
 
+
+// ===================================================================
+// LOS TRES NÚMEROS DE LA BARRA
+
+// ===================================================================
+//
+// Se cuentan sobre lo que YA está cargado en la memoria, y no con una
+// consulta nueva. La razón no es ahorrar: es que la pantalla del reloj se
+// abre en la portería, muchas veces al mismo tiempo, y una consulta por cada
+// marcaje y por cada reloj abierto es exactamente lo que hace que un aparato
+// viejo se ponga lento.
+//
+// CUANDO NO SE SABE, SE ESCRIBE "—"
+// ---------------------------------
+// Si el rango de marcajes que se tiene cargado no incluye el día de hoy, los
+// tres números se quedan en "—". Poner 0 sería peor que no poner nada: 0 dice
+// "no marcó nadie", que es un hecho sobre la obra, y en una portería un 0
+// falso se cree.
+//
+// Y no se inventa el dato yendo a buscarlo: en la portería, esperar una
+// consulta es peor que no tener el número. Se muestra lo que se sabe.
+
