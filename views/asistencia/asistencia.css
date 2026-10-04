@@ -313,3 +313,103 @@
   text-align:center;
   letter-spacing:0;
 }
+
+/* -------------------------------------------------------------------
+  LA FILA DE LA TARJA DEL SUPERVISOR, Y POR QUÉ NO SE SOBREPONÍA
+  -------------------------------------------------------------------
+
+  "styles.css" deja ".row>div{flex:1;min-width:140px}". Todos los divs de una fila se estiran y
+  pueden encogerse hasta 140px, y ese mínimo manda aunque el contenido sea de 400.
+
+  El div de los botones lleva botones con "white-space:nowrap", y el "nowrap" no se negocia: sin
+  él el botón baja a dos renglones y empuja la tabla hacia abajo. Así que la caja queda en 140 y el
+  texto se sale.
+
+  Y el síntoma engaña: en un flex las cajas NO se pisan entre sí, pero el contenido que se sale de
+  una caja SÍ se pinta sobre la caja siguiente. El botón no se recorta -- se desborda, y lo que se
+  ve es el campo de al lado tapándolo. Por eso parecía un texto cortado y no un botón angosto. */
+.tarjaControles{
+  display:flex;
+  gap:12px;
+  flex-wrap:wrap;
+  align-items:flex-end;
+}
+
+/* Y los campos: reparto parejo entre ellos, con un mínimo usable. */
+.tarjaControles > div{
+  flex:1 1 150px;
+  min-width:140px;
+}
+
+/* Y el de los botones es LA EXCEPCIÓN: mide lo que mide su contenido. Con "flex:0 0 auto" no se
+   encoge, así que nunca se sale de su caja; y si no entra entero, "flex-wrap" lo baja entero a un
+   renglón nuevo. */
+.tarjaControles > .tarjaBotones{
+  flex:0 0 auto;
+  min-width:0;
+  display:flex;
+  gap:8px;
+  align-items:flex-end;
+}
+
+/* Y que los tres controles --botones, año y mes-- midan lo mismo de alto. Si mañana se cambia el
+   "padding" de uno solo, dejan de coincidir y el renglón queda torcido sin que nada avise. */
+.tarjaControles input,
+.tarjaControles select,
+.tarjaControles .btn-compacto{
+  height:38px;
+}
+
+/* Y en una pantalla angosta los botones pasan a ocupar la fila entera, para que los tres quepan
+   sin recortarse y no quede uno solo pegado al borde. */
+@media (max-width:760px){
+  .tarjaControles > .tarjaBotones{
+    flex:1 1 100%;
+  }
+  .tarjaControles > .tarjaBotones .btn-compacto{
+    flex:1 1 auto;
+  }
+}
+
+/* -------------------------------------------------------------------
+  LOS ANCHOS DE LOS CAMPOS DE LA TARJA
+  -------------------------------------------------------------------
+
+  Sin esto, los cuatro campos se reparten la fila en partes iguales y el select de EQUIPO queda
+  con 950px para elegir entre tres opciones. Alineado, pero desproporcionado: al lado de un año
+  de cuatro dígitos. */
+
+/* Y el supervisor, que es el que más se lee y el que tiene nombres largos: corto, muestra un
+   fragmento y hay que abrirlo para saber a quién. */
+.tarjaControles > .tarjaGrande{
+  flex:2 1 220px;
+}
+
+/* Y el año: son cuatro dígitos, y el ancho mínimo de la fila le daba tres veces lo que necesita. */
+.tarjaControles > .tarjaChico{
+  flex:0 1 120px;
+  min-width:96px;
+}
+
+/* Y el mes y el equipo. Con 150px entran los nombres de los doce meses y las tres opciones. */
+.tarjaControles > .tarjaMedio{
+  flex:1 1 150px;
+}
+
+/* Y que un campo nunca se estire más allá de lo que su contenido necesita. Sin esto, "flex:1"
+   alcanza en la distribución pero un campo con pocas opciones queda de 900px igual. */
+.tarjaControles > .tarjaMedio select{
+  max-width:320px;
+}
+
+/* Y en pantalla angosta, los cuatro se apilan a lo ancho de la tarjeta, porque partidos en cuatro
+   columnas de 96px no hay forma de leer un mes. */
+@media (max-width:760px){
+  .tarjaControles > div{
+    flex:1 1 100%;
+    min-width:0;
+  }
+  .tarjaControles > .tarjaMedio select{
+    max-width:none;
+  }
+}
