@@ -48,15 +48,30 @@ select tablename                                        as tabla,
        coalesce('check (' || with_check || ')', 'sin check')
                                                          as condicion_de_escritura,
        case
-         when qual is null                              then '*** PASA TODO ***'
-         when qual ~* 'empresa_id'                      then 'dice empresa_id'
+         when p.cmd = 'INSERT'                  then 'el USING no se usa: mirar el CHECK'
+         when qual is null                      then '*** PASA TODO ***'
+         when qual ~* 'empresa_id'              then 'dice empresa_id'
          when qual ~* 'auth\.uid|perfil_roles|perfiles'
-                                                       then 'pregunta quien es'
+                                                     then 'pregunta quien es'
          else 'delega en una funcion: mirarla a ojo'
        end                                              as como_filtra,
        case
-         when roles = '{public}'                        then '*** SOLO public: anon queda afuera ***'
-         when qual is null                              then '*** ABIERTA ***'
+         -- Y PRIMERO: SI ES DE INSERT, EL "USING" NO SE USA. NADA QUE VER.
+         --
+         -- PostgreSQL aplica "with check" al INSERT y "using" no. Está en la documentación: para
+         -- INSERT, sólo importa el CHECK. Por eso siete políticas de INSERT del proyecto están
+         -- escritas con "usando (true)" y están BIEN: ese "(true)" no hace nada, y lo que manda es
+         -- el "check", que en las siete pregunta por permisos o por "auth.uid()".
+         --
+         -- Y la versión anterior de este diagnóstico no lo sabía, y a las siete les decía
+         -- "*** PASA TODO ***". Siete alarmas sobre siete políticas que funcionan. Es el tercer
+         -- defecto seguido de este archivo y del anterior, y todos del mismo tipo: unrecognized es
+         -- distinto de abierto, pero acá además se leía un campo que no significa nada para ese
+         -- comando, y eso es peor: no es que no reconocí la forma, es que medí la columna
+         -- equivocada.
+         when p.cmd = 'INSERT'                    then 'el USING no se usa en INSERT: sólo manda el check'
+         when roles = '{public}'                  then 'aplica a anon y a todos'
+         when qual is null                        then '*** PASA TODO ***'
          else 'ok, con su condicion'
        end                                              as veredicto
   from pg_policies
