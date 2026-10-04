@@ -3365,3 +3365,50 @@ function comprobarTokenEnLaBase(code,token){
 }
 
 
+
+// ------------------------------------------------------------------
+// POR QUE EL CAMPO NO SE RELLENA CON LO QUE HAY GUARDADO
+// ------------------------------------------------------------------
+// Antes, al abrir esta pantalla el campo de pegar venia con el token que
+// ya estaba en el navegador, y el cartel decia "este reloj ya está instalado en
+// este navegador".
+//
+// El problema es que las dos cosas son verdad y las dos enganan. Lo que
+// habia ahi podia ser cualquier cosa: en una instalacion de antes de que
+// existiera la comprobacion, se guardaba lo que se pegara sin mirar. Quedo
+// un id de usuario guardado como si fuera un token de un reloj.
+//
+// Entonces la persona veia "ya está instalado", apretaba Instalar, y la base
+// contestaba "el token es válido pero no es el de este reloj". Sin forma de
+// limpiar lo guardado, tampoco habia salida desde la pantalla.
+//
+// Ahora el campo arranca VACíO, con el ejemplo en el texto de ayuda. Si hay
+// algo guardado, el cartel lo dice pero aclarando que no se sabe si es el
+// bueno, y hay un boton para borrarlo.
+//
+// Vacío y no con el ejemplo puesto como valor: un valor de ejemplo es un token
+// que no existe, y alguien lo va a instalar sin querer. Como texto de ayuda
+// no se puede instalar por accidente.
+function pintarEstadoToken(code,instalado){
+  const caja=document.getElementById('tokenEstado');
+  if(!caja)return;
+  const deQuien=document.getElementById('tokenDeQueReloj');
+  if(deQuien)deQuien.textContent=code||'(sin elegir)';
+  if(instalado){
+    caja.innerHTML='<div class="aviso-fila" style="margin:0">'
+      +'<b>Hay un token guardado en ESTE navegador para este reloj.</b><br>'
+      +'No se sabe si es el correcto: eso solo se comprueba contra la base, y no se '
+      +'comprueba solo. Si el reloj marca, no toques nada. Si no marca, o si acabás de '
+      +'rotar el token, apretá <b>Olvidar el token guardado</b> y pegá el nuevo.</div>';
+    return;
+  }
+  caja.innerHTML='<div class="aviso-fila" style="margin:0">'
+    +'<b>Este reloj NO está instalado en este navegador.</b><br>'
+    +'El token no se puede recuperar: en la base queda solo su huella, por '
+    +'diseño. Para marcar desde acá hay dos caminos:<br>'
+    +'· Si tenés el token anotado, pegalo arriba y presioná <b>Instalar</b>.<br>'
+    +'· Si no lo tenés, cerrá esto y presioná <b>Rotar token</b> en la lista de '
+    +'relojes. Se muestra una sola vez: copialo antes de cerrar.</div>';
+}
+
+
