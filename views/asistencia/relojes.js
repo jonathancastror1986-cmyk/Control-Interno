@@ -1763,35 +1763,6 @@ function copiarCampoFicha(campo,boton){
 }
 
 // ------------------------------------------------------------------
-// COPIAR LA FICHA ENTERA
-// ------------------------------------------------------------------
-// Separado por tabuladores, NO por comas.
-//
-// El tabulador es el separador que Excel y Google Sheets reconocen al
-// pegar, y es el unico que no se rompe con un punto y coma dentro de un
-// texto. Un nombre de empresa con coma, o una observacion de salud con
-// punto y coma, partirian la fila en dos y la mitad de los datos
-// quedaria en la columna equivocada.
-//
-// Ademas lleva el nombre del campo arriba, con la misma lista. Pegado en
-// una hoja queda con encabezado, y la persona ve que columna es cada
-// cosa sin preguntar.
-function textoFichaParaPegar(){
-  const w=fichaEnPantalla;
-  if(!w)return '';
-  const lineas=[];
-  lineas.push('ficha\tversion\t'+VERSION_FORMATO_FICHA);
-  lineas.push(CAMPOS_FICHA.map(c=>c.etiqueta).join('\t'));
-  lineas.push(CAMPOS_FICHA.map(c=>valorParaArchivo(w,c)).join('\t'));
-  return lineas.join('\n');
-}
-function copiarFichaCompleta(boton){
-  if(!fichaEnPantalla){marcarBotonFicha(boton,'No hay nadie',false);return;}
-  copiarTextoFicha(textoFichaParaPegar(),boton);
-}
-
-
-// ------------------------------------------------------------------
 // DESCARGAR LA FICHA, CON SU FORMATO
 // ------------------------------------------------------------------
 // Un CSV, no un Excel. El motivo es concreto: el archivo va a un sistema
