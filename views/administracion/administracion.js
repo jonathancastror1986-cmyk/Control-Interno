@@ -1080,7 +1080,22 @@ function buildMatrixHtml(y,m,lista,modo){
   // horizontal envuelve todo, las leyendas se desplazan con la tabla: para leer el texto
   // de abajo hay que volver a arrastrar a la izquierda, y eso esconde la grilla. La
   // leyenda es de la persona, no de la tabla. Ver [tarja-07].
-  let html='<div class="overflow"><table><tr><th>Código</th><th class="attendance-name-column">Trabajador</th>';
+  // Y EL "COLGROUP", QUE ES DONDE VAN LOS ANCHOS DE LAS COLUMNAS FIJAS
+  //
+  // La tabla va con "table-layout:fixed" para que las columnas de día sean iguales. Con "fixed" el
+  // ancho sale de la PRIMERA FILA, y se puede poner en la celda... salvo en la primera.
+  //
+  // MEDIDO: la columna del código quedaba en 227 píxeles en vez de los 86 que pedía su regla, y el
+  // nombre sí tomaba los 220 de la suya. La única diferencia entre las dos es que la del código
+  // tiene "position:sticky", y una celda sticky no la mide el reparto de columnas: la mide el sticky.
+  //
+  // Y por eso los anchos van en un "colgroup": es el mecanismo que existe justamente para esto, y
+  // no le importa si la celda está pegada o no.
+  let html='<div class="overflow"><table>'
+    +'<colgroup><col style="width:86px"><col style="width:220px">'
+    +Array.from({length:nd},()=>'<col style="width:13px">').join('')
+    +'<col span="7" style="width:29px"></colgroup>'
+    +'<tr><th>Código</th><th class="attendance-name-column">Trabajador</th>';
   // Y LAS CELDAS DE DÍA LLEVAN CLASE, PORQUE SU ANCHO NO SE PUEDE DEJAR AL AZAR
     //
     // MEDIDO sin ella: los días 1 al 9 salían de 18 a 27 píxeles y los del 20 al 30 de 27 a 30. El
