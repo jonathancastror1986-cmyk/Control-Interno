@@ -647,7 +647,7 @@
 
   Y 22 SIGUE SIENDO EL ANCHO CORRECTO. El 14 es un apaño para que quepa en una tarjeta de 991
   píxeles: si la tarjeta crece, el número al que volver es 22, y tiene que estar escrito aquí
-  para que se encuentre. Ver [tarja-24].
+  para que se encuentre. Ver [tarja-21].
 
 /* Y "table-layout:fixed", que es lo que hace que ese ancho se cumpla en vez de ser una
    sugerencia. Antes descarté esta opción porque pensé que había que darle un ancho a las cuarenta
@@ -655,8 +655,33 @@
 
    Eso era un error: con "fixed" manda la primera fila, y las celdas SIN ancho se reparten lo que
    sobra. Con la clase en las celdas de día, cada día mide 22 píxeles steerla la cantidad de días
-   que tenga el mes, sin escribir ninguna lista. Ver [tarja-24]. */
+   que tenga el mes, sin escribir ninguna lista. Ver [tarja-21]. */
 #v-asistencia #matrixArea table,
 #v-supervisores #supMatrixArea table{
   table-layout:fixed;
+}
+
+/* -------------------------------------------------------------------
+  LA TARJETA DE ASISTENCIA, QUE NO TOMABA EL ANCHO DE LA PANTALLA
+  -------------------------------------------------------------------
+
+  MEDIDO, en la cadena de ancestros de la tarjeta:
+
+      div.card.attendance-panel     991px    sin max-width
+      section#v-asistencia.view     991px    max-width:1232px    <-- ESTE
+      main                         1039px    padding 24px
+
+  El tope de ancho estaba en la SECCION de la vista, no en la tarjeta. En una pantalla de 1870
+  pixeles ese 1232 es el que manda, y por eso sobra espacio a los dos lados.
+
+  Y la tabla, con el dia en 14, necesita 959: con la tarjeta cortada no entraba por once pixeles,
+  y por eso quedaba un scroll de lado. La solucion correcta NO es achicar mas los dias --que los
+  vuelve ilegibles para ganar once pixeles-- sino dejar de recortar la tarjeta. Ver [tarja-21].
+
+/* Y solo para esta vista, porque ".view" lo usan todas las pantallas del sistema y cambiarlo
+   globalmente descoloca las demas, que no se pueden comprobar en una sola corrida. La que tiene
+   cuarenta columnas es una. Y el "max-width" NO se borra: se pone en "none" aqui, y el numero
+   queda escrito al lado para el que tenga que volver a mirarlo. */
+#v-asistencia{
+  max-width:none;
 }
