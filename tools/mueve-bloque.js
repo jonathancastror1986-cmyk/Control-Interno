@@ -253,6 +253,34 @@ if (sueltos.length) {
 console.log('');
 console.log('  === 5) escribir ===');
 
+// ---------------------------------------------------------------------
+// EL ESTADO DE ANTES, PARA PODER VOLVER ATRAS
+// ---------------------------------------------------------------------
+//
+// Y ESTA HERRAMIENTA CORRE SOLA, VARIAS VECES SEGUIDAS, Y NO CON UNO MIRANDO
+// ---------------------------------------------------------------------
+//
+// Por eso, si una comprobacion falla, los dos archivos tienen que quedar EXACTAMENTE como estaban.
+// Con "git checkout" alcanza, pero eso obliga a que alguien este mirando, y la idea es justamente
+// poder encadenar los cortes sin supervision.
+//
+// Y el total de funciones de ANTES se calcula ACÁ, con el archivo entero, y no se escribe a mano.
+// Escribido a mano se quedó viejo en cuanto se agregó una función a "documentos.js", y el
+// herramienta avisó que había un bloque roto que estaba perfectamente bien. Un guardián que miente
+// es peor que un guardián que no está: entrena a ignorar el rojo.
+const bytesRelAntes = fs.readFileSync(P_REL);
+const bytesDocAntes = fs.readFileSync(P_DOC);
+const antesTotal = (function () {
+  const s = new Set();
+  const ver = (arr) => arr.forEach(function (x) {
+    const m = /^(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/.exec(limpio(x));
+    if (m) s.add(m[1]);
+  });
+  ver(rel.lineas);
+  ver(doc.lineas);
+  return s.size;
+})();
+
 // En relojés.js: quitar el bloque. Cada quita mueve el renglon de arriba al lugar del que se fue,
 // con su final, asi que el archivo queda con los finales que tenia.
 for (let k = 0; k < bloque.length; k++) rel.quita(DESDE);
@@ -312,7 +340,6 @@ function cuentaFuncs(l) {
 const relF = cuentaFuncs(rel.lineas);
 const docF = cuentaFuncs(doc.lineas);
 const total = relF.size + docF.size;
-const antesTotal = 161;
 
 // Y EL FINAL DE RENGLON, QUE ES LO QUE SE ROMPIO LA PRIMERA VEZ
 const crlfRelViejo = (function () {
@@ -370,5 +397,22 @@ CHEQUEOS.forEach(function (c) {
 
 console.log('');
 console.log('    los CRLF que quedaron en relojés.js: ' + crlfRelViejo);
-console.log('  ' + (malas ? '*** ' + malas + ' *** HAY QUE VOLVER A HEAD Y REHACERLO'
-  : 'ok  todo en verde.'));
+
+// ---------------------------------------------------------------------
+// Y SI ALGO FALLA, SE VUELVE SOLO
+// ---------------------------------------------------------------------
+//
+// Los dos archivos se vuelven a escribir con los bytes que tenian antes, y se avisa. Asi esta
+// herramienta se puede encadenar sin que una falla a medias deje el arbol a medio cortar y haya que
+// adivinar que se perdio.
+//
+// Y se avisa igual que antes, porque el bloque quedo sin mover y hay que rehacerlo: lo que cambio es
+// que no hace falta acordarse de "git checkout".
+if (malas) {
+  fs.writeFileSync(P_REL, bytesRelAntes);
+  fs.writeFileSync(P_DOC, bytesDocAntes);
+  console.log('  *** ' + malas + ' *** LOS DOS ARCHIVOS VOLVIERON A COMO ESTABAN. HAY QUE REHACER ESTE BLOQUE.');
+  process.exit(1);
+}
+
+console.log('  ok  todo en verde.');

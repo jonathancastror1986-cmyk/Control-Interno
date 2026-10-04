@@ -2608,3 +2608,46 @@ async function vigentesPlantilla(code){
   await cargarContratacion();
 }
 
+
+// ------------------------------------------------------------------
+// CENTROS DE COSTO
+// ------------------------------------------------------------------
+// Se dan de alta acá y no por el CSV de trabajadores, porque no son
+// trabajadores: son los centros de costo de la obra, y los importa el
+// sistema de planillas, no esta app.
+async function guardarCentroCosto(){
+  const code=document.getElementById('ccCode').value.trim().toUpperCase();
+  const nombre=document.getElementById('ccNombre').value.trim();
+  const err=document.getElementById('ccError');
+  err.textContent='';
+  if(!code){err.textContent='Falta el código.';return;}
+  if(!nombre){err.textContent='Falta el nombre.';return;}
+  const empresa=empresaActual||null;   // empresaActual ya ES el id
+  const {error}=await window.supabaseClient.from('centros_costo').insert({code,nombre,empresa_id:empresa});
+  if(error){
+    err.textContent=/duplicate|unique/i.test(error.message)
+      ?'Ya existe un centro de costo con el código "'+code+'" en esta empresa.'
+      :'No se pudo guardar: '+error.message;
+    return;
+  }
+  document.getElementById('ccCode').value='';
+  document.getElementById('ccNombre').value='';
+  await cargarRelojes();
+}
+function renderCentrosCosto(){
+  const box=document.getElementById('ccLista');
+  if(!box)return;
+  if(!centrosCosto.length){box.innerHTML='<small>No hay centros de costo todavía.</small>';return;}
+  box.innerHTML=centrosCosto.map(c=>{
+    const usados=relojes.filter(r=>r.centro_costo_id===c.id).length;
+    return '<div class="list-item" style="cursor:default">'
+      +'<span><b>'+escHtml(c.code)+'</b> — '+escHtml(c.nombre)
+      +'<small> · '+(usados?usados+' reloj(es)':'sin relojes')+'</small></span>'
+      +'<span>'+(c.activo?'':'<small style="color:var(--warn-ink)">inactivo</small>')+'</span></div>';
+  }).join('');
+}
+function editarReloj(code){
+  if(!exigirPermiso('relojes.editar','No tienes permiso para configurar relojes.'))return;
+  abrirFormularioReloj(code);
+}
+
