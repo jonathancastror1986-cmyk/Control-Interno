@@ -3663,3 +3663,73 @@ function guardarTotemToken(code){
 }
 
 
+
+// ------------------------------------------------------------------
+// LA CONEXIÓN
+// ------------------------------------------------------------------
+// Tres estados, y se distinguen a propósito:
+//
+//   CON CONEXIÓN   se puede marcar. Es lo normal.
+//   SIN CONEXIÓN   el reloj sigue funcionando: guarda la marcación en el
+//                  aparato y la sube cuando vuelve (art. 10 de la
+//                  Resolución Exenta 38/2024). La gente tiene que saber
+//                  esto, o se va a repetir la marcación cinco veces
+//                  pensando que no entró.
+//   COMPROBANDO    al abrir, antes de saber. Se muestra un instante.
+//
+// El icono es un punto de color, no un dibujo: a dos metros y con luz de
+// obra, un punto de 14 px se ve y un glifo no. Y lleva texto al lado,
+// porque el color solo no sirve para quien no distingue rojo de verde.
+let relojConexionTimer=null;
+let relojConexionEstado='comprobando';
+
+async function comprobarConexionTotem(){
+  marcarConexionTotem('comprobando');
+  try{
+    // Una consulta mínima. No se usa la de los trabajadores: trae cientos
+    // de filas y en una faena sin señal se queda colgada esperando, que es
+    // lo que hay que evitar: el reloj tiene que responder igual.
+    const {error}=await Promise.race([
+      window.supabaseClient.from('marcajes').select('id',{count:'exact',head:true}).limit(1),
+      // Si en 4 segundos no responde, es que no hay camino a la base.
+      new Promise((r)=>setTimeout(()=>r({error:{message:'timeout'}}),4000))
+    ]);
+    marcarConexionTotem(error?'sin':'con');
+  }catch(e){
+    marcarConexionTotem('sin');
+  }
+}
+
+function marcarConexionTotem(estado){
+  relojConexionEstado=estado;
+  const caja=document.getElementById('totemConexion');
+  if(!caja)return;
+  const textos={
+    comprobando:['comprobando','var(--muted)'],
+    con:['con conexión','var(--accent)'],
+    sin:['sin conexión: se guarda y sube después','var(--warn)']
+  };
+  const par=textos[estado]||textos.comprobando;
+  caja.innerHTML='<span class="totem-conexion-punto" style="background:'+par[1]+'"></span>'
+    +'<span class="totem-conexion-texto" style="color:'+par[1]+'">'+par[0]+'</span>';
+  // Con la señal perdida, el punto late: es la diferencia entre "está ahí"
+  // y "está funcionando". Sin parpadeo parece un adorno.
+  caja.classList.toggle('latiendo',estado==='sin');
+  caja.title=estado==='sin'
+    ?'Este reloj no está llegando a la base. La marcación se guarda en el aparato y se sube sola cuando vuelva la señal. No hace falta repetirla.'
+    :(estado==='con'?'Conectado con la base.':'');
+}
+
+function arrancarComprobacionConexion(){
+  comprobarConexionTotem();
+  if(relojConexionTimer)clearInterval(relojConexionTimer);
+  // Cada 30 segundos. Más seguido es gasto de datos en un aparato que
+  // puede estar con plan limitado; más espaciado tarda demasiado en
+  // avisar que se fue la señal.
+  relojConexionTimer=setInterval(comprobarConexionTotem,30000);
+}
+function pararComprobacionConexion(){
+  if(relojConexionTimer){clearInterval(relojConexionTimer);relojConexionTimer=null;}
+}
+
+
