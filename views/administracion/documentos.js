@@ -3072,3 +3072,73 @@ async function guardarTimbre(){
   await cargarContratacion();
 }
 
+
+// -------------------------------------------------------------------
+// EL CARGO SE ESCRIBE UNA SOLA VEZ
+// -------------------------------------------------------------------
+// Al elegir el cargo, "Cargo para las planillas" se completa con el nombre de ese cargo. Es
+// el texto que sale impreso en las planillas y en la credencial, y antes había que
+// escribirlo a mano, igual que ya estaba elegido en el desplegable.
+//
+// Tres reglas, y las tres importan:
+//
+//   1. SOLO SI EL CAMPO ESTÁ VACÍO. Si alguien ya escribió algo —"Maestro de obra, sector
+//      norte"— no se pisa. Ese texto a mano es información que el desplegable no tiene.
+//   2. AL VACIAR EL DESPLEGABLE TAMPOCO SE BORRA. "Sin asignar" no significa "el texto
+//      está mal": el cargo puede no estar en el catálogo y el texto igual ser el correcto.
+//   3. NO ESCRIBE SI NO HAY CARGO ELEGIDO. Por lo mismo del punto 2.
+function completarCargoEnElTexto(){
+  const sc=document.getElementById('w-cargo');
+  const st=document.getElementById('w-spec');
+  if(!sc||!st)return;
+  if(!sc.value)return;
+  if(st.value.trim())return;
+  const nombre=sc.options[sc.selectedIndex] ? (sc.options[sc.selectedIndex].textContent||'').trim() : '';
+  if(!nombre)return;
+  // Y solo si el texto que muestra el desplegable es el nombre del cargo y no algo como
+  // "Gastos Generales / Administrativo": el texto de las planillas es el del cargo.
+  st.value=nombre.split(' / ').pop().trim();
+}
+function initKitView(){
+  const sel=document.getElementById('kitWorker');
+  const anterior=sel.value;
+  const vis=codigosVisibles(workers);
+  sel.innerHTML='<option value="">Elegí un trabajador…</option>'+
+    workers.slice().sort((a,b)=>compararPorCodigo(a.code,b.code)||a.name.localeCompare(b.name))
+      .map(w=>`<option value="${escHtml(w.code)}">${escHtml((vis.get(w.code)||codigoMostrar(w.code))+' — '+w.name)}</option>`).join('');
+  if([...sel.options].some(o=>o.value===anterior))sel.value=anterior;
+  if(sel.value)cargarKitDelTrabajador(sel.value);
+  else document.getElementById('kitLista').innerHTML='<small>Elegí un trabajador para ver sus papeles.</small>';
+}
+async function comprobarContratacion(){
+  try{
+    const {data,error}=await window.supabaseClient.rpc('diagnostico_contratacion');
+    if(error){
+      if(faltaLaMigracion(error,['diagnostico_contratacion'])){
+        mostrarAvisoPermisos('El kit de contratación NO está puesto: falta aplicar la migración 031_kit_contratacion.sql. '+
+          'Sin ella no se pueden generar los papeles firmados.');
+      }
+      return;
+    }
+    const d=Array.isArray(data)?data[0]:data;
+    if(!d)return;
+    const problemas=[];
+    if(!d.tabla_plantillas)problemas.push('faltan las plantillas');
+    if(!d.tabla_entregas)problemas.push('faltan las entregas');
+    if(!d.tabla_timbre)problemas.push('falta el timbre');
+    if(!d.fn_kit)problemas.push('falta la función del kit');
+    if(!d.fn_firma)problemas.push('falta la función de firma');
+    if(problemas.length){
+      mostrarAvisoPermisos('El kit de contratación está incompleto ('+problemas.join(', ')+'). Vuelve a aplicar la migración 031_kit_contratacion.sql.');
+    }else if(Number(d.sin_contenido)>0){
+      mostrarAvisoPermisos('Hay '+d.sin_contenido+' plantilla(s) sin contenido. Un papel vacío no se puede firmar. Se ven en Administración → Editar plantillas y timbre.');
+    }
+  }catch(error){
+    console.info('No se pudo comprobar el kit de contratación:',error.message);
+  }
+}
+
+// ===================================================================
+// ============================================================
+// ============================================================
+
