@@ -357,7 +357,9 @@
 .tarjaControles input,
 .tarjaControles select,
 .tarjaControles .btn-compacto{
-  height:38px;
+  box-sizing:border-box;
+  height:38px !important;
+  min-height:38px !important;
 }
 
 /* Y en una pantalla angosta los botones pasan a ocupar la fila entera, para que los tres quepan
@@ -495,4 +497,49 @@
   font-style:italic;
   font-weight:700;
   cursor:help;
+}
+
+/* -------------------------------------------------------------------
+  LOS CONTROLES SUELTOS, Y EL HUECO ANTES DE LA TABLA
+  -------------------------------------------------------------------
+
+  MEDIDO antes: el campo de la fecha y el botón de agregar feriado medían 12px de alto. No se
+  trababan con la tabla: estaban aplastados. La regla de "asistencia.css" que les pone 30px no
+  gana, y con "box-sizing:border-box" un alto explícito le gana al contenido -- así que el 12
+  viene de una altura de 11.6 que alguien le puso encima. Ver [tarja-20]. */
+
+/* Y con "!important" a propósito: la regla que gana es invisible desde acá, y sin esto esta regla
+   nueva se pierde otra vez en el mismo silencio. Lo que se busca no es que sea elegante. */
+#v-asistencia .attendance-panel.active > .tarjaHoliday input[type="date"],
+#v-asistencia .attendance-panel.active > .tarjaHoliday .btn{
+  box-sizing:border-box;
+  height:38px !important;
+  min-height:38px !important;
+  padding:0 12px;
+}
+
+/* Y la fila del feriado, con su propio aire, porque son controles que se usan de a uno y no
+   tiene que competir con la grilla por el espacio. */
+#v-asistencia .attendance-panel.active > .tarjaHoliday{
+  margin-top:10px;
+  margin-bottom:4px;
+  padding:0;
+}
+
+/* Y el hueco antes de la tabla. Antes los controles terminaban en el mismo punto donde arrancaba
+   la grilla, así que el botón y la tabla quedaban pegados. Con el botón aplastado no se notaba;
+   arreglado el alto, sí. */
+#v-asistencia .tarjaTabla,
+#v-supervisores .tarjaTabla{
+  margin-top:14px;
+}
+
+/* Y la nota del filtro de estados, que antes llevaba el tamaño y el color puestos en el HTML.
+   Van en la hoja para que el HTML no traiga estilos sueltos, que es lo que hace imposible
+   cambiar el color desde un solo lugar. */
+.tarjaNota{
+  display:block;
+  margin-top:4px;
+  font-size:.75rem;
+  color:var(--muted);
 }

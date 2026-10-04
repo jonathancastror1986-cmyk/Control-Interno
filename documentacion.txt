@@ -3802,6 +3802,69 @@ encabezado.
 
   Eso no falla: no hay error ni aviso, sólo la pantalla se pone más lenta. Y es la clase de
   defecto que no se busca, porque nada dice que esté mal.
+[tarja-20] LOS CONTROLES SUELTOS, APLASTADOS A DOCE PÍXELES
+-----------------------------------------------------------------------------
+
+  En la tarja mensual, el campo de la fecha y el botón de agregar feriado están FUERA de un
+  ".row", sueltos en la tarjeta. Y medían 12px de alto.
+
+  ---------------------------------------------------------------------
+  MEDIDO
+  ---------------------------------------------------------------------
+
+      input#addHoliday            12px
+      botón "Agregar feriado"     12px      <- con una regla que dice "height:30px"
+
+  ---------------------------------------------------------------------
+  Y NO SE TRABABAN CON LA TABLA: ESTABAN APLASTADOS
+  ---------------------------------------------------------------------
+
+  Eso cambia el diagnóstico. Durante un rato se buscó qué se superponía con el botón, y la
+  respuesta es que nada se superponía: el botón medía 12 píxeles y la tabla arrancaba justo
+  donde él terminaba. Con un botón aplastado, el pegado con la grilla se ve como un solapamiento.
+
+  ---------------------------------------------------------------------
+  Y POR QUÉ LA REGLA QUE DICE 30PX NO SE APLICABA
+  ---------------------------------------------------------------------
+
+  "asistencia.css" tiene, para esos controles sueltos, "height:30px". Y el alto calculado da
+  11.6px. O sea que esa regla NO es la que gana: hay otra después, con la misma especificidad o
+  más, y el motor se queda con la última.
+
+  Y con "box-sizing:border-box", que es lo que trae el proyecto, un "height" explícito le gana
+  al contenido. Así que el 12px NO viene de que el botón sea chico: viene de una altura de 11.6
+  que alguien le puso encima. Un botón con padding de 5px arriba y abajo nunca mide 12.
+
+  ---------------------------------------------------------------------
+  Y LA CORRECCIÓN
+  ---------------------------------------------------------------------
+
+  Se pone la altura de nuevo, con "!important". Es la excepción justificada del proyecto: la
+  regla que gana es invisible desde el selector nuevo, y sin el "!important" la regla nueva se
+  pierde en el mismo silencio de siempre.
+
+  Y queda en 38 y no en 30: 38 es lo que mide el resto de los controles de la fila, y lo que se
+  busca es que el botón de agregar feriado se vea igual que los de arriba. Antes no se notaba la
+  diferencia porque medía 12.
+
+  ---------------------------------------------------------------------
+  Y EL HUECO QUE SE PIDIÓ ENTRE LOS BOTONES Y LA TARJA
+  ---------------------------------------------------------------------
+
+  "tarjaTabla" lleva margen arriba. Antes los controles soltos terminaban en el mismo punto donde
+  arrancaba la grilla, así que el botón y la tabla quedaban pegados. Con el botón aplastado no se
+  notaba; arreglado el alto, sí se veía.
+
+  ---------------------------------------------------------------------
+  Y EL FILTRO DE ACTIVOS EN LA TARJA MENSUAL
+  ---------------------------------------------------------------------
+
+  Estaba en la del supervisor y no en la mensual. Se agrega con el mismo criterio: el que no
+  trae "status" cuenta como activo, que es lo que hace "workerToDb".
+
+  Y se aplica JUNTO con el filtro de supervisor y el de trabajador, no después y aparte. Los tres
+  acotan la misma lista, y si el de equipo se aplicara al final, sobre una lista ya filtrada, el
+  "N de M" del mensaje contaría sobre un M que nadie está mirando.
 [afp-22] EL ANCLA CON UN ESPACIO DE MÁS
 --------------------------------------------------------------------------------
 

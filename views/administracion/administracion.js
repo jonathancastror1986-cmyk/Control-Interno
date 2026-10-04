@@ -1204,7 +1204,20 @@ function renderMatrix(){
   const supervisorCode=document.getElementById('matSupervisorFilter').value;
   const workerCode=document.getElementById('matWorkerFilter').value;
   const estadoFiltro=(document.getElementById('matEstadoFiltro')||{}).value||'';
-  const base=workers.filter(worker=>(!supervisorCode||worker.supervisor_code===supervisorCode)&&(!workerCode||worker.code===workerCode));
+    // Y EL FILTRO DE ACTIVOS E INACTIVOS, QUE ANTES NO ESTABA EN ESTA TARJA
+    //
+    // Y sale del select, y el valor vacío es "los dos", que no es lo mismo que "ninguno": es para
+    // cuando uno está revisando un mes viejo y quiere ver a quién estaba y a quién no.
+    //
+    // Y se aplica JUNTO con el de supervisor y el de trabajador, no después y aparte: los tres
+    // acotan la misma lista, y si el de equipo se aplicara al final, sobre una lista ya filtrada,
+    // el "N de M" del mensaje contaría sobre un M que nadie está mirando.
+    const equipoFiltro=(document.getElementById('matEstadoEquipo')||{}).value||'';
+    const base=workers.filter(worker=>(!supervisorCode||worker.supervisor_code===supervisorCode)&&
+      (!workerCode||worker.code===workerCode)&&
+      // Y el que no trae status cuenta como activo: es lo que hace "workerToDb", que le pone
+      // "'activo'" cuando no viene nada.
+      (!equipoFiltro||String(worker.status||'activo')===equipoFiltro));
 
   let filteredWorkers=base;
   if(estadoFiltro){

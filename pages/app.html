@@ -20,19 +20,19 @@ proyecto: cero build, cero "node_modules". -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=89"></script>
-<script src="../config/supabase.client.js?v=89"></script>
-<script src="../config/auth.js?v=89"></script>
-<script src="../controllers/theme.js?v=89"></script>
-<script src="../controllers/clima-reloj.js?v=89"></script>
-<link rel="stylesheet" href="../css/base.css?v=89">
+<script src="../config/supabase.config.js?v=92"></script>
+<script src="../config/supabase.client.js?v=92"></script>
+<script src="../config/auth.js?v=92"></script>
+<script src="../controllers/theme.js?v=92"></script>
+<script src="../controllers/clima-reloj.js?v=92"></script>
+<link rel="stylesheet" href="../css/base.css?v=92">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=89">
-<link rel="stylesheet" href="../css/grupos.css?v=89">
-<link rel="stylesheet" href="../css/styles.css?v=89">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=89">
+<link rel="stylesheet" href="../css/tokens.css?v=92">
+<link rel="stylesheet" href="../css/grupos.css?v=92">
+<link rel="stylesheet" href="../css/styles.css?v=92">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=92">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=89"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=92"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,13 +68,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=89">
-<link rel="stylesheet" href="../css/vistas.css?v=89">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=89">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=89">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=89">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=89">
-<link rel="stylesheet" href="../css/movil.css?v=89" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=92">
+<link rel="stylesheet" href="../css/vistas.css?v=92">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=92">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=92">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=92">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=92">
+<link rel="stylesheet" href="../css/movil.css?v=92" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -1049,38 +1049,44 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
   <div class="card attendance-panel active" role="tabpanel" data-attendance-panel="tarja">
     <h2>Tarja mensual</h2>
-    <div class="row">
-      <div><label>Año</label><input type="number" id="matYear"></div>
-      <div><label>Mes</label><select id="matMonth" onchange="renderMatrix()">
+    <div class="row tarjaControles">
+      <div class="tarjaCampo tarjaGrande"><label>Supervisor</label><select id="matSupervisorFilter" onchange="updateAttendanceWorkerFilter()"><option value="">Todos los supervisores</option></select></div>
+      <div class="tarjaCampo tarjaMedio"><label>Trabajador</label><select id="matWorkerFilter" onchange="renderMatrix()"><option value="">Todos los trabajadores</option></select></div>
+      <div class="tarjaCampo tarjaMedio"><label>Equipo</label><select id="matEstadoEquipo" onchange="renderMatrix()">
+        <option value="activo">Solo activos</option>
+        <option value="desvinculado">Solo inactivos</option>
+        <option value="">Activos e inactivos</option>
+      </select></div>
+      <div class="tarjaCampo tarjaChico"><label>Año</label><input type="number" id="matYear"></div>
+      <div class="tarjaCampo tarjaMedio"><label>Mes</label><select id="matMonth" onchange="renderMatrix()">
         <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
         <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
         <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
         <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
       </select></div>
-    </div>
-    <div class="row">
-      <div><label>Filtrar supervisor</label><select id="matSupervisorFilter" onchange="updateAttendanceWorkerFilter()"><option value="">Todos los supervisores</option></select></div>
-      <div><label>Filtrar trabajador</label><select id="matWorkerFilter" onchange="renderMatrix()"><option value="">Todos los trabajadores</option></select></div>
-      <div><label>Mostrar solo quienes tienen</label><select id="matEstadoFiltro" onchange="renderMatrix()">
+      <div class="tarjaCampo tarjaMedio"><label>Mostrar solo quienes tienen</label><select id="matEstadoFiltro" onchange="renderMatrix()">
         <option value="">Todo el equipo</option>
         <option value="F">Faltas (F)</option>
         <option value="P">Permisos o licencias (P, L, A, PP, V)</option>
         <option value="vacio">Días vacíos sin marcar</option>
         <option value="todoX">Todo en X, sin huecos</option>
       </select>
-      <small id="matEstadoFiltroMsg" style="font-size:.75rem;color:var(--muted)"></small></div>
-    </div>
-    <div class="row">
-      <button class="btn secondary" type="button" onclick="openQrCamera('attendance-supervisor')">Escanear QR supervisor</button>
-      <button class="btn secondary" type="button" onclick="openQrCamera('attendance-worker')">Escanear QR trabajador</button>
-      <div><label>Generar tarja</label><button class="btn secondary" type="button" onclick="renderMatrix()">Generar tarja</button></div>
+      <small id="matEstadoFiltroMsg" class="tarjaNota"></small></div>
+      <div class="tarjaBotones">
+        <button class="btn secondary btn-compacto" type="button" onclick="openQrCamera('attendance-supervisor')">📷 Escanear QR supervisor</button>
+        <button class="btn secondary btn-compacto" type="button" onclick="openQrCamera('attendance-worker')">📷 Escanear QR trabajador</button>
+        <button class="btn secondary btn-compacto" type="button" onclick="renderMatrix()">Generar tarja</button>
+      </div>
     </div>
     <div id="matLeyendaCeldas" class="tarjaLeyenda" hidden></div>
     <div class="kitResumen" id="tarjaPermisoHint"></div>
-    <label>Agregar feriado adicional (fecha)</label>
-    <input type="date" id="addHoliday">
-    <button class="btn secondary" onclick="addHoliday()">Agregar feriado</button>
-    <div id="matrixArea"></div>
+    <div class="row tarjaControles tarjaHoliday">
+      <div class="tarjaCampo tarjaMedio"><label>Agregar feriado adicional (fecha)</label><input type="date" id="addHoliday"></div>
+      <div class="tarjaBotones">
+        <button class="btn secondary btn-compacto" type="button" onclick="addHoliday()">Agregar feriado</button>
+      </div>
+    </div>
+    <div id="matrixArea" class="tarjaTabla"></div>
   </div>
   <div class="card attendance-panel" role="tabpanel" data-attendance-panel="marcaje">
     <h2>Registrar marcaje manual</h2>
@@ -1474,7 +1480,6 @@ duplica nada: la base lo sabe y lo cuenta.
       <div class="tarjaBotones">
         <button class="btn secondary btn-compacto" type="button" onclick="openQrCamera('supervisor-team')">📷 Escanear QR</button>
         <button class="btn secondary btn-compacto" type="button" onclick="abrirModalTodosLosDias()">Pedir cambio por rango</button>
-        <button class="btn secondary btn-compacto btn-info" type="button" onclick="alternarLeyendaTarja(this)" title="Qué significa cada letra" aria-label="Qué significa cada letra">?</button>
       </div>
       <div class="tarjaCampo tarjaMedio"><label>Equipo</label><select id="supEstadoEquipo" onchange="renderSupervisorMatrix()">
         <option value="activo">Solo activos</option>
@@ -1483,7 +1488,7 @@ duplica nada: la base lo sabe y lo cuenta.
       </select></div>
     </div>
     <div id="supLeyendaCeldas" class="tarjaLeyenda" hidden></div>
-    <div id="supMatrixArea"></div>
+    <div id="supMatrixArea" class="tarjaTabla"></div>
     <p class="kitResumen">Haz clic en cualquier día para <b>solicitar</b> un cambio de estado: se abre una ventana para elegir el estado nuevo y escribir el detalle. Queda pendiente hasta que RRHH lo apruebe.</p>
   </div>
 </section>
@@ -2814,20 +2819,20 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=89"></script>
-<script src="../views/porteria/escaner.js?v=89"></script>
+<script src="../js/nucleo.js?v=92"></script>
+<script src="../views/porteria/escaner.js?v=92"></script>
 
-<script src="../views/asistencia/relojes.js?v=89"></script>
-<script src="../views/soporte/soporte.js?v=89"></script>
-<script src="../views/administracion/administracion.js?v=89"></script>
-<script src="../views/bodega/bodega.js?v=89"></script>
+<script src="../views/asistencia/relojes.js?v=92"></script>
+<script src="../views/soporte/soporte.js?v=92"></script>
+<script src="../views/administracion/administracion.js?v=92"></script>
+<script src="../views/bodega/bodega.js?v=92"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
-<script src="../views/administracion/docx.js?v=89"></script>
-<script src="../views/administracion/documentos.js?v=89"></script>
-<script src="../views/supervisores/supervisores.js?v=89"></script>
-<script src="../js/app.js?v=89"></script>
+<script src="../views/administracion/docx.js?v=92"></script>
+<script src="../views/administracion/documentos.js?v=92"></script>
+<script src="../views/supervisores/supervisores.js?v=92"></script>
+<script src="../js/app.js?v=92"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
