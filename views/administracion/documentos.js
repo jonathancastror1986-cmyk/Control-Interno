@@ -4297,3 +4297,196 @@ function pintarTotemInicial(){
     (totemActual?totemActual.code+' · ':'')+(totemActual?centroDe(totemActual):'');
 }
 
+
+// ------------------------------------------------------------------
+// LLAMAR AL MARCAJE, Y VOLVER ATRÁS SI LA 052 NO ESTÁ
+// ------------------------------------------------------------------
+// La 052 mete marcar_por_reloj_controlado(), que es la de siempre con el
+// horario del reloj revisado antes. Si esa función no existe, se vuelve a la
+// vieja y NO se vuelve a intentar: un reloj que va a la portería tiene que
+// poder marcar aunque alguien no haya subido una migración.
+//
+// Y se avisa por consola, no por pantalla. Un cartel de "falta la 052" cada
+// vez que alguien pasa la tarjeta en la portería es peor que no avisar: la
+// gente cree que su marcaje falló.
+async function llamarMarcaje(nombre,args){
+  let r=await window.supabaseClient.rpc(nombre,args);
+  if(!r.error)return r;
+
+  if(nombre==='marcar_por_reloj_controlado'
+     && /does not exist|Could not find the function|PGRST202|marcar_por_reloj_controlado/i.test(String(r.error.message||''))){
+    marcarPorRelojConHorario=false;
+    console.warn('La 052 no está aplicada: el reloj marcará sin revisar el horario. '
+      +'Aplícala para que el horario de marcaje funcione.');
+    return await window.supabaseClient.rpc('marcar_por_reloj',args);
+  }
+  return r;
+}
+
+// ------------------------------------------------------------------
+// LLAMAR AL MARCAJE, Y VOLVER ATRÁS SI LA 052 NO ESTÁ
+async function registrarDesdeTotem(codigo){
+  if(!totemActual)return;
+  const leido=String(codigo||'').trim();
+  if(!leido){
+    mostrarTotem('error','No se leyó nada','Acerca la tarjeta otra vez.');
+    return;
+  }
+  // Un lector USB manda la misma lectura varias veces seguidas. Sin esta
+  // fila, la primera gana y las otras llenan la pantalla de "ya lo
+  // habías marcado" mientras la persona todavía no levantó la tarjeta.
+  if(Date.now()-(registrarDesdeTotem.ultima||0)<1500)return;
+  registrarDesdeTotem.ultima=Date.now();
+
+  // ------------------------------------------------------------------
+  // SIN TOKEN EN ESTE APARATO
+  // ------------------------------------------------------------------
+  // Se comprueba acá y no después de la respuesta. La base responde
+  // TOKEN_INVALIDO tanto si el token no está como si es de otro reloj, y
+  // el mensaje que salía ("El reloj no está registrado en el sistema")
+  // mandaba a revisar un reloj que sí existe y está sano. El problema, en
+  // este caso, es de ESTE aparato.
+  //
+  // Se dice antes de llamar, porque la llamada no puede saber la
+  // diferencia y porque un marcaje que va a fallar no se manda.
+  const token=totemTokenActual();
+  if(!token){
+    mostrarTotem('error','Este aparato no tiene el token',
+      'El reloj '+String(totemActual&&totemActual.code||'')+' es correcto, pero en este equipo no se instaló su token.'
+      +'\n\nSe arregla desde la pantalla de Relojes: presioná "Rotar token" y copialo,'
+      +' después volvé a abrir la pantalla de marcaje y presioná "Pegar el token" con ese valor.'
+      +'\n\nSe hace una sola vez por reloj y por aparato.');
+    return;
+  }
+
+  // ------------------------------------------------------------------
+  // MARCAR CON HORARIO, Y SIN ROMPER NADA SI LA 052 NO ESTÁ
+  // ------------------------------------------------------------------
+  // Se llama a marcar_por_reloj_controlado, que es la de la 052: revisa el
+  // horario del reloj y, si deja pasar, delega a la función de siempre.
+  //
+  // null = todavía no se sabe. undefined sería lo mismo, pero se escribe null
+// a propósito: la diferencia entre "no se probó" y "probó y no estaba"
+// importa cuando se está leyendo el código a las dos de la mañana.
+let marcarPorRelojConHorario=null;
+
+// null = todavía no se sabe. undefined sería lo mismo, pero se escribe null
+// a propósito: la diferencia entre "no se probó" y "probó y no estaba"
+// importa cuando se está leyendo el código a las dos de la mañana.
+
+
+// Y si la 052 no está aplicada, se vuelve a la de siempre sin decir nada.
+  // No es una degradada de verdad: es lo que evita que un reloj quede sin poder
+  // marcar porque alguien no subió una migración. La primera vez que se llama
+  // y falla se marca, y después no se vuelve a intentar, porque una pantalla
+  // que reintenta en cada marcaje envejece al reloj.
+  let rpcMarcaje='marcar_por_reloj_controlado';
+  if(marcarPorRelojConHorario===false)rpcMarcaje='marcar_por_reloj';
+  let resp=await llamarMarcaje(rpcMarcaje,{
+    // El token lo tiene que mandar el tótem, no la pantalla. Si no hay
+    // ninguno cargado, se avisa en vez de mandar un marcaje que va a
+    // rebotar sin explicación.
+    p_token:token,
+    p_codigo:leido,
+    p_tipo:document.getElementById('totemTipo').value
+  });
+  if(error){
+    // Una migración faltante no es un marcaje malo: es que la base no está
+    // lista. Se distingue ANTES de buscar un código de error, porque el
+    // texto de PostgREST no trae ninguno y la pantalla terminaba
+    // mostrando una línea de inglés técnico en un cartel de 50 letras.
+    if(errorEsRelojesSinMigrar(error)){
+      mostrarTotem('error','Reloj sin configurar',
+        'La migración 030_relojes_totem.sql no está aplicada en la base de datos. Avisa a administración.');
+      return;
+    }
+    const msg=String(error.message||'');
+    const codigoError=(msg.match(/[A-Z_]{6,}/)||[''])[0];
+    // Con token puesto y rechazo, el caso normal es que el token sea de
+    // otro reloj: alguien instaló el equivocado, o se rotó el token y
+    // este aparato quedó con el viejo. Se dice eso, y no "el reloj no
+    // existe", que lleva a revisar un reloj sano.
+      if(codigoError==='TOKEN_INVALIDO'){
+      // El token puesto no es el de este reloj. Pasa cuando se instaló el
+      // de otro, o cuando se rotó el de este y el aparato quedó con el
+      // anterior. Es el caso más común después de una alta de reloj.
+      //
+      // Se muestra el campo para pegarlo acá, y no se manda a la pantalla
+      // de Relojes: esa está en el computador de la oficina y el reloj
+      // está en la portería. Ir a buscar el token, volver, y pegarlo es un
+      // viaje que alguien tiene que hacer en la obra.
+      mostrarTotem('error','El token no es de este reloj',
+        'Este equipo tiene un token, pero no es el del reloj '
+        +String(totemActual&&totemActual.code||'')
+        +'. Pegalo abajo y se arregla acá mismo.');
+      mostrarCampoTokenTotem();
+      return;
+    }
+    const par=MENSAJES_TOTEM[codigoError]||['No se pudo marcar',msg||'Intenta de nuevo.'];
+    mostrarTotem('error',par[0],par[1]);
+    return;
+  }
+  const d=Array.isArray(data)?data[0]:data;
+  if(!d){mostrarTotem('error','No se pudo marcar','Intenta de nuevo.');return;}
+  // La hora que se acaba de guardar, aparte del cartel.
+  //
+  // El cartel dice "Entrada registrada". Eso no es lo que la gente necesita
+  // ver: necesita ver LA HORA, porque es lo que va a figurar en la planilla y
+  // lo que va a impugnar si le parece mal. Y necesita ver la hora del reloj
+  // del aparato al lado, para poder notar un desfase.
+  if(d.marca_hora)marcarHoraDeLaMarcaja(d.marca_hora);
+  if(d.resultado==='ok'){
+    mostrarTotem('ok',d.trabajador_nombre,
+      (d.marca_tipo==='entrada'?'Entrada':d.marca_tipo==='salida'?'Salida'
+        :d.marca_tipo==='colacion_entrada'?'Salida a colación':'Vuelta de colación')
+      +' registrada a las '+escHtml(d.marca_hora));
+    // Y el contador de "Marcajes Realizados" sube EN LA MEMORIA, sin volver a
+    // preguntar. Solo en el camino de exito: si se sumara en "duplicado" o en
+    // "ya_marcado", el numero subiria sin que haya una marca nueva, que es peor que
+    // mostrarlo atrasado.
+    sumarMarcajeAlTotem(d);
+  }else if(d.resultado==='fuera_de_horario'){
+    // ------------------------------------------------------------------
+    // EL REYLO ESTÁ CERRADO
+    // ------------------------------------------------------------------
+    // Es un caso aparte y no un error más, porque lo que la persona tiene que
+    // hacer es otra cosa: no reintentar. El reloj tiene un horario y ahora no
+    // está dentro, y la respuesta a eso no es provar otra vez con la tarjeta en
+    // la mano.
+    //
+    // Y se dice a dónde ir. Un "no se pudo marcar" sin más en un aparato de la
+    // portería es un callejón sin salida: la persona no tiene teléfono, no
+    // tiene usuario y no puede hacer nada. Por eso el texto nombra a quién y
+    // en qué pantalla.
+    mostrarTotem('error','Fuera del horario de marcaje',
+      'Intentaste marcar a las <b>'+escHtml(d.marca_hora||'')+'</b> y este reloj ya no está en horario. '
+      +'Pide en <b>Administración</b> que registren tu marcaje a mano, o márcalo mañana a la hora de entrada.',
+      12000);
+  }else if(d.resultado==='ya_marcado'){
+    mostrarTotem('ya_marcado',d.trabajador_nombre,
+      'Ya tenías esta marca de hoy, a las '+escHtml(d.marca_hora)+'.');
+  }else{
+    mostrarTotem('duplicado',d.trabajador_nombre,
+      'Ya quedó registrada a las '+escHtml(d.marca_hora)+'.');
+  }
+  // ------------------------------------------------------------------
+  // LOS AVISOS, DESPUES DE MARCAR
+  // ------------------------------------------------------------------
+  // Va despues del if/else a proposito. Si se dejara antes, un marcaje
+  // que fallo igual abriria la ventana de avisos, y la persona leeria
+  // un aviso sobre una marca que no existe: es peor que no avisar.
+  //
+  // Tampoco se espera: la marca ya esta guardada y la pantalla tiene que
+  // mostrar el "entrada registrada" ya. La revision del aviso viene
+  // atras y pisa el color del recuadro, no el mensaje.
+  revisarAvisosDelTrabajador(d.trabajador_code);
+}
+// El token se guarda en el navegador del tótem, no en el HTML. Por eso la
+// pantalla puede vivir en un archivo solo y el token se configura una vez
+// en el aparato. En un equipo compartido es un riesgo, y se dice: por eso
+// el tótem tiene que ser un aparato dedicado, no un navegador de escritorio.
+function totemTokenActual(){
+  try{return localStorage.getItem('totemToken_'+totemActual.code)||'';}
+  catch(error){return '';}
+}
+
