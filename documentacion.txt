@@ -4819,6 +4819,117 @@ se ven. Que una tabla no sea de una empresa no significa que cualquiera pueda es
 
 Ver [rls-01] para por qué el permiso de pantalla no alcanza.
 
+[rls-07] EL ALCANCE DEL ADMINISTRADOR, QUE NO ES UN FILTRO DE FILAS
+------------------------------------------------------------------
+La última pieza del hallazgo original, y la única que NO se arregla con una migración porque no es
+un defecto: es una decisión que no está escrita en ninguna parte.
+
+LO QUE ESTÁ MEDIDO
+--------------------------------------------------------------------------------
+"es_admin()" está redefinida en dieciséis migraciones —014, 016, 019, 020, 021, 023, 024, 026, 046,
+047, 050, 051, 052, 053— y en las dieciséis es lo mismo:
+
+    select exists (
+      select 1 from perfil_roles r
+      where r.user_id = uid and r.rol = 'admin'
+    )
+
+Y las dos tablas que_player en el nombre NO llevan empresa:
+
+    roles_sistema   rol, nombre, descripcion, orden         ← sin empresa_id, nunca se le agregó
+    perfil_roles    user_id, rol                            ← sin empresa_id
+
+La que SÍ lleva empresa es otra, y es la que acota qué ve cada usuario:
+
+    perfil_empresas   user_id, empresa_id
+
+O sea que la arquitectura del proyecto tiene DOS ejes, y son distintos:
+
+    perfil_roles      QUÉ PUEDE HACER un usuario     (global)
+    perfil_empresas  QUÉ EMPRESAS VE un usuario      (por empresa)
+
+Y el problema es de qué eje gana. En "puede_ver_trabajador":
+
+    select public.es_admin(uid)
+        or exists (select 1 from perfil_empresas pe
+                   join public.trabajadores t on t.empresa_id = pe.empresa_id
+                   where pe.user_id = uid and t.code = worker_code)
+
+La salida del administrador está PRIMERO. Y como el "or" es corto circuito, para un admin no se
+consulta "perfil_empresas": da igual lo que tenga ahí.
+
+CONSECUENCIA, Y ES UNA DECISIÓN
+--------------------------------------------------------------------------------
+Un usuario con el rol "admin" ve los trabajadores de TODAS las empresas, sin excepción.
+
+Eso puede ser exactamente lo que se quiere, y hay razones para que lo sea: el servicio es de una
+casa, y hay un dueño que tiene que ver todo para trabajar. En la pantalla se ve "todas las empresas
+(47)".
+
+Y el riesgo es que dentro de dos años se le dé "admin" a un administrador de una empresa cliente, y
+ese usuario vea los trabajadores de los otros 46 clientes. Sin que nadie lo pidiera, y sin que
+ningún aviso lo diga: no es un error, es el diseño.
+
+Y el daño es peor que el de un filtro de filas, porque un filtro que falta se ve —una lista que no
+carga, una pantalla vacía—. Esto no se ve nunca: la pantalla carga, los datos están, y todo funciona.
+
+LO QUE NO SE HACE, Y POR QUÉ
+--------------------------------------------------------------------------------
+No hay migración. Y hay una razón concreta, novaguedad:
+
+Acotar el admin a su empresa NO es cambiar una función. Son DOS cambios:
+
+    UNO: una columna "empresa_id" en "perfil_roles", o una tabla "admin_empresas". Porque el rol
+         solo no alcanza para decir DE QUÉ EMPRESA es. Sin eso, la pregunta "de qué empresa es este
+         admin" no tiene dónde contestarse.
+
+    DOS: cambiar "puede_ver_trabajador" para que la rama de admin pregunte por esa columna. Y
+         probably también "tiene_permiso" y "es_usuario_activo".
+
+Y el segundo es el difícil, porque "tiene_permiso" decide qué botón aparece. Un permiso con alcance
+se tiene que resolver en el servidor, y del lado del servidor es donde ya sabemos que el RLS no
+acota columnas. Ver [rls-01].
+
+Si la respuesta fuera "el admin es de la casa", ninguna de las dos cosas hay que hacer. Por eso
+primero hay que CONTESTAR, y después escribir.
+
+CÓMO SE CONTESTA
+--------------------------------------------------------------------------------
+"migrations/diagnostico-alcance-roles.sql" da tres cosas:
+
+    · los roles que existen, y cuántos usuarios tiene cada uno
+    · cada usuario con sus roles y con cuántas empresas, y si las ve todas
+    · un veredicto: si hay un admin, no hay nada que cambiar; si hay varios, hay que decidir
+
+Y la consulta que decide cuál de los dos casos es:
+
+    select count(*) from perfil_roles where rol = 'admin';
+
+LA REGLA QUE CONVIENE DEJAR ESCRITA
+--------------------------------------------------------------------------------
+    "admin" es de la casa, no de una empresa.
+
+Y para lo de una empresa cliente están "oficina", "portería" y "bodega", que dan lo mismo —cargar
+el sueldo, editar los trabajadores de su empresa— sin ver las otras.
+
+Porque la alternativa a esta regla no es un bug: es un permiso mal dado. Y un permiso mal dado no
+lo detecta ningún guardián, porque el guardián solo mira el código, y el código está bien.
+
+LO QUE SÍ QUEDÓ CERRADO
+--------------------------------------------------------------------------------
+Las seis tablas de la cadena de datos de personas, por empresa:
+
+    asistencia                     marcajes                       tarjetas
+    (067)                          (067)                          (067)
+    herramientas_asignaciones      epp_entregas                   epp_entrega_items
+    (072)                          (071)                          (072)
+
+Y las siete que se documentaron como catálogos, porque su contenido es el mismo para todas las
+empresas y filtrarlas no protegería nada. Ver [rls-06].
+
+Y queda una cosa que NO es de filas: "sueldo_base" vive en "trabajadores", y el RLS no acota
+columnas, así que el número se puede leer con la llave del navegador mientras esté ahí. Ver
+[rem-01].
 [sql-01] UN ESQUEMA NO ES UNA TABLA, Y POSTGRES DICE QUE ES OTRA BASE DE DATOS
 --------------------------------------------------------------------------------
 "storage" no es una tabla del esquema "public". Es un ESQUEMA aparte, que creó Supabase
@@ -4982,7 +5093,7 @@ El código lo respeta en las dos partes que tocan el dato:
   · la escritura, en "nucleo.js", que no convierte "null" en cero;
   · y la carga masiva, que deja lo que ya estaba cuando el archivo no trae la columna.
 
-Y esto no es理论. El "upsert" de PostgREST manda TODAS las columnas del objeto, no solo las
+Y esto no es la teoría. El "upsert" de PostgREST manda TODAS las columnas del objeto, no solo las
 que cambiaron —está escrito en el archivo, con el comentario—. Así que si "sueldo_base" no
 fuera en "workerToDb", CUALQUIER guardado lo pondría en null: editar un teléfono de
 emergencia, un alta nueva, la carga del Excel. Y se perdería sin avisar, porque el

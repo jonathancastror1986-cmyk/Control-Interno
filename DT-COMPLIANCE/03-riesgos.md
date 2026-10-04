@@ -261,7 +261,7 @@ Falta, de lo exigido por F1:
 | Registro de conexiones de funcionarios (IP) | art. 22.5) |
 | Tabla de consentimientos y destrucción de datos | art. 57 |
 
-**Mitigación:** es el trabajo de las Fases 2 a 9. Está порядando por la matriz
+**Mitigación:** es el trabajo de las Fases 2 a 9. Está ordenando por la matriz
 del documento 04.
 
 ---
