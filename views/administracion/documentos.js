@@ -4714,3 +4714,260 @@ function imprimirAvisoTotem(){
 }
 
 
+
+// -------------------------------------------------------------------
+// POR QUÉ HAY TRES, Y POR QUÉ UNA ES UNA BANDERA
+// -------------------------------------------------------------------
+// "totemMarcajesCargados" separa "todavía no se preguntó" de "se preguntó y no hay
+// nada". Sin esa bandera, "—" puede querer decir dos cosas muy distintas —que la
+// consulta no ha vuelto, o que en la portería no ha marcado nadie— y la persona que
+// mira la pantalla no puede distinguirlas.
+//
+// Y con la bandera, "se preguntó y no hay nada" se puede pintar como 0, que sí es un
+// hecho. Sin ella no: 0 sobre un "no sé" es una cifra falsa, y en una pantalla de
+// asistencia una cifra falsa se cree.
+let totemMarcajesHoy=[];
+let totemMarcajesCargados=false;
+let totemMarcajesError='';
+let totemTipo='entrada';
+let totemTimer=null;
+let totemEscaner=null;
+let totemTimerFoco=null;
+
+async function cargarRelojes(){
+  relojError='';
+  const {data:cc,error:e1}=await window.supabaseClient.from('centros_costo').select('*').order('nombre');
+  if(e1){
+    relojError='No se pudieron cargar los centros de costo. Aplicá la migración 030_relojes_totem.sql. Detalle: '+e1.message;
+    centrosCosto=[];relojes=[];relojCargado=true;renderRelojes();return;
+  }
+  centrosCosto=cc||[];
+  const {data:rj,error:e2}=await window.supabaseClient.from('relojes').select('*').order('nombre');
+  if(e2){
+    relojError='No se pudieron cargar los relojes: '+e2.message;
+    relojes=[];relojCargado=true;renderRelojes();return;
+  }
+  relojes=rj||[];
+  relojCargado=true;
+  renderRelojes();
+}
+function relojPorCodigo(code){
+  return relojes.find(r=>normalizarCodigo(r.code)===normalizarCodigo(code))||null;
+}
+function centroDe(reloj){
+  if(!reloj)return '';
+  if(reloj.centro_costo_id)return (centrosCosto.find(c=>c.id===reloj.centro_costo_id)||{}).nombre||'';
+  return '';
+}
+function renderRelojes(){
+  const lista=document.getElementById('relojLista');
+  const aviso=document.getElementById('relojAviso');
+  if(!lista)return;
+  aviso.innerHTML=relojError
+    ?'<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin-bottom:12px">'+
+     '<b>Falta la migración 030_relojes_totem.sql.</b> <small>'+escHtml(relojError)+'</small></div>'
+    :'';
+  if(!relojes.length){
+    lista.innerHTML='<small>No hay relojes todavía. Creá el primero con "Agregar reloj".</small>';
+    renderSelectorRelojes();
+    renderCentrosCosto();
+    return;
+  }
+  lista.innerHTML=relojes.map(r=>{
+    const sinToken=!r.token_hash;
+    const sinCentro=!r.centro_costo_id;
+    // Un reloj sin clave de kiosco no esta roto, pero es un reloj que se
+    // puede sacar de la pantalla con cinco toques. Se avisa en la lista en
+    // vez de dejarlo pasar: es el aviso que lleva a la pantalla correcta.
+    const sinClave=!r.hash_pin;
+    const alertas=[];
+    if(sinCentro)alertas.push('sin centro de costo');
+    if(sinToken)alertas.push('sin token');
+    if(sinClave)alertas.push('sin clave de kiosco');
+    if(r.kiosco_activo===false)alertas.push('kiosco desactivado');
+    if(!r.activo)alertas.push('desactivado');
+    const ultima=r.ultima_lectura_at
+      ?'Última lectura: '+escHtml(new Date(r.ultima_lectura_at).toLocaleString('es-CL'))
+      :'Nunca leyó nada';
+    // El token no se puede ver (en la base solo está su huella), pero sí se
+    // puede saber si ESTE navegador lo tiene instalado, porque al instalar
+    // queda guardado acá. Es el dato que decide si hace falta rotarlo: si
+    // ya está instalado en el equipo del tótem, rotarlo deja ese aparato
+    // sin marcar hasta que se reinstale.
+    const instaladoAqui=!!totemTokenDe(r.code);
+    const estadoToken=!r.token_hash
+      ?'<small style="color:var(--danger)">sin token: hay que generarlo</small>'
+      :(instaladoAqui
+        ?'<small style="color:var(--accent)">token instalado en este equipo</small>'
+        :'<small style="color:var(--warn-ink)">token no está en este equipo: rotalo e instalalo en el tótem</small>');
+    return `<div class="list-item" style="cursor:default;display:block">
+      <div>
+        <b>${escHtml(r.code)}</b> — ${escHtml(r.nombre)}
+        <span class="pill" style="margin-left:6px">${r.tipo_lector==='camara'?'Cámara':'Lector USB'}</span>
+        ${r.activo?'':'<span class="pill" style="color:var(--danger);border-color:var(--danger)">Desactivado</span>'}
+        <br><small>
+          ${escHtml(centroDe(r)||'Sin centro de costo')}${r.ubicacion?' · '+escHtml(r.ubicacion):''}
+          · antirrebote ${escHtml(String(r.segundos_antirrebote))} s
+          · kiosco ${r.kiosco_activo===false?'desactivado':escHtml(String(r.kiosco_pulsaciones||5))+' pulsaciones'}
+          · ${ultima}
+          · ${estadoToken}
+        </small>
+        ${alertas.length?'<br><small style="color:var(--warn-ink)">Ojo: '+escHtml(alertas.join(', '))+'</small>':''}
+      </div>
+      <span style="display:flex;gap:6px;flex:0 0 auto">
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem" onclick="editarReloj('${escHtml(r.code)}')">Configurar</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="rotarTokenReloj('${escHtml(r.code)}')">${sinToken?'Generar token':'Rotar token'}</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="${sinClave?'generarClaveReloj':'mostrarClaveExistente'}('${escHtml(r.code)}')">
+          ${sinClave?'Generar clave':'Cambiar clave'}</button>
+        <button class="btn primary" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="abrirFormularioToken('${escHtml(r.code)}')">Instalar token</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="asignarRelojAUsuario('${escHtml(r.code)}')">Asignar a cuenta</button>
+        <button class="btn" type="button" style="padding:4px 8px;font-size:.8rem"
+                onclick="abrirTotem('${escHtml(r.code)}')">Abrir pantalla</button>
+      </span>
+    </div>`;
+  }).join('');
+  renderSelectorRelojes();
+  renderCentrosCosto();
+}
+function renderSelectorRelojes(){
+  const sel=document.getElementById('totemReloj');
+  if(!sel)return;
+  const anterior=sel.value;
+  sel.innerHTML='<option value="">Elegí un reloj…</option>'+
+    relojes.filter(r=>r.activo).sort((a,b)=>a.nombre.localeCompare(b.nombre))
+      .map(r=>`<option value="${escHtml(r.code)}">${escHtml(r.code+' — '+r.nombre)}</option>`).join('');
+  if([...sel.options].some(o=>o.value===anterior))sel.value=anterior;
+}
+function abrirFormularioReloj(code){
+  const r=code?relojPorCodigo(code):null;
+  const dlg=document.getElementById('dlgReloj');
+  document.getElementById('relojTitulo').textContent=r?('Configurar '+r.nombre):'Agregar reloj';
+  document.getElementById('relojError').textContent='';
+  document.getElementById('relojGuardar').textContent=r?'Guardar cambios':'Crear reloj';
+  document.getElementById('relojCode').value=r?r.code:'';
+  document.getElementById('relojCode').readOnly=!!r;
+  document.getElementById('relojNombre').value=r?r.nombre:'';
+  document.getElementById('relojUbicacion').value=r?(r.ubicacion||''):'';
+  document.getElementById('relojAntirrebote').value=r?r.segundos_antirrebote:45;
+  document.getElementById('relojActivo').checked=r?!!r.activo:true;
+  const sel=document.getElementById('relojCentro');
+  sel.innerHTML='<option value="">— sin centro de costo —</option>'+
+    centrosCosto.map(c=>`<option value="${c.id}">${escHtml(c.code+' — '+c.nombre)}</option>`).join('');
+  sel.value=r&&r.centro_costo_id?String(r.centro_costo_id):'';
+  const tl=document.getElementById('relojTipoLector');
+  tl.value=r?r.tipo_lector:'teclado';
+  document.getElementById('relojCamaraWrap').style.display=tl.value==='camara'?'':'none';
+  document.getElementById('relojCamara').value=r?r.camara:'trasera';
+  document.getElementById('relojTokenWrap').innerHTML=r
+    ?'<small>El token ya existe. Rotarlo deja de servir el anterior: hay que reinstallar la app del tótem.</small>'
+    :'<small>Se genera solo al crear el reloj, y se muestra una vez sola: si se llenara más, se perdería la elección.</small>';
+  explicarTipoLector();
+  dlg.showModal();
+  document.getElementById(r?'relojNombre':'relojCode').focus();
+}
+// Muestra la ayuda de los dos tipos de lector. No es decoración: la
+// diferencia entre cámara y teclado no se ve hasta que alguien enchufa
+// el aparato equivocado y nadie marca.
+function explicarTipoLector(){
+  const esCamara=document.getElementById('relojTipoLector').value==='camara';
+  document.getElementById('relojCamaraWrap').style.display=esCamara?'':'none';
+  const caja=document.getElementById('relojLectorAyuda');
+  caja.innerHTML=esCamara
+    ?'<b>Cámara.</b> El tótem abre la cámara y lee el código QR de la credencial. '+
+      'Sirve para un lector de códigos QR conectado, o para la cámara del mismo aparato. '+
+      'La cámara de un Android TV Box está fija, así que conviene apuntarla un poco hacia abajo.'
+    :'<b>Lector QR USB (modo teclado).</b> Es el más común en la obra: se enchufa y el equipo lo ve como un teclado. '+
+      'Al pasar la tarjeta escribe el código y manda Enter. No hay que tocar nada, pero el lector tiene que estar '+
+      'configurado para enviar Enter al final (casi todos lo vienen así). '+
+      'Si el lector trae el prefijo "ENTER" o "TAB" configurado, hay que ponerlo en Enter o none.';
+}
+async function guardarReloj(){
+  const dlg=document.getElementById('dlgReloj');
+  const err=document.getElementById('relojError');
+  const code=document.getElementById('relojCode').value.trim().toUpperCase();
+  const nombre=document.getElementById('relojNombre').value.trim();
+  const btn=document.getElementById('relojGuardar');
+  err.textContent='';
+  if(!code){err.textContent='Falta el código del reloj. Es el que va en la URL de la pantalla.';return;}
+  if(!/^[A-Z0-9][A-Z0-9._-]{0,29}$/.test(code)){
+    err.textContent='El código solo puede tener letras, números, punto, guion y guion bajo. Máximo 30 caracteres.';
+    return;
+  }
+  if(!nombre){err.textContent='Falta el nombre del reloj.';return;}
+  btn.disabled=true;btn.textContent='Guardando…';
+  const empresa=empresaActual||null;   // empresaActual ya ES el id
+  const {data:existente}=await window.supabaseClient.from('relojes').select('id').eq('code',code).maybeSingle();
+  let error=null;
+  const cuerpo={
+    code,nombre,
+    ubicacion:document.getElementById('relojUbicacion').value.trim()||null,
+    centro_costo_id:document.getElementById('relojCentro').value?Number(document.getElementById('relojCentro').value):null,
+    empresa_id:empresa,
+    tipo_lector:document.getElementById('relojTipoLector').value,
+    camara:document.getElementById('relojCamara').value,
+    activo:document.getElementById('relojActivo').checked,
+    segundos_antirrebote:Number(document.getElementById('relojAntirrebote').value)||45
+  };
+  if(existente){
+    const r=await window.supabaseClient.from('relojes').update(cuerpo).eq('code',code);
+    error=r.error;
+  }else{
+    const r=await window.supabaseClient.from('relojes').insert(cuerpo).select().single();
+    error=r.error;
+    if(!error){
+      // El token se genera acá y se muestra UNA vez. La base guarda solo el
+      // hash, así que si se pierde hay que rotarlo, no recuperarlo.
+      const {data:rotado,error:e2}=await window.supabaseClient.rpc('rotar_token_reloj',{p_code:code});
+      if(e2){
+        err.innerHTML='El reloj se creó, pero no se pudo generar el token: '+escHtml(e2.message)+
+          '<br>La migración 030 tiene que estar aplicada. Podés generar el token desde la lista con "Rotar token".';
+        btn.disabled=false;btn.textContent='Crear reloj';
+        await cargarRelojes();
+        return;
+      }
+      dlg.close();
+      await cargarRelojes();
+      mostrarToken(rotado.rotar_token_reloj||rotado);
+      return;
+    }
+  }
+  btn.disabled=false;btn.textContent='Guardar cambios';
+  if(error){
+    err.textContent=/duplicate|unique/i.test(error.message)
+      ?'Ya existe un reloj con el código "'+code+'". Los códigos tienen que ser distintos.'
+      :'No se pudo guardar: '+error.message;
+    return;
+  }
+  dlg.close();
+  await cargarRelojes();
+}
+let relojEnTurno='';
+async function rotarTokenReloj(code){
+  relojEnTurno=code;
+  const r=relojPorCodigo(code);
+  if(!r){alert('No se encontró el reloj.');return;}
+  if(!confirm('Rotar el token de '+r.nombre+'?\n\nEl token anterior deja de servir al instante. Si el tótem ya está instalado, hay que volver a instalar la app con el token nuevo, o el reloj deja de marcar.\n\n¿Continuar?'))return;
+  const {data,error}=await window.supabaseClient.rpc('rotar_token_reloj',{p_code:code});
+  if(error){alert('No se pudo rotar el token: '+error.message);return;}
+  await cargarRelojes();
+  mostrarToken(data.rotar_token_reloj||data);
+}
+// El token se muestra una vez, con el texto ya seleccionado para copiarlo.
+// Decir "anotálo" y cerrarlo es la forma de que se pierda y quede un reloj
+// que no marca sin que nadie sepa por qué.
+function mostrarToken(token){
+  const dlg=document.getElementById('dlgToken');
+  const inp=document.getElementById('tokenValor');
+  inp.value=token;
+  document.getElementById('tokenInstalarCampo').value=token;
+  document.getElementById('tokenRelojCodigo').value=relojEnTurno||'';
+  pintarEstadoToken(relojEnTurno||'',true);
+  dlg.showModal();
+  setTimeout(()=>{inp.focus();inp.select();},60);
+}
+
+
