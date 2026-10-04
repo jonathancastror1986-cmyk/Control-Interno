@@ -3142,3 +3142,102 @@ async function comprobarContratacion(){
 // ============================================================
 // ============================================================
 
+
+// ------------------------------------------------------------------
+// QUE RESUELVE
+// ------------
+// Que se pueda llevar los datos de un trabajador a otro sistema. Y hay dos
+// maneras, porque no todos los sistemas de remuneraciones dejan importar:
+//
+//   a) el que TIENE importacion: se le da el archivo
+//   b) el que NO tiene: se copia campo por campo y se pega a mano
+//
+// Para el caso (b) no sirve de nada un boton de copiar por campo si el
+// campo no esta, o si el boton no dice si se copio o no. Por eso el
+// boton cambia un instante y lo dice.
+//
+//
+// EL FORMATO ESTA DEFINIDO ACA, Y EN UN SOLO LADO
+// -----------------------------------------------
+// CAMPOS_FICHA es la unica lista. La pantalla la usa para pintar las
+// filas, y la descarga la usa para escribir el archivo. No hay dos listas.
+//
+// Cuando hay dos listas, la primera se actualiza y la segunda no, y el
+// resultado es una pantalla con un campo que el archivo no tiene, o al
+// reves. Eso es peor que no tener formato: es un formato que miente.
+//
+// Con una sola lista no puede pasar: si el campo esta en la pantalla, esta
+// en el archivo, porque salen del mismo lugar.
+//
+//
+// QUE SIGNIFICA CADA COSA DE LA LISTA
+// ----------------------------------
+//   clave     el nombre del campo, como esta en la base. Cambia si cambia
+//             la base, y eso hay que saberlo.
+//   etiqueta  lo que se ve escrito. Es lo que el usuario lee para saber
+//             que campo esta copiando.
+//   grupo     para que la ficha no sea una lista de 25 renglones sueltos.
+//   formato   como se convierte el valor al archivo. Un RUT se escribe
+//             con guiones, un telefono sin ellos, y una fecha como AAAA-MM-DD.
+//             Si no se dice, cada quien lo escribe como quiere y el
+//             archivo entra igual en el sistema equivocado.
+//
+// LA VERSION DEL FORMATO
+// ----------------------
+// El archivo lleva su version en la primera linea. Si un dia se agrega un
+// campo, la version pasa a 2, y el que recibe el archivo sabe que no es el
+// mismo que recibio la vez pasada. Sin eso, un archivo viejo y uno nuevo se
+// ven iguales y nadie sabe cual es cual.
+//
+// La version va PRIMERA y sola en su linea, con un # adelante para que
+// ningun sistema la tome como un dato de un trabajador. Si el sistema
+// receptor no la entiende, la ignora como un comentario: es preferible
+// que ignore una linea a que tome la version como si fuera el nombre de
+// un trabajador.
+const CAMPOS_FICHA=[
+  {grupo:'Identificacion',clave:'code',etiqueta:'Codigo',formato:'texto'},
+  {grupo:'Identificacion',clave:'name',etiqueta:'Nombre completo',formato:'texto'},
+  {grupo:'Identificacion',clave:'rut',etiqueta:'RUT',formato:'rut'},
+  {grupo:'Trabajo',clave:'spec',etiqueta:'Cargo o especialidad',formato:'texto'},
+  {grupo:'Trabajo',clave:'especialidad_clave',etiqueta:'Especialidad del kit',formato:'texto'},
+  {grupo:'Trabajo',clave:'fecha_ingreso',etiqueta:'Fecha de ingreso',formato:'fecha'},
+  {grupo:'Trabajo',clave:'tipo_trabajador',etiqueta:'Tipo de trabajador',formato:'texto'},
+  {grupo:'Trabajo',clave:'empresa_id',etiqueta:'Empresa',formato:'texto'},
+  {grupo:'Trabajo',clave:'supervisor_code',etiqueta:'Codigo del supervisor',formato:'texto'},
+  {grupo:'Trabajo',clave:'status',etiqueta:'Situacion',formato:'texto'},
+  {grupo:'Contacto',clave:'phone',etiqueta:'Telefono',formato:'telefono'},
+  {grupo:'Contacto',clave:'emerg_name',etiqueta:'Contacto de emergencia',formato:'texto'},
+  {grupo:'Contacto',clave:'emerg_rel',etiqueta:'Parentesco del contacto',formato:'texto'},
+  {grupo:'Contacto',clave:'emerg_phone',etiqueta:'Telefono de emergencia',formato:'telefono'},
+  {grupo:'Salud',clave:'salud',etiqueta:'Salud',formato:'texto'},
+  {grupo:'Salud',clave:'medicamentos',etiqueta:'Medicamentos',formato:'texto'},
+  {grupo:'Salud',clave:'precauciones',etiqueta:'Precauciones',formato:'texto'},
+  {grupo:'Alertas',clave:'alerta_social',etiqueta:'Alerta social',formato:'texto'},
+  {grupo:'Alerta',clave:'alerta_social_nota',etiqueta:'Detalle de la alerta social',formato:'texto'},
+  {grupo:'Alertas',clave:'alerta_prevencion',etiqueta:'Alerta de prevencion',formato:'texto'},
+  {grupo:'Alertas',clave:'alerta_prevencion_nota',etiqueta:'Detalle de la alerta de prevencion',formato:'texto'},
+  {grupo:'Indicaciones',clave:'indicaciones_sociales',etiqueta:'Indicacion del asistente social',formato:'texto'},
+  {grupo:'Indicaciones',clave:'indicaciones_prevencion',etiqueta:'Indicacion de prevencion',formato:'texto'},
+  {grupo:'Desvinculacion',clave:'fecha_termino',etiqueta:'Fecha de termino',formato:'fecha'},
+  {grupo:'Desvinculacion',clave:'articulo_termino',etiqueta:'Articulo de termino',formato:'texto'},
+  {grupo:'Desvinculacion',clave:'motivo_desvinculacion',etiqueta:'Motivo de la desvinculacion',formato:'texto'},
+];
+const VERSION_FORMATO_FICHA='1';
+
+// CUANTOS HAY QUE AVISAR
+// -----------------------
+// Un campo vacio en una ficha es normal: no todos los de tinta tienen grupo
+// sanguíneo, no todos tienen alkifer. Pero hay una diferencia entre "no
+// lo tiene" y "no lorellenaron y deberian".
+//
+// Por eso se avisara cuantos campos estan vacios al abrir, y no se
+// bloquea nada. Un campo vacio se puede copiar igual: copiar un vacio no
+// rompe nada, y molesta que se avise de un campo que la persona si
+// tiene.
+function fichaVacia(w){
+  if(!w)return 0;
+  return CAMPOS_FICHA.filter(c=>!valorDeCampo(w,c)).length;
+}
+
+
+
