@@ -1538,8 +1538,6 @@ function imprimirAvisoTotem(){
 }
 
 // ------------------------------------------------------------------
-// LA FICHA PERSONAL, Y EL FORMATO
-// ------------------------------------------------------------------
 // QUE RESUELVE
 // ------------
 // Que se pueda llevar los datos de un trabajador a otro sistema. Y hay dos

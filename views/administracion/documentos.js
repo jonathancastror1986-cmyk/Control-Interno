@@ -2821,3 +2821,7 @@ function pintarHoraTotem(){
 // con un día: cada pantalla con lo suyo.
 //
 
+
+// ------------------------------------------------------------------
+// LA FICHA PERSONAL, Y EL FORMATO
+
