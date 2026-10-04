@@ -3471,3 +3471,72 @@ function explicarTokenInvalido(motivo,code){
   }
 }
 
+
+// ------------------------------------------------------------------
+// LOS DOS SECRETOS DEL RELOJ, Y POR QUE SON DOS
+// ------------------------------------------------------------------
+// El TOKEN deja marcar. La CLAVE deja desarmar el kiosco. Son permisos
+// distintos, asi que son secretos distintos: que alguien tenga el token de
+// un reloj no le da el derecho a desarmar el kiosco de otro.
+//
+// En la base no hay ninguno de los dos en claro. Solo sus hashes.
+// ------------------------------------------------------------------
+function mostrarClaveExistente(boton,code){
+  // La clave no se puede mostrar: no existe en ningun lado del sistema.
+  // Lo que se puede es decir eso, y ofrecer generar una nueva.
+  if(confirm('La clave del reloj '+code+' no se puede ver: en la base solo queda su hash.\n\nEs a proposito: si se pudiera leer, alguien con acceso a la base abriria kioscos.\n\nSi la perdió, genero una nueva. La anterior deja de servir.\n\n¿Generar una nueva?')){
+    generarClaveReloj(code);
+  }
+}
+// Asignarle un reloj a una cuenta de usuario.
+//
+// La asignacion va al navegador del usuario reloj, no a la base: es una
+// relacion entre una persona y un aparato que esta en una obra, y no un dato
+// que otro tenga que ver. Ademas, si estuviera en la base, cada vez que el
+// aparato cambiara habria que volver a elegirlo desde el panel.
+//
+// El codigo del reloj NO es un secreto: va en la URL (/totem/RELOJ-01) y lo
+// lee cualquiera que mire la direccion. Lo que protege de verdad es el token,
+// que va en el cuerpo de la peticion y no aparece por ningun lado visible.
+function asignarRelojAUsuario(code){
+  const actual=localStorage.getItem('relojAsignado')||'';
+  if(actual===code){localStorage.removeItem('relojAsignado');alert('Se desasigno el reloj '+code+' de esta cuenta.');return;}
+  localStorage.setItem('relojAsignado',code);
+  alert('Esta cuenta quedo asignada al reloj '+code+'.\n\nPara que sirva, la cuenta tiene que tener el rol Reloj. Con solo ese rol, al entrar va directo a la pantalla de marcaje y no ve el panel.');
+}
+function abrirTotemPorRelojDelUsuario(){
+  // Que reloj tiene asignado este usuario-reloj?
+  //
+  // La asignacion vive en localStorage y NO en la base, a proposito. Es una
+  // relacion entre una persona y un aparato que esta en una obra: si se
+  // guardara en la tabla, un administrador tendria que elegir el reloj cada
+  // vez que elEquipo cambia de aparato en la obra, que es todos los meses.
+  //
+  // Y la clave del reloj, que es lo que de verdad protege, si esta en la base.
+  const code=localStorage.getItem('relojAsignado')||'';
+  if(!code){
+    document.body.innerHTML=pantallaDeEsperaReloj();
+    return;
+  }
+  abrirTotem(code);
+}
+function esconderTodoParaReloj(){
+  // Se oculta la navegación y el contenido. La pantalla del tótem es lo
+  // único que queda.
+  const nav=document.querySelector('nav,#nav,#subNav,.nav,#header,#appHeader');
+  if(nav)nav.style.display='none';
+  document.body.classList.add('solo-reloj');
+}
+function pantallaDeEsperaReloj(){
+  // Lo que se ve antes de que haya un reloj asignado: explica qué hacer en
+  // vez de mostrar un panel vacío con error.
+  return '<div style="position:fixed;inset:0;display:flex;align-items:center;'
+    +'justify-content:center;background:#0b0f0c;color:#e8f0ea;font-family:system-ui;'
+    +'text-align:center;padding:30px">'
+    +'<div><h1 style="font-size:26px;margin:0 0 14px">Cuenta de reloj</h1>'
+    +'<p style="max-width:460px;line-height:1.5;color:#9fb3a6">Este usuario marca asistencia y no ve nada más.\n\n'
+    +'Para usar un reloj, pedile a alguien de soporte que te asigne uno. Después '
+    +'entrás con <b>/totem/RELOJ-01</b> y no tenés que hacer nada más.</p></div></div>';
+}
+
+
