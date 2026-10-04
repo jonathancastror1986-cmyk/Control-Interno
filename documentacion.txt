@@ -3865,6 +3865,66 @@ encabezado.
   Y se aplica JUNTO con el filtro de supervisor y el de trabajador, no después y aparte. Los tres
   acotan la misma lista, y si el de equipo se aplicara al final, sobre una lista ya filtrada, el
   "N de M" del mensaje contaría sobre un M que nadie está mirando.
+[tarja-21] LA BARRA QUE NO APARECIA, Y LA NOTA QUE EMPUJABA LA FILA
+-----------------------------------------------------------------------------
+
+  ---------------------------------------------------------------------
+  EL SCROLL NO FALTABA: NO HABIA NADA QUE SE DESBORDARA
+  ---------------------------------------------------------------------
+
+  MEDIDO antes de tocar nada:
+
+      la caja del scroll      965px
+      lo que tiene adentro    965px
+      se puede scrollear      NO
+
+  El "overflow-x:auto" estaba puesto desde siempre. Lo que faltaba era algo que desbordara, y
+  no desbordaba porque la tabla tiene "width:100%": siempre entra.
+
+  Y lo que se veía era lo peor de las dos opciones. No era una tabla ancha con barra: era una
+  tabla ESTRUJADA, con las cuarenta columnas metidas en 965 pixeles.
+
+  ---------------------------------------------------------------------
+  EL MINIMO, Y LA CUENTA QUE ESTA AL LADO
+  ---------------------------------------------------------------------
+
+      el nombre del trabajador   220px   <- con nombres como "Jonathan Antonio Castro Rocha"
+      el codigo                   80px
+      los 31 dias             31 x 26   <- 26px es lo que necesita una celda con su letra
+      las seis del resumen     6 x 46
+      ----------------------------------
+      el minimo               1342px
+
+  El minimo va en la TABLA y no en la caja. La barra aparece cuando lo de adentro es mas grande
+  que la caja: si el minimo estuviera en la caja, la caja crecria, lo de adentro seguiria
+  cabiendo y no apareceria nada.
+
+  ---------------------------------------------------------------------
+  Y LA NOTA VACIA DEL FILTRO
+  ---------------------------------------------------------------------
+
+  "tarjaNota" es el "<small>" que dice "3 de 47 persona(s)", y sale SOLO cuando hay un filtro de
+  estados puesto. Vacio seguia ocupando 20 pixeles: un "<small>" con un margen de 4.
+
+  MEDIDO: el campo "Mostrar solo quienes tienen" bajo de 97px a 63px, que es lo que miden los
+  otros. Ese campo era el que quedaba mas alto, y como la fila alinea por abajo, era el que
+  empujaba el boton de los QR hacia un lado y lo dejaba desalineado.
+
+  ---------------------------------------------------------------------
+  Y LO QUE FALTA: LAS COLUMNAS DE DIA NO SON IGUALES
+  ---------------------------------------------------------------------
+
+  MEDIDO despues del arreglo, con la barra apareciendo:
+
+      celda de dia mas chica   18px
+      celda de dia mas ancha   30px
+
+  Con "table-layout:auto", el navegador reparte el sobrante a criterio de cada columna, y las
+  de dia no salen iguales. Con 18 pixeles y 6 de padding por lado quedan 6 de contenido: la
+  letra del dia de la semana no entra.
+
+  La correccion es "table-layout:fixed" con anchos explicitos por columna, que con una tabla de
+  este tamanho es la forma correcta y no un parche. Queda pendiente.
 [afp-22] EL ANCLA CON UN ESPACIO DE MÁS
 --------------------------------------------------------------------------------
 

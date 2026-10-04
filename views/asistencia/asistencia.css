@@ -543,3 +543,23 @@
   font-size:.75rem;
   color:var(--muted);
 }
+
+/* -------------------------------------------------------------------
+  EL SCROLL DE LA TARJA, Y LA NOTA VACÍA DEL FILTRO
+  -------------------------------------------------------------------
+
+  MEDIDO antes: caja 965px, contenido 965px, "se puede scrollear: NO". El "overflow-x:auto"
+  estaba puesto desde siempre; lo que faltaba era algo que desbordara. Ver [tarja-21]. */
+
+/* Y el mínimo va en la TABLA, no en la caja: la barra aparece cuando lo de adentro es más
+   grande que la caja, no cuando la caja crece. */
+#v-asistencia #matrixArea table,
+#v-supervisores #supMatrixArea table{
+  min-width:1342px;
+}
+
+/* Y la nota del filtro de estados, que está vacía la mayor parte del tiempo. Vacía no ocupa
+   nada: son 20px que empujaban la fila y hacían que ese campo quedara más alto que los otros. */
+.tarjaNota:empty{
+  display:none;
+}
