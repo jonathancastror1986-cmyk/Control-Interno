@@ -2893,3 +2893,30 @@ function fechaLocalISO(d){
 }
 
 
+
+// ============================================================
+// EL KIOSCO DEL RELOJ
+
+// ============================================================
+// La clave se ve UNA vez, como el token. Después queda solo el hash. Si se
+// pierde, se rota: no hay forma de recuperarla, y no debería haberla.
+async function generarClaveReloj(code){
+  if(!code)return;
+  if(!confirm('Se genera una clave nueva para el reloj '+code+'.\n\nLa clave anterior deja de servir. Se muestra una sola vez: anótala antes de cerrar esta pantalla.\n\n¿Seguir?'))return;
+  const {data,error}=await window.supabaseClient.rpc('generar_pin_reloj',{p_code:code});
+  if(error){
+    if(faltaLaMigracion(error,['generar_pin_reloj'])){
+      alert('Falta aplicar la migración 033_reloj_kiosco.sql. Sin ella los relojes no tienen clave de kiosco.');
+    }else{
+      alert('No se pudo generar la clave: '+error.message);
+    }
+    return;
+  }
+  mostrarClaveReloj(String(data),code);
+}
+function mostrarClaveReloj(clave,code){
+  document.getElementById('claveRelojTexto').textContent=clave;
+  document.getElementById('claveRelojQuien').textContent=code;
+  document.getElementById('dlgClaveReloj').showModal();
+}
+

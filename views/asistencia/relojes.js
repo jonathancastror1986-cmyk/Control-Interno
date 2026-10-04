@@ -2442,31 +2442,6 @@ async function comprobarContratacion(){
 // ============================================================
 // ============================================================
 // ============================================================
-// EL KIOSCO DEL RELOJ
-
-// ============================================================
-// La clave se ve UNA vez, como el token. Después queda solo el hash. Si se
-// pierde, se rota: no hay forma de recuperarla, y no debería haberla.
-async function generarClaveReloj(code){
-  if(!code)return;
-  if(!confirm('Se genera una clave nueva para el reloj '+code+'.\n\nLa clave anterior deja de servir. Se muestra una sola vez: anótala antes de cerrar esta pantalla.\n\n¿Seguir?'))return;
-  const {data,error}=await window.supabaseClient.rpc('generar_pin_reloj',{p_code:code});
-  if(error){
-    if(faltaLaMigracion(error,['generar_pin_reloj'])){
-      alert('Falta aplicar la migración 033_reloj_kiosco.sql. Sin ella los relojes no tienen clave de kiosco.');
-    }else{
-      alert('No se pudo generar la clave: '+error.message);
-    }
-    return;
-  }
-  mostrarClaveReloj(String(data),code);
-}
-function mostrarClaveReloj(clave,code){
-  document.getElementById('claveRelojTexto').textContent=clave;
-  document.getElementById('claveRelojQuien').textContent=code;
-  document.getElementById('dlgClaveReloj').showModal();
-}
-// ============================================================
 // ¿ES UN USUARIO RELOJ?
 
 // ============================================================
@@ -2770,74 +2745,3 @@ function llenarFiltroRelojesMarcajes(){
   if([...sel.options].some(o=>o.value===actual))sel.value=actual;
 }
 
-// ------------------------------------------------------------------
-// LOS ATAJOS
-// ------------------------------------------------------------------
-// Escriben las fechas y llaman al filtrado, que es el mismo camino que el
-// resto del filtro. No hay atajos con lógica aparte: si la hubiera, el atajo
-// y el filtro se desincronizan sin que nadie lo note hasta que las cifras no
-// cuadran con la planilla.
-function atajoMarcajes(cual){
-  const hoy=new Date();
-  if(cual==='hoy'){return ponerRangoMarcajes(fechaLocalISO(hoy),fechaLocalISO(hoy));}
-  if(cual==='ayer'){
-    const a=new Date(hoy);a.setDate(a.getDate()-1);
-    return ponerRangoMarcajes(fechaLocalISO(a),fechaLocalISO(a));
-  }
-  if(cual==='semana'){
-    // Últimos 7 días, el mismo rango que trae la carga. No es "la semana
-    // laboral": es "la semana pasada", que es lo que se pregunta cuando
-    // alguien denuncia que le faltan días.
-    const d=new Date(hoy);d.setDate(d.getDate()-7);
-    return ponerRangoMarcajes(fechaLocalISO(d),fechaLocalISO(hoy));
-  }
-  if(cual==='todo')return ponerRangoMarcajes('','');
-}
-function ponerRangoMarcajes(desde,hasta){
-  const a=document.getElementById('marcajesFiltroDesde');
-  const b=document.getElementById('marcajesFiltroHasta');
-  if(a)a.value=desde;
-  if(b)b.value=hasta;
-  marcarAtajoMarcajes();
-  filtrarMarcajes();
-}
-function marcarAtajoMarcajes(){
-  const hoy=fechaLocalISO(new Date());
-  const a=document.getElementById('marcajesFiltroDesde')?.value||'';
-  const b=document.getElementById('marcajesFiltroHasta')?.value||'';
-  document.querySelectorAll('[data-marcajes-atajo]').forEach(x=>{
-    const c=x.dataset.marcajesAtajo;
-    let activo=false;
-    if(c==='hoy')activo=(a===hoy&&b===hoy);
-    if(c==='todo')activo=(!a&&!b);
-    if(c==='ayer'||c==='semana')activo=false;
-    x.classList.toggle('activo',activo);
-  });
-}
-
-// ------------------------------------------------------------------
-// QUÉ SE ESTÁ VIENDO
-// ------------------------------------------------------------------
-// El pie decía siempre "de los últimos 7 días", estén o no los filtros
-// puestos. Con un filtro activo, ese texto pasa por cierto: la persona ve
-// 6 marcajes y un rótulo que dice que hay 100. Se escribe lo que hay.
-function descripcionFiltroMarcajes(){
-  const f=filtroMarcajes;
-  const partes=[];
-  if(f.buscar)partes.push('trabajador "'+f.buscar+'"');
-  if(f.centro){
-    const c=centrosCosto.find(x=>String(x.id)===String(f.centro));
-    partes.push('centro '+(c?c.code:'(desconocido)'));
-  }
-  if(f.reloj){
-    const r=relojes.find(x=>String(x.id)===String(f.reloj));
-    partes.push('reloj '+(r?r.nombre:'(desconocido)'));
-  }
-  if(f.tipo)partes.push('tipo '+(f.tipo==='entrada'?'entrada':f.tipo==='salida'?'salida':f.tipo.replace('colacion_','colación ')));
-  if(f.desde||f.hasta){
-    partes.push(f.desde&&f.hasta?(f.desde===f.hasta?('el '+f.desde):('del '+f.desde+' al '+f.hasta))
-      :(f.desde?('desde el '+f.desde):('hasta el '+f.hasta)));
-  }
-  if(!partes.length)return' Sin filtros: todo lo cargado.';
-  return' Filtros: '+partes.join(', ')+'.';
-}
