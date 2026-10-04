@@ -766,3 +766,82 @@
 #v-supervisores #supMatrixArea tr:first-child > *:nth-child(2){
   width:220px;
 }
+
+/* -------------------------------------------------------------------
+  EL FILTRO DE VARIABLES Y LA VISTA PREVIA DEL DOCUMENTO
+  -------------------------------------------------------------------
+
+  Dos columnas: el filtro y la lista de variables a la izquierda, la vista previa del documento a
+  la derecha. Son dos preguntas distintas y una sola lista no las contesta: qué variables hay, y
+  cómo queda el documento con ellas. Ver [nombres-01]. */
+.plantillaDosColumnas{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);
+  gap:16px;
+  align-items:start;
+}
+
+.plantillaColIzq,
+.plantillaColDer{
+  min-width:0;
+}
+
+/* Y la caja de la vista previa, con borde y fondo, porque lo que se mira es un documento. */
+.plantillaPreview{
+  border:1px solid var(--line);
+  border-radius:8px;
+  background:var(--panel);
+  padding:10px 12px;
+  max-height:420px;
+  overflow:auto;
+}
+
+/* Y el texto del documento, que va en monoespaciada FUERA a propósito: una plantilla se escribe
+   con etiquetas "<p>" y "<b>", y verlas en un papel de verdad no deja leer ni el texto ni los
+   huecos. Lo que se revisa en la vista previa son las palabras y las variables sin dato. */
+.prevTexto{
+  margin:0;
+  font-family:inherit;
+  font-size:.82rem;
+  line-height:1.6;
+  white-space:pre-wrap;
+  word-break:break-word;
+  color:var(--text);
+}
+
+/* Y las variables ya cambiadas por su dato: unmarked para que se lean como texto corrido. */
+.prevVar{
+  background:transparent;
+  color:inherit;
+  font-weight:600;
+  padding:0;
+}
+
+/* Y LAS QUE NO TIENEN DATO, que son las que hay que ver. */
+.prevVacia{
+  background:var(--danger-soft,rgba(220,60,60,.16));
+  color:var(--danger);
+  padding:0 3px;
+  border-radius:3px;
+  text-decoration:underline wavy;
+}
+
+/* Y una variable que NO está en la lista, que es peor que vacía: nadie la va a poder rellenar. */
+.prevDesconocida{
+  background:rgba(230,160,40,.22);
+  color:var(--text);
+  padding:0 3px;
+  border-radius:3px;
+  font-family:Consolas,monospace;
+}
+
+/* Y en una pantalla angosta las dos columnas se apilan, porque con 320px de ancho la vista
+   previa no se lee. */
+@media (max-width:860px){
+  .plantillaDosColumnas{
+    grid-template-columns:minmax(0,1fr);
+  }
+  .plantillaPreview{
+    max-height:300px;
+  }
+}

@@ -2113,13 +2113,26 @@ function textoSiVacio(v) {
 
 // Y el "title" de una variable: el nombre del campo arriba, el dato abajo. Y arriba en
 // monoespaciada, porque eso es lo que va a ir en el documento.
+// Y DEVUELVE UN OBJETO, Y NO UN TEXTO
+// --------------------------------
+// Porque el filtro necesita tres cosas de cada variable: el texto para mostrar, la clave para saber
+// cuál es, y el valor para poder ponerla en la vista previa. Con un solo texto hay que volver a
+// desarmarlo después, y eso es adivinar dónde termina cada parte.
 function filaVariable(clave, valor, etiqueta) {
-  return '<div class="campoPropio varConDato" title="' + escHtml(etiqueta + ': ' + textoSiVacio(valor)) + '"' +
+  const v = valor == null ? '' : String(valor);
+  return {
+    clave: clave,
+    valor: v,
+    // Y el texto de búsqueda lleva el nombre Y el valor, porque uno busca "rut" y a veces escribe
+    // el dato de otra persona para acordarse de cuál era.
+    buscar: (clave + ' ' + etiqueta + ' ' + v).toLowerCase(),
+    html: '<div class="campoPropio varConDato" title="' + escHtml(etiqueta + ': ' + textoSiVacio(valor)) + '"' +
       ' data-var="' + escHtml(clave) + '" role="button" tabindex="0">' +
       '<span class="cod">' + escHtml('[' + clave + ']') + '</span>' +
       '<span class="et">' + escHtml(textoSiVacio(valor)) + '</span>' +
       (!String(valor || '').trim() ? '<span class="sinDato">vacío</span>' : '') +
-    '</div>';
+    '</div>',
+  };
 }
 
 // -------------------------------------------------------------------
@@ -2187,11 +2200,91 @@ function pintarVariablesConDatos(datos, empresa) {
     filas.push(filaVariable(clave, d[k], 'campo propio'));
   });
 
-  if (!filas.length) {
+  // Y LA LISTA ARMADA QUEDA GUARDADA, PARA QUE EL FILTRO NO LE PREGUNTE NADA A LA BASE
+  //
+  // Si el filtro tuviera que armar la lista de nuevo, cada tecla consultaría la base otra vez. Con la
+  // lista guardada, el filtro es sólo recorrer un arreglo.
+  filasPlantillaListas = filas;
+  pintarVariablesFiltradas();
+}
+
+// Y LA LISTA YA ARMADA. Es lo único que necesita el filtro, y lo único que se guarda.
+let filasPlantillaListas = [];
+
+function pintarVariablesFiltradas() {
+  const caja = document.getElementById('plantillaVariables');
+  if (!caja) return;
+  const entrada = document.getElementById('plantillaVariablesFiltro');
+  const q = entrada ? String(entrada.value || '').trim() : '';
+
+  if (!filasPlantillaListas.length) {
     caja.innerHTML = '<small style="color:var(--muted)">Elegí un trabajador para ver los datos.</small>';
     return;
   }
-  caja.innerHTML = filas.join('');
+
+  // Y BUSCA EN EL NOMBRE Y EN EL VALOR, SIN TILDES Y SIN IMPORTAR LAS MAYÚSCULAS
+  //
+  // Por las dos cosas: porque uno busca "RUT" y lo escribe en minúscula la mitad de las veces, y
+  // porque busca "dirección" y lo escribe sin tilde las otras.
+  const sinTilde = (s) => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const qq = sinTilde(q);
+  const pasan = qq ? filasPlantillaListas.filter((f) => sinTilde(f.buscar).indexOf(qq) >= 0)
+                   : filasPlantillaListas;
+
+  if (!pasan.length) {
+    caja.innerHTML = '<small style="color:var(--muted)">Ninguna variable tiene "' + escHtml(q) + '".</small>';
+    return;
+  }
+
+  // Y EL RECUENTO ABAJO, PORQUE CON treinta variables no se sabe si el filtro cortó o si no hay más.
+  const pie = pasan.length < filasPlantillaListas.length
+    ? '<small style="color:var(--muted);display:block;margin-top:6px">' + pasan.length + ' de '
+      + filasPlantillaListas.length + ' variables</small>'
+    : '';
+  caja.innerHTML = pasan.map((f) => f.html).join('') + pie;
+}
+
+// Y LA VISTA PREVIA DEL DOCUMENTO
+// ================================
+//
+// Muestra el texto de la plantilla con cada variable YA cambiada por su dato, que es lo que uno
+// necesita ver antes de guardar. Y no es la lista de variables del lado: es el documento.
+//
+// Y se arma con el texto plano, con las etiquetas convertidas en saltos de línea. Un editor
+// enriquecido dentro de una caja chica se ve como código, y lo que se revisa ahí es el texto y los
+// huecos, que es lo que importa.
+function pintarVistaPreviaPlantilla() {
+  const caja = document.getElementById('plantillaPreview');
+  if (!caja) return;
+  const ed = document.getElementById('plantillaEditor');
+  const bruto = ed ? String(ed.value || ed.innerHTML || '') : '';
+
+  if (!bruto.trim()) {
+    caja.innerHTML = '<small style="color:var(--muted)">La vista previa aparece cuando hay texto.</small>';
+    return;
+  }
+
+  let salida = bruto
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/<\/?(p|div|br|h[1-6]|li|tr)[^>]*>/gi, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+
+  // Y CADA VARIABLE CON SU DATO. Las que NO tienen dato quedan marcadas, porque un hueco en un
+  // documento es peor que no tener documento: alguien lo archiva igual y el problema aparece meses
+  // después, cuando ya no se sabe de quién era.
+  salida = salida.replace(/\[([A-Z0-9_]+)\]/g, function (todo, clave) {
+    const f = filasPlantillaListas.find((x) => x.clave === clave);
+    if (!f) {
+      return '<mark class="prevDesconocida" title="Esta variable no está en la lista">' + escHtml(todo) + '</mark>';
+    }
+    const vacio = !String(f.valor || '').trim();
+    return '<mark class="prevVar' + (vacio ? ' prevVacia' : '') + '" title="' + escHtml(todo) + '">'
+      + escHtml(textoSiVacio(f.valor)) + '</mark>';
+  });
+
+  caja.innerHTML = '<pre class="prevTexto">' + salida + '</pre>';
 }
 
 // -------------------------------------------------------------------
