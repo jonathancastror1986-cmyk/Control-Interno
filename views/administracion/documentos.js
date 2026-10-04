@@ -3805,3 +3805,88 @@ const ESTADOS_TARJA_TOTEM=[
   {v:'colacion_salida',t:'Vuelta de colación'}
 ];
 
+
+// ------------------------------------------------------------------
+// LA PANTALLA
+// ------------------------------------------------------------------
+let fichaEnPantalla=null;
+
+function abrirFichaTrabajador(code){
+  const w=trabajadorEnCualquierEmpresa(code)||trabajadorEnAlcance(code);
+  if(!w){alert('No se encontro al trabajador '+code+'.');return;}
+  fichaEnPantalla=w;
+  pintarFicha(w);
+  if(typeof showView==='function')showView('ficha-trabajador');
+}
+
+// La lista para elegir a quien se le ve la ficha. Se usan todos los
+// trabajadores, no solo los de la empresa que se esta viendo: la ficha es
+// el lugar donde se revisa una persona, y muchas veces se revisa a alguien
+// que esta en otra empresa o que ya se desvinculo y ya no aparece en la
+// lista de la empresa.
+//
+// Se ordena por codigo y no por nombre, porque en una obra hay varias
+// personas con el mismo nombre y el mismo apellido. El codigo es lo unico
+// que las distingue, y es lo que se copia al sistema de remuneraciones.
+function llenarSelectorFicha(){
+  const sel=document.getElementById('fichaSelector');
+  if(!sel)return;
+  const todos=(workers||[]).concat(todosWorkers||[]);
+  const lista=[...new Map(todos.filter(w=>w&&w.code).map(w=>[w.code,w])).values()]
+    .sort((a,b)=>String(a.code).localeCompare(String(b.code)));
+  sel.innerHTML='<option value="">Elige un trabajador</option>'
+    +lista.map(w=>'<option value="'+escHtml(w.code)+'">'+escHtml(codigoMostrar(w.code))+' — '+escHtml(w.name||'')+'</option>').join('');
+}
+
+function pintarFicha(w){
+  // El selector se llena solo, una sola vez. Sin esto, la primera vez que
+  // se abre la ficha aparece vacio y hay que entrar por la lista cada vez;
+  // la segunda ya esta lleno porque abrirFichaTrabajador lo setea.
+  const selTrab=document.getElementById('fichaSelector');
+  if(selTrab&&!selTrab.options.length)llenarSelectorFicha();
+  const caja=document.getElementById('fichaCuerpo');
+  const titulo=document.getElementById('fichaTitulo');
+  if(titulo)titulo.textContent=(w.code||'')+' — '+(w.name||'');
+  if(!caja)return;
+
+  // Los grupos en el orden en que salen de la lista, sin repetir.
+  const grupos=[];
+  CAMPOS_FICHA.forEach(c=>{ if(grupos.indexOf(c.grupo)<0)grupos.push(c.grupo); });
+
+  let html='';
+  grupos.forEach(grupo=>{
+    const delGrupo=CAMPOS_FICHA.filter(c=>c.grupo===grupo);
+    const vacios=delGrupo.filter(c=>!valorDeCampo(w,c)).length;
+    html+='<section class="fichaGrupo"><h3>'+escHtml(grupo)+'</h3><div class="fichaFilas">';
+    delGrupo.forEach(c=>{
+      const valor=valorParaArchivo(w,c);
+      const vacio=!valor;
+      html+='<div class="fichaFila'+(vacio?' vacio':'')+'">'
+        +'<div class="fichaDato"><span class="fichaEtiqueta">'+escHtml(c.etiqueta)+'</span>'
+        +'<span class="fichaValor">'+(vacio?'<em>sin dato</em>':escHtml(valor))+'</span></div>'
+        +'<button type="button" class="btn fichaCopiar" '
+        +'onclick="copiarCampoFicha(CAMPOS_FICHA['+CAMPOS_FICHA.indexOf(c)+'],this)" '
+        +'title="Copiar el valor de '+escHtml(c.etiqueta)+'">Copiar</button>'
+        +'</div>';
+    });
+    html+='</div>'
+      +'<p class="fichaGrupoAviso">'+(vacios?vacios+' sin dato en este grupo':'')+'</p>'
+      +'</section>';
+  });
+  caja.innerHTML=html;
+
+  // Cuantos hay en total. Se avisa, no se bloquea: un campo vacio es
+  // normal, y frenar la ficha por eso haria que la gente no la use.
+  const faltan=fichaVacia(w);
+  const aviso=document.getElementById('fichaResumen');
+  if(aviso){
+    aviso.textContent=faltan
+      ?'Faltan '+faltan+' de '+CAMPOS_FICHA.length+' campos. Se pueden copiar igual: un campo sin dato se copia vacio.'
+      :'Esta la ficha completa: '+CAMPOS_FICHA.length+' campos.';
+  }
+  const sel=document.getElementById('fichaSelector');
+  if(sel)sel.value=w.code;
+}
+
+
+
