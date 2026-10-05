@@ -67,3 +67,47 @@ select code, name, rut
  where btrim(coalesce(rut,'')) <> ''
    and public.rut_normalizado(rut) is null
  order by code;
+
+-- Y LOS RUT CUYO DIGITO NO CALZA, QUE NO SON LOS MISMOS QUE LOS ILEGIBLES
+--
+-- Un RUT ilegible es "abc" o "": no es un RUT y no cruza con nadie. Uno ilegible se ve a simple
+-- vista y se corrige en la ficha.
+--
+-- Un RUT con el digito mal es otra cosa: es un RUT DE VERDAD, con cuerpo valido y el ultimo
+-- caracter equivocado. "11285312-4" es el mismo cuerpo que "11285312-K", asi que el cruce SI lo
+-- encuentra con la ficha. Pero si la ficha tiene "11285312-K", el cruce compara
+-- "11285312-4" contra "11285312-K" y NO los junta.
+--
+-- Y ESO ES LO QUE HAY QUE VER: el cruce falla en silencio, con dos RUT que son la misma persona
+-- escritos distinto y que el sistema no sabe que son la misma.
+--
+-- Y POR QUE "rut_normalizado" NO LO CORRIGE
+--
+-- Porque reescribir un RUT es cambiar una identidad legal en silencio. Si la ficha tiene el
+-- digito mal, el problema es de la ficha, y se corrige en la ficha, donde alguien lo ve.
+-- Normalizar SOLO deja una forma de escribir: sin puntos, sin espacios, con guion.
+--
+-- El calculo del digito esta aparte justamente para esto: la funcion existe, se puede consultar,
+-- y comparar contra lo que vino. La decision de que hacer con la diferencia es de una persona.
+select code,
+       name,
+       rut                                       as esta,
+       public.rut_normalizado(rut)                como_quedaria,
+       public.rut_digito_verificador(split_part(public.rut_normalizado(rut), chr(45), 1)) as calza
+  from public.trabajadores
+ where btrim(coalesce(rut, '')) <> ''
+   and public.rut_normalizado(rut) is not null
+   and split_part(public.rut_normalizado(rut), chr(45), 1) <> chr(39) || chr(39)
+   and public.rut_digito_verificador(split_part(public.rut_normalizado(rut), chr(45), 1))
+       <> split_part(public.rut_normalizado(rut), chr(45), 2)
+ order by code;
+
+-- Y EL RECUENTO, PARA DECIDIR SI ES UN CASO O SON MUCHOS
+select count(*) filter (where btrim(coalesce(rut, '')) <> '')                                as con_rut,
+       count(*) filter (where btrim(coalesce(rut, '')) <> ''
+                          and public.rut_normalizado(rut) is null)                             as ilegibles,
+       count(*) filter (where public.rut_normalizado(rut) is not null
+                          and split_part(public.rut_normalizado(rut), '-', 1) <> ''
+                          and public.rut_digito_verificador(split_part(public.rut_normalizado(rut), '-', 1))
+                              <> split_part(public.rut_normalizado(rut), '-', 2))          as digito_mal
+  from public.trabajadores;
