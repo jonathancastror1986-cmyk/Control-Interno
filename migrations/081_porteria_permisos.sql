@@ -354,30 +354,41 @@ stable
 security definer
 set search_path = public
 as $$
+  -- EL PERMISO, EN UN CTE, Y NO COMO UNA TERCERA COLUMNA
+  --
+  -- La primera versión de esta función ponía el permiso con un ", true" al
+  -- final de cada rama y un "where" debajo. Se lee bien, pero es una TERCERA
+  -- columna de resultado, y la función declara dos:
+  --
+  --   ERROR:  42P13: return type mismatch in function declared to return
+  --           record
+  --   DETAIL: Final statement returns too many columns.
+  --
+  -- El permiso va mejor en un CTE y se filtra una sola vez, arriba. Por eso
+  -- hay que revisar el conteo de columnas: el guardián de paréntesis y
+  -- comillas lo pasó sin problema, porque el archivo estaba bien escrito.
+  with permitted as (
+    select (public.es_usuario_activo() or public.es_admin()
+            or public.tiene_permiso('porteria.ver')) as ok
+  )
   select 'grupos abiertos que todavía no se confirmaron'
        , (select count(*) from public.porteria_grupos
            where fecha = p_fecha and estado = 'abierto')
-       , true
-  where public.es_usuario_activo() or public.es_admin()
-     or public.tiene_permiso('porteria.ver')
+  where (select ok from permitted)
 
   union all
 
   select 'grupos con revisión pedida y sin revisar'
        , (select count(*) from public.porteria_grupos
            where fecha = p_fecha and revision_vehiculo and not revisado)
-       , true
-  where public.es_usuario_activo() or public.es_admin()
-     or public.tiene_permiso('porteria.ver')
+  where (select ok from permitted)
 
   union all
 
   select 'grupos que dijeron cuantos venian y cuantos confirmaron'
        , (select count(*) from public.porteria_grupos
            where fecha = p_fecha and esperados is not null and esperados > confirmados)
-       , true
-  where public.es_usuario_activo() or public.es_admin()
-     or public.tiene_permiso('porteria.ver')
+  where (select ok from permitted)
 
   union all
 
@@ -387,9 +398,7 @@ as $$
              and not exists (select 1 from public.porteria_registros s
                               where s.code = porteria_registros.code
                                 and s.fecha = p_fecha and s.tipo = 'salida'))
-       , true
-  where public.es_usuario_activo() or public.es_admin()
-     or public.tiene_permiso('porteria.ver')
+  where (select ok from permitted)
 $$;
 
 comment on function public.estado_porteria(date) is
