@@ -2545,8 +2545,16 @@ async function guardarPlantilla(){
     err.textContent='La plantilla está vacía. Un papel sin texto no se puede firmar.';
     return;
   }
+  // Y LA CATEGORIA, QUE DICE EN QUE CARPETA DEL TRABAJADOR QUEDA EL PAPEL
+  //
+  // El defecto es formulario y no contrato, porque en esta tabla la mayoria de las
+  // plantillas no son contratos: son charlas y actas. Con defecto contrato, las que ya
+  // estan aparecerian todas como contrato.
+  const categoria=(document.getElementById('plantillaCategoria')||{}).value || 'formulario';
+
   const cuerpo={
     nombre,
+    categoria,
     tipo:document.getElementById('plantillaTipo').value,
     // Las DOS columnas del destino, y solo una puede venir puesta. Es lo que
     // dice la frase "le toca a": o todo el mundo, o un grupo, o un cargo. Las

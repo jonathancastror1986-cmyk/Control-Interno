@@ -20,19 +20,19 @@ proyecto: cero build, cero "node_modules". -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=109"></script>
-<script src="../config/supabase.client.js?v=109"></script>
-<script src="../config/auth.js?v=109"></script>
-<script src="../controllers/theme.js?v=109"></script>
-<script src="../controllers/clima-reloj.js?v=109"></script>
-<link rel="stylesheet" href="../css/base.css?v=109">
+<script src="../config/supabase.config.js?v=110"></script>
+<script src="../config/supabase.client.js?v=110"></script>
+<script src="../config/auth.js?v=110"></script>
+<script src="../controllers/theme.js?v=110"></script>
+<script src="../controllers/clima-reloj.js?v=110"></script>
+<link rel="stylesheet" href="../css/base.css?v=110">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=109">
-<link rel="stylesheet" href="../css/grupos.css?v=109">
-<link rel="stylesheet" href="../css/styles.css?v=109">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=109">
+<link rel="stylesheet" href="../css/tokens.css?v=110">
+<link rel="stylesheet" href="../css/grupos.css?v=110">
+<link rel="stylesheet" href="../css/styles.css?v=110">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=110">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=109"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=110"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,13 +68,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=109">
-<link rel="stylesheet" href="../css/vistas.css?v=109">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=109">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=109">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=109">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=109">
-<link rel="stylesheet" href="../css/movil.css?v=109" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=110">
+<link rel="stylesheet" href="../css/vistas.css?v=110">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=110">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=110">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=110">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=110">
+<link rel="stylesheet" href="../css/movil.css?v=110" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -2393,6 +2393,17 @@ no se pueden editar con la barra.
         <option value="formulario">Formulario</option>
         <option value="acta">Acta</option>
       </select></div>
+      <div><label>Va a la carpeta</label>
+        <select id="plantillaCategoria">
+          <option value="contrato">Contrato</option>
+          <option value="anexo">Anexo</option>
+          <option value="charla">Charla</option>
+          <option value="induction">Inducción</option>
+          <option value="prevencion">Prevención</option>
+          <option value="formulario">Formulario</option>
+        </select>
+        <small style="display:block;color:var(--muted)">Es lo que decide en qué carpeta del trabajador queda el papel: contratos, anexos, charlas, prevención o finiquito.</small>
+      </div>
     </div>
     <div class="row" style="margin-top:8px">
       <div style="flex:1">
@@ -2826,20 +2837,20 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=109"></script>
-<script src="../views/porteria/escaner.js?v=109"></script>
+<script src="../js/nucleo.js?v=110"></script>
+<script src="../views/porteria/escaner.js?v=110"></script>
 
-<script src="../views/asistencia/relojes.js?v=109"></script>
-<script src="../views/soporte/soporte.js?v=109"></script>
-<script src="../views/administracion/administracion.js?v=109"></script>
-<script src="../views/bodega/bodega.js?v=109"></script>
+<script src="../views/asistencia/relojes.js?v=110"></script>
+<script src="../views/soporte/soporte.js?v=110"></script>
+<script src="../views/administracion/administracion.js?v=110"></script>
+<script src="../views/bodega/bodega.js?v=110"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
-<script src="../views/administracion/docx.js?v=109"></script>
-<script src="../views/administracion/documentos.js?v=109"></script>
-<script src="../views/supervisores/supervisores.js?v=109"></script>
-<script src="../js/app.js?v=109"></script>
+<script src="../views/administracion/docx.js?v=110"></script>
+<script src="../views/administracion/documentos.js?v=110"></script>
+<script src="../views/supervisores/supervisores.js?v=110"></script>
+<script src="../js/app.js?v=110"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
