@@ -145,7 +145,7 @@ begin
     v_dv := public.rut_digito_verificador(v_cuerpo);
   end if;
 
-  return v_cuerpo || chr(45) || v_dv;
+  return v_cuerpo || '-' || v_dv;
 end;
 $fn$;
 

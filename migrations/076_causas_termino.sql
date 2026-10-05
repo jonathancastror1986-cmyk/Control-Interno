@@ -232,7 +232,7 @@ end $$;
 -- Y LAS QUE NO SE PUDIERON NORMALIZAR: ESTAS SON LAS QUE HAY QUE REVISAR A MANO
 select coalesce(articulo_termino, '(sin causal)') as articulo,
        count(*)                       as trabajadores,
-       string_agg(name,  chr(124) order by name) as quienes
+       string_agg(name,  ' | ' order by name) as quienes
   from public.trabajadores
  where status = 'desvinculado'
    and coalesce(btrim(articulo_termino), '') <> ''
