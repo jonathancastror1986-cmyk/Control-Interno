@@ -123,6 +123,27 @@ arch.forEach(function (f) {
     });
   }
 
+  // ---- 4) UNA RAYA DE SECCION SIN EL "--" ----
+  //
+  // Y ESTE ES EL ERROR QUE MAS CUESTA VER, PORQUE NO ESTA EN EL CODIGO
+  //
+  // Las rayas de "=====" que separan las secciones son COMENTARIOS: llevan "--" adelante. Una vez
+  // se escribieron con la funcion que empuja codigo en vez de la que empuja comentario, y la raya
+  // quedo suelta. Al pegarla, PostgreSQL la leyo como un operador de igualdad gigante y contesto
+  // "42601: operator too long at or near =========", que no dice nada de un comentario perdido.
+  //
+  // Y el "--" no se ve al leer, porque el archivo se ve igual de prolijo: la raya esta donde
+  // corresponde y tiene el ancho correcto. Solo falta el dos guiones del principio.
+  const rayasSueltas = [];
+  l.forEach((x, i) => {
+    const t2 = x.trim();
+    if (t2.length > 10 && /^={10,}$/.test(t2)) rayasSueltas.push(i + 1);
+  });
+  if (rayasSueltas.length) {
+    poder.push('raya de seccion SIN "--" en la linea(s) ' + rayasSueltas.join(', ')
+      + ': al pegarla da "operator too long at or near ==="');
+  }
+
   if (!poder.length) {
     vistas++;
     console.log('  ok  ' + f.split('/').pop() + ': nada sospechoso');
