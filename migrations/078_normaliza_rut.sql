@@ -109,28 +109,34 @@ language sql
 immutable
 strict
 as $fn$
-  with limpio as (
-    -- Y SE CONSERVA EL GUION: es el separador entre el cuerpo y el digito.
-    -- Todo lo demas que no sea digito, letra o guion, fuera.
-    select upper(regexp_replace(coalesce(rut, ''), '[^0-9A-Z-]', '', 'g'))
-  ),
-  parted as (
-    select
-      case when position('-' in limpio) > 0
-           then left(limpio, position('-' in limpio) - 1)
-           else regexp_replace(limpio, '(K+)$', '') end as cuerpo,
-      case when position('-' in limpio) > 0
-           then right(limpio, length(limpio) - position('-' in limpio))
-           when limpio ~ '(K+)$' then 'K'
-           else null end as dv
-    from limpio
-  )
-  select cuerpo || '-' ||
-         case when dv = 'K' then 'K'
-              when dv ~ '^[0-9]$' then dv
-              else public.rut_digito_verificador(cuerpo) end
-    from parted
-   where cuerpo ~ '^[0-9]+$';
+  -- Y CADA NIVEL LE PONE NOMBRE A SU COLUMNA, QUE ES LO QUE FALTABA
+  --
+  -- MEDIDO al pegarla: 42883, function pg_catalog.position(record, unknown) does not exist.
+  --
+  -- Escribir position(chr in limpio) es usar el NOMBRE del CTE, que es una fila, y no su
+  -- columna. PostgreSQL lo recibe como record y responde que la funcion no existe. En
+  -- JavaScript si funciona, porque alli es un valor: por eso se veia bien probado y se caia
+  -- recien al pegarlo.
+  --
+  -- Y el cross join lateral deja que un nivel use el resultado del anterior sin repetir la
+  -- expresion larga cuatro veces.
+  select b.cuerpo || chr(45) ||
+         case when b.dv = chr(75) then chr(75)
+              when b.dv ~ chr(94) || chr(91) || chr(48) || chr(45) || chr(57) || chr(93) || chr(36) then b.dv
+              else public.rut_digito_verificador(b.cuerpo) end
+    from (
+      select upper(regexp_replace(coalesce(rut, ''), '[^0-9A-Z-]', '', 'g')) as t
+    ) a
+    cross join lateral (
+      select case when position(chr(45) in a.t) > 0
+                  then left(a.t, position(chr(45) in a.t) - 1)
+                  else regexp_replace(a.t, '(K+)$', '') end as cuerpo,
+             case when position(chr(45) in a.t) > 0
+                  then right(a.t, length(a.t) - position(chr(45) in a.t))
+                  when a.t ~ '(K+)$' then 'K'
+                  else null end as dv
+    ) b
+   where b.cuerpo ~ '^[0-9]+$';
 $fn$;
 
 comment on function public.rut_normalizado(text) is 'El RUT en una sola forma: cuerpo sin puntos, guion, y el digito como numero o K. El K es el valor 10 del digito, no otra forma de escribirlo, asi que normalizar es CALCULARLO. La usan las dos puntas de cualquier cruce por RUT, y si un lado usa otra regla el cruce falla sin avisar.';
