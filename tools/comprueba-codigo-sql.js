@@ -78,22 +78,39 @@ let vistas = 0;
 arch.forEach(function (f) {
   const m = /(\d+)_/.exec(f);
   const n = m ? parseInt(m[1], 10) : 0;
-  if (n < DESDE) return;
+
+  // Y LOS DIAGNÓSTICOS TAMBIÉN SE MIRAN, Y NO TIENEN NÚMERO
+  //
+  // El filtro de "DESDE" se come todo lo que no empieza con tres dígitos, y los archivos
+  // "diagnostico-*.sql" no tienen. Por eso el diagnostic de migraciones tenía una raya de sección
+  // sin el "--", y al pegarla dio "operator too long at or near ===" -- EL MISMO ERROR, POR SEGUNDA
+  // VEZ, en un archivo que este guardián deberia haber mirado.
+  //
+  // Un diagnostico se pega en el panel igual que una migración, así que se revisa igual.
+  const esDiagnostico = /diagnostico/i.test(f);
+  if (!esDiagnostico && n < DESDE) return;
 
   const txt = fs.readFileSync(f, 'utf8');
   const l = txt.split(/\r\n|\n|\r/);
   const poder = [];
 
-  // ---- 1) CODIGO COMENTADO ----
-  l.forEach(function (x, i) {
-    const t = x.trim();
-    if (!t.startsWith('--')) return;
-    const dentro = t.replace(/^--\s*/, '');
-    // Y SOLO SI PARECE CODIGO: "--   asig_fam      integer," o "-- select 1".
-    // Un comentario "-- Y esto es el total" no se toca, y este guardián no puede serifir asi.
-    if (!COLUMNA.test(dentro) && !CLAVES.test(dentro)) return;
-    poder.push('L' + (i + 1) + '  CODIGO COMENTADO: ' + t.slice(0, 64));
-  });
+  // ---- 1) CODIGO COMENTADO, SOLO EN LAS MIGRACIONES ----
+  //
+  // En una migración, una línea de código comentada es un error mío: la empujé con la función
+  // equivocada y la tabla quedó sin columnas. En un diagnóstico es lo contrario: alguien desactivó
+  // una consulta a propósito porque no le servía, y eso hay que dejarlo.
+  //
+  // Y por eso el cambio es de alcance, no de regla: la misma comprobación significa dos cosas
+  // distintas según el archivo, y no puede ser la misma.
+  if (!esDiagnostico) {
+    l.forEach(function (x, i) {
+      const t = x.trim();
+      if (!t.startsWith('--')) return;
+      const dentro = t.replace(/^--\s*/, '');
+      if (!COLUMNA.test(dentro) && !CLAVES.test(dentro)) return;
+      poder.push('L' + (i + 1) + '  CODIGO COMENTADO: ' + t.slice(0, 64));
+    });
+  }
 
   // ---- 2) EL ";" ANTES DEL "ON CONFLICT" ----
   const posIns = txt.indexOf('insert into');
