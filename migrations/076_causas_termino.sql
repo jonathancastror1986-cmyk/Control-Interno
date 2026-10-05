@@ -128,7 +128,7 @@ values
    1.0, null, false, true, 'ultima', 70),
   ('163',
    'REVISAR: articulo 163.',
-   1.0, null, false, true, 'ultima', 80);
+   1.0, null, false, true, 'ultima', 80),
 
 -- Y el "on conflict do nothing": esta migracion se puede volver a correr sin
 -- duplicar, y sin pisar una descripcion que alguien ya haya corregido.

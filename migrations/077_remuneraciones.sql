@@ -101,7 +101,7 @@ create table if not exists public.remuneraciones (
 -- finiquito hay que separarlos, y por eso la descomposicion va en columnas
 -- propias y no se deduce de este numero.
 
---   asig_fam      integer,
+   asig_fam      integer,
   otr_no_imp    integer,
   tot_no_imp    integer,
   tot_haberes   integer,
@@ -115,7 +115,7 @@ create table if not exists public.remuneraciones (
 -- el AFC. Por eso "afp" se deja como columna propia, vacia, esperando el dato
 -- que si viene separado.
 
---   provision     integer,
+   provision     integer,
   afp           integer,
   salud         integer,
   imp_unico     integer,
