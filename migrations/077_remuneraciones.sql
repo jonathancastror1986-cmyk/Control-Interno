@@ -237,18 +237,3 @@ drop policy if exists "remuneraciones escriben" on public.remuneraciones;
 create policy "remuneraciones escriben" on public.remuneraciones for all
   using (tiene_permiso('rem.editar'))
   with check (tiene_permiso('rem.editar'));
-
--- ===================================================================
--- 4) QUE PASO, EN UN PANEL
--- ===================================================================
-
-select column_name, data_type
-  from information_schema.columns
- where table_schema = 'public' and table_name = 'remuneraciones'
- order by ordinal_position;
-
--- -- Y LAS POLITICAS, QUE SON LAS QUE DICEN SI ESTO ESTA AISLADO O NO
-select policyname, cmd, qual is not null as tiene_using, with_check is not null as tiene_check
-  from pg_policies
- where schemaname = 'public' and tablename = 'remuneraciones'
- order by policyname;
