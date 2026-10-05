@@ -191,9 +191,9 @@ select code,
 -- -- Y EL RECUENTO. "ilegible" es el que NO cruza con ninguno, y hay que verlo.
 select count(*) filter (where btrim(coalesce(rut,'')) <> '')                            as con_rut,
        count(*) filter (where rut is distinct from public.rut_normalizado(rut)
-                          and btrim(coalesce(rut,'')) <> '')                                    a los_que_normaliza,
+                          and btrim(coalesce(rut,'')) <> '')                                    as los_que_normaliza,
        count(*) filter (where btrim(coalesce(rut,'')) <> ''
-                          and public.rut_normalizado(rut) is null)                               ilegibles
+                          and public.rut_normalizado(rut) is null)                               as ilegibles
   from public.trabajadores;
 
 -- -- Y LOS ILEGIBLES, UNO POR RENGLON

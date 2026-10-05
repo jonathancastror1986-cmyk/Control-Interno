@@ -207,7 +207,7 @@ begin
 if to_regprocedure('public.tiene_permiso(text,uuid)') is null then
     raise exception 'Falta public.tiene_permiso(), que crea la 014_multi_empresa.sql.';
   end if;
-end $;
+end $$;
 
 alter table public.remuneraciones enable row level security;
 
