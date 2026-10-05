@@ -75,7 +75,21 @@ arch.forEach(function (f) {
     tablasConocidas.add(t);
     tabla[t] = tabla[t] || new Set();
     m[2].split('\n').forEach(linea => {
-      const c = /^\s*([a-z_][a-z0-9_]*)\s+(integer|int|bigint|smallint|numeric|decimal|text|varchar|char|boolean|date|timestamp|timestamptz|uuid|json|jsonb|bytea|real)\b/i.exec(linea);
+      // Y EL TIPO "time" TIENE QUE ESTAR, Y POR QUENO ESTABA
+      //
+      // "time" no estaba en la lista, y por eso las columnas de hora de la
+      // portería (porteria_grupos.hora y porteria_registros.hora) NUNCA se
+      // leyeron. O sea que el guardián|reportaba que esas columnas no
+      // existían, cuando sí.
+      //
+      // No es un detalle: una columna que el guardián no leyó es una columna
+      // que no puede verificar, y el Insert que la usa queda comprobado a
+      // medias.
+      //
+      // Y el orden importa: "time" va DESPUES de "timestamp", porque si fuera
+      // antes, el "\b" cortaría "timestamp" por la mitad y esa dejaria de
+      // leerse. Con "\b" al final, "timestamp" se prueba primero.
+      const c = /^\s*([a-z_][a-z0-9_]*)\s+(integer|int|bigint|smallint|numeric|decimal|text|varchar|char|boolean|date|timestamp|timestamptz|time|uuid|json|jsonb|bytea|real)\b/i.exec(linea);
       if (c) tabla[t].add(c[1].toLowerCase());
     });
   }

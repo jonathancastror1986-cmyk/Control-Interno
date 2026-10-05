@@ -102,10 +102,46 @@ arch.forEach(function (f) {
   //
   // Y por eso el cambio es de alcance, no de regla: la misma comprobación significa dos cosas
   // distintas según el archivo, y no puede ser la misma.
+  // Y EL BLOQUE DE "PARA VOLVER ATRÁS", QUE ES CÓDIGO COMENTADO A PROPÓSITO
+  //
+  // Toda migración cierra con el "drop" de lo que creó, comentado, para que
+  // se pueda deshacer. Eso es código comentado, y la comprobación de arriba
+  // lo marca: lo salta.
+  //
+  // Pero el caso de "código comentado" que hay que cazar es OTRO: la
+  // definición de una tabla a la que faltaba una columna, porque la línea
+  // "--  Something text," se coló. Ahí el código se empujó sin querer y la
+  // tabla quedó incompleta. Eso nunca es a propósito.
+  //
+  // ---- Y POR QUÉ NO PUEDO SALTAR "DESDE EL ROLLBACK HACIA EL FINAL" ----
+  //
+  // Porque se probó y NO funciona: si el rollback aparece arriba del
+  // archivo, todo lo que está debajo queda sin mirar, y el bug de la columna
+  // faltante se cuela sin que nadie lo note. Que es justo lo que este
+  // guardián existe para evitar. El primer intento hacía eso y falló.
+  //
+  // El arreglo: se salta el BLOQUE, no el resto del archivo. El bloque
+  // termina en cuanto aparece una línea que NO es comentario. Un rollback de
+  // verdad es un bloque de comentarios al final; uno puesto en el medio
+  // corta ahí, y lo que sigue se sigue revisando.
+  const enRollback = new Array(l.length).fill(false);
+  for (let i = 0; i < l.length; i++) {
+    const t = l[i].trim();
+    if (!(t.startsWith('--') && /volver\s+atr|rollback|deshacer|revertir/i.test(t))) continue;
+    // Y DESDE EL TÍTULO, SE MARCA HASTA QUE TERMINE EL BLOQUE
+    for (let j = i; j < l.length; j++) {
+      const q = l[j].trim();
+      if (q && !q.startsWith('--')) break;   // se acaba el bloque
+      enRollback[j] = true;
+    }
+  }
+
   if (!esDiagnostico) {
     l.forEach(function (x, i) {
       const t = x.trim();
       if (!t.startsWith('--')) return;
+      // Y EL ROLLBACK, QUE SE SALTA ENTERO
+      if (enRollback[i]) return;
       const dentro = t.replace(/^--\s*/, '');
       if (!COLUMNA.test(dentro) && !CLAVES.test(dentro)) return;
       poder.push('L' + (i + 1) + '  CODIGO COMENTADO: ' + t.slice(0, 64));
