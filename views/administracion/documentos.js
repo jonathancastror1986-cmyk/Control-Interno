@@ -2369,16 +2369,43 @@ document.addEventListener('click', (e) => {
 // execCommand está "obsoleto" según el estándar pero es lo único que da
 // formato enriquecido sin instalar una librería de editor entera. Para un
 // acta (negrita, cursiva, listas, tamaño) alcanza y sobra.
+// Y LA FORMA QUE SE MUESTRA ES LA QUE SIRVE: [NOMBRE]
+//
+// ---------------------------------------------------------------------
+// POR QUÉ ESTA TABLA CAMBIÓ DE "{{nombre}}" A "[NOMBRE]"
+// ---------------------------------------------------------------------
+//
+// Porque se mostraba la forma vieja y no la buena. El que copia de acá y pega en el Word
+// escribía "{{nombre}}", que la base reconoce pero que NO es la canónica: la que usa la función
+// campos_de_plantilla() es "[NOMBRE]", con corchetes y mayúsculas.
+//
+// Y un documento con dos sintaxis es peor que uno sin variables, porque nadie sabe cuál usar. El
+// que escribe tiene que mirar la ayuda, y si la ayuda muestra la vieja, escribe la vieja.
+//
+// ---------------------------------------------------------------------
+// Y LAS DOS VIEJAS SIGUEN FUNCIONANDO
+// ---------------------------------------------------------------------
+//
+// No se borran de la base: hay documentos ya armados con "{{nombre}}" y con "{nombre}", y si dejaran
+// de recognized se romperían al descargar. Cambia lo que se MUESTRA, no lo que se ACEPTA.
+//
+// ---------------------------------------------------------------------
+// Y EL NOMBRE EN MAYÚSCULAS DENTRO DEL CORCHETE
+// ---------------------------------------------------------------------
+//
+// "[nombre]" con minúscula no es la misma variable que "[NOMBRE]", y esa diferencia se ve solo al
+// descargar: el documento sale con la palabra "[nombre]" escrita adentro, en un contrato firmado.
+// Por eso van todas en mayúscula, y por eso el catálogo tiene un "check" que lo prohíbe.
 const CAMPOS_PLANTILLA=[
-  ['{{nombre}}','Nombre del trabajador'],
-  ['{{codigo}}','Código de 4 dígitos'],
-  ['{{rut}}','RUT'],
-  ['{{especialidad}}','Especialidad (la de la ficha)'],
-  ['{{cargo}}','Cargo'],
-  ['{{empresa}}','Nombre de la empresa'],
-  ['{{empresa_rut}}','RUT de la empresa'],
-  ['{{centro}}','Centro de costo o nombre de la obra'],
-  ['{{fecha}}','Fecha de hoy']
+  ['[NOMBRE]','Nombre del trabajador'],
+  ['[CODIGO]','Código de 4 dígitos'],
+  ['[RUT]','RUT'],
+  ['[ESPECIALIDAD]','Especialidad (la de la ficha)'],
+  ['[CARGO]','Cargo'],
+  ['[EMPRESA]','Nombre de la empresa'],
+  ['[RUT_EMPRESA]','RUT de la empresa'],
+  ['[CENTRO]','Centro de costo o nombre de la obra'],
+  ['[FECHA]','Fecha de hoy']
 ];
 function renderContratacion(){
   const aviso=document.getElementById('contratacionAvisoGeneral');
