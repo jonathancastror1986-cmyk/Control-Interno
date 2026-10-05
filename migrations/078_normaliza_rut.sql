@@ -105,38 +105,48 @@ $fn$;
 
 create or replace function public.rut_normalizado(rut text)
 returns text
-language sql
+language plpgsql
 immutable
 strict
 as $fn$
-  -- Y CADA NIVEL LE PONE NOMBRE A SU COLUMNA, QUE ES LO QUE FALTABA
-  --
-  -- MEDIDO al pegarla: 42883, function pg_catalog.position(record, unknown) does not exist.
-  --
-  -- Escribir position(chr in limpio) es usar el NOMBRE del CTE, que es una fila, y no su
-  -- columna. PostgreSQL lo recibe como record y responde que la funcion no existe. En
-  -- JavaScript si funciona, porque alli es un valor: por eso se veia bien probado y se caia
-  -- recien al pegarlo.
-  --
-  -- Y el cross join lateral deja que un nivel use el resultado del anterior sin repetir la
-  -- expresion larga cuatro veces.
-  select b.cuerpo || chr(45) ||
-         case when b.dv = chr(75) then chr(75)
-              when b.dv ~ chr(94) || chr(91) || chr(48) || chr(45) || chr(57) || chr(93) || chr(36) then b.dv
-              else public.rut_digito_verificador(b.cuerpo) end
-    from (
-      select upper(regexp_replace(coalesce(rut, ''), '[^0-9A-Z-]', '', 'g')) as t
-    ) a
-    cross join lateral (
-      select case when position(chr(45) in a.t) > 0
-                  then left(a.t, position(chr(45) in a.t) - 1)
-                  else regexp_replace(a.t, '(K+)$', '') end as cuerpo,
-             case when position(chr(45) in a.t) > 0
-                  then right(a.t, length(a.t) - position(chr(45) in a.t))
-                  when a.t ~ '(K+)$' then 'K'
-                  else null end as dv
-    ) b
-   where b.cuerpo ~ '^[0-9]+$';
+declare
+  v_t     text;   -- el RUT limpio, sin puntos ni espacios, CON el guion
+  v_cuerpo text;
+  v_dv    text;
+begin
+  -- 1) LIMPIAR. Se quita todo lo que no sea digito, letra o guion.
+  --    El guion SE CONSERVA: es el separador entre el cuerpo y el digito.
+  --    Y si se lo llevara, un RUT chico como '11285312-K' queda '11285312K', ya no hay
+  --    forma de separar las dos mitades, y la funcion devuelve nulo. Eso le paso: son once de
+  --    los RUT del archivo, y habrian fallado en silencio.
+  v_t := upper(regexp_replace(coalesce(rut, ''), '[^0-9A-Z-]', '', 'g'));
+
+  -- 2) PARTIR. Si hay guion, el cuerpo es lo de antes y el digito lo de despues.
+  if position('-' in v_t) > 0 then
+    v_cuerpo := left(v_t, position('-' in v_t) - 1);
+    v_dv    := right(v_t, length(v_t) - position('-' in v_t));
+  else
+    -- Y SIN GUION: el cuerpo son los digitos del principio, y una K pegada al final es el
+    -- digito, no parte del cuerpo. Un RUT chico sin guion es comun.
+    v_cuerpo := regexp_replace(v_t, '(K+)$', '');
+    v_dv    := null;
+  end if;
+
+  -- 3) SI EL CUERPO NO SON DIGITOS, NO ES UN RUT. Se devuelve nada, y el cruce lo
+  --    muestra aparte en vez de dejarlo pasar como si fuera valido.
+  if v_cuerpo !~ '^[0-9]+$' then
+    return null;
+  end if;
+
+  -- 4) EL DIGITO. Si venia, se respeta; si no, se calcula.
+  if v_dv = 'K' then
+    v_dv := 'K';
+  elsif v_dv is null or v_dv !~ '^[0-9]$' then
+    v_dv := public.rut_digito_verificador(v_cuerpo);
+  end if;
+
+  return v_cuerpo || chr(45) || v_dv;
+end;
 $fn$;
 
 comment on function public.rut_normalizado(text) is 'El RUT en una sola forma: cuerpo sin puntos, guion, y el digito como numero o K. El K es el valor 10 del digito, no otra forma de escribirlo, asi que normalizar es CALCULARLO. La usan las dos puntas de cualquier cruce por RUT, y si un lado usa otra regla el cruce falla sin avisar.';
