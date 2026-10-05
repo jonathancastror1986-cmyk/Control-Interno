@@ -103,27 +103,24 @@ update public.plantillas_contratacion
 
 -- Y EL INDICE, PORQUE LA PANTALLA VA A FILTRAR POR CATEGORIA
 
--- Y LA EMPRESA, QUE ES LA QUE HACE QUE LA PANTALLA MUESTRE LO DE ARRIBA
+-- Y EL INDICE, QUE ES LO QUE SOSTIENE EL FILTRO DE LA PANTALLA
 
-do $$
-declare
-  v_col int;
-begin
-  if to_regclass('public.perfiles') is null then
-    raise exception 'Falta la tabla perfiles. Aplicar antes la 002_usuarios.sql';
-  end if;
+-- ---------------------------------------------------------------------
+-- Y ESTA TABLA NO TIENE "empresa_id", Y ESO ESTA BIEN
+-- ---------------------------------------------------------------------
+--
+-- Se asumio que todas las tablas de este proyecto se aisan por empresa, y no es
+-- asi. "plantillas_contratacion" es un CATALOGO GLOBAL: las plantillas del kit son
+-- las mismas para todos, y lo que las separa es el permiso, no la empresa. La politica
+-- de la 031 lo dice: "tiene_permiso(contratacion.ver)", sin mirar ninguna empresa.
+--
+-- Y es lo correcto: una charla de seguridad general es la misma en todas las obras. Si
+-- llevara empresa_id, cada empresa tendria que crear su propia copia, y dos empresas
+-- con el mismo documentoPEZ de induccion terminarian con contenidos distintos.
+--
+-- Por eso el indice NO lleva empresa_id. Y por eso este guardia, que lo daba por
+-- hecho, frenaba la migracion entera con un mensaje que señalaba a la 031.
 
-  select count(*) into v_col from information_schema.columns
-   where table_schema = 'public' and table_name = 'plantillas_contratacion'
-     and column_name = 'empresa_id';
-
-  if v_col = 0 then
-    raise exception 'La tabla plantillas_contratacion no tiene empresa_id. Revisar la 031 antes de seguir.';
-  end if;
-end $$;
-
-create index if not exists plantillas_contratacion_categoria_idx
-  on public.plantillas_contratacion (empresa_id, categoria, orden);
 
 -- ===================================================================
 -- 3) POR QUE ESTA TABLA Y NO LA OTRA
@@ -138,3 +135,14 @@ create index if not exists plantillas_contratacion_categoria_idx
 -- Y SI DESPUES SE QUISIERAN JUNTAR, SE HACE UNA MIGRACION CON MOVIMIENTO DE DATOS Y LAS DOS
 -- POLITICAS. No se juntan sobre la marcha: seria volver a hacer, y mas adelante, el error de
 -- las tres "acceso_total_*".
+
+-- ---------------------------------------------------------------------
+-- Y EL INDICE, QUE ES LO QUE SOSTIENE EL FILTRO DE LA PANTALLA
+-- ---------------------------------------------------------------------
+--
+-- Ordenado por categoria, vigente y orden. El orden es el que usa la tabla para acomodar
+-- los papeles del kit, y el vigente es para que el filtro de la pantalla no traiga las
+-- plantillas viejas mezcladas con las que estan en uso.
+
+create index if not exists plantillas_contratacion_categoria_idx
+  on public.plantillas_contratacion (categoria, vigente, orden);
