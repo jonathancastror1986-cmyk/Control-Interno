@@ -2331,6 +2331,7 @@ async function cargarVariablesConDatos() {
     if (caja) caja.innerHTML = '<small style="color:var(--danger)">' + escHtml(error.message) + '</small>';
     return;
   }
+  pintarVistaPreviaPlantilla();
   pintarVariablesConDatos(data || {}, empresaDeLosDatos());
 }
 
@@ -2518,6 +2519,13 @@ document.getElementById('plantillaFirmas').value=
   actualizarAyudaPlantilla();
   dlg.showModal();
   if(!p)document.getElementById('plantillaNombre').focus();
+
+  // Y SE PINTA LA VISTA PREVIA AL ABRIR, QUE ANTES NO PASABA
+  //
+  // "pintarVistaPreviaPlantilla" existia desde que se armo el panel de dos columnas, y no la
+  // llamaba nadie. La caja salia vacia siempre, y un panel vacio se lee como que la pantalla esta
+  // rota. Es el mismo sintoma que una consulta que devuelve cero filas y no dice nada.
+  pintarVistaPreviaPlantilla();
 }
 async function guardarPlantilla(){
   const dlg=document.getElementById('dlgPlantilla');
