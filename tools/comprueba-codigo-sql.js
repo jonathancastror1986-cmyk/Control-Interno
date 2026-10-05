@@ -70,7 +70,7 @@ const CLAVES = /^(select|insert|update|delete|alter|create|drop|with|values|from
 // cualquier frase("-- de un archivo real, no de un modelo"), y el guardian gritaba por una linea
 // de comentario normal. Lo que tiene que verse es un NOMBRE seguido de un TIPO, que es lo unico
 // que una linea de codigo tiene y una frase no.
-const COLUMNA = /^\s*[a-z_][a-z0-9_]*\s+(integer|int|bigint|smallint|numeric|decimal|real|text|varchar|char|boolean|date|timestamp|timestamptz|uuid|json|jsonb|bytea)\b/i;
+const COLUMNA = /^\s*[a-z_][a-z0-9_]*\s+(integer|int|bigint|smallint|numeric|decimal|text|varchar|char|boolean|date|timestamp|timestamptz|uuid|json|jsonb|bytea)\b/i;
 
 let malas = 0;
 let vistas = 0;
