@@ -75,7 +75,7 @@ create index if not exists trabajadores_rut_normalizado_idx
   on public.trabajadores (public.rut_normalizado(rut));
 
 select code,
-       nombre,
+       name,
        rut                                as como_esta,
        public.rut_normalizado(rut)         as normalizado,
        case when rut is distinct from public.rut_normalizado(rut)
@@ -92,7 +92,7 @@ select count(*) filter (where btrim(coalesce(rut,'')) <> '')                    
                           and public.rut_normalizado(rut) is null)                               as ilegibles
   from public.trabajadores;
 
-select code, nombre, rut
+select code, name, rut
   from public.trabajadores
  where btrim(coalesce(rut,'')) <> ''
    and public.rut_normalizado(rut) is null
