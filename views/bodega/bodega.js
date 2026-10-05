@@ -245,6 +245,122 @@ function avisoSinEmpresaUnica(){
   return 'Estás viendo todas las empresas. El timbre pertenece a una sola: elegí una empresa arriba '
     +'para que el papel salga con el nombre y el RUT correctos. Con una sola empresa no hace falta.';
 }
+// ------------------------------------------------------------------
+// LA HUELLA DEL PAPEL
+// ------------------------------------------------------------------
+// Lo que hace que un papel firmado no se pueda cambiar despues NO es
+// guardarlo: es guardar su SHA-256. Un "firmado el 2025-06-01 a las 10:00"
+// es una palabra, cualquiera puede escribirla. Un hash del contenido es una
+// prueba: si el texto cambio en un solo caracter, el hash cambia, y no hay
+// forma de volver al hash viejo sin adivinar el documento entero.
+//
+// Y POR QUE SE CALCULA EN EL NAVEGADOR Y NO EN LA BASE
+//
+// Porque el papel entero vive en el navegador: la base guarda los datos ya
+// puestos en "datos", no el texto del documento. La base no tiene con que
+// calcularlo. Por eso el hash se calcula aca y se manda.
+//
+// Y POR QUE NO SOBRE LA PLANTILLA
+//
+// Se hashea el papel YA ARMADO, con los datos del trabajador dentro. Si se
+// hasheara la plantilla, dos personas distintas firmando el mismo papel
+// darian el mismo hash, y la huella no probaria nada sobre lo que se firmo.
+async function huellaDelPapel(texto){
+  if(!window.crypto||!window.crypto.subtle)return null;
+  try{
+    // El "TextEncoder" convierte a bytes UTF-8. Sin el, un texto con ñ o tilde
+    // da un hash distinto del que dio la base, y la verificacion daria
+    // false sin que nadie entienda por que.
+    const bytes=new TextEncoder().encode(String(texto));
+    const buf=await window.crypto.subtle.digest('SHA-256',bytes);
+    const hex=Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    return hex;
+  }catch(e){
+    // Y SI EL NAVEGADOR NO LO TIENE, SE DICE Y SE SIGUE
+    //
+    // "crypto.subtle" existe en un contexto seguro: https, o localhost.
+    // Servido en 127.0.0.1 SI es contexto seguro, asi que aca funciona. Falla
+    // en un navegador muy viejo, o si alguien abre la pagina por la IP de la
+    // maquina en http://, que NO es contexto seguro.
+    //
+    // Sin hash la firma IGUAL se guarda: es peor perder la firma que no
+    // tener la huella. Pero queda anotado que fue sin huella, para que no se
+    // piense que si la tiene.
+    console.warn('[firma] sin crypto.subtle: la firma se guardó SIN huella',e);
+    return null;
+  }
+}
+// EL PAPEL QUE SE FIRMA, ARMADO
+//
+// Es el mismo texto que se pinta en el modal, con los datos ya puestos: el
+// contenido de la plantilla, los recuadros de firma y el timbre. Se arma en una
+// funcion para que el modal y la huella SIEMPREPARTAN del mismo texto: si cada
+// uno lo armara por su cuenta, una diferencia de un espacio daria dos hashes
+// distintos para el mismo papel, y la verificacion fallaria sin motivo.
+function textoDelPapel(p,w,entrega){
+  return reemplazarCampos(p.contenido,w,{
+    centro:centroDeRelojDe(w)||((empresaDelPapel()||{}).nombre||'')
+  })+htmlFirmas(p,entrega)+htmlTimbre();
+}
+// GUARDAR LA HUELLA, DESPUÉS DE QUE LA FIRMA SE GUARDÓ
+//
+// Y va DESPUÉS, y no en el mismo paso, por una razón que salió de medir: la
+// firma va por la funcion "registrar_firma_contratacion" de la 031, que es la
+// que conoce el estado del papel y el versionado de la plantilla. La huella es
+// un dato más, y si se mandara junto, un fallo de la huella haria fallar la
+// firma, que es lo que NO tiene que pasar.
+//
+// Entonces: primero se guarda la firma, y despues la huella. Si la huella
+// falla, la firma esta guardada y el aviso lo dice.
+async function guardarLaHuella(p,code,w,firmaT,firmaS){
+  // Y LA HUELLA DEL PAPEL ES EL TEXTO QUE SE FIRMÓ, CON LAS FIRMAS PUESTAS
+  //
+  // Se usa la entrega recien guardada para que los recuadros de firma
+  // aparezcan con lo firmado. Si se usara el HTML del modal, los recuadros
+  // estarian vacios y el hash seria de OTRO papel.
+  const entrega=entregasDe(code).find(e=>e.plantilla_code===p.code)||null;
+  const conFirmas={firma_trabajador:firmaT,firma_supervisor:firmaS};
+  const texto=textoDelPapel(p,w,conFirmas);
+  const hash=await huellaDelPapel(texto);
+  if(!hash)return false;
+
+  const empresa=empresaDelPapel()||{};
+  const fila={
+    empresa_id:empresa.id,
+    code:code,
+    tipo:p.categoria||'formulario',
+    plantilla_code:p.code,
+    plantilla_nombre:p.nombre,
+    trabajador_nombre:w?w.name:'',
+    contenido_hash:hash,
+    hash_algoritmo:'sha-256',
+    firma_imagen:firmaT,
+    firmante_nombre:w?w.name:'',
+    firmante_rut:w?w.rut:null,
+  };
+  // Y LA MANO DE FIRMA DE SUPUESTOR
+  //
+  // La tabla tiene UN solo "firma_imagen": el de la persona que firma el
+  // documento, que es el trabajador. La firma del supervisor se guarda en la
+  // 031, en "entregas_contratacion", que ya la tiene y que esta asociada al
+  // mismo papel.
+  //
+  // No se agrega una segunda columna aca: seria duplicar lo que la 031 ya
+  // guarda, y las dos copias se pueden desincronizar.
+  const {error}=await window.supabaseClient.from('firmas_documento').upsert(fila,{
+    onConflict:'empresa_id,code,tipo,documento_id,periodo'
+  });
+  if(error){
+    // Y ESTE AVISO NO ES UN ERROR: LA FIRMA YA ESTA GUARDADA
+    //
+    // La firma va por la 031 y ya se guardó. Si la huella falla, lo que falta
+    // es la prueba de integridad, no el papel. Decirlo claro evita que alguien
+    // firme de nuevo thinking que no se guardó, y pise la firma buena.
+    console.warn('[firma] la firma se guardó pero la huella no:',error);
+    return false;
+  }
+  return true;
+}
 function htmlTimbre(){
   if(!reglaTimbre||!reglaTimbre.activo)return '';
   const empresa=empresaDelPapel()||{};
@@ -304,9 +420,13 @@ function abrirPapel(plantillaCode,code){
   if(!empresaDelPapel()){
     document.getElementById('papelError').innerHTML=escHtml(avisoSinEmpresaUnica());
   }
-  donde.innerHTML=reemplazarCampos(p.contenido,w,{
-    centro:centroDeRelojDe(w)||((empresaDelPapel()||{}).nombre||'')
-  })+htmlFirmas(p,entrega)+htmlTimbre();
+  // Y EL PAPEL SE ARMA CON "textoDelPapel", NO CON LAS TRES LLAMADAS SUELTAS
+  //
+  // Es el mismo texto que se va a hashear al firmar. Si el modal lo armara por
+  // su cuenta, una diferencia minima entre las dos versiones daria dos hashes
+  // distintos para el mismo papel, y la verificacion daria false sin que haya
+  // pasado nada.
+  donde.innerHTML=textoDelPapel(p,w,entrega);
   // Los dos recuadros de firma se vuelven a dibujar vacíos, con la
   // firma ya puesta de fondo si la había.
   montarFirmaPapel('papelFirmaTrab',entrega?entrega.firma_trabajador:null);
@@ -429,6 +549,7 @@ async function guardarPapel(){
     p_anular:false
   });
   btn.disabled=false;btn.textContent='Guardar firma';
+  if(!error)await guardarLaHuella(p,code,w,firmaT,firmaS);
   if(error){
     // La versión de la plantilla pudo cambiar mientras el papel estaba
     // abierto. El mensaje de la base lo dice y hay que decirlo también en
