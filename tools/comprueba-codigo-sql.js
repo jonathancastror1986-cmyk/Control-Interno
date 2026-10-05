@@ -140,7 +140,52 @@ arch.forEach(function (f) {
     });
   }
 
-  // ---- 4) UNA RAYA DE SECCION SIN EL "--" ----
+  // ---- 5) PARÉNTESIS Y COMILLAS ----
+//
+// Y POR QUÉ SOLO CUENTO Y NO INTERPRETO
+//
+// Revisar sintaxis SQL de verdad necesita un motor: hay que entender el "with", los "case", los
+// agregados de ventana y cien reglas más. No hay un Postgres local, y no lo voy a pretender.
+//
+// Lo que SÍ se puede es contar delimitadores, y eso tapa una clase entera de errores: un
+// paréntesis de más, una comilla sin cerrar, un dollar-quote sin parejar.
+//
+// Y ESTOS ERRORES SALIERON EN UN DÍA Y NINGUNO LO AGARRÓ UN GUARDIÁN
+//
+//   "on conflict" huérfano         el ";" cortaba la sentencia
+//   position(record, unknown)      se usó el nombre del CTE como columna
+//   CASE/WHEN debe ser booleano    el "||" tiene más precedencia que el "~"
+//   operator too long at "="        una raya de sección perdió el "--"
+//   syntax error at or near ")"     un CTE cerrado dos veces
+//
+// Los dos primeros ya los tapaban otras comprobaciones. Estas dos tapas las de conteo, que
+// son las que se repitieron.
+//
+// ---- Y EL ORDEN: PRIMERO SE SACAN COMENTARIOS Y CADENAS, DESPUÉS SE CUENTA ----
+//
+// Porque un "(" dentro de un comentario no cuenta, y uno dentro de una cadena tampoco: un
+// " where (a, '') " tiene un paréntesis y dos comillas que no son nada. Contar sobre el
+// archivo entero da un número que no significa nada, y un guardián que da números que no
+// significan nada entrena a que lo ignoren.
+  const soloCodigo = txt
+    .split('\n')
+    .map(x => (/^\s*--/.test(x) ? '' : x))   // los comentarios de línea entera
+    .join('\n')
+    .replace(/\$\$\$\$[\s\S]*?\$\$\$\$/g, "")    // los dollar-quote completos
+    .replace(/'([^']|'')*'/g, "''");            // las cadenas simples
+
+  const nAbren = (soloCodigo.match(/\(/g) || []).length;
+  const nCierran = (soloCodigo.match(/\)/g) || []).length;
+  if (nAbren !== nCierran) {
+    poder.push('parentesis desbalanceados: ' + nAbren + ' abren y ' + nCierran + ' cierran');
+  }
+
+  const nComillas = (soloCodigo.match(/'/g) || []).length;
+  if (nComillas % 2 !== 0) {
+    poder.push('comillas desbalanceadas: ' + nComillas + ' (un numero impar: falta cerrar una)');
+  }
+
+// ---- 4) UNA RAYA DE SECCION SIN EL "--" ----
   //
   // Y ESTE ES EL ERROR QUE MAS CUESTA VER, PORQUE NO ESTA EN EL CODIGO
   //
