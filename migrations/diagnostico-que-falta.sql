@@ -96,7 +96,6 @@ with migraciones(numero, archivo, ancla, tipo, columna) as (
     (79, '079_firmas_documento.sql', 'firmas_documento', 'tabla', ''),
     (80, '080_categoria_kit_contratacion.sql', 'plantillas_contratacion', 'columna', 'categoria')
 )
-)
 select m.numero as nro,
        m.archivo,
        m.tipo,
