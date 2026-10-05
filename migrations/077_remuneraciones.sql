@@ -201,10 +201,13 @@ create index if not exists remuneraciones_code_periodo_idx
 
 do $$
 begin
-  if to_regprocedure('public.puede_ver_trabajador()') is null then
-    raise exception 'Falta public.puede_ver_trabajador(). Aplicar antes la 070_oficina_carga_sueldo.sql';
+  if to_regprocedure('public.puede_ver_trabajador(text,uuid)') is null then
+    raise exception 'Falta public.puede_ver_trabajador(), que crea la 067_aislar_por_empresa.sql. Sin ella no hay aislamiento por empresa: aplicala antes de esta.';
   end if;
-end $$;
+if to_regprocedure('public.tiene_permiso(text,uuid)') is null then
+    raise exception 'Falta public.tiene_permiso(), que crea la 014_multi_empresa.sql.';
+  end if;
+end $;
 
 alter table public.remuneraciones enable row level security;
 
@@ -227,13 +230,13 @@ create policy "remuneraciones leen" on public.remuneraciones for select
 -- corruptir el libro: basta con escribir.
 
 -- Por eso la escritura NO usa "puede_ver_trabajador", que es de lectura, sino
--- que el permiso explicito de cargar remuneraciones. Y ese permiso ya existe: la
+-- que el permiso explicito de cargar remuneraciones. Y el permiso ya existe: la
 -- 069 creo "rem.editar" para el rol de oficina.
 
 drop policy if exists "remuneraciones escriben" on public.remuneraciones;
 create policy "remuneraciones escriben" on public.remuneraciones for all
-  using (existe_permiso('rem.editar'))
-  with check (existe_permiso('rem.editar'));
+  using (tiene_permiso('rem.editar'))
+  with check (tiene_permiso('rem.editar'));
 
 -- ===================================================================
 -- 4) QUE PASO, EN UN PANEL
