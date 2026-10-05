@@ -20,19 +20,19 @@ proyecto: cero build, cero "node_modules". -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=113"></script>
-<script src="../config/supabase.client.js?v=113"></script>
-<script src="../config/auth.js?v=113"></script>
-<script src="../controllers/theme.js?v=113"></script>
-<script src="../controllers/clima-reloj.js?v=113"></script>
-<link rel="stylesheet" href="../css/base.css?v=113">
+<script src="../config/supabase.config.js?v=114"></script>
+<script src="../config/supabase.client.js?v=114"></script>
+<script src="../config/auth.js?v=114"></script>
+<script src="../controllers/theme.js?v=114"></script>
+<script src="../controllers/clima-reloj.js?v=114"></script>
+<link rel="stylesheet" href="../css/base.css?v=114">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=113">
-<link rel="stylesheet" href="../css/grupos.css?v=113">
-<link rel="stylesheet" href="../css/styles.css?v=113">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=113">
+<link rel="stylesheet" href="../css/tokens.css?v=114">
+<link rel="stylesheet" href="../css/grupos.css?v=114">
+<link rel="stylesheet" href="../css/styles.css?v=114">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=114">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=113"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=114"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,13 +68,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=113">
-<link rel="stylesheet" href="../css/vistas.css?v=113">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=113">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=113">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=113">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=113">
-<link rel="stylesheet" href="../css/movil.css?v=113" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=114">
+<link rel="stylesheet" href="../css/vistas.css?v=114">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=114">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=114">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=114">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=114">
+<link rel="stylesheet" href="../css/movil.css?v=114" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -2180,6 +2180,54 @@ obra sembradas por la migración 031.
   </div>
 
   <!--
+  LOS PAPELES FIRMADOS
+  ====================
+  Lo que se firmó de verdad, con la huella. Es la contracara de la tarjeta de arriba: alla se
+  escribe lo que se le va a entregar; aca queda lo que ya se entrego y firmo.
+
+  Y POR QUE ESTA EN LA MISMA VISTA
+  --------------------------------
+  Son las dos mitades de la misma pregunta: "que papeles tiene esta persona". Una dice los que
+  puede todavia tener, y la otra los que yafirmo. Separadas habria que saltar de una a otra para
+  entender si un contrato esta entregado o no.
+
+  Y LA HUELLA, QUE NO ES UN ADORNO
+  --------------------------------
+  Cada papel firmado guarda un SHA-256 de su texto. Si el papel cambia en un solo caracter, el
+  hash cambia. Eso es lo que hace que un documento firmado no se pueda cambiar despues sin que se
+  note. El boton "Verificar que el papel no cambio" rearma el papel con los datos de HOY y compara:
+  si da igual, el papel no se toco.
+  -->
+  <div class="card">
+    <h2>Papeles firmados</h2>
+    <small>Lo que ya se firmó, con la huella de cada papel. El hash es una prueba de que el
+      documento no cambió: si el texto se editó aunque sea en un carácter, el hash es otro.</small>
+    <div class="row" style="margin-top:12px;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div><label>Trabajador</label><select id="firmasTrabajador" onchange="aplicarFiltroFirmas()"></select>
+        <small style="display:block;color:var(--muted);font-size:.72rem">Vacío = todos</small></div>
+      <div><label>Tipo de papel</label><select id="firmasTipo" onchange="aplicarFiltroFirmas()">
+        <option value="">Todos</option>
+        <option value="contrato">Contrato</option>
+        <option value="anexo">Anexo</option>
+        <option value="formulario">Formulario</option>
+        <option value="charla">Charla</option>
+        <option value="induction">Inducción</option>
+        <option value="prevencion">Prevención</option>
+        <option value="otro">Otro</option>
+      </select></div>
+      <div><label>Desde</label><input type="date" id="firmasDesde" onchange="aplicarFiltroFirmas()"></div>
+      <div><label>Hasta</label><input type="date" id="firmasHasta" onchange="aplicarFiltroFirmas()"></div>
+      <div style="flex:1;min-width:200px"><label>Buscar</label>
+        <input id="firmasBuscar" placeholder="nombre del papel, del trabajador o código"
+               oninput="textoBuscadorFirmas(this.value)">
+        <small style="display:block;color:var(--muted);font-size:.72rem">Busca dentro de los que ya setrajeron con los filtros de arriba</small></div>
+      <div style="align-self:flex-end"><button class="btn" type="button" onclick="limpiarFiltrosFirmas()">Limpiar</button></div>
+    </div>
+    <div id="firmasResumen" style="margin-top:10px"></div>
+    <div id="firmasLista" style="margin-top:10px"></div>
+  </div>
+
+  <!--
   LOS CAMPOS PROPIOS
   ==================
   Las plantillas de arriba solo pueden poner datos que YA existen en el trabajador. Faltan
@@ -2366,6 +2414,36 @@ PDF se genera renderizando esta misma hoja.
       <button class="btn" id="papelAnular" type="button" onclick="anularPapel(document.getElementById('dlgPapel')._plantilla.code,document.getElementById('dlgPapel')._code)">Anular</button>
       <button class="btn" type="button" onclick="document.getElementById('dlgPapel').close()">Cerrar</button>
       <button class="btn primary" id="papelGuardar" type="button" onclick="guardarPapel()">Guardar firma</button>
+    </div>
+  </div>
+</dialog>
+
+<!--
+VER UN PAPEL FIRMADO
+===================
+Muestra la firma, los datos que se copiaron al firmar y el hash completo.
+
+Y POR QUE NO SE MUESTRA EL PAPEL ENTERO
+---------------------------------------
+Porque la base no lo tiene. "firmas_documento" guarda el hash y las firmas
+dibujadas, no el texto del papel: el papel se armaba en el navegador y se iba.
+Por eso el botón de "Verificar" rearma el papel con los datos de HOY y compara
+el hash: si da igual, el papel no cambió.
+-->
+<dialog id="dlgFirmaVer" style="max-width:min(640px,96vw);width:96vw">
+  <div>
+    <h2>Papel firmado</h2>
+    <div id="firmaVerMeta" style="margin:8px 0 14px"></div>
+    <label>Firma</label>
+    <div id="firmaVerDoc"></div>
+    <label style="display:block;margin-top:14px">Huella SHA-256</label>
+    <div id="firmaVerCuerpo"></div>
+    <div id="verificarResultado" style="margin-top:8px"></div>
+    <small style="display:block;margin-top:8px">La huella es una cadena de 64 letras y números que sale del
+      texto del papel. Si el papel cambió en un solo carácter, la huella cambia. Copiala y compárala
+      con la del documento que tenés adelante.</small>
+    <div class="row" style="margin-top:14px;justify-content:flex-end">
+      <button class="btn" type="button" onclick="document.getElementById('dlgFirmaVer').close()">Cerrar</button>
     </div>
   </div>
 </dialog>
@@ -2837,20 +2915,20 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=113"></script>
-<script src="../views/porteria/escaner.js?v=113"></script>
+<script src="../js/nucleo.js?v=114"></script>
+<script src="../views/porteria/escaner.js?v=114"></script>
 
-<script src="../views/asistencia/relojes.js?v=113"></script>
-<script src="../views/soporte/soporte.js?v=113"></script>
-<script src="../views/administracion/administracion.js?v=113"></script>
-<script src="../views/bodega/bodega.js?v=113"></script>
+<script src="../views/asistencia/relojes.js?v=114"></script>
+<script src="../views/soporte/soporte.js?v=114"></script>
+<script src="../views/administracion/administracion.js?v=114"></script>
+<script src="../views/bodega/bodega.js?v=114"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
-<script src="../views/administracion/docx.js?v=113"></script>
-<script src="../views/administracion/documentos.js?v=113"></script>
-<script src="../views/supervisores/supervisores.js?v=113"></script>
-<script src="../js/app.js?v=113"></script>
+<script src="../views/administracion/docx.js?v=114"></script>
+<script src="../views/administracion/documentos.js?v=114"></script>
+<script src="../views/supervisores/supervisores.js?v=114"></script>
+<script src="../js/app.js?v=114"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================

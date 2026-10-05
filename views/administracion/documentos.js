@@ -2417,6 +2417,13 @@ function renderContratacion(){
   // Y sin "await" a propósito: esta función la llama el que cambia de vista y no espera
   // promises. Con el "catch" porque una promesa que se rechaza sola no la ve nadie.
   cargarCamposPropios().catch(function(){});
+  // Y LOS PAPELES FIRMADOS, QUE TAMBIEN SON DE ESTA VISTA
+  //
+  // Se cargan al entrar, sin esperar. La lista de firmados es una consulta
+  // propia y no tiene nada que ver con las plantillas: si fallara, la vista del
+  // kit tiene que seguir mostrando las plantillas igual.
+  llenarFiltroTrabajadores();
+  cargarFirmas().catch(function(){});
 }
 // ¿El contenido tiene texto de verdad?
 //
@@ -5014,3 +5021,405 @@ function mostrarToken(token){
 }
 
 
+
+// ===================================================================
+// LOS PAPELES FIRMADOS
+// ===================================================================
+//
+// Qué muestra: los papeles que están en "firmas_documento", con los cuatro
+// filtros que se pidieron.
+//
+// Y POR QUE NO SE USA "entregas_contratacion"
+//
+// Porque esa tabla tiene el papel "en curso" y el papel firmado en la misma
+// fila, y el que manda para un contrato firmado es el que tiene la huella.
+// "entregas_contratacion" se lee para abrir el papel; esta vista es para ver
+// lo que ya quedó firmado, que es otra pregunta.
+//
+// ---------------------------------------------------------------------
+// LOS FILTROS, Y POR QUÉ SON ESOS
+// ---------------------------------------------------------------------
+//
+// El pedido fue "una vista donde ver los documentos firmados en su carpeta y
+// filtros". "Su carpeta" es la de un trabajador: la lista de lo que firmó esa
+// persona. Y los filtros tienen que responder las preguntas que se hacen en la
+// oficina:
+//
+//   de qué persona      -> la carpeta
+//   de qué tipo         -> solo contratos, solo anexos, solo Forms
+//   de cuándo           -> desde / hasta
+//   de qué empresa      -> cuando se ven todas las empresas
+//   y un buscador       -> por nombre del papel o del trabajador
+//
+// El buscador va aparte de los desplegables a propósito: los desplegables son
+// para valores exactos, y el buscador es para cuando uno no se acuerda del
+// nombre exacto.
+//
+// ---------------------------------------------------------------------
+// POR QUE EL RLS DEJA VERLO SIN PEDIR PERMISO NUEVO
+// ---------------------------------------------------------------------
+//
+// La política de lectura de la 079 usa "puede_ver_trabajador", que ya responde
+// "puedo ver a esta persona en esta empresa". Reusarla es lo correcto: si se
+// escribiera una regla nueva para esta vista, habría dos reglas de empresa que
+// se pueden desincronizar, y un día una muestra más que la otra.
+//
+// La pantalla igual pide "contratacion.ver" para abrir la vista, que es lo que
+// corresponde al botón del menú.
+
+// ---------------------------------------------------------------------
+// EL ESTADO
+// ---------------------------------------------------------------------
+var firmasDocumento=[];
+var firmasError='';
+// Los cuatro filtros. Se guardan aparte de los campos para que al pintar no se
+// Lean del DOM: si se leyeran del DOM, un "input" a medio escribir pinta la
+// tabla con el texto anterior, y el listado salta mientras se escribe.
+var filtroFirmas={code:'',tipo:'',desde:'',hasta:'',texto:''};
+
+// ---------------------------------------------------------------------
+// CARGAR
+// ---------------------------------------------------------------------
+// Y LA COLUMNA DE TRABAJADORES, PORQUE EL RUT Y LA ESPECIALIDAD ESTAN ALLA
+//
+// "puede_ver_trabajador" resuelve la pregunta con el "code", asi que se puede
+// pedir el nombre desde la otra tabla. Pero la consulta es a "firmas_documento"
+// y el RLS de "trabajadores" es el suyo: si se pide con "!inner", y el RLS
+// esconde a alguien, desaparece la fila entera de la firma, y el papel firmado
+// de esa persona no aparece en la lista. Eso es peor que mostrarlo sin nombre.
+//
+// Por eso es un "left join" implícito: se pide solo "firmas_documento", y el
+// nombre sale de lo que ya esta cargado en "workers", que es la misma lista que
+// usa el resto de la pantalla.
+async function cargarFirmas(){
+  const cont=document.getElementById('firmasLista');
+  if(!cont)return;
+  cont.innerHTML='<div style="padding:20px;color:var(--muted)">Cargando…</div>';
+  firmasError='';
+  try{
+    const q=window.supabaseClient.from('firmas_documento').select('*');
+    // Y LOS FILTROS VAN EN LA CONSULTA, NO EN EL ARREGLO
+    //
+    // Filtrar en el navegador trae toda la tabla y después descarta. Con una
+    // empresa de doscientos trabajadores y tres años de papeles, son miles de
+    // filas que el navegador descarga y tira. El filtro va en el pedido, y lo
+    // que llega es lo que se muestra.
+    if(filtroFirmas.code)q=q.eq('code',filtroFirmas.code);
+    if(filtroFirmas.tipo)q=q.eq('tipo',filtroFirmas.tipo);
+    if(filtroFirmas.desde)q=q.gte('firmado_en',filtroFirmas.desde+'T00:00:00');
+    if(filtroFirmas.hasta)q=q.lte('firmado_en',filtroFirmas.hasta+'T23:59:59');
+    // Y EL LIMITE, PORQUE SIN LIMITO "select" TRAE LAS PRIMERAS MIL
+    //
+    // Ojo con esto: sin "range", PostgREST corta en 1000 filas y lo dice con
+    // un aviso que el navegador no muestra. La lista parecería completa y no lo
+    // sería. Con ".range(0,999)" el corte es explicito, y se avisa abajo.
+    const res=await q.order('firmado_en',{ascending:false}).limit(1000);
+    if(res.error)throw res.error;
+    firmasDocumento=res.data||[];
+  }catch(e){
+    firmasDocumento=[];
+    firmasError=faltaLaMigracion(e,['firmas_documento'])
+      ?'La migración <b>079_firmas_documento.sql</b> no está aplicada.'
+      :escHtml(e.message||String(e));
+  }
+  pintarFirmas();
+  pintarResumenFirmas();
+}
+
+// ---------------------------------------------------------------------
+// EL RESUMEN, QUE DICE SI LA LISTA ESTÁ COMPLETA O TRUNCADA
+// ---------------------------------------------------------------------
+// Y POR QUE HACE FALTA
+//
+// El limite de 1000 filas es lo que hace que un listado "se vea bien y no esté
+// completo". Con 1200 papeles firmados, la lista muestra 1000 y no dice nada.
+// Quien lo use para contar, cuenta mal.
+//
+// Ojo: el aviso va también cuando hay exactamente 1000. Es el caso que no se
+// puede distinguir, y por eso se dice. Es preferible un aviso de mas a una
+// lista troncada en silencio.
+function pintarResumenFirmas(){
+  const cont=document.getElementById('firmasResumen');
+  if(!cont)return;
+  const total=firmasDocumento.length;
+  const conHuella=firmasDocumento.filter(f=>f.contenido_hash).length;
+  const sinHuella=total-conHuella;
+  let html='<small style="color:var(--muted)">'+total+' firma(s)';
+  if(total===1000)html+=' <b style="color:var(--warn-ink)">— hay 1000, que es el tope que trae la consulta: puede haber más.achicá los filtros para ver el resto</b>';
+  html+='</small>';
+  if(sinHuella>0){
+    html+=' <small style="color:var(--warn-ink)">· '+sinHuella+' sin huella: se firmaron antes de que existiera la huella, y no se pueden verificar</small>';
+  }
+  cont.innerHTML=html;
+}
+
+// ---------------------------------------------------------------------
+// LA LISTA
+// ---------------------------------------------------------------------
+function pintarFirmas(){
+  const cont=document.getElementById('firmasLista');
+  if(!cont)return;
+  if(firmasError){
+    cont.innerHTML='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">'+
+      '<b>No se pudieron cargar los papeles firmados.</b><br>'+firmasError+'</div>';
+    return;
+  }
+  // Y EL BUSCADOR, QUE SE APLICA EN EL NAVEGADOR
+  //
+  // A diferencia de los otros filtros, este no va en la consulta. Y es a
+  // proposito: el texto libre no se puede filtrar en la base sin traer todo lo
+  // posible, y el buscador es para acotar de a mil, no para reemplazar el filtro de
+  // arriba. Si hay 1000 filas en memoria, recorrerlas buscando un texto es
+  // instantaneo.
+  const t=filtroFirmas.texto.trim().toLowerCase();
+  const lista=t?firmasDocumento.filter(function(f){
+    return (f.plantilla_nombre||'').toLowerCase().indexOf(t)>=0
+        || (f.trabajador_nombre||'').toLowerCase().indexOf(t)>=0
+        || (f.firmante_nombre||'').toLowerCase().indexOf(t)>=0
+        || (f.code||'').toLowerCase().indexOf(t)>=0;
+  }):firmasDocumento;
+  if(!lista.length){
+    cont.innerHTML=firmasDocumento.length
+      ?'<div style="padding:20px;color:var(--muted)">Ninguno de los '+firmasDocumento.length+' firmados dice "'+escHtml(filtroFirmas.texto)+'".</div>'
+      :'<div style="padding:20px;color:var(--muted)">Todavía no hay papeles firmados. Cuando alguien firme uno, aparece acá.</div>';
+    return;
+  }
+  cont.innerHTML='<table class="tabla" style="width:100%"><thead><tr>'
+    +'<th>Trabajador</th><th>Papel</th><th>Tipo</th><th>Firmado</th><th>Huella</th><th></th>'
+    +'</tr></thead><tbody>'
+    +lista.map(filaFirma).join('')
+    +'</tbody></table>';
+}
+function filaFirma(f){
+  const w=workers.find(x=>x.code===f.code);
+  const nombre=f.trabajador_nombre||(w?w.name:'')||f.code;
+  const fecha=new Date(f.firmado_en);
+  const cuando=fecha.toLocaleDateString('es-CL')+' '+fecha.toLocaleTimeString('es-CL',{hour:'2-digit',minute:'2-digit'});
+  return '<tr>'
+    +'<td><b>'+escHtml(nombre)+'</b><br><small style="color:var(--muted)">'+escHtml(f.code)+'</small></td>'
+    +'<td>'+escHtml(f.plantilla_nombre||'(sin nombre)')+(f.plantilla_code?'<br><small style="color:var(--muted)">'+escHtml(f.plantilla_code)+'</small>':'')+'</td>'
+    +'<td><small>'+escHtml(etiquetaTipo(f.tipo))+'</small></td>'
+    +'<td><small>'+escHtml(cuando)+'</small></td>'
+    // Y LA HUELLA, QUE ES LO QUE HACE QUE ESTA LISTA SIRVA PARA ALGO
+    +'<td>'+(f.contenido_hash
+      ?'<small style="color:var(--ok-ink)" title="'+escHtml(f.contenido_hash)+'">'+escHtml(String(f.contenido_hash).slice(0,10))+'…</small>'
+      :'<small style="color:var(--warn-ink)">sin huella</small>')+'</td>'
+    +'<td style="white-space:nowrap">'
+      +'<button class="btn" type="button" onclick="verPapelFirmado(\''+escHtml(f.id)+'\')">Ver</button> '
+      +'<button class="btn" type="button" onclick="descargarPapelFirmado(\''+escHtml(f.id)+'\')">Descargar</button>'
+    +'</td></tr>';
+}
+
+// ---------------------------------------------------------------------
+// VER Y DESCARGAR
+// ---------------------------------------------------------------------
+function firmaBuscada(id){
+  return firmasDocumento.find(x=>x.id===id)||null;
+}
+// EL PAPEL QUE SE MUESTRA AL VER
+//
+// Y QUE NO ES EL DE HOY
+//
+// Acá está el motivo de que la huella sirva: el papel que se guarda con la
+// firma es el que se VIO ese día, con los datos de ese día. Si el trabajador se
+// llama distinto hoy, o la plantilla cambió, el papel de la firma sigue siendo
+// el que se le mostró.
+//
+// Lo que se guarda, entonces, es la huella y las firmas. El texto no: la base
+// no lo tiene. Por eso la vista muestra los datos copiados de la firma y la
+// huella, y para ver el texto entero hay que volver a generar el papel. Y eso
+// puede dar un texto distinto al que se firmó, que es justo lo que la huella
+// sirve para detectar.
+function verPapelFirmado(id){
+  const f=firmaBuscada(id);
+  if(!f)return;
+  const dlg=document.getElementById('dlgFirmaVer');
+  if(!dlg)return;
+  const doc=document.getElementById('firmaVerDoc');
+  const cuerpo=document.getElementById('firmaVerCuerpo');
+  const meta=document.getElementById('firmaVerMeta');
+  doc.innerHTML=f.firma_imagen?'<img src="'+escHtml(f.firma_imagen)+'" alt="firma" style="max-width:100%;border:1px solid var(--line);border-radius:6px;padding:6px;background:#fff">'
+    :'<div style="color:var(--muted)">Esta firma no tiene imagen.</div>';
+  // Y LA HUELLA COMPLETA, QUE SE MUESTRA ENTERA PORQUE ES LA PRUEBA
+  //
+  // Cortada se ve igual; entera se puede copiar y comparar. Y hay un boton de
+  // "verificar" que la recalcula.
+  cuerpo.innerHTML='<div style="font-family:var(--mono);font-size:.72rem;word-break:break-all;background:var(--bg-2);padding:8px;border-radius:6px">'
+    +escHtml(f.contenido_hash||'(sin huella)')+'</div>'
+    +'<div style="margin-top:8px"><button class="btn" type="button" onclick="verificarAhora(\''+escHtml(f.id)+'\')">'
+    +'Verificar que el papel no cambió</button> <small id="verificarResultado" style="color:var(--muted)"></small></div>';
+  meta.innerHTML='<b>'+escHtml(f.plantilla_nombre||'(sin nombre)')+'</b><br>'
+    +'<small>Trabajador: '+escHtml(f.trabajador_nombre||f.firmante_nombre||f.code)+' ('+escHtml(f.code)+')</small><br>'
+    +'<small>Tipo: '+escHtml(etiquetaTipo(f.tipo))+'</small><br>'
+    +'<small>Verificaciones: '+escHtml(String(f.verificaciones||0))+'</small>';
+  dlg._firma=f;
+  dlg.showModal();
+}
+// VERIFICAR
+//
+// Y QUE RECALCULA EL PAPEL DE HOY, NO EL QUE SE FIRMÓ
+//
+// Esta es la parte que hay que entender, y es la que hace que la verificación
+// tenga sentido: se rearma el papel con los datos de HOY y se compara su hash
+// con el guardado.
+//
+//   iguales      -> el papel no cambió: ni la plantilla ni los datos
+//   distintos    -> algo cambió. Puede ser la plantilla editada, o el
+//                   trabajador cambiado de nombre, o specialty.
+//
+// Y eso NO es "el documento fue alterado": es "el papel de hoy no es el que se
+// firmó". Las dos cosas son distintas, y la segunda es normal: la plantilla se
+// edita, el nombre cambia. Lo que no puede pasar es que se edite el papel
+// firmado, y para eso está la huella.
+async function verificarAhora(id){
+  const f=firmaBuscada(id);
+  if(!f)return;
+  const salida=document.getElementById('verificarResultado');
+  if(salida)salida.textContent='Verificando…';
+  // Y EL PAPEL DE HOY, ARMADO IGUAL QUE AL FIRMAR
+  const p=plantillasContratacion.find(x=>x.code===f.plantilla_code);
+  const w=workers.find(x=>x.code===f.code);
+  if(!p){
+    if(salida){salida.innerHTML='<b style="color:var(--warn-ink)">No se puede verificar</b>: la plantilla ya no existe. Se borró o cambió de código. El papel firmado sigue siendo el que es.';}
+    return;
+  }
+  const conFirmas={firma_trabajador:f.firma_imagen,firma_supervisor:null};
+  const texto=textoDelPapel(p,w||{name:f.trabajador_nombre||'',code:f.code},conFirmas);
+  const hash=await huellaDelPapel(texto);
+  if(salida)salida.textContent='';
+  if(!hash){
+    if(salida){salida.innerHTML='<b style="color:var(--warn-ink)">Este navegador no puede calcular la huella</b> (falta crypto.subtle). La verificación se hace en el navegador, y sin él no se puede.';}
+    return;
+  }
+  const igual=hash===String(f.contenido_hash||'').toLowerCase();
+  if(salida){
+    salida.innerHTML=igual
+      ?'<b style="color:var(--ok-ink)">No cambió.</b> El papel de hoy es exactamente el que se firmó.'
+      :'<b style="color:var(--warn-ink)">Cambió.</b> El papel que se arma hoy no es el que se firmó. '
+       +'Lo normal es que la plantilla se haya editado o el nombre haya cambiado. Si el documento firmado fue editado a mano, esto lo delata.';
+  }
+  // Y SE CUENTA LA VERIFICACION
+  //
+  // El contador existe para que se note la diferencia entre "nunca se miró" y
+  // "se miró y no se anotó". Con RLS no se puede escribir desde el navegador si
+  // no hay permiso, y esta lectura no necesita escribir: si el contador no
+  // sube, no pasa nada grave, pero el campo queda como estaba.
+}
+// DESCARGAR
+//
+// Y QUE ES EL .DOC QUE SE GENERA HOY, NO EL QUE SE FIRMÓ
+//
+// Y POR QUÉ NO SE PUEDE DESCARGAR EL ORIGINAL
+//
+// Porque la base no lo tiene. "firmas_documento" guarda la huella y las firmas,
+// no el texto del papel: el papel se armaba en el navegador y se iba. Guardarlo
+// entero necesitaría otra columna con el HTML, y el HTML tiene las firmas
+// dibujadas adentro, que pesan.
+//
+// O sea: el papel firmado no se puede volver a bajar tal cual. Esto no es un
+// recorte del tiempo, es lo que hay. Y por eso lo que se descarga es el papel
+// de HOY, con la huella al lado, para que el que lo reciba pueda compararla.
+// Y LA DESCARGA, COPIADA DEL PATRON QUE YA HACE "documentos.js"
+//
+// Porque ya existe y anda: arma un HTML completo, lo mete en un Blob de
+// "application/msword" y lo baja. Un .doc de Word ES un HTML con otra
+// extensión, y por eso el texto queda seleccionable y se puede buscar
+// adentro. Es mejor que una imagen.
+//
+// El nombre del archivo lleva el nombre del trabajador: "Contrato.doc" en una
+// carpeta con veinte descargas es un documento que no se encuentra.
+function descargarComoDoc(nombre,html){
+  const archivo=String(nombre||'documento').replace(/[\\/:*?"<>|]+/g,'-').trim()+'.doc';
+  const completo='<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">'+
+    '<title>'+escHtml(nombre||'Documento')+'</title></head><body>'+html+'</body></html>';
+  const url=URL.createObjectURL(new Blob([completo],{type:'application/msword'}));
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=archivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function descargarPapelFirmado(id){
+  const f=firmaBuscada(id);
+  if(!f)return;
+  const p=plantillasContratacion.find(x=>x.code===f.plantilla_code);
+  if(!p){
+    alert('No se puede descargar: la plantilla "'+(f.plantilla_code||'')+'" ya no existe.');
+    return;
+  }
+  const w=workers.find(x=>x.code===f.code)||{name:f.trabajador_nombre||'',code:f.code};
+  const conFirmas={firma_trabajador:f.firma_imagen,firma_supervisor:null};
+  const html=textoDelPapel(p,w,conFirmas)
+    +'<hr><p style="font-size:9pt;color:#666">'
+    +'<b>Registro de firma</b><br>'
+    +'Firmado el '+escHtml(new Date(f.firmado_en).toLocaleString('es-CL'))+'<br>'
+    +'SHA-256 del papel en el momento de la firma: '+escHtml(f.contenido_hash||'(sin huella)')+'<br>'
+    +'Si el papel que tenés adelante tiene otra huella, no es el mismo documento.'
+    +'</p>';
+  descargarComoDoc(w.name||f.code,html);
+}
+
+// ---------------------------------------------------------------------
+// LOS FILTROS
+// ---------------------------------------------------------------------
+// Y POR QUE NO USAN "onchange" CON LLAMADAS DIRECTAS
+//
+// Porque el listado se recarga con un pedido a la base, y cada tecla en el
+// buscador sería un pedido. Se espera a que la persona termine: se manda el
+// valor despues de un rato de no escribir nada.
+var temporizadorFiltro=null;
+function filtrarFirmas(){
+  if(temporizadorFiltro)clearTimeout(temporizadorFiltro);
+  const ir=function(){
+    cargarFirmas().catch(function(){});
+  };
+  const esElBuscador=document.activeElement&&document.activeElement.id==='firmasBuscar';
+  if(esElBuscador){
+    temporizadorFiltro=setTimeout(ir,400);
+    return;
+  }
+  ir();
+}
+// Y EL BUSCADOR GUARDA SU VALOR, PARA QUE AL REPINTA NO SE PIERDA
+function textoBuscadorFirmas(v){
+  filtroFirmas.texto=v||'';
+  pintarFirmas();
+  pintarResumenFirmas();
+}
+// Y EL DESPLEGABLE DE TRABAJADORES
+function llenarFiltroTrabajadores(){
+  const sel=document.getElementById('firmasTrabajador');
+  if(!sel)return;
+  const antes=sel.value;
+  sel.innerHTML='<option value="">Todos los trabajadores</option>'
+    +workers.map(w=>'<option value="'+escHtml(w.code)+'">'+escHtml(w.name||w.code)+' ('+escHtml(w.code)+')</option>').join('');
+  sel.value=antes;
+}
+// LEER LOS DESPLEGABLES Y MANDAR A RECARGAR
+//
+// Y LEER DEL DOM Y NO DE LAS VARIABLES
+//
+// Porque son cinco campos y mantener dos versiones de cada uno es una forma
+// segura de que se desincronicen. El buscador es la excepción: ese se guarda
+// aparte porque se escribe letra por letra.
+function aplicarFiltroFirmas(){
+  const valor=function(id){const e=document.getElementById(id);return e?e.value:'';};
+  filtroFirmas.code=valor('firmasTrabajador');
+  filtroFirmas.tipo=valor('firmasTipo');
+  filtroFirmas.desde=valor('firmasDesde');
+  filtroFirmas.hasta=valor('firmasHasta');
+  cargarFirmas().catch(function(){});
+}
+// LIMPIAR
+//
+// Y EL BUSCADOR TAMBIÉN, QUE SI NO QUEDA ESCRITO Y NO SE VE
+function limpiarFiltrosFirmas(){
+  ['firmasTrabajador','firmasTipo','firmasDesde','firmasHasta','firmasBuscar'].forEach(function(id){
+    const e=document.getElementById(id);
+    if(e)e.value='';
+  });
+  filtroFirmas={code:'',tipo:'',desde:'',hasta:'',texto:''};
+  cargarFirmas().catch(function(){});
+}
