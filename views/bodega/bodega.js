@@ -403,7 +403,16 @@ async function guardarPapel(){
       err.textContent='Este papel lo firma el trabajador Y el supervisor. Firmá las dos.';
       return;
     }
-    if(firmaT!==firmaS){
+    if(!firmaT||!firmaS){
+      // Y POR QUE SON DOS "!": Y NO UN "!="
+      //
+      // Antes decia "firmaT!==firmaS", que compara las DOS firmas como si fueran iguales. Dos
+      // firmas dibujadas a mano nunca son iguales: cada trazo produce pixeles distintos, asi que el
+      // base64 difiere siempre. El cartel aparecia con las dos firmas hechas y el boton
+      // bloqueado, y no habia ningun error en ninguna parte.
+      //
+      // Lo que se quiere preguntar es si falta ALGUNA de las dos, y eso son dos "!": una por
+      // firma.
       err.textContent='Este papel lo firma el trabajador Y el supervisor. Falta una de las dos.';
       return;
     }
