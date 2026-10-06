@@ -2408,7 +2408,14 @@ const CAMPOS_PLANTILLA=[
   ['[FECHA]','Fecha de hoy']
 ];
 function renderContratacion(){
-  const aviso=document.getElementById('contratacionAvisoGeneral');
+  // Y SE SACO EL "contratacionAvisoGeneral"
+  //
+  // Se pedia con "getElementById" y no existia en ninguna parte de la pagina.
+  // Y lo que era peor: la variable "aviso" no se usaba ni una linea mas abajo.
+  // O sea que era un aviso que nunca mostro nada, de un <div> que nunca existio.
+  //
+  // No se creo el <div>: crear una caja vacia para un aviso que nadie escribe
+  // es mas ruido que el error que se estaba tapando.
   renderPlantillas();
   renderEditorTimbre();
   // Y los campos propios de la empresa, al entrar a la vista. Antes solo se cargaban al
@@ -5422,4 +5429,347 @@ function limpiarFiltrosFirmas(){
   });
   filtroFirmas={code:'',tipo:'',desde:'',hasta:'',texto:''};
   cargarFirmas().catch(function(){});
+}
+
+// ===================================================================
+// LOS MARCAJES: LA PANTALLA QUE FALTAVA
+// ===================================================================
+//
+// Qué se encontró
+// ---------------
+//
+// El HTML de la pantalla estaba completo: los seis filtros, los botones de
+// atajo, y dos cajas de salida ("marcajesAviso" y "marcajesLista"). Y el
+// codigo la llamaba bien:
+//
+//     (relojCargado?Promise.resolve():cargarRelojes())
+//       .then(()=>cargarMarcajes())
+//       .then(llenarFiltroRelojesMarcajes)
+//       .then(llenarFiltroCentrosMarcajes)
+//
+// Pero de esa cadena, TRES funciones no existian: "cargarMarcajes",
+// "llenarFiltroRelojesMarcajes" y "llenarFiltroCentrosMarcajes". Y tampoco
+// "filtrarMarcajes" ni "atajoMarcajes", que el HTML llama desde los filtros.
+//
+// O sea: la pantalla entera estaba muerta. Los filtros se veian, se le
+// escribia, y no pasaba nada: la lista nunca se dibujo nunca.
+//
+// ---------------------------------------------------------------------
+// LOS DATOS, Y LOS NOMBRES QUE TIENEN DE VERDAD
+// ---------------------------------------------------------------------
+//
+// Se leyo la migracion 017 (donde nace "marcajes") y la 030 (que le agrega
+// "reloj_id"). Las columnas son:
+//
+//   id code fecha hora tipo origen nota
+//   registrado_por registrado_por_nombre created_at reloj_id
+//
+// Y "marcajes" NO TIENE reloj_code, ni centro_costo_id, ni centro_costo.
+//
+// La primera version de esta pantalla asumia las tres. Habria mostrado "—" en
+// cada fila y el filtro por centro no habria filtrado nada, sin ningun error.
+//
+// El reloj se llega por "reloj_id", que es un UUID, y el nombre esta en la
+// tabla "relojes" (030), que tiene id, code, nombre y centro_costo_id. Ese
+// ultimo es lo que permite filtrar por CENTRO sin tocar "marcajes": el centro
+// es del reloj, no del marcaje.
+//
+// O sea que el camino correcto es una consulta sola que une las dos tablas.
+// Una consulta, no dos y un cruce en el navegador: "relojes" tiene RLS y el
+// marcaje puede verse sin que el reloj se vea, y un "left join" desde
+// "marcajes" devuelve la fila igual.
+//
+// Y POR QUE NO ES "!inner"
+//
+// Porque si el reloj se borro, el marcaje sigue existiendo. Con "inner" el
+// marcaje desaparece de la lista, y el contador de marcajes de la asistencia
+// dejaria de cuadrar con lo que se ve.
+
+// ---------------------------------------------------------------------
+// EL ESTADO
+// ---------------------------------------------------------------------
+// Y SOLO UNA LISTA, NO DOS
+//
+// Antes habria dos: "brutos" y "vista". Pero si el filtro por reloj y por
+// centro va en la consulta, lo unico que se filtra en el navegador es el texto.
+// Y para eso no hace falta una segunda lista: se calcula al pintar.
+var marcajesDatos=[];
+
+// ---------------------------------------------------------------------
+// CARGAR
+// ---------------------------------------------------------------------
+// Y EL RANGO SE LEE ANTES DE ARMAR LA CONSULTA
+//
+// Sin rango se piden los ultimos 60 dias. Sin limite, un sitio que lleva dos
+// anos marcando devuelve cientos de miles de filas y la pantalla se cuelga.
+async function cargarMarcajes(){
+  const aviso=document.getElementById('marcajesAviso');
+  const lista=document.getElementById('marcajesLista');
+  if(!lista)return;
+  if(aviso)aviso.innerHTML='<div style="padding:16px;color:var(--muted)">Cargando marcajes…</div>';
+
+  const rango=leerRangoMarcajes();
+  // Y LA UNION CON LOS RELOJES
+  //
+  // Se eligen los campos del reloj explicitamente, sin "select('*')" atras:
+  // un "select('*')" seguido de otro "select" hace que el segundo pise al
+  // primero y la consulta vuelve a pedir todo. Un solo "select", con lo que
+  // hace falta de cada tabla.
+  let q=window.supabaseClient.from('marcajes')
+    .select('id,code,fecha,hora,tipo,origen,nota,reloj_id,'
+      +'relojes(nombre,code,centro_costo_id)');
+  if(rango.desde)q=q.gte('fecha',rango.desde);
+  if(rango.hasta)q=q.lte('fecha',rango.hasta);
+  else q=q.gte('fecha',fechaAtras(60));
+  // Y EL ORDEN VA ANTES DEL LIMITE
+  //
+  // Al reves, el limite corta en cualquier orden y se trae una muestra al
+  // azar. Con el orden primero, el limite trae los ultimos, que es lo que se
+  // quiere ver.
+  const res=await q.order('fecha',{ascending:false}).order('hora',{ascending:false}).limit(2000);
+  if(res.error){
+    marcajesDatos=[];
+    if(aviso){
+      const falta=faltaLaMigracion(res.error,['marcajes','relojes']);
+      aviso.innerHTML='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px">'
+        +falta
+        ?'<b>Falta una migración.</b> Sin la tabla no hay marcajes.<br><small>'+escHtml(res.error.message)+'</small></div>'
+        :'<b>No se pudieron leer los marcajes.</b> <small>'+escHtml(res.error.message)+'</small></div>';
+    }
+    lista.innerHTML='';
+    return;
+  }
+  // Y LA UNION VIENE COMO ARRAY O COMO OBJETO, DEPENDIENDO DE COMO RESPONDA
+  //
+  // PostgREST devuelve un arreglo para la relacion a Many y un objeto para la
+  // One. Como un reloj tiene muchos marcajes, desde "marcajes" es un Many, asi
+  // que llega como arreglo con un solo elemento. Pero segun la version puede
+  // venir como objeto: se aceptan los dos.
+  marcajesDatos=(res.data||[]).map(function(m){
+    const r=Array.isArray(m.relojes)?m.relojes[0]:m.relojes;
+    return {
+      id:m.id, code:m.code, fecha:m.fecha, hora:m.hora, tipo:m.tipo,
+      origen:m.origen, nota:m.nota,
+      reloj_id:m.reloj_id,
+      reloj_nombre:r?r.nombre:'',
+      reloj_code:r?r.code:'',
+      centro_costo_id:r?r.centro_costo_id:null
+    };
+  });
+  pintarMarcajes();
+}
+// HACE "N" DIAS ATRAS, EN AAAA-MM-DD
+//
+// Y NO ES "Date.now()-n*86400000" APLICADO DIRECTAMENTE
+//
+// Porque restar dias cruzando un cambio de horario deja el resultado una hora
+// corrido, y Chile cambia el reloj. Con fechaLocalISO se arma la fecha desde
+// las partes, sin pasar por UTC: el dia es el dia, no el instante.
+function fechaAtras(n){
+  const d=new Date();
+  d.setDate(d.getDate()-n);
+  return fechaLocalISO(d);
+}
+// ---------------------------------------------------------------------
+// FILTRAR
+// ---------------------------------------------------------------------
+// Y ESTA ES LA QUE EL HTML LLAMA DESDE CADA FILTRO
+//
+// El rango de fechas y el reloj y el centro van en la CONSULTA, asi que cambiar
+// cualquiera de los tres recarga. Y "filtrarMarcajes" se llama desde el
+// buscador de texto, que si se filtra aqui.
+//
+// Por eso la funcion recarga cuando NO hay texto, y solo repinta cuando hay.
+//
+// El texto es el unico filtro que se aplica aca, porque un texto libre no se
+// puede mandar a la base sin traer todo lo posible. Los demas van en la
+// consulta.
+function filtrarMarcajes(){
+  const texto=String((document.getElementById('marcajesBuscar')||{}).value||'').trim();
+  if(texto){
+    // CON TEXTO: solo repinta, para no ir a la base en cada tecla
+    pintarMarcajes();
+    return;
+  }
+  // SIN TEXTO: recarga, porque puede haber cambiado el rango, el reloj o el
+  // centro, y eso solo se resuelve en la consulta.
+  cargarMarcajes().catch(function(){});
+  marcarAtajoMarcajes();
+}
+function pintarMarcajes(){
+  const lista=document.getElementById('marcajesLista');
+  const aviso=document.getElementById('marcajesAviso');
+  if(!lista)return;
+  const texto=String((document.getElementById('marcajesBuscar')||{}).value||'').trim().toLowerCase();
+  const reloj=(document.getElementById('marcajesFiltroReloj')||{}).value||'';
+  const centro=(document.getElementById('marcajesFiltroCentro')||{}).value||'';
+
+  // Y EL FILTRO POR TEXTO, QUE ES EL UNICO QUE SE HACE AQUI
+  //
+  // Los demas vinieron de la consulta. Este no: un texto libre no se puede
+  // mandar a la base sin traer todo lo posible, y lo que ya esta en memoria son
+  // dos mil filas.
+  let vista=marcajesDatos;
+  if(reloj){
+    // Y EL UUID DEL SELECT SE COMPARA CONTRA EL QUE VUELVE
+    //
+    // El "<option value>" de la lista de relojes lleva el "id", que es lo
+    // unico comparable. Se compara el id, no el codigo, porque "marcajes" no
+    // tiene el codigo del reloj.
+    vista=vista.filter(function(m){return String(m.reloj_id||'')===String(reloj);});
+  }
+  if(centro){
+    vista=vista.filter(function(m){return String(m.centro_costo_id||'')===String(centro);});
+  }
+  if(texto){
+    // Y CON EL NOMBRE, PORQUE QUIEN BUSCA ES UNA PERSONA
+    //
+    // Escribe "Perez", no "0047". Por eso se busca en el nombre y no solo en
+    // el codigo.
+    vista=vista.filter(function(m){
+      const w=workers.find(x=>x.code===m.code);
+      const nombre=[w?w.nombreCompleto:'',w?w.name:'',m.code||''].join(' ').toLowerCase();
+      return nombre.indexOf(texto)>=0;
+    });
+  }
+
+  // Y EL AVISO DE "TRAJADOS 2000"
+  //
+  // El limite de la consulta es 2000. Si llegaron exactamente 2000, puede
+  // haber mas, y hay que decirlo: sin esto, un listado truncado se ve completo
+  // y alguien cuenta sobre una muestra.
+  if(aviso){
+    let h='';
+    if(marcajesDatos.length>=2000){
+      h+='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:8px 12px;border-radius:8px;margin-bottom:10px">'
+       +'<b>Se trajo el máximo de 2000 marcajes.</b> Puede haber más en este rango: acotá las fechas para ver el resto.</div>';
+    }
+    h+='<small style="color:var(--muted)">'+vista.length+' de '+marcajesDatos.length+' marcaje(s)</small>';
+    if(vista.length!==marcajesDatos.length)h+=' <small style="color:var(--muted)">(filtrados)</small>';
+    aviso.innerHTML=h;
+  }
+
+  if(!vista.length){
+    lista.innerHTML='<div style="padding:20px;color:var(--muted)">'
+      +(marcajesDatos.length?'Ninguno de los '+marcajesDatos.length+' marcajes coincide con los filtros.'
+                          :'No hay marcajes en este rango de fechas.')+'</div>';
+    return;
+  }
+  lista.innerHTML='<div style="overflow:auto"><table class="tabla" style="width:100%">'
+    +'<thead><tr><th>Fecha</th><th>Hora</th><th>Trabajador</th><th>Reloj</th><th>Tipo</th><th>Origen</th></tr></thead>'
+    +'<tbody>'+vista.map(filaMarcaje).join('')+'</tbody></table></div>';
+}
+function filaMarcaje(m){
+  const w=workers.find(x=>x.code===m.code);
+  const nombre=w?(w.nombreCompleto||w.name):m.code;
+  const hora=m.hora?String(m.hora).slice(0,5):'';
+  return '<tr>'
+    +'<td><small>'+escHtml(fechaCorta(m.fecha))+'</small></td>'
+    +'<td><b>'+escHtml(hora)+'</b></td>'
+    +'<td>'+escHtml(nombre)+' <small style="color:var(--muted)">'+escHtml(m.code||'')+'</small></td>'
+    +'<td><small>'+escHtml(m.reloj_nombre||m.reloj_code||'—')+'</small></td>'
+    +'<td><small>'+escHtml(m.tipo||'')+'</small></td>'
+    +'<td><small style="color:var(--muted)">'+escHtml(m.origen||'')+'</small></td>'
+    +'</tr>';
+}
+// LA FECHA CORTA, Y QUE NO GIRE AL TRADUCIRLA
+//
+// String(new Date("2025-06-15")) puede salir "15/06/2025" o "6/15/2025" segun
+// como este configurada la maquina. Se corta el texto y se arma a mano, para
+// que la columna siempre diga lo mismo.
+function fechaCorta(iso){
+  const p=String(iso||'').split('-');
+  if(p.length!==3)return String(iso||'');
+  return p[2]+'/'+p[1]+'/'+p[0];
+}
+// ---------------------------------------------------------------------
+// EL FILTRO DE RELOJES, QUE TAMPOCO EXISTIA
+// ---------------------------------------------------------------------
+// Y POR QUE SE USA LA LISTA DE RELOJES QUE YA ESTA CARGADA
+//
+// Porque el codigo la llama encadenada DESPUES de "cargarRelojes", que es lo
+// que la deja poder leer. Si esta pantalla se abriera sin relojes cargados,
+// la lista saldria vacia y el filtro no serviria para nada.
+//
+// Y por eso el <option> lleva el "id" y no el "code": el marcaje tiene
+// "reloj_id" y nada mas. Si el <option> llevara el codigo, el filtro no
+// encontraria nunca una coincidencia.
+function llenarFiltroRelojesMarcajes(){
+  const sel=document.getElementById('marcajesFiltroReloj');
+  if(!sel)return;
+  const antes=sel.value;
+  const lista=typeof relojes!=='undefined'?relojes:[];
+  sel.innerHTML='<option value="">Todos los relojes</option>'
+    +lista.map(function(r){
+        return '<option value="'+escHtml(r.id)+'">'+escHtml(r.nombre||r.code)
+          +(r.ubicacion?' — '+escHtml(r.ubicacion):'')+'</option>';
+      }).join('');
+  if([...sel.options].some(function(o){return o.value===antes;}))sel.value=antes;
+}
+// Y EL DE CENTROS DE COSTO YA EXISTIA
+//
+// "llenarFiltroCentrosMarcajes" estaba mas arriba, en la parte de los filtros,
+// y andaba bien. La volvi a escribir aqui y el guardian "compila-juntos" la
+// vio declarada dos veces: los archivos comparten ambito, asi que la segunda
+// pisa a la primera.
+//
+// No se toco la que estaba. La duplicada se borro.
+// ---------------------------------------------------------------------
+// LOS ATAJOS DE FECHA
+// ---------------------------------------------------------------------
+// "hoy", "ayer", "semana", "todo"
+function atajoMarcajes(cual){
+  const desde=document.getElementById('marcajesFiltroDesde');
+  const hasta=document.getElementById('marcajesFiltroHasta');
+  if(!desde||!hasta)return;
+  const hoy=new Date();
+  if(cual==='hoy'){
+    desde.value=fechaLocalISO(hoy);
+    hasta.value=fechaLocalISO(hoy);
+  }else if(cual==='ayer'){
+    const a=new Date();a.setDate(a.getDate()-1);
+    desde.value=fechaLocalISO(a);
+    hasta.value=fechaLocalISO(a);
+  }else if(cual==='semana'){
+    desde.value=fechaAtras(7);
+    hasta.value=fechaLocalISO(hoy);
+  }else{
+    desde.value='';
+    hasta.value='';
+  }
+  // Y SE RECARGA, PORQUE EL RANGO VA EN LA CONSULTA
+  //
+  // Filtrar en el navegador no serviria: el rango ya se aplico cuando se
+  // trajeron los datos, asi que cambiarlo sin volver a consultar no cambia
+  // nada en pantalla.
+  cargarMarcajes().catch(function(){});
+  marcarAtajoMarcajes();
+}
+// MARCAR EL BOTON DEL ATAJO QUE ESTA PUESTO
+//
+// Y POR QUE HAY QUE MARCARLO A MANO
+//
+// Porque los botones se pueden poner de a dos caminos: por el atajo, o por
+// escribir las fechas a mano. Con "marcar al cambiar una fecha a mano", el
+// boton queda apretado aunque las fechas no sean las del atajo, y es peor:
+// dice "Hoy" y el rango es de marzo.
+//
+// Por eso se compara contra lo que el atajo pondria, y no se marca solo.
+function marcarAtajoMarcajes(){
+  const desde=(document.getElementById('marcajesFiltroDesde')||{}).value||'';
+  const hasta=(document.getElementById('marcajesFiltroHasta')||{}).value||'';
+  let activo='';
+  const hoy=fechaLocalISO(new Date());
+  if(desde===hoy&&hasta===hoy)activo='hoy';
+  else{
+    const a=new Date();a.setDate(a.getDate()-1);
+    if(desde===fechaLocalISO(a)&&hasta===fechaLocalISO(a))activo='ayer';
+    else if(desde===fechaAtras(7)&&hasta===hoy)activo='semana';
+    else if(!desde&&!hasta)activo='todo';
+  }
+  document.querySelectorAll('[data-marcajes-atajo]').forEach(function(b){
+    const esEste=b.getAttribute('data-marcajes-atajo')===activo;
+    b.classList.toggle('primary',esEste);
+    b.setAttribute('aria-pressed',esEste?'true':'false');
+  });
 }

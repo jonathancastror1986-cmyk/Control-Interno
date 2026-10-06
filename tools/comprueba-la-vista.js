@@ -156,12 +156,28 @@ const faltan = [];
 // ---------------------------------------------------------------------
 // 3. LAS FUNCIONES QUE EL HTML LLAMA CON ONCLICK
 // ---------------------------------------------------------------------
-const ONCLICK = /on(?:click|input|change)="([a-zA-Z_][a-zA-Z0-9_]*)\(/g;
+const ONCLICK = /on(?:click|input|change|keydown|keyup|keypress|submit|focus|blur)="([a-zA-Z_][a-zA-Z0-9_]*)\(/g;
 const llama = new Set();
 while ((m = ONCLICK.exec(HTML)) !== null) llama.add(m[1]);
 
+// Y LAS PALABRAS QUE SON JAVASCRIPT, NO NOMBRES DE FUNCION
+//
+// El HTML tiene esto, que es valido y funciona:
+//
+//     onkeydown="if(event.key==='Enter')doScan()"
+//
+// El "if(" no es una funcion: es un enunciado. Y el guardian lo reportaba
+// como "el HTML llama a if(), que no existe". Es un falso positivo, y uno que
+// hace ruido.
+//
+// Se descartan las palabras reservadas, que son pocas y se conocen. Es una
+// lista, no un analisis: no se intenta adivinar que es codigo.
+const RESERVADAS = new Set(['if', 'for', 'while', 'switch', 'return', 'typeof',
+  'await', 'function', 'do', 'else', 'try', 'void', 'new']);
+
 const sinDefinir = [];
 [...llama].sort().forEach(function (f) {
+  if (RESERVADAS.has(f)) return;
   if (new RegExp('function\\s+' + f + '\\s*\\(').test(JS)) return;
   if (new RegExp('\\b' + f + '\\s*=\\s*(function|async)').test(JS)) return;
   if (new RegExp('(?:const|let|var)\\s+' + f + '\\s*=').test(JS)) return;

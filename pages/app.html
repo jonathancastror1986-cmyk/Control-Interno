@@ -20,19 +20,19 @@ proyecto: cero build, cero "node_modules". -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=114"></script>
-<script src="../config/supabase.client.js?v=114"></script>
-<script src="../config/auth.js?v=114"></script>
-<script src="../controllers/theme.js?v=114"></script>
-<script src="../controllers/clima-reloj.js?v=114"></script>
-<link rel="stylesheet" href="../css/base.css?v=114">
+<script src="../config/supabase.config.js?v=115"></script>
+<script src="../config/supabase.client.js?v=115"></script>
+<script src="../config/auth.js?v=115"></script>
+<script src="../controllers/theme.js?v=115"></script>
+<script src="../controllers/clima-reloj.js?v=115"></script>
+<link rel="stylesheet" href="../css/base.css?v=115">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=114">
-<link rel="stylesheet" href="../css/grupos.css?v=114">
-<link rel="stylesheet" href="../css/styles.css?v=114">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=114">
+<link rel="stylesheet" href="../css/tokens.css?v=115">
+<link rel="stylesheet" href="../css/grupos.css?v=115">
+<link rel="stylesheet" href="../css/styles.css?v=115">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=115">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=114"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=115"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,13 +68,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=114">
-<link rel="stylesheet" href="../css/vistas.css?v=114">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=114">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=114">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=114">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=114">
-<link rel="stylesheet" href="../css/movil.css?v=114" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=115">
+<link rel="stylesheet" href="../css/vistas.css?v=115">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=115">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=115">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=115">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=115">
+<link rel="stylesheet" href="../css/movil.css?v=115" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -1259,6 +1259,19 @@ duplica nada: la base lo sabe y lo cuenta.
       </div>
     </div>
     <div id="kitProgreso"></div>
+      <!--
+      "kitScanAviso" DICE SI EL ELEMENTO ESCANEADO ESTÁ O NO EN EL KIT
+      ---------------------------------------------------------------
+      El JS lo pide en "escanearKitItem" y el <div> no existia en ninguna parte
+      de la pagina.
+
+      Lo que pasaba: escanear un codigo que NO era del kit ya marcaba la fila, y
+      marcaba las que si eran, pero nunca decia nada. El que escanea se
+      quedaba sin saber si el codigo habia entrado o no, y "- No se agregó" era
+      la unica forma de notarlo: la fila no aparecia marcada. Un aviso invisible
+      para una operacion que es medio automatica.
+      -->
+      <div id="kitScanAviso" style="margin:8px 0"></div>
     <div class="eppItems">
       <!-- la cabecera usa la misma rejilla que las filas (kitFila, 6 columnas)
            para que cada rótulo caiga sobre su columna -->
@@ -1554,6 +1567,22 @@ duplica nada: la base lo sabe y lo cuenta.
   <div class="card attendance-panel" role="tabpanel" data-sup-panel="avisos-dia">
 
       <small>Atrasos, mensajes de la asistente social y de prevención, se anotan solos al marcar la tarjeta.</small>
+      <!--
+      "diariaAviso" ESTE DIV, Y ESTABA PEDIDO SIN ESTAR
+      ---------------------------------------------------------
+      El JS lo pide dos veces (administracion.js, al cargar los marcajes y al
+      cerrarlos) y el <div> no existia en ninguna parte de la pagina.
+
+      Lo que pasaba es silencioso: los dos usos ya estaban protegidos con
+      "if(box)", asi que no habia error. Pero el aviso de "falta la migracion"
+      se escribia en una caja que no existia, y se perdia. O sea: cuando la
+      base falta, la pantalla no avisaba nada.
+
+      Va con "display:none" porque el JS lo esconde con "box.style.display='none'"
+      cuando la carga sale bien. Si arrancara visible, seria un espacio vacío
+      arriba de la lista.
+      -->
+      <div id="diariaAviso" style="display:none;margin-bottom:12px"></div>
       <div id="diariaAvisosLista"></div>
   </div>
   <div class="card attendance-panel" role="tabpanel" data-sup-panel="importar">
@@ -2915,20 +2944,20 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
   </div>
 </div>
 
-<script src="../js/nucleo.js?v=114"></script>
-<script src="../views/porteria/escaner.js?v=114"></script>
+<script src="../js/nucleo.js?v=115"></script>
+<script src="../views/porteria/escaner.js?v=115"></script>
 
-<script src="../views/asistencia/relojes.js?v=114"></script>
-<script src="../views/soporte/soporte.js?v=114"></script>
-<script src="../views/administracion/administracion.js?v=114"></script>
-<script src="../views/bodega/bodega.js?v=114"></script>
+<script src="../views/asistencia/relojes.js?v=115"></script>
+<script src="../views/soporte/soporte.js?v=115"></script>
+<script src="../views/administracion/administracion.js?v=115"></script>
+<script src="../views/bodega/bodega.js?v=115"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
-<script src="../views/administracion/docx.js?v=114"></script>
-<script src="../views/administracion/documentos.js?v=114"></script>
-<script src="../views/supervisores/supervisores.js?v=114"></script>
-<script src="../js/app.js?v=114"></script>
+<script src="../views/administracion/docx.js?v=115"></script>
+<script src="../views/administracion/documentos.js?v=115"></script>
+<script src="../views/supervisores/supervisores.js?v=115"></script>
+<script src="../js/app.js?v=115"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
