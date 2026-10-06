@@ -2118,11 +2118,55 @@ function textoSiVacio(v) {
 // Porque el filtro necesita tres cosas de cada variable: el texto para mostrar, la clave para saber
 // cuál es, y el valor para poder ponerla en la vista previa. Con un solo texto hay que volver a
 // desarmarlo después, y eso es adivinar dónde termina cada parte.
-function filaVariable(clave, valor, etiqueta) {
+// -------------------------------------------------------------------
+// A QUÉ PERTENECE CADA VARIABLE
+// -------------------------------------------------------------------
+// Y POR QUÉ HAY QUE DECIRLO
+//
+// Con veinte y pico variables en una lista, hay que leerlas todas para encontrar
+// la que se busca. Y son tres grupos que se usan para cosas distintas:
+//
+//   del trabajador   lo que ya está en la ficha
+//   de la empresa    el nombre, el RUT, el teléfono de la empresa
+//   campo propio     lo que la empresa definió para sus plantillas
+//
+// Y el filtro va por grupo, no por tipo de dato. Filtrar por "texto" o "número"
+// no sirve para elegir: casi todas son texto, y la que se busca casi nunca es la
+// única que no lo es.
+//
+// -------------------------------------------------------------------
+// EL GRUPO SE PASA POR PARÁMETRO, NO SE DEDUCE DEL NOMBRE
+// -------------------------------------------------------------------
+// Y POR QUÉ: PORQUE EL PREFIJO YA NO SE USA
+//
+// Los campos propios llegan de "datos_para_plantilla" con la clave CRUDA, sin
+// el prefijo de empresa: "7-licencia" llega como "licencia". Eso lo hace la
+// línea de más abajo, que dice:
+//
+//     const clave = k.replace(/^\d+-/, '');
+//
+// O sea que en la lista NINGUNA variable tiene un guion con números. La función
+// que lo deduce del nombre, probada con "/^\d+-/", no encontraba NINGÚN campo
+// propio: los contaba como "del trabajador".
+//
+// Y ESO ES LO QUE PEDISTE: que los campos propios aparezcan en su lugar. Si se
+// deducen del nombre, no se pueden distinguir del resto.
+//
+// Por eso el grupo viene por parámetro. El que arma la lista sabe qué es cada
+// cosa, porque lo está mirando. La función que pinta no tiene por qué adivinarlo.
+const GRUPOS_VARIABLE = [
+  { id: 'trabajador', nombre: 'Del trabajador' },
+  { id: 'empresa', nombre: 'De la empresa' },
+  { id: 'propio', nombre: 'Campos propios' },
+];
+function filaVariable(clave, valor, etiqueta, grupo) {
   const v = valor == null ? '' : String(valor);
   return {
     clave: clave,
     valor: v,
+    // Y SI NO VIENE EL GRUPO, SE DEDUCE. Para que las llamadas viejas sigan
+    // funcionando y no cambien de golpe.
+    grupo: grupo || (String(clave).indexOf('EMPRESA') >= 0 ? 'empresa' : 'trabajador'),
     // Y el texto de búsqueda lleva el nombre Y el valor, porque uno busca "rut" y a veces escribe
     // el dato de otra persona para acordarse de cuál era.
     buscar: (clave + ' ' + etiqueta + ' ' + v).toLowerCase(),
@@ -2197,7 +2241,11 @@ function pintarVariablesConDatos(datos, empresa) {
          'CORREO','DIRECCION','CARGO','ESPECIALIDAD','FECHA_INGRESO','AFP_CODIGO','AFP_NOMBRE',
          'FOTO_CASUAL','FOTO_SEGURIDAD','FIRMA'].indexOf(k) >= 0) return;
     const clave = k.replace(/^\d+-/, '');
-    filas.push(filaVariable(clave, d[k], 'campo propio'));
+    // Y EL GRUPO VA POR PARÁMETRO, PORQUE DESPUÉS DE SACAR EL PREFIJO
+    //
+    // "7-licencia" y "licencia" se ven iguales. El prefijo se lo saca esta
+    // misma línea, y con él se pierde lo que decía qué grupo era.
+    filas.push(filaVariable(clave, d[k], 'campo propio', 'propio'));
   });
 
   // Y LA LISTA ARMADA QUEDA GUARDADA, PARA QUE EL FILTRO NO LE PREGUNTE NADA A LA BASE
@@ -2216,6 +2264,7 @@ function pintarVariablesFiltradas() {
   if (!caja) return;
   const entrada = document.getElementById('plantillaVariablesFiltro');
   const q = entrada ? String(entrada.value || '').trim() : '';
+  const grupo = filtroVariablesGrupo;
 
   if (!filasPlantillaListas.length) {
     caja.innerHTML = '<small style="color:var(--muted)">Elegí un trabajador para ver los datos.</small>';
@@ -2228,11 +2277,27 @@ function pintarVariablesFiltradas() {
   // porque busca "dirección" y lo escribe sin tilde las otras.
   const sinTilde = (s) => String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const qq = sinTilde(q);
-  const pasan = qq ? filasPlantillaListas.filter((f) => sinTilde(f.buscar).indexOf(qq) >= 0)
-                   : filasPlantillaListas;
+
+  // Y EL FILTRO POR GRUPO, QUE VA SEPARADO DEL DE TEXTO
+  //
+  // Son dos cosas distintas y se aplican juntas. Buscar "empresa" con el filtro
+  // de texto saca la de la empresa Y el nombre del trabajador si dice "empresa"
+  // en algún lado; con el filtro de grupo, saca solo las de la empresa.
+  let pasan = filasPlantillaListas;
+  if (grupo) pasan = pasan.filter((f) => f.grupo === grupo);
+  if (qq) pasan = pasan.filter((f) => sinTilde(f.buscar).indexOf(qq) >= 0);
 
   if (!pasan.length) {
-    caja.innerHTML = '<small style="color:var(--muted)">Ninguna variable tiene "' + escHtml(q) + '".</small>';
+    // Y SI HAY FILTRO DE GRUPO, EL MENSAJE LO DICE
+    //
+    // Porque "Ninguna variable tiene 'xyz'" con un grupo puesto hace pensar que
+    // esa variable no existe, cuando capaz existe y es de otro grupo.
+    caja.innerHTML = '<small style="color:var(--muted)">'
+      + (q ? 'Ninguna variable tiene "' + escHtml(q) + '".' : '')
+      + (q && grupo ? ' ' : '')
+      + (grupo ? 'En "' + escHtml(nombreGrupoVariables(grupo)) + '" no hay' + (q ? ' ninguna.' : ' ninguna.')
+               : '')
+      + '</small>';
     return;
   }
 
@@ -2242,6 +2307,26 @@ function pintarVariablesFiltradas() {
       + filasPlantillaListas.length + ' variables</small>'
     : '';
   caja.innerHTML = pasan.map((f) => f.html).join('') + pie;
+}
+
+// Y EL FILTRO POR GRUPO, QUE SE GUARDA APARTE
+//
+// Porque es un "<select>" y no un campo de texto: cada cambio es una elección,
+// no una tecla. Y si se guardara en la variable del texto, al limpiar la
+// búsqueda se perdería la elección.
+let filtroVariablesGrupo = '';
+// Y EL NOMBRE CON "Variables" EN EL NOMBRE
+//
+// Porque "nombreDeGrupo" ya existe en "app.js" para los grupos de cargos, y
+// los archivos comparten el ámbito: el que carga último pisa al otro. Lo detectó
+// el guardián "compila-juntos".
+function nombreGrupoVariables(id) {
+  const g = GRUPOS_VARIABLE.find((x) => x.id === id);
+  return g ? g.nombre : id;
+}
+function cambiarGrupoVariables(v) {
+  filtroVariablesGrupo = v || '';
+  pintarVariablesFiltradas();
 }
 
 // Y LA VISTA PREVIA DEL DOCUMENTO

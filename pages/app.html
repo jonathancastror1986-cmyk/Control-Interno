@@ -2388,7 +2388,31 @@ obra sembradas por la migración 031.
         <div id="plantillaVariablesBox" class="plantillaDosColumnas">
           <div class="plantillaColIzq">
             <h4 style="margin:0 0 8px 0;font:600 .78rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">Variables para usar en cualquier plantilla</h4>
-            <input type="search" id="plantillaVariablesFiltro" placeholder="Buscar variable o dato…" oninput="pintarVariablesFiltradas()" autocomplete="off" style="margin-bottom:8px">
+            <!--
+EL FILTRO POR GRUPO
+==================
+Con veinte y pico variables en una lista, hay que leerlas todas para encontrar
+la que se busca. Y son tres grupos que se usan para cosas distintas: los datos
+del trabajador, los de la empresa, y los campos que la empresa definió.
+
+Y POR QUÉ GRUPO Y NO TIPO
+------------------------
+Porque casi todas son texto. Filtrar por "texto" no acota nada. El grupo sí:
+si estás escribiendo una charla de prevención, te interesan los campos propios
+y no el RUT de la empresa.
+
+Los dos filtros se aplican juntos: el grupo primero, y el texto sobre lo que
+queda del grupo.
+-->
+<div style="display:flex;gap:6px;margin-bottom:8px">
+  <input type="search" id="plantillaVariablesFiltro" placeholder="Buscar variable o dato…" oninput="pintarVariablesFiltradas()" autocomplete="off" style="flex:1">
+  <select id="plantillaVariablesGrupo" onchange="cambiarGrupoVariables(this.value)" style="width:auto;min-width:130px" title="De dónde sale la variable">
+    <option value="">Todas</option>
+    <option value="trabajador">Del trabajador</option>
+    <option value="empresa">De la empresa</option>
+    <option value="propio">Campos propios</option>
+  </select>
+</div>
             <div id="plantillaVariables" style="font-size:.8rem"></div>
           </div>
           <div class="plantillaColDer">
