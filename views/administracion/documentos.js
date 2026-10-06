@@ -779,7 +779,17 @@ function pintarListaVariables(){
   caja.querySelectorAll('code').forEach((c)=>{
     c.style.cursor='pointer';
     c.addEventListener('click',()=>{
-      insertarVariableEnPlantilla(c.textContent.replace(/[{}]/g,''));
+      // Y SE SACAN LOS CORCHETES TAMBIÉN, NO SOLO LAS LLAVES
+      //
+      // La ayuda muestra "[NOMBRE]" con corchetes, y antes solo se sacaban las
+      // llaves "{}". El texto llegaba como "[NOMBRE]" y la función le ponía
+      // corchetes otra vez: quedaba "[[NOMBRE]]" en el documento.
+      //
+      // "[[NOMBRE]]" no se reemplaza: el reemplazo busca el nombre exacto
+      // entre un par de corchetes, y "[[NOMBRE]]" tiene tres corchetes abiertos
+      // y dos cerrados. Es un papel que sale con el marcador adentro, y solo se
+      // nota cuando se descarga.
+      insertarVariableEnPlantilla(c.textContent.replace(/[{}[\]]/g,''));
     });
   });
 }
@@ -2380,7 +2390,18 @@ function pintarVistaPreviaPlantilla() {
 function insertarVariableEnPlantilla(clave) {
   const ed = document.getElementById('plantillaEditor');
   if (!ed) return;
-  const texto = '[' + clave + ']';
+  // Y SE SACA LO QUE YA TRAIGA, PARA QUE NO QUEDE "[[NOMBRE]]"
+  //
+  // Hay dos caminos que llegan acá: uno pasa "data-var", que es la clave
+  // limpia, y el otro pasa el texto de la ayuda, que ya viene con corchetes. Con
+  // el segundo, "[" + "[NOMBRE]" + "]" daba "[[NOMBRE]]", que no se reemplaza
+  // nunca y sale en el papel.
+  //
+  // Se limpia acá y no en el que llama, para que el que llama no tenga que
+  // saber el formato. Un solo lugar donde se decide qué es una clave.
+  const limpio = String(clave || '').replace(/[{}[\]]/g, '').trim();
+  if (!limpio) return;
+  const texto = '[' + limpio + ']';
   // Y en un "try": si el navegador ya no lo soporta, se avisa en vez de fallar en silencio.
   try {
     ed.focus();
@@ -2644,9 +2665,51 @@ async function abrirEditorPlantilla(code){
 
 document.getElementById('plantillaFirmas').value=
     p?(p.firmas||'trabajador_supervisor'):'trabajador_supervisor';
+
+  // Y LA CATEGORÍA, QUE ANTES NO SE LLENABA AL ABRIR
+  //
+  // "plantillaCategoria" se leía al GUARDAR, pero nunca se ponía el valor de la
+  // plantilla. O sea que al abrir una plantilla para editarla, el select
+  // quedaba en su primera opción, y al guardar se leía esa.
+  //
+  // El resultado: editar una plantilla para cambiarle el texto le pisaba la
+  // categoría por "formulario". Una charla de inductización que era charla se
+  // volvía formulario, sin aviso, y sin que nadie lo hiciera a propósito.
+  //
+  // Es el mismo patrón del bug de la firma: una cosa que se lee pero nunca se
+  // escribe, y el efecto aparece a la segunda vez que se usa, que es cuando
+  // alguien edita algo que ya existía.
+  (function(){
+    const sel=document.getElementById('plantillaCategoria');
+    if(!sel)return;
+    const v=p?(p.categoria||''):'';
+    // Y SI LA CATEGORÍA YA GUARDADA NO ESTÁ EN LA LISTA, SE AGREGA
+    //
+    // Porque si la plantilla tiene una categoría que el <select> no conoce, el
+    // select quedaría en blanco y al guardar se perdería. Passa si alguien
+    // cambió la lista de categorías.
+    if(v&&![...sel.options].some(o=>o.value===v)){
+      const o=document.createElement('option');
+      o.value=v;o.textContent=v;
+      sel.appendChild(o);
+    }
+    sel.value=v||'formulario';
+  })();
+
   llenarDestinoPlantilla(p);
+
+  // Y LA PLANTILLA NUEVA, CON LA SINTAXIS DE AHORA
+  //
+  // Antes salía "Tu supervisor es {{nombre}}", con llaves dobles. Esa es la
+  // forma vieja: la ayuda muestra "[NOMBRE]" con corchetes, y una plantilla
+  // recién creada con la otra forma queda con "{}" adentro, que se ve al
+  // descargar.
+  //
+  // Las dos formas funcionan al reemplazar (la 060 resuelve las tres), así que
+  // no es un error: es que la plantilla de ejemplo no enseñaba la forma que se
+  // usa.
   document.getElementById('plantillaEditor').innerHTML=p?(p.contenido||''):
-    '<h2>Inducción</h2><p>Bienvenido a la obra. Tu supervisor es {{nombre}}.</p>';
+    '<h2>Inducción</h2><p>Bienvenido a la obra. Tu supervisor es [NOMBRE].</p>';
   actualizarAyudaPlantilla();
   dlg.showModal();
   if(!p)document.getElementById('plantillaNombre').focus();
