@@ -5338,3 +5338,222 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
   flex-grow:1;
   max-width:40em;
 }
+
+
+/* ===================================================================
+
+   EL PAPEL FIRMADO, PARA GUARDAR COMO PDF
+
+   ===================================================================
+
+   Por que un bloque propio y no el de la boleta
+
+   -----------------------------------------
+
+   Porque son dos papeles distintos. La boleta es una tira corta de un
+
+   receptor de reloj. El contrato es una hoja con formato: margen, tablas,
+
+   negritas, el timbre. Si compartieran reglas, cada vez que se quisiera
+
+   hacer una cosa con un papel se tocaba el otro.
+
+   Y por que "visibility: hidden" y no "display: none"
+
+   ------------------------------------------------
+
+   "display: none" saca el elemento del papel y lo que se ve es un documento
+
+   vacio. Con "visibility" el resto de la pagina conserva su alto: es lo que
+
+   hace que los saltos de pagina caigan donde tienen que caer y no al principio
+
+   de todo.
+
+   ------------------------------------------------------------------
+
+   LO QUE NO SE IMPRIME
+
+   ------------------------------------------------------------------
+
+   El encabezado de la aplicacion, el menu y el pie. En el papel no van:
+
+   son de la app, no del documento.
+
+   Y "pantallaTotal" es la caja donde se arma el papel justo antes de imprimir.
+
+   ------------------------------------------------------------------
+
+   EL TAMANO DE LA HOJA
+
+   ------------------------------------------------------------------
+
+   Se pone el ancho de A4 menos los margenes. Si no, el papel mide lo que
+
+   mida la ventana del navegador, y al imprimir sale un bloque angosto con
+
+   media hoja en blanco al costado.
+
+   El alto NO se pone. A proposito: si se fuerza un alto, el motor de impresion
+
+   mete un salto de pagina despues, y el papel queda con un pie en blanco. El
+
+   alto lo decide el motor, que es quien sabe donde entra la hoja. */
+
+@media print {
+
+  body.imprimiendo-contrato * {
+
+    visibility: hidden;
+
+  }
+
+  /* El papel se saca del flujo, porque con "visibility" la pagina sigue
+
+     teniendo el alto de la pantalla y sale un papel en blanco arriba. */
+
+  body.imprimiendo-contrato #pantallaTotal,
+
+  body.imprimiendo-contrato #pantallaTotal * {
+
+    visibility: visible;
+
+    display: block;
+
+    position: absolute;
+
+    top: 0;
+
+    left: 0;
+
+    width: 100%;
+
+  }
+
+  body.imprimiendo-contrato #pantallaTotal .hoja-papel {
+
+    /* El ancho util de una hoja A4 con margenes de 15 mm */
+
+    width: 180mm;
+
+    margin: 0 auto;
+
+    padding: 0;
+
+    /* El papel no trae fondo: un PDF con fondo rectangulo lleno pesa mas y
+
+       sale feo impreso en blanco. */
+
+    background: #fff;
+
+    color: #000;
+
+    /* El texto se ve chico en pantalla porque la pantalla tiene los margenes
+
+       del marco. Al imprimir va un poco mas grande, que es como se lee de
+
+       verdad. */
+
+    font-size: 11pt;
+
+    line-height: 1.45;
+
+  }
+
+  /* Y LOS ESPACIOS INTERNOS, QUE EN PANTALLA SON GRANDES Y EN UN A4 SE COMEN
+
+     LA PAGINA. El papel se arma con margenes de pantalla, y a medida que se
+
+     imprimen hay que sacarlos. */
+
+  body.imprimiendo-contrato #pantallaTotal .hoja-papel p,
+
+  body.imprimiendo-contrato #pantallaTotal .hoja-papel div,
+
+  body.imprimiendo-contrato #pantallaTotal .hoja-papel td,
+
+  body.imprimiendo-contrato #pantallaTotal .hoja-papel th {
+
+    margin-top: 0;
+
+    margin-bottom: 4pt;
+
+  }
+
+  /* Y LAS TABLAS, QUE CON "display:block" PERDERIAN SUS COLUMNAS.
+
+     Este es el efecto lateral de sacar la regla del "display:block" general:
+
+     una tabla con display block se apila en vertical y el papel salen las
+
+     columnas una debajo de la otra. */
+
+  body.imprimiendo-contrato #pantallaTotal .hoja-papel table {
+
+    display: table;
+
+    width: 100%;
+
+    border-collapse: collapse;
+
+  }
+
+  body.imprimiendo-contrato #pantallaTotal .hoja-papel td,
+
+  body.imprimiendo-contrato #pantallaTotal .hoja-papel th {
+
+    display: table-cell;
+
+    border: 0.5pt solid #999;
+
+    padding: 4pt;
+
+  }
+
+  /* Y LAS FIRMAS, QUE SON LO MAS IMPORTANTE DEL PAPEL.
+
+     Sin esto la firma sale con el borde de la caja y con la linea de arriba,
+
+     que son de pantalla. En el papel tiene que verse solo el trazo. */
+
+  body.imprimiendo-contrato #pantallaTotal .firma-caja {
+
+    border: 0.5pt solid #666;
+
+    min-height: 0;
+
+    height: auto;
+
+  }
+
+  body.imprimiendo-contrato #pantallaTotal .firma-caja img {
+
+    max-width: 100%;
+
+    /* Esto es para que el trazo, que es negro sobre blanco, no salga al reves
+
+       en los navegadores que "economizan" tinta. */
+
+    -webkit-print-color-adjust: exact;
+
+    print-color-adjust: exact;
+
+  }
+
+  /* Y NADA DE CABECERA NI DE MENU EN EL PAPEL */
+
+  body.imprimiendo-contrato header,
+
+  body.imprimiendo-contrato nav,
+
+  body.imprimiendo-contrato #mainNav,
+
+  body.imprimiendo-contrato #subNav,
+
+  body.imprimiendo-contrato footer {
+
+    display: none !important;
+
+  }
+
+}

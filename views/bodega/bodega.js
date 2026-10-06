@@ -585,11 +585,51 @@ async function anularPapel(plantillaCode,code){
 // ------------------------------------------------------------------
 // EL PDF
 // ------------------------------------------------------------------
+// ------------------------------------------------------------------
+// EL PDF
+// ------------------------------------------------------------------
+// Y POR QUÉ SE IMPRIME Y NO SE GENERA UN PDF
+//
+// Antes esto armaba un PDF con "html2canvas" y "jsPDF": tomaba una foto del
+// papel con un canvas, la metía como imagen dentro del PDF, y la cortaba en
+// franjas de 595 puntos para hacer varias páginas.
+//
+// Medido sobre un PDF real de esa versión:
+//
+//     páginas                12        (una "Declaración de Salud")
+//     texto extraíble        12 caracteres
+//     tamaño                 2,6 MB
+//     imágenes               12 por página, todas de 1588×1191
+//
+// O sea: el papel entero era UNA FOTO, partida en doce franjas. El texto no
+// existía: no se podía buscar, no se podía copiar, no lo leía un lector de
+// pantalla, y un buscador de PDFs no encontraba el nombre de nadie.
+//
+// Y el corte era peor: la franja de 595 puntos cae donde cae. Si el texto
+// estaba a mitad de una franja, se partía entre dos páginas. Con una
+// declaración de salud de una carilla, eso son doce páginas con líneas cortadas
+// por la mitad.
+//
+// LO QUE SE USA AHORA
+//
+// "window.print()". El motor de impresión del navegador arma el PDF desde el
+// HTML, y lo arma como lo que es: texto. Sale con texto seleccionable, con las
+// páginas donde caen y sin partir una línea de texto.
+//
+// El motivo es que el papel no se corta: eso lo hace el motor de impresión, que
+// sabe dónde termina una página. Y por eso puede quedar en dos páginas si es
+// largo, y en dos queda bien, no partido.
+//
+// Y NO ES "IMPRIMIR" EN EL SENTIDO DE SALIR EN PAPEL
+//
+// En el diálogo que abre, el destino puede ser "Guardar como PDF". Es el
+// camino de siempre en Windows y en el celular, y es lo que se busca.
+//
+// El nombre del archivo lo pone el que guarda, no el código. No se puede: el
+// nombre del destino lo elige el diálogo de impresión, y desde el javascript no
+// se escribe ahí. Eso es lo que hace el sistema operativo, y está bien que sea
+// así.
 async function descargarEntrega(entregaId){
-  if(typeof jspdf==='undefined'||typeof html2canvas==='undefined'){
-    alert('No se cargaron las librerías de PDF.\n\nRevisá la conexión a internet y recargá la página con Ctrl+F5.');
-    return;
-  }
   const e=entregasContratacion.find(x=>x.id===entregaId);
   if(!e){alert('No se encontró la entrega.');return;}
   const p=plantillaPorId(e.plantilla_id);
@@ -601,45 +641,20 @@ async function descargarEntrega(entregaId){
     +htmlFirmas(p,e)
     +htmlTimbre()
     +'</div>';
-  await new Promise(r=>setTimeout(r,150));
-  // Se usa la global que ya está en el <head>, no un import().
+  // Y UN CORTE ANTES DE IMPRIMIR, PORQUE LAS IMÁGENES NECESITAN SU TIEMPO
   //
-  // Importar la versión ESM de jspdf por dinámica cargaría una segunda copia
-  // de la librería en la misma página: son más de 400 kB y dos copias del
-  // mismo código con distinto estado interno. Para qué, si la del <head>
-  // ya sirve.
-  const Ctor=(window.jspdf&&(window.jspdf.jsPDF||window.jspdf))||null;
-  if(!Ctor){
-    alert('No se cargó la librería de PDF. Revisá la conexión a internet y recargá con Ctrl+F5.');
-    return;
-  }
-  const canvas=await html2canvas(hoja.firstElementChild,{scale:2,backgroundColor:'#ffffff',logging:false});
-  const pdf=new Ctor({unit:'pt',format:'a4',compress:true});
-  const anchoUtil=PAPEL_ANCHO;
-  const img=canvas.toDataURL('image/jpeg',0.92);
-  const altoPagina=595.28;
-  // El papel puede ser más largo que una hoja: se reparte en varias
-  // páginas en vez de dejar el final cortado, que es lo que pasa si se
-  // escala todo a una sola imagen.
-  const imgAlto=(canvas.height*anchoUtil)/canvas.width;
-  let resto=imgAlto;
-  let pagina=0;
-  while(resto>0){
-    if(pagina>0)pdf.addPage();
-    // Se recorta con un canvas auxiliar, porque drawImage con negative
-    // offset no funciona en todos los navegadores.
-    const trozo=Math.min(resto,altoPagina);
-    const c2=document.createElement('canvas');
-    c2.width=canvas.width;
-    c2.height=Math.round((trozo*canvas.width)/anchoUtil);
-    c2.getContext('2d').drawImage(canvas,
-      0,Math.round((pagina*altoPagina*canvas.width)/anchoUtil),canvas.width,c2.height,
-      0,0,canvas.width,c2.height);
-    pdf.addImage(c2.toDataURL('image/jpeg',0.92),'JPEG',0,0,anchoUtil,trozo,undefined,'FAST');
-    resto-=trozo;
-    pagina++;
-  }
-  const nombre=(w.name||e.trabajador_code).replace(/[\\/:*?"<>|]/g,'').trim();
-  pdf.save(p.nombre.replace(/[\\/:*?"<>|]/g,'')+' - '+nombre+'.pdf');
-  hoja.innerHTML='';
+  // Las firmas son imágenes (data URL). Si se imprime antes de que el navegador
+  // las dibujó, salen en blanco o con un cuadrito vacío. Se espera un poco.
+  await new Promise(r=>setTimeout(r,250));
+  const quitar=()=>{document.body.classList.remove('imprimiendo-contrato');hoja.innerHTML='';};
+  // La clase va ANTES de imprimir. En un "@media print" no se puede cambiar el
+  // estilo desde acá: el motor de impresión ya tomó la decisión, y ponerla
+  // después no hace nada.
+  document.body.classList.add('imprimiendo-contrato');
+  window.addEventListener('afterprint',quitar,{once:true});
+  // El setTimeout es el plan B: si el navegador no dispara "afterprint", la
+  // clase se saca igual, y con esto la siguiente impresión de la app no sale
+  // en blanco.
+  setTimeout(quitar,2500);
+  window.print();
 }
