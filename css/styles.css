@@ -5408,9 +5408,31 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
   }
 
-  /* El papel se saca del flujo, porque con "visibility" la pagina sigue
-
-     teniendo el alto de la pantalla y sale un papel en blanco arriba. */
+  /* Y POR QUÉ NO HAY "position: absolute" EN ESTA REGLA
+     
+     Porque "pantallaTotal" YA ES "position: fixed" en la pantalla: es el
+     
+     contenedor de la vista entera, con el menu y todo. La primera version de
+     
+     esta regla le ponia "absolute" con "top: 0", y eso lo saca del flujo de
+     
+     su "<main>".
+     
+     MEDIDO, y por eso se sabe:
+     
+        pantallaTotal   position: fixed      alto 1123 px
+        su <main>                              alto  298 px
+        hoja-papel                              alto 1123 px
+     
+     El motor de impresion imprimia los 298 del "<main>", y el papel de 1123
+     
+     quedaba flotando fuera. Por eso la hoja salia EN BLANCO.
+     
+     Y OJO: el "main" tiene alto FIJO, y por eso no se estiraba solo. Sin
+     
+     ese alto fijo, con "position: static" el padre se estira con el hijo y
+     
+     el papel entraba bien. Ver la regla de "main" mas abajo. */
 
   body.imprimiendo-contrato #pantallaTotal,
 
@@ -5418,15 +5440,44 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
     visibility: visible;
 
+    /* Sin "position": el papel se queda en su lugar natural. Y el "main" se
+     
+       estira, porque un hijo que crece estira al padre. */
+
     display: block;
 
-    position: absolute;
-
-    top: 0;
-
-    left: 0;
-
     width: 100%;
+
+    position: static;
+
+  }
+
+  /* Y EL "MAIN" DE ARRIBA, QUE LO CONTIENE
+     
+     Se le saca el alto fijo y el margen. Con el alto fijo, el "<main>"
+     
+     seguía midiendo lo que medía en pantalla y el motor imprimía una hoja
+     
+     vacía. El alto lo decide el motor de impresión, que es quien sabe dónde
+     
+     entra la hoja. */
+  body.imprimiendo-contrato main {
+
+    display: block;
+
+    height: auto;
+
+    min-height: 0;
+
+    max-height: none;
+
+    margin: 0;
+
+    padding: 0;
+
+    overflow: visible;
+
+    position: static;
 
   }
 
@@ -5758,6 +5809,79 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
     padding: 1px 5px;
 
     font-size: .64rem;
+
+  }
+
+}
+
+
+/* ===================================================================
+
+   EL PAPEL EN IMPRESION
+
+   ===================================================================
+
+   "pantallaTotal" esta en el HTML con "left:-10000px": una caja escondida diez
+
+   mil pixeles a la izquierda, para armar el documento sin que se vea mientras se
+
+   prepara. Eso esta bien y no se toca.
+
+   ------------------------------------------------------------------
+
+   POR QUE ESTE BLOQUE EXISTE
+
+   ------------------------------------------------------------------
+
+   Porque un atributo "style" gana contra cualquier regla del CSS. Y con el papel a
+
+   -10000px, el motor de impresion imprimia una hoja EN BLANCO: el documento entero
+
+   estaba fuera de la hoja. Medido: el papel mide 1123 px de alto y el main 234, con
+
+   el papel flotando diez mil pixeles a la izquierda de la pagina.
+
+   Y el "!important" es lo unico que le gana a un "style" en linea. Por eso.
+
+   ------------------------------------------------------------------
+
+   POR QUE NO SE SACA EL INLINE DEL HTML
+
+   ------------------------------------------------------------------
+
+   Porque la caja escondida sirve. Si el papel se viera en pantalla cada vez que
+
+   alguien abre un papel, seria peor que este parche. El JS lo vuelve a poner al
+
+   terminar de imprimir.
+
+   Y el fondo tambien se quita: en impresion un rectangulo blanco se imprime y pesa,
+
+   y no aporta nada a un documento que ya es blanco. */
+
+@media print {
+
+  body.imprimiendo-contrato #pantallaTotal {
+
+    /* LOS TRES QUE IMPORTAN: sin esto, hoja en blanco */
+
+    left: 0 !important;
+
+    right: 0 !important;
+
+    position: static !important;
+
+    background: transparent !important;
+
+    width: 100% !important;
+
+    height: auto !important;
+
+    overflow: visible !important;
+
+    padding: 0 !important;
+
+    margin: 0 !important;
 
   }
 

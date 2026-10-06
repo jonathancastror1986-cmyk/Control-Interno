@@ -646,7 +646,30 @@ async function descargarEntrega(entregaId){
   // Las firmas son imágenes (data URL). Si se imprime antes de que el navegador
   // las dibujó, salen en blanco o con un cuadrito vacío. Se espera un poco.
   await new Promise(r=>setTimeout(r,250));
-  const quitar=()=>{document.body.classList.remove('imprimiendo-contrato');hoja.innerHTML='';};
+  // Y POR QUE SE GUARDA EL ESTILO ORIGINAL DE LA CAJA
+  //
+  // "pantallaTotal" esta en el HTML con "left:-10000px": una caja escondida diez
+  // mil pixeles a la izquierda, para armar el documento sin que se vea.
+  //
+  // Al imprimir hay que dejarlo en cero, porque si no el motor de impresion
+  // imprime una hoja en blanco: el documento entero queda fuera de la hoja. Y eso
+  // se hace con "!important" en el CSS, que es lo unico que le gana a un atributo
+  // "style".
+  //
+  // Y DESPUES HAY QUE DEVOLVERLO, porque si queda en cero la caja escondida deja
+  // de estar escondida, y el siguiente papel se arma a la vista de todos.
+  const caja=document.getElementById('pantallaTotal');
+  const estiloCaja=caja?caja.getAttribute('style'):null;
+  const devolver=function(){
+    if(!caja)return;
+    if(estiloCaja===null)caja.removeAttribute('style');
+    else caja.setAttribute('style',estiloCaja);
+  };
+  const quitar=function(){
+    document.body.classList.remove('imprimiendo-contrato');
+    devolver();
+    hoja.innerHTML='';
+  };
   // La clase va ANTES de imprimir. En un "@media print" no se puede cambiar el
   // estilo desde acá: el motor de impresión ya tomó la decisión, y ponerla
   // después no hace nada.
