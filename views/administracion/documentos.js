@@ -5145,7 +5145,20 @@ async function cargarFirmas(){
   cont.innerHTML='<div style="padding:20px;color:var(--muted)">Cargando…</div>';
   firmasError='';
   try{
-    const q=window.supabaseClient.from('firmas_documento').select('*');
+    // Y "let", NO "const"
+    //
+    // Porque abajo se le encadenan filtros, y cada ".eq()" devuelve una
+    // consulta NUEVA. Con "const" la reasignacion tira "Assignment to constant
+    // variable" y la lista entera no carga.
+    //
+    // Y ESTO NO LO AGARRA NINGUN GUARDIAN
+    //
+    // Los 27 guardianes comprueban que el archivo exista, que las variables
+    // esten declaradas una vez y que los ids del HTML esten en el JS. Ninguno
+    // EJECUTA el codigo, y este error solo aparece al correr: es el primero de
+    // la clase "esta bien escrito y no funciona", que es la que los guardianes
+    // no pueden ver.
+    let q=window.supabaseClient.from('firmas_documento').select('*');
     // Y LOS FILTROS VAN EN LA CONSULTA, NO EN EL ARREGLO
     //
     // Filtrar en el navegador trae toda la tabla y después descarta. Con una
