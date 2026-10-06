@@ -725,6 +725,6 @@ async function descargarEntrega(entregaId){
   // "imprimirPapel" crea un contenedor nuevo, hijo directo de "<body>", muda el
   // papel ahí y esconde todo lo demás con "display: none". El papel queda con un
   // solo ancestro, y ese no se esconde. Ver "js/impresion-papel.js".
-  imprimirPapel(hoja.innerHTML);
+  imprimirPapelEnVentana(hoja.innerHTML,{plantilla:p.nombre,trabajador:w.name||w.nombreCompleto||code});
   hoja.innerHTML='';
 }
