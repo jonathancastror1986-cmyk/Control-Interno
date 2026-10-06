@@ -2195,7 +2195,65 @@ Una charla de albanil no le toca a un portero. La lista de especialidades
 viene de la que ya usa el EPP, con las 25 del formulario de inducción de la
 obra sembradas por la migración 031.
 -->
+  <div class="kitPanel" id="kitPanel-plantillas" role="tabpanel" aria-labelledby="kitTab-plantillas">
 <section class="view v-administracion" id="v-plantillas-kit">
+
+  <!--
+  LAS PESTAÑAS DEL KIT
+  =====================
+  Los cuatro bloques que tiene esta vista van en pestañas. Antes iban apilados, y eso
+  obligaba a hacer scroll para llegar al último: el timbre quedaba a una pantalla y media
+  de donde está la lista de plantillas.
+
+  Y LA DE PAPELES FIRMADOS ES LA QUE MÁS SE USA
+  -------------------------------------------------
+  Porque es la que se mira todos los días para ver si un papel está entregado. Y con
+  las cuatro apiladas, esa quedaba en medio, con las plantillas arriba y el timbre abajo.
+
+  Y POR QUÉ NO SE USA "details" DE HTML
+  -------------------------------------
+  Porque el <summary> es un botón del navegador, con su flechita del sistema y su
+  animación. En un proyecto con su propio color, se ve foreign. Con botones propios se
+  puede hacer que la pestaña activa se vea como activa.
+  -->
+  <div class="kitTabs" role="tablist" aria-label="Secciones del kit de contratación">
+  <button type="button" class="kitTab activa"
+          id="kitTab-plantillas"
+          data-kit-panel="plantillas"
+          aria-selected="true"
+          onclick="verPanelKit('plantillas')"
+          title="cuántas hay para entregar">
+    Plantillas
+    <span class="kitTabN" id="kitTabN-plantillas"></span>
+  </button>
+  <button type="button" class="kitTab"
+          id="kitTab-firmados"
+          data-kit-panel="firmados"
+          aria-selected="false"
+          onclick="verPanelKit('firmados')"
+          title="cuántas se firmaron">
+    Firmados
+    <span class="kitTabN" id="kitTabN-firmados"></span>
+  </button>
+  <button type="button" class="kitTab"
+          id="kitTab-campos"
+          data-kit-panel="campos"
+          aria-selected="false"
+          onclick="verPanelKit('campos')"
+          title="las variables y el .docx">
+    Campos y datos
+    <span class="kitTabN" id="kitTabN-campos"></span>
+  </button>
+  <button type="button" class="kitTab"
+          id="kitTab-timbre"
+          data-kit-panel="timbre"
+          aria-selected="false"
+          onclick="verPanelKit('timbre')"
+          title="el sello del papel">
+    Timbre
+    <span class="kitTabN" id="kitTabN-timbre"></span>
+  </button>
+  </div>
   <div class="card">
     <h2>Plantillas del kit de contratación</h2>
     <small>Los papeles que se le entregan a una persona cuando entra. Prevención los escribe y los cambia cuando
@@ -2208,7 +2266,9 @@ obra sembradas por la migración 031.
     <div id="plantillasLista" style="margin-top:10px"></div>
   </div>
 
-  <!--
+    </div>
+  <div class="kitPanel" id="kitPanel-firmados" role="tabpanel" aria-labelledby="kitTab-firmados" hidden>
+<!--
   LOS PAPELES FIRMADOS
   ====================
   Lo que se firmó de verdad, con la huella. Es la contracara de la tarjeta de arriba: alla se
@@ -2256,7 +2316,9 @@ obra sembradas por la migración 031.
     <div id="firmasLista" style="margin-top:10px"></div>
   </div>
 
-  <!--
+    </div>
+  <div class="kitPanel" id="kitPanel-campos" role="tabpanel" aria-labelledby="kitTab-campos" hidden>
+<!--
   LOS CAMPOS PROPIOS
   ==================
   Las plantillas de arriba solo pueden poner datos que YA existen en el trabajador. Faltan
@@ -2376,12 +2438,15 @@ obra sembradas por la migración 031.
     </div>
   </div>
 
+  </div>
+  <div class="kitPanel" id="kitPanel-timbre" role="tabpanel" aria-labelledby="kitTab-timbre" hidden>
   <div class="card">
     <h3>El timbre</h3>
     <small>El nombre y el RUT salen de la empresa, no se escriben de nuevo acá: si el timbre tuviera su propio
       nombre, algún día los dos dicen cosas distintas y el que vale es el del papel. Lo que se configura es quién
       lo suscribe y cómo se dibuja.</small>
     <div id="timbreEditor" style="margin-top:10px"></div>
+  </div>
   </div>
 </section>
 

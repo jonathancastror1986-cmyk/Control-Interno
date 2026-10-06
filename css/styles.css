@@ -5557,3 +5557,208 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
   }
 
 }
+
+
+/* ===================================================================
+
+   LAS PESTANAS DEL KIT DE CONTRATACION
+
+   ===================================================================
+
+   Los cuatro bloques de esa vista: plantillas, firmados, campos y timbre.
+
+   ------------------------------------------------------------------
+
+   POR QUE NO ES UN "<details>"
+
+   ------------------------------------------------------------------
+
+   Porque el "<summary>" es un control del navegador: trae su flechita del sistema,
+
+   su animacion y su color, que no cambian con el tema. En una aplicacion que tiene su
+
+   propio color, un control que se ve foreign se nota mas que un control feo.
+
+   Con botones propios, la pestana activa se ve activa.
+
+   ------------------------------------------------------------------
+
+   Y EL "hidden" ES LO QUE ESCONDE
+
+   ------------------------------------------------------------------
+
+   Con una clase que pone "display:none", el bloque sigue existiendo para el teclado:
+
+   se puede llegar con el tabulador a un campo de una pestana que no se ve. Con el
+
+   atributo "hidden", el navegador lo saca del flujo y del recorrido del teclado.
+
+   Por eso el CSS no pone "display:none": lo pone el atributo. */
+
+.kitTabs {
+
+  display: flex;
+
+  gap: 4px;
+
+  border-bottom: 1px solid var(--line);
+
+  margin-bottom: 4px;
+
+  overflow-x: auto;
+
+  /* En el celular las cuatro pestañas no entran en una linea. Con esto se
+
+     deslizan con el dedo en vez de partirse en dos renglones desiguales. */
+
+  scrollbar-width: thin;
+
+}
+
+.kitTab {
+
+  appearance: none;
+
+  border: 0;
+
+  background: transparent;
+
+  color: var(--muted);
+
+  font: 600 .82rem 'Montserrat',system-ui,sans-serif;
+
+  text-transform: uppercase;
+
+  letter-spacing: .05em;
+
+  padding: 12px 16px;
+
+  cursor: pointer;
+
+  /* El borde de abajo es el que dice que pestana es la que estas viendo. Por eso
+
+     no hay un fondo distinto: el color del fondo pelea con el de la tarjeta. */
+
+  border-bottom: 3px solid transparent;
+
+  margin-bottom: -1px;
+
+  white-space: nowrap;
+
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 7px;
+
+}
+
+.kitTab:hover {
+
+  color: var(--text);
+
+  background: var(--bg-2);
+
+}
+
+.kitTab.activa {
+
+  color: var(--text);
+
+  border-bottom-color: var(--accent);
+
+}
+
+/* Y EL NUMERO DE CADA PESTAÑA */
+
+/*
+
+   Es un "<span>" chiquito al lado del nombre. Con el numero a la vista no hace falta
+
+   abrir la pestana para saber si hay algo que mirar.
+
+   Y va en un color mas tenue que el nombre, para que se lea como un dato y no como
+
+   parte del titulo. */
+
+.kitTabN {
+
+  display: inline-block;
+
+  min-width: 20px;
+
+  padding: 1px 6px;
+
+  border-radius: 999px;
+
+  background: var(--bg-3);
+
+  color: var(--muted);
+
+  font: 700 .7rem 'Montserrat',system-ui,sans-serif;
+
+  letter-spacing: 0;
+
+  text-align: center;
+
+}
+
+.kitTab.activa .kitTabN {
+
+  background: var(--accent);
+
+  color: #fff;
+
+}
+
+/* Y EL FOCO, QUE TIENE QUE verse EN EL TECLADO */
+
+/*
+
+   Sin esto, el teclado no muestra donde estas. Y la persona que usa el sistema sin
+
+   mouse no tiene forma de saber en que pestana quedo. */
+
+.kitTab:focus-visible {
+
+  outline: 2px solid var(--accent);
+
+  outline-offset: -3px;
+
+  border-radius: 4px 4px 0 0;
+
+}
+
+/* Y CADA PANEL */
+
+/* El margen de arriba es para que el panel no quede pegado a la barra de pestanas. */
+
+.kitPanel {
+
+  padding-top: 4px;
+
+}
+
+/* Y EN PANTALLA CHICA */
+
+/* Las cuatro pestañas se achican, porque el texto de arriba es el que importa. */
+
+@media (max-width: 640px) {
+
+  .kitTab {
+
+    padding: 10px 11px;
+
+    font-size: .72rem;
+
+  }
+
+  .kitTabN {
+
+    padding: 1px 5px;
+
+    font-size: .64rem;
+
+  }
+
+}

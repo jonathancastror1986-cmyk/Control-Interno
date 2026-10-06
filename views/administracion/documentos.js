@@ -2431,6 +2431,11 @@ function renderContratacion(){
   // kit tiene que seguir mostrando las plantillas igual.
   llenarFiltroTrabajadores();
   cargarFirmas().catch(function(){});
+  // Y LAS PESTAÑAS DEL KIT
+  //
+  // La que quedo abierta la ultima vez, y los numeros de cada seccion.
+  restaurarPestanaKit();
+  contarParaPestanasKit();
 }
 // ¿El contenido tiene texto de verdad?
 //
@@ -5772,4 +5777,88 @@ function marcarAtajoMarcajes(){
     b.classList.toggle('primary',esEste);
     b.setAttribute('aria-pressed',esEste?'true':'false');
   });
+}
+
+// ------------------------------------------------------------------
+// LAS PESTAÑAS DEL KIT
+// ------------------------------------------------------------------
+// Los cuatro bloques de la vista del kit van en pestañas: plantillas, firmados,
+// campos y timbre. Antes iban apilados y había que hacer scroll para llegar al
+// último.
+//
+// Y NO SE USA "hidden" CON CLASES CSS
+//
+// El atributo "hidden" es lo que le dice al navegador y a los lectores de pantalla
+// que ese bloque no existe. Con una clase que pone "display:none", el bloque sigue
+// existiendo para el teclado: se puede llegar con el tabulador a un campo invisible.
+// Con "hidden" no.
+//
+// Y POR QUÉ GUARDA LA PESTAÑA
+//
+// Porque la que se mira todos los días es "Firmados". Si siempre arrancara en
+// "Plantillas", habría que apretarla cada vez.
+const PESTANA_KIT_POR_DEFECTO='plantillas';
+function verPanelKit(id){
+  // Y SI EL NOMBRE NO ES UNO DE LOS CUATRO, NO SE HACE NADA
+  //
+  // Si alguien escribe mal el nombre, se ocultan los cuatro paneles y la vista queda
+  // vacía. Es peor que ignorar el click: una vista vacía no dice qué pasó.
+  const panel=document.getElementById('kitPanel-'+id);
+  const tab=document.getElementById('kitTab-'+id);
+  if(!panel||!tab)return;
+  document.querySelectorAll('[data-kit-panel]').forEach(function(b){
+    const activo=b.getAttribute('data-kit-panel')===id;
+    b.classList.toggle('activa',activo);
+    b.setAttribute('aria-selected',activo?'true':'false');
+  });
+  document.querySelectorAll('.kitPanel').forEach(function(p){
+    if(p.id==='kitPanel-'+id)p.removeAttribute('hidden');
+    else p.setAttribute('hidden','');
+  });
+  guardarPestanaKit(id);
+}
+// LEER Y GUARDAR LA PESTAÑA
+//
+// Y CON UN TRY/CATCH PORQUE EL "localStorage" PUEDE ESTAR BLOQUEADO
+//
+// En una ventana privada de algunos navegadores, escribir en "localStorage" tira una
+// excepción. Si eso rompe la navegación de la vista, el problema de no poder guardar
+// una preferencia se convierte en un problema de no poder usar la pantalla.
+function leerPestanaKit(){
+  try{return window.localStorage.getItem('kit-pestana');}
+  catch(e){return null;}
+}
+function guardarPestanaKit(id){
+  try{window.localStorage.setItem('kit-pestana',id);}
+  catch(e){/* sin memoria: no es motivo para romper nada */}
+}
+// PONER LA PESTAÑA QUE QUEDÓ GUARDADA
+//
+// Se llama al entrar a la vista. Y si la guardada ya no existe —porque se cambió el
+// nombre de una pestaña—, cae en la de por defecto.
+function restaurarPestanaKit(){
+  const guardada=leerPestanaKit();
+  const existe=guardada&&document.getElementById('kitPanel-'+guardada);
+  verPanelKit(existe?guardada:PESTANA_KIT_POR_DEFECTO);
+}
+// CUANTOS HAY EN CADA PESTAÑA
+//
+// Con el numero a la vista no hace falta abrir la pestaña para saber si hay algo que
+// mirar. Y el de firmados se pinta aparte porque es el que se mira todos los días.
+function contarParaPestanasKit(){
+  const nPlantillas=typeof plantillasContratacion!=='undefined'
+    ?plantillasContratacion.filter(function(p){return p.vigente!==false;}).length
+    :0;
+  const nFirmadas=typeof entregasContratacion!=='undefined'
+    ?entregasContratacion.filter(function(e){return e.estado==='completa';}).length
+    :0;
+  const nCampos=typeof camposPropios!=='undefined'?camposPropios.length:0;
+  const poner=function(id,n){
+    const e=document.getElementById('kitTabN-'+id);
+    if(e)e.textContent=n>0?String(n):'';
+  };
+  poner('plantillas',nPlantillas);
+  poner('firmados',nFirmadas);
+  poner('campos',nCampos);
+  poner('timbre',0);
 }
