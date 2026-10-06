@@ -5190,10 +5190,42 @@ function pintarFirmas(){
         || (f.firmante_nombre||'').toLowerCase().indexOf(t)>=0
         || (f.code||'').toLowerCase().indexOf(t)>=0;
   }):firmasDocumento;
+  // Y CUANDO LA LISTA ESTÁ VACÍA POR LOS FILTROS DE ARRIBA
+  //
+  // "firmasDocumento" ya viene filtrado desde la consulta: los desplegables y
+  // las fechas van en el pedido. Así que si está vacío, puede ser que no haya
+  // nada, o que los filtros no dejen pasar nada. Son dos cosas muy distintas y
+  // el mensaje tiene que decir cuál es.
   if(!lista.length){
+    // Y SI HAY FILTROS PUESTOS, EL BOTÓN DE LIMPIAR ESTÁ EN LA CAJA
+    //
+    // Porque el mensaje "no hay papeles firmados" con un filtro puesto hace que
+    // alguien piense que no hay papeles. Y el botón está donde lo van a mirar:
+    // en el mensaje, no arriba.
+    const hayFiltros=!!(filtroFirmas.code||filtroFirmas.tipo||filtroFirmas.desde||filtroFirmas.hasta||t);
+    if(hayFiltros){
+      cont.innerHTML='<div style="padding:20px;color:var(--muted)">'
+        +'No hay papeles firmados que pasen los filtros.<br>'
+        +'<button class="btn" type="button" style="margin-top:10px" onclick="limpiarFiltrosFirmas()">Quitar los filtros</button>'
+        +'</div>';
+      return;
+    }
+    // Y EL MENSAJE QUE DICE POR QUÉ ESTÁ VACÍA
+    //
+    // Antes decía "Todavía no hay papeles firmados. Cuando alguien firme uno,
+    // aparece acá." Y eso no es verdad: hay firmas guardadas en
+    // "entregas_contratacion" desde hace semanas, que no aparecen porque
+    // "firmas_documento" está vacía. La huella es lo nuevo.
+    //
+    // Decir "no hay" cuando hay, sin decir por qué, es la forma más rápida de
+    // que alguien llegue a la conclusión de que la pantalla está rota.
     cont.innerHTML=firmasDocumento.length
       ?'<div style="padding:20px;color:var(--muted)">Ninguno de los '+firmasDocumento.length+' firmados dice "'+escHtml(filtroFirmas.texto)+'".</div>'
-      :'<div style="padding:20px;color:var(--muted)">Todavía no hay papeles firmados. Cuando alguien firme uno, aparece acá.</div>';
+      :'<div style="padding:20px;color:var(--muted)">'
+       +'<b>Todavía no hay papeles firmados CON HUELLA.</b><br>'
+       +'<small>Esta lista muestra los papeles firmados desde que se agregó la huella (la migración 079). '
+       +'Los que se firmaron antes no aparecen: se firmaron sin ella, así que no se pueden verificar.<br><br>'
+       +'Abrí un papel desde "Kit de contratación", firmalo, y aparecerá acá con su hash.</small></div>';
     return;
   }
   cont.innerHTML='<table class="tabla" style="width:100%"><thead><tr>'

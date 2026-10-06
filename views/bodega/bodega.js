@@ -324,9 +324,40 @@ async function guardarLaHuella(p,code,w,firmaT,firmaS){
   const hash=await huellaDelPapel(texto);
   if(!hash)return false;
 
+  // Y LA EMPRESA DEL TRABAJADOR, NO LA DEL SELECTOR DE ARRIBA
+  //
+  // Antes se usaba "empresaDelPapel()", que devuelve null cuando se estan
+  // viendo todas las empresas y no hay ninguna elegida. Con 47 empresas eso es
+  // lo NORMAL, y "firmas_documento" tiene "empresa_id" NOT NULL: el insert
+  // fallaba y la huella no se guardaba.
+  //
+  // O sea: se firmaba, salia "El papel quedó guardado con la firma", y la
+  // huella no existed. Porque el error se guardaba en un "console.warn" que
+  // nadie mira.
+  //
+  // La empresa del TRABAJADOR es una sola y siempre esta. Una persona
+  // pertenece a una empresa, y el papel es para esa persona: no hay que
+  // adivinar nada.
+  //
+  // Y EL TIMBRE SIGUE USANDO "empresaDelPapel()", QUE ES LO CORRECTO
+  //
+  // Porque el timbre pertenece a la empresa y el papel al trabajador. Son dos
+  // cosas distintas, y cada una usa el dato que le corresponde.
   const empresa=empresaDelPapel()||{};
+  const idEmpresa=(w&&w.empresa_id!=null&&w.empresa_id!=='')
+    ?w.empresa_id
+    :(empresa.id!=null?empresa.id:null);
+  if(idEmpresa==null){
+    // Y SI AUN ASI NO SE SABE, SE DICE Y SE SIGUE
+    //
+    // La firma ya se guardó por su propio camino. Perder la huella es malo,
+    // pero perder la firma es peor. Se avisa en la pantalla, no en la consola.
+    console.warn('[firma] no se pudo saber la empresa: la huella no se guardo');
+    avisoHuellaFallo();
+    return false;
+  }
   const fila={
-    empresa_id:empresa.id,
+    empresa_id:idEmpresa,
     code:code,
     tipo:p.categoria||'formulario',
     plantilla_code:p.code,
@@ -351,15 +382,45 @@ async function guardarLaHuella(p,code,w,firmaT,firmaS){
     onConflict:'empresa_id,code,tipo,documento_id,periodo'
   });
   if(error){
-    // Y ESTE AVISO NO ES UN ERROR: LA FIRMA YA ESTA GUARDADA
+    // Y ESTE AVISO SE VE EN LA PANTALLA, PORQUE ANTES NO SE VEIA NADA
     //
-    // La firma va por la 031 y ya se guardó. Si la huella falla, lo que falta
-    // es la prueba de integridad, no el papel. Decirlo claro evita que alguien
-    // firme de nuevo thinking que no se guardó, y pise la firma buena.
+    // Antes esto era un "console.warn". La consola no la mira nadie, y el
+    // resultado era una firma guardada SIN HUELLA sin que nadie se enterara.
+    // Que es justo lo que la huella existe para que no pase.
+    //
+    // Y NO DICE "FALLÓ": la firma SI se guardó, eso va por otra función.
+    // Lo que no se guardó es la prueba. Si dijera "falló", alguien volvería a
+    // firmar, y eso pisa la firma buena.
     console.warn('[firma] la firma se guardó pero la huella no:',error);
+    avisoHuellaFallo(error);
     return false;
   }
   return true;
+}
+// ------------------------------------------------------------------
+// EL AVISO DE QUE NO SE GUARDÓ LA HUELLA
+// ------------------------------------------------------------------
+// Y POR QUÉ ESTÁ EN EL PAPEL Y NO EN UNA VENTANA
+//
+// Porque una ventana con un botón "OK" saca el papel de la vista, y el aviso va
+// en el mismo lugar donde ya está el error del papel. La persona lee las dos
+// cosas juntas.
+//
+// Y NO SE BORRA SOLO
+//
+// Porque es una advertencia que hay que ver. Los avisos que se van solos son los
+// que nadie lee, y este es el aviso de que un documento firmado quedó sin prueba
+// de que no se tocó.
+function avisoHuellaFallo(error){
+  const caja=document.getElementById('papelError');
+  if(!caja)return;
+  const porQue=error&&error.message?'<small style="opacity:.8">'+escHtml(error.message)+'</small><br>':'';
+  caja.innerHTML='<b>El papel quedó guardado con la firma, pero SIN la huella.</b><br>'
+    +'<small>La huella es lo que demuestra que el papel no cambió después de firmarse. '
+    +'Sin ella, el papel se puede volver a editar sin que se note.<br>'
+    +porQue
+    +'La firma sí quedó guardada: <b>no hay que firmar de nuevo</b>. Es un problema del '
+    +'servicio, no del papel.</small>';
 }
 function htmlTimbre(){
   if(!reglaTimbre||!reglaTimbre.activo)return '';
