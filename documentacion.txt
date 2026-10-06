@@ -6320,3 +6320,115 @@ La regla: cuando se limpia un archivo, se compara lo que QUEDA contra lo que hab
 la pantalla, no solo la lista. Un archivo puede quedar con menos reglas y el mismo efecto —eso
 es lo que pasó acá—, o con el mismo número de reglas y un efecto distinto, y eso es más
 difícil de ver.
+
+[pdf-01] EL PAPEL SE IMPRIME, NO SE GENERA: TRES CAUSAS DE UNA HOJA EN BLANCO
+
+El botón de PDF del kit de contratación no genera un archivo con una librería.
+Usa la impresión del navegador, que arma el PDF desde el HTML.
+
+Por qué se cambió
+
+---------------
+
+Generaba el archivo con "html2canvas" y "jsPDF": tomaba una FOTO del papel con un
+canvas, la metía como imagen dentro del PDF, y la cortaba en franjas de 595
+puntos para hacer las páginas.
+
+Medido sobre un PDF real de esa versión, de una "Declaración de Salud":
+
+    páginas              12
+    texto extraíble      12 caracteres
+    tamaño               2,6 MB
+    imágenes             12 por página, todas de 1588×1191
+
+El papel entero era UNA FOTO partida en doce franjas. El texto no existía: no se
+podía buscar, no se podía copiar, no lo leía un lector de pantalla. Y el corte
+era a 595 puntos, donde cayera: una línea a mitad de franja salía partida entre
+dos páginas.
+
+La impresión del navegador arma el PDF desde el HTML, y lo arma como lo que es:
+texto. Sale seleccionable, buscable, y las páginas caen donde deben.
+
+El nombre del archivo lo pone el diálogo del sistema, no el código. No se puede
+escribir ahí desde JavaScript, y desde el sistema operativo está bien que sea
+así.
+
+
+Las tres causas de la hoja en blanco
+-------------------------------------
+
+Cambiar a "window.print()" no funcionó a la primera. Salió una hoja en blanco, y
+fueron TRES causas, cada una por separado. Ninguna daba error.
+
+1. EL CONTENEDOR ESTÁ FUERA DE LA HOJA
+
+"pantallaTotal" está en el HTML con esto:
+
+    style="position:fixed;left:-10000px;top:0;background:#fff"
+
+Una caja escondida diez mil píxeles a la izquierda, para armar el documento sin
+que se vea mientras se prepara. Eso está bien y no se toca.
+
+El problema es al imprimir: un elemento con "position: fixed" se posiciona
+respecto de la VENTANA, y al imprimir la ventana ES la hoja. Con diez mil
+píxeles a la izquierda, el documento entero queda fuera del papel. Y sale una
+hoja en blanco.
+
+2. LA VISIBILIDAD ES UNA CASCADA, Y ALGO LA ROMPIÓ
+
+La primera solución fue esconder todo con "visibility: hidden" y devolver el
+papel a la vista:
+
+    body.imprimiendo-contrato *          { visibility: hidden; }
+    body.imprimiendo-contrato #pantallaTotal { visibility: visible; }
+
+Suena simple y no funcionó. "visibility" se hereda: para que el papel se imprima
+hay que devolver la visibilidad en TODOS sus ancestros — el <main>, el <body>,
+y cualquiera que esté en el medio. Si a uno se le olvida, el papel no sale
+aunque él esté visible.
+
+Medido con el papel armado: el <main> quedaba en "visibility: hidden". El
+papel estaba visible y medía bien. Su padre estaba oculto.
+
+3. LO QUE SOLUCIONÓ: UN CONTENEDOR PROPIO
+
+"imprimirPapel()" crea un contenedor NUEVO, hijo directo de "<body>", muda el
+papel ahí con "appendChild" — que lo saca del lugar viejo — y esconde todo lo
+demás con "display: none":
+
+    body.imprimiendo-contrato > #impresionContrato { display: block; }
+    body.imprimiendo-contrato > *:not(#impresionContrato) { display: none; }
+
+"display: none" no es cascada: lo que no está en el flujo no se imprime. Y el
+papel queda con un solo ancestro, el <body>, que no se esconde.
+
+El "> *" es lo que hace el trabajo. El "> *:not(...)" es lo que alcanza con
+ocultar el <main> y el <header>.
+
+Y EL CSS VA EN UN ARCHIVO APARTE
+
+Está en "css/impresion-papel.css", no en "styles.css". Porque este bloque
+esconde todo lo que cuelga del <body> con "> *": si estuviera en el CSS
+principal, dependería de que todas las vistas se dibujen de la misma manera, y
+el día que alguien meta una etiqueta suelta en el cuerpo, desaparece de la
+impresión.
+
+El prefijo "imprimiendo-contrato" es lo que evita que esto afecte a cualquier
+otra impresión de la aplicación. Sin esa clase no hay regla que aplicarle a
+nada, y la boleta del reloj sigue imprimiéndose como antes.
+
+
+Lo que mide, y lo que no
+------------------------
+
+El PDF tiene texto seleccionable, no páginas cortadas a 595 puntos, y pesa
+300 KB en vez de 2,6 MB.
+
+Lo que NO se midió en navegador real: que el papel caiga en una o dos páginas.
+Eso se ve en el PDF, y hay que mirarlo. La hoja sigue con el alto del marco, y
+con "position: static" en el contenedor nuevo el motor de impresión decide
+dónde cortar.
+
+Y hay un límite declarado: una expresión regular con llaves dentro del papel
+—un "{...}" en el contenido de la plantilla— cuenta llaves de más. Con este
+método no importa, porque no se cuentan: se usa "display", no llaves.

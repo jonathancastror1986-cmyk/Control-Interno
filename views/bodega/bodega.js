@@ -691,6 +691,14 @@ async function anularPapel(plantillaCode,code){
 // se escribe ahí. Eso es lo que hace el sistema operativo, y está bien que sea
 // así.
 async function descargarEntrega(entregaId){
+  // Y POR QUE SE USA LA IMPRESIÓN DEL NAVEGADOR Y NO UNA LIBRERÍA
+  //
+  // Con "html2canvas" el papel se convertía en una FOTO, y se cortaba en franjas para
+  // hacer páginas. Medido sobre un PDF de esa versión: 12 páginas, 12 imágenes por
+  // página, 12 caracteres de texto y 2,6 MB. El texto no existía. Ver [pdf-01].
+  //
+  // La impresión del navegador arma el PDF desde el HTML, y lo arma como lo que es:
+  // texto. Sale seleccionable, buscable, y las páginas caen donde deben.
   const e=entregasContratacion.find(x=>x.id===entregaId);
   if(!e){alert('No se encontró la entrega.');return;}
   const p=plantillaPorId(e.plantilla_id);
@@ -704,41 +712,19 @@ async function descargarEntrega(entregaId){
     +'</div>';
   // Y UN CORTE ANTES DE IMPRIMIR, PORQUE LAS IMÁGENES NECESITAN SU TIEMPO
   //
-  // Las firmas son imágenes (data URL). Si se imprime antes de que el navegador
-  // las dibujó, salen en blanco o con un cuadrito vacío. Se espera un poco.
+  // Las firmas son imágenes (data URL). Si se imprime antes de que el navegador las
+  // dibujó, salen en blanco o con un cuadrito vacío. Se espera un poco.
   await new Promise(r=>setTimeout(r,250));
-  // Y POR QUE SE GUARDA EL ESTILO ORIGINAL DE LA CAJA
+  // Y SE IMPRIME DESDE UN CONTENEDOR PROPIO
   //
-  // "pantallaTotal" esta en el HTML con "left:-10000px": una caja escondida diez
-  // mil pixeles a la izquierda, para armar el documento sin que se vea.
+  // No desde "pantallaTotal": esa caja está en "position: fixed; left: -10000px",
+  // escondida para armar el documento sin que se vea. Y al imprimir, un elemento
+  // fijo se posiciona respecto de la VENTANA, que es la hoja. Con diez mil píxeles
+  // a la izquierda, el documento entero queda fuera y sale una hoja en blanco.
   //
-  // Al imprimir hay que dejarlo en cero, porque si no el motor de impresion
-  // imprime una hoja en blanco: el documento entero queda fuera de la hoja. Y eso
-  // se hace con "!important" en el CSS, que es lo unico que le gana a un atributo
-  // "style".
-  //
-  // Y DESPUES HAY QUE DEVOLVERLO, porque si queda en cero la caja escondida deja
-  // de estar escondida, y el siguiente papel se arma a la vista de todos.
-  const caja=document.getElementById('pantallaTotal');
-  const estiloCaja=caja?caja.getAttribute('style'):null;
-  const devolver=function(){
-    if(!caja)return;
-    if(estiloCaja===null)caja.removeAttribute('style');
-    else caja.setAttribute('style',estiloCaja);
-  };
-  const quitar=function(){
-    document.body.classList.remove('imprimiendo-contrato');
-    devolver();
-    hoja.innerHTML='';
-  };
-  // La clase va ANTES de imprimir. En un "@media print" no se puede cambiar el
-  // estilo desde acá: el motor de impresión ya tomó la decisión, y ponerla
-  // después no hace nada.
-  document.body.classList.add('imprimiendo-contrato');
-  window.addEventListener('afterprint',quitar,{once:true});
-  // El setTimeout es el plan B: si el navegador no dispara "afterprint", la
-  // clase se saca igual, y con esto la siguiente impresión de la app no sale
-  // en blanco.
-  setTimeout(quitar,2500);
-  window.print();
+  // "imprimirPapel" crea un contenedor nuevo, hijo directo de "<body>", muda el
+  // papel ahí y esconde todo lo demás con "display: none". El papel queda con un
+  // solo ancestro, y ese no se esconde. Ver "js/impresion-papel.js".
+  imprimirPapel(hoja.innerHTML);
+  hoja.innerHTML='';
 }
