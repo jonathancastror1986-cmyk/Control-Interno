@@ -3162,7 +3162,43 @@ function completarCargoEnElTexto(){
   st.value=nombre.split(' / ').pop().trim();
 }
 function initKitView(){
+  // Y LAS PESTAÑAS DEL KIT, QUE ANTES NO SE ACTIVABAN
+  //
+  // La vista "plantillas-kit" NO llama a "renderContratacion()": llama a
+  // "renderPlantillas()" y "renderEditorTimbre()" por separado. Y eso quiere
+  // decir que lo que se conectara dentro de "renderContratacion" —que es donde
+  // estaba la restauración de la pestaña— nunca corría en esa vista.
+  //
+  // O sea: las pestañas se armaban en el HTML pero ninguna se activaba, y los
+  // cuatro bloques quedaban apilados como estaban antes. Que es exactamente lo
+  // que se pidió cambiar.
+  restaurarPestanaKit();
+  contarParaPestanasKit();
   const sel=document.getElementById('kitWorker');
+  if(!sel)return;
+  // Y SI NO HAY TRABAJADORES, SE DICE
+  //
+  // Antes se armaba el desplegable igual, y salía con la única opción
+  // "Elegí un trabajador…" y nada más. Un desplegable con una sola opción se ve
+  // como que funciona: se abre, no hay nada, y parece que la lista se cayó.
+  //
+  // La diferencia entre "no hay trabajadores" y "no están cargados" importa:
+  // lo primero es que la empresa no tiene personal, y lo segundo es que la
+  // consulta no volvió.
+  if(!workers.length){
+    sel.innerHTML='<option value="">— sin trabajadores —</option>';
+    sel.disabled=true;
+    const caja=document.getElementById('kitLista');
+    if(caja){
+      caja.innerHTML='<div style="padding:14px;border:1px solid var(--warn);border-radius:8px;'
+        +'background:var(--warn-surface);color:var(--warn-ink)">'
+        +'<b>No hay trabajadores para mostrar.</b><br>'
+        +'<small>Puede ser que esta empresa no tenga personal cargado, o que la lista '
+        +'todavía no se haya cargado. Probá de nuevo en un momento.</small></div>';
+    }
+    return;
+  }
+  sel.disabled=false;
   const anterior=sel.value;
   const vis=codigosVisibles(workers);
   sel.innerHTML='<option value="">Elegí un trabajador…</option>'+
