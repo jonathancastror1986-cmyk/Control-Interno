@@ -5886,3 +5886,97 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
   }
 
 }
+
+
+/* ===================================================================
+
+   EL MAIN AL IMPRIMIR
+
+   ===================================================================
+
+   ------------------------------------------------------------------
+
+   POR QUE ESTA REGLA
+
+   ------------------------------------------------------------------
+
+   Porque la regla que esconde el resto dice "body.imprimiendo-contrato *"
+
+   con un asterisco, y el asterisco no perdona: agarra el "<main>" también.
+
+   Y devolver el PAPEL a la vista no alcanza: si el padre está oculto, el hijo
+
+   queda oculto igual. Medido, con el papel armado:
+
+       main  visibility: hidden   <-- esto es lo que sale en blanco
+       main  alto: 1373
+       papel visibility: visible
+       papel alto: 1123
+
+   El papel estaba bien. Lo que no estaba bien era su padre.
+
+   ------------------------------------------------------------------
+
+   Y POR QUE EL PAPEL SALE DEL FLUJO
+
+   ------------------------------------------------------------------
+
+   Porque el "<main>" es el marco de la aplicación: tiene el ancho de la ventana,
+
+   con el menú y todo. Si el papel se queda en su lugar, el motor le aplica los
+
+   márgenes del marco y sale un bloque angosto con media hoja en blanco al costado.
+
+   Y "height: auto" porque el marco tiene un alto fijo en pantalla, y con ese alto
+
+   el motor imprime lo que mide el marco y no lo que mide el papel.
+
+   Y "overflow: visible" porque el papel es más alto que una hoja A4, y con el
+
+   "overflow" del marco la parte de abajo no se imprime. */
+
+@media print {
+
+  body.imprimiendo-contrato main {
+
+    /* ESTE ES EL QUE IMPORTABA */
+
+    visibility: visible !important;
+
+    /* Y ESTOS, PARA QUE EL PAPEL OCUPE LA HOJA ENTERA */
+
+    display: block !important;
+
+    position: static !important;
+
+    height: auto !important;
+
+    min-height: 0 !important;
+
+    max-height: none !important;
+
+    overflow: visible !important;
+
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    /* Y QUE NO SE CORRA AL RINCÓN */
+
+    float: none !important;
+
+    transform: none !important;
+
+    width: 100% !important;
+
+  }
+
+  /* Y LO MISMO PARA EL CONTENEDOR DEL PAPEL, QUE ESTÁ ADENTRO */
+
+  body.imprimiendo-contrato #pantallaTotal {
+
+    visibility: visible !important;
+
+  }
+
+}
