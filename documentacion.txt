@@ -5546,6 +5546,71 @@ Y entre que se aplica la 067 y se hace la 068 a mano hay un AGUJERO ABIERTO: la 
 vieja del bucket sigue diciendo "cualquier usuario activo" sobre las FIRMAS. Por eso está
 escrito en mayúsculas en las dos, y no en un comentario al pie que nadie lee.
 
+[sql-03] UN "UNION" RECHAZA UN NÚMERO CONTRA UN TEXTO, Y NO DICE EN QUÉ RENGLÓN ESTÁ
+--------------------------------------------------------------------------------
+
+    select '--- 4. CUANTAS ESTAN A MEDIAS ---',
+           'tipo de plazo pero sin su fecha o sus dias',
+           (select count(*) from public.trabajadores
+              where contrato_tipo_plazo = 'fecha' and contrato_fecha_hasta is null)
+         + (select count(*) from public.trabajadores
+              where contrato_tipo_plazo = 'dias'  and contrato_plazo_dias is null)
+    ERROR: 42804: UNION types text and bigint cannot be matched
+
+Era el guion que comprueba la 084. Está bien escrito: los paréntesis cierran, las comillas
+están parejas, el guardián de sintaxis lo aprueba. Y falla.
+
+POR QUÉ
+
+"count(*)" en Postgres devuelve "bigint". Las otras ramas de ese mismo "union" devolvían
+palabras. Y "union" —también "union all"— exige que las columnas del mismo número tengan el
+MISMO tipo en todas las ramas. No es que avise: rechaza la consulta entera.
+
+Y el error no sirve para arreglarlo. Dice "text" y "bigint", y nada más: no el renglón del
+guion, no cuál de las dos ramas es la que está mal. Con once ramas, eso es adivinar.
+
+LO PEOR: NO SE PUDO VER ANTES
+
+No hay Postgres local. Ni "psql", ni Docker. Los guiones se escriben y se aplican pegándolos
+en el panel, y un error de tipos SOLO existe cuando Postgres lee el guion.
+
+Los otros 27 guardianes miran cosas que se pueden ver sin base: que el archivo exista, que los
+paréntesis y las comillas cierren, que el HTML y el JS coincidan. Este miraba algo que,
+definición de la cosa, solo existe contra una base real.
+
+LA REGLA QUE QUEDÓ
+
+Cada rama del guion termina en "cast(... as text)". Las once. No porque haga falta en todas,
+sino porque la regla no deja lugar a dudas: no hay que razonar rama por rama qué tipo sale, y
+mañana, si se agrega una, no hay que decidir nada.
+
+Y lo que NO hace falta castear, y es la mitad delasoner:
+
+    'de ' || (select count(*) ...)      -- texto pegado con "||" resuelve a texto solo
+    case when (select count(*) ...) = 0 -- comparación: da verdadero/falso, no se mezcla
+
+Y POR QUÉ NO SE HIZO UN GUARDIÁN PARA ESTO
+
+Se intentó, y se borró el mismo día. Marcaba como sospechoso cualquier "count(*)" dentro de
+esas dos formas, que están perfectamente bien: seis falsos positivos en este mismo guion, que ya
+estaba corregido.
+
+Un guardián que reporta lo que no entiende se termina ignorando, y después de eso no vuelve a
+avisar de nada. Es la misma razón por la que no está "comprueba-const.js": un guardián que no
+ve lo que dice ver no se sube. Ver [el-error-de-const].
+
+LO QUE QUEDÓ DE LA BÚSQUEDA
+
+La herramienta llegó a encontrar 51 uniones más con el mismo problema, en migraciones ya
+aplicadas: 040, 041 y otras. Son casi todas de la forma
+
+    select 'guias sin linea', (select count(*) from public.guias ...)   -- bigint
+    union all
+    select 'lo que sea', (select case when not exists ... then 1 else 0 end)  -- integer
+
+Que es el mismo choque: "integer" contra "bigint". Esos guiones son la cola de verificación de
+migraciones que ya se aplicaron y que nadie vuelve a correr. No se tocaron.
+
 [rem-01] EL SUELDO ES UN DATO QUE NECESITA PERMISO, Y NO UN CAMPO MÁS
 --------------------------------------------------------------------------------
 La 069 agrega "trabajadores.sueldo_base". Y el campo es lo más fácil de esa migración; lo
