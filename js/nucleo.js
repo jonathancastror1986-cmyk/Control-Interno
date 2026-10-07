@@ -155,7 +155,32 @@ function workerToDb(w){
     empresa_id: w.empresa_id||null,
     // El centro de costo del trabajador (migración 064). Sin esta línea el "upsert"
     // no la manda y el valor se pierde en silencio, sin error. Ver [centro-06].
-    centro_costo_id: w.centro_costo_id||null
+    centro_costo_id: w.centro_costo_id||null,
+    // ------------------------------------------------------------------
+    // LOS NUEVE CAMPOS DEL CONTRATO (migración 084)
+    // ------------------------------------------------------------------
+    // Y ESTAN AQUI, EN EL "UPSERT" DE TODAS PARTES, POR LA MISMA RAZON QUE EL
+    // SUELDO Y LA FECHA DE TERMINO: el "upsert" manda todas las columnas del
+    // objeto, no solo las que cambiaron. Sin estas nueve líneas, CUALQUIER
+    // guardado —editar un teléfono, un alta, la carga del Excel— pondría la
+    // fecha de nacimiento, el estado civil y el plazo en null.
+    //
+    // Y el plazo son cuatro columnas porque son cuatro formas: indefinido, por
+    // partida, por días, o hasta una fecha.
+    //
+    // Y "contrato_plazo_dias" NO pasa por "|| null", porque un número guardado
+    // como texto no se puede sumar ni comparar con otro, y el papel lo necesita
+    // como número. El cero tampoco es un plazo, y la base lo rechaza.
+    fecha_nac: w.fecha_nac||null,
+    estado_civil: w.estado_civil||null,
+    nacionalidad: w.nacionalidad||null,
+    profesion: w.profesion||null,
+    comuna: w.comuna||null,
+    contrato_tipo_plazo: w.contrato_tipo_plazo||null,
+    contrato_plazo_dias: w.contrato_plazo_dias==null||w.contrato_plazo_dias===''
+      ? null : Number(w.contrato_plazo_dias),
+    contrato_fecha_inicio: w.contrato_fecha_inicio||null,
+    contrato_fecha_hasta: w.contrato_fecha_hasta||null
   };
 }
 // -------------------------------------------------------------------
@@ -313,6 +338,19 @@ function dbToWorker(r){
     especialidad_clave:r.especialidad_clave||null,
     motivo_desvinculacion:r.motivo_desvinculacion,
     desvinculado_por_nombre:r.desvinculado_por_nombre,
+    // Los nueve campos del contrato (migración 084). Sin mapearlos acá, la ficha
+    // los muestra vacíos y, si alguien guarda la ficha, el "upsert" los pisa con
+    // null: el dato estaba en la base y no llegaba a ninguna parte.
+    fecha_nac:r.fecha_nac||null,
+    estado_civil:r.estado_civil||null,
+    nacionalidad:r.nacionalidad||null,
+    profesion:r.profesion||null,
+    comuna:r.comuna||null,
+    // Y EL PLAZO, QUE SON CUATRO COLUMNAS PORQUE TIENE CUATRO FORMAS
+    contrato_tipo_plazo:r.contrato_tipo_plazo||null,
+    contrato_plazo_dias:r.contrato_plazo_dias==null?null:Number(r.contrato_plazo_dias),
+    contrato_fecha_inicio:r.contrato_fecha_inicio||null,
+    contrato_fecha_hasta:r.contrato_fecha_hasta||null,
     empresa_id:r.empresa_id||null
   };
 }

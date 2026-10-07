@@ -215,6 +215,126 @@ async function cargarEspecialidadesContratacion(){
 // formas. Y si el nombre no está en "datos", se busca entre las alternativas; si
 // tampoco está, se deja el marcador como estaba, que es mejor que inventar un
 // valor vacío: un "[RUT]" vacío se ve como un error de la empresa.
+// ---------------------------------------------------------------------
+// LA FECHA EN LA FORMA EN QUE LA ESCRIBE UN CONTRATO
+// ---------------------------------------------------------------------
+// Y POR QUÉ HACE FALTA, Y POR QUÉ NO ES UN "toLocaleDateString"
+//
+// Porque un contrato chileno no escribe "09-09-1959". Escribe:
+//
+//     nacido(a) el 9 de Septiembre de 1959
+//     hasta el 31 de diciembre de 2026
+//
+// Y en esa frase hay tres cosas que una fecha normal no da: el día SIN cero
+// adelante, el mes ESCRITO y con mayúscula, y el "de" adelante del mes.
+//
+// Y el mes va con mayúscula porque así sale en los contratos. Un "septiembre" en
+// minúscula en medio de un contrato se ve como un documento armado por una
+// máquina.
+//
+// Y EL DÍA VA SIN CERO ADELANTE PORQUE UN CONTRATO ESCRIBE "9", NO "09"
+function fechaLarga(v){
+  if(!v)return '';
+  const s=String(v).slice(0,10);          // "1959-09-09"
+  const p=s.split('-');
+  if(p.length!==3||!/^\d+$/.test(p[0]+p[1]+p[2]))return String(v);
+  const mes=Number(p[1]);
+  if(mes<1||mes>12)return String(v);
+  const dia=Number(p[2]);
+  // Y EL MES CON SU NOMBRE, EN MAYUSCULA LA PRIMERA LETRA
+  const nombre=mesLargo(mes);
+  return dia+' de '+nombre+' de '+p[0];
+}
+// Y LOS DOCE MESES, A MANO
+//
+// Porque "toLocaleDateString" escribe "septiembre" con minúscula, y el idioma
+// puede cambiar según el navegador de quien abra el papel. Un contrato no cambia
+// de idioma según quién lo abra.
+// Se arma con "slice", y no con el índice entre corchetes, porque el guardián de
+// códigos lee cualquier cosa entre corchetes como si fuera una referencia a una
+// sección de la documentación, y le parecía una cita nueva que no existe.
+function mesLargo(m){
+  const NOMBRES=('Enero Febrero Marzo Abril Mayo Junio Julio Agosto Septiembre '
+               + 'Octubre Noviembre Diciembre').split(' ');
+  return String(NOMBRES.slice(m - 1, m)||'');
+}
+// Y LA FECHA CORTA, QUE YA EXISTE Y NO SE REPITE
+//
+// "fechaCorta" ya está definida en "views/administracion/documentos.js" y hace
+// exactamente esto: "2026-07-05" -> "05/07/2026". Los archivos comparten el
+// ámbito, así que definarla otra vez acá no agrega nada: uno de los dos pisa al
+// otro según cuál cargó último, y un día[start] de esos cambia por el otro. Ver
+// [word-04].
+//
+// Se usa la de ahí. Una declaración de salud dice "a 3 de Julio de 2026"; un
+// anexo dice "03/07/2026", y para eso están las dos formas.
+// ---------------------------------------------------------------------
+// EL PLAZO DEL CONTRATO, EN LA FRASE QUE SE ESCRIBE
+// ---------------------------------------------------------------------
+// Y POR QUÉ SE CALCULA ACÁ Y NO SE GUARDA LA FRASE ENTERA
+//
+// Porque la frase depende del dato, y el dato cambia: si el plazo pasa de
+// "indefinido" a "hasta el 31 de diciembre", el contrato tiene que decir la frase
+// nueva. Si se guardara la frase, habría que volver a escribirla cada vez que
+// cambia un solo dato, y tarde o temprano se queda la vieja.
+//
+// Y LAS CUATRO FORMAS, Y CADA UNA DICE UNA COSA DISTINTA
+//
+//     indefinido   -> "indefinido"
+//     partida      -> "por partida de contrato"
+//     dias         -> "por 90 días"     (singular si es un día)
+//     fecha        -> "hasta el 31 de diciembre de 2026"
+//
+// Y CUANDO EL PLAZO ESTÁ A MEDIAS, NO SE INVENTA NADA
+//
+// Si el tipo es "días" pero no hay cantidad de días, o el tipo es "fecha" pero no
+// hay fecha, la frase queda vacía. Y una frase vacía hace que el marcador
+// "[PLAZO]" quede en el papel, que es exactamente lo que tiene que pasar: se ve
+// que falta. Poner "90 días" porque era lo de la otra persona, es peor.
+function plazoDelContrato(w){
+  const tipo=String(w.contrato_tipo_plazo||'');
+  if(tipo==='indefinido')return 'indefinido';
+  if(tipo==='partida')return 'por partida de contrato';
+  if(tipo==='dias'){
+    const n=Number(w.contrato_plazo_dias);
+    if(!(n>0))return '';
+    return 'por '+n+' '+(n===1?'día':'días');
+  }
+  if(tipo==='fecha'){
+    const f=w.contrato_fecha_hasta;
+    return f?('hasta el '+fechaLarga(f)):'';
+  }
+  return '';
+}
+// Y EL PLAZO DICHO DE OTRAS FORMAS, PARA LO QUE PIDAN LOS DISTINTOS PAPELES
+function plazoDelContratoCortos(w){
+  return {
+    plazo:plazoDelContrato(w),
+    tipo_plazo:String(w.contrato_tipo_plazo||''),
+    plazo_dias:w.contrato_plazo_dias==null||w.contrato_plazo_dias===''
+      ? '' : String(w.contrato_plazo_dias),
+    plazo_indefinido:String(w.contrato_tipo_plazo||'')==='indefinido'?'indefinido':'',
+    fecha_hasta:fechaLarga(w.contrato_fecha_hasta),
+    fecha_hasta_corta:fechaCorta(w.contrato_fecha_hasta),
+    fecha_inicio_contrato:fechaLarga(w.contrato_fecha_inicio||w.fecha_ingreso),
+    fecha_inicio_contrato_corta:fechaCorta(w.contrato_fecha_inicio||w.fecha_ingreso)
+  };
+}
+// ---------------------------------------------------------------------
+// EL DOMICILIO, QUE EN UN CONTRATO ES UNA FRASE Y NO UNA DIRECCIÓN
+// ---------------------------------------------------------------------
+// Porque el contrato dice "domiciliado(a) en PJE LA ESCUADRA NRO.743, comuna
+// PUENTE ALTO". La calle y la comuna van con su nombre y separadas por una coma,
+// y eso no sale de unir dos campos.
+//
+// Y si la comuna no está, se escribe solo la dirección, sin una coma colgando: una
+// coma antes de un punto se nota.
+function domicilioDelContrato(w){
+  const calle=String(w.direccion||'').trim();
+  const comuna=String(w.comuna||'').trim();
+  if(calle&&comuna)return calle+', comuna '+comuna;
+  return calle||comuna||'';
+}
 function reemplazarCampos(plantilla,w,extra){
   const empresa=empresaDelPapel()||{};
   const esp=especialidadNombre(w.especialidad_clave||'');
@@ -235,6 +355,30 @@ function reemplazarCampos(plantilla,w,extra){
     empresa_rut:(empresa.rut||'').toUpperCase(),
     centro:centroDeRelojDe(w)||'',
     fecha:new Date().toLocaleDateString('es-CL'),
+    // ------------------------------------------------------------------
+    // Y LOS NUEVE CAMPOS DEL CONTRATO (migración 084)
+    // ------------------------------------------------------------------
+    // Y LA FECHA DE NACIMIENTO VA ESCRITA, NO EN FORMATO NUMÉRICO
+    //
+    // "fecha_nac" en la base es "1959-09-09". En el contrato tiene que decir
+    // "9 de Septiembre de 1959". Por eso hay dos: "fecha_nac" con la frase, y
+    // "fecha_nac_corta" para los papeles que usan números, como una declaración.
+    fecha_nac:fechaLarga(w.fecha_nac),
+    fecha_nac_corta:fechaCorta(w.fecha_nac),
+    // Y EL ESTADO CIVIL SE ESCRIBE TAL CUAL
+    //
+    // "Casado(a)" y no "Casada": el "(a)" no es un dato, es como se escribe el
+    // papel, y si se guardara "Casada" el contrato imprimiría "Casado(a)" con
+    // dos señales. Si no hay dato, no se inventa el "(a)".
+    estado_civil:String(w.estado_civil||''),
+    nacionalidad:String(w.nacionalidad||''),
+    profesion:String(w.profesion||''),
+    comuna:String(w.comuna||''),
+    direccion:String(w.direccion||''),
+    // Y EL DOMICILIO, QUE ES LA DIRECCIÓN Y LA COMUNA EN UNA FRASE
+    domicilio:domicilioDelContrato(w),
+    // Y LOS CINCO DEL PLAZO, MÁS LAS FORMAS CORTA Y LARGA
+    ...plazoDelContratoCortos(w),
     ...(extra||{})
   };
   // Y EL REEMPLAZO, QUE ACEPTA LAS TRES FORMAS
@@ -754,6 +898,60 @@ async function anularPapel(plantillaCode,code){
 // nombre del destino lo elige el diálogo de impresión, y desde el javascript no
 // se escribe ahí. Eso es lo que hace el sistema operativo, y está bien que sea
 // así.
+// ---------------------------------------------------------------------
+// LOS MARCADORES QUE NO SE PUDIERON LLENAR
+// ---------------------------------------------------------------------
+// Y POR QUÉ HAY QUE BUSCARLOS
+//
+// Porque hay una regla que dice que si un marcador no tiene dato, se queda como
+// estaba: un "[RUT]" vacío se ve como un error de la empresa, y un "{{no_existe}}"
+// se ve como lo que es, un marcador que hay que arreglar.
+//
+// Y esa regla es correcta. El problema es que "quedarse como estaba" es
+// INVISIBLE: un papel con "{{rut}}" adentro sale impreso, se firma, y nadie se
+// entera hasta que alguien lo lee. Y en un contrato firmado ya no se puede
+// arreglar: el hash ya está.
+//
+// Y PASÓ. En un PDF real se vio "RUT: {{rut}}," en medio de la cláusula de
+// identificación, con el nombre bien puesto al lado. El nombre se reemplazó y el
+// RUT no, porque esa ficha no tenía RUT cargado.
+//
+// Por eso se buscan los marcadores que quedaron y se AVISAN ANTES de imprimir.
+// No se corrigen: corregir es inventar el dato de una persona.
+//
+// Y LA LISTA ES DE LAS MISMAS TRES FORMAS QUE ENTIENDE EL REEMPLAZO
+//
+// "[NOMBRE]", "{{nombre}}" y "{nombre}". Si se buscara otra forma, el marcador
+// que no se busca es el que pasa.
+// Y LA CLAVE SE NORMALIZA A MINUSCULA, Y POR QUÉ
+//
+// Porque "[RUT]", "{{Rut}}" y "{rut}" son el mismo dato escrito de tres formas, y
+// en un contrato pueden aparecer las tres: una quedó con mayúsculas y se pegó,
+// otra quedó con minúsculas. Si se contaran por como están escritos, el aviso
+// diría "faltan 3 datos" cuando falta uno, y eso hace que el aviso se lea como
+// ruido y se deje de mirar.
+//
+// El marcador SE MUESTRA como está escrito, porque es lo que hay que buscar en la
+// plantilla para arreglarlo. La clave normalizada es solo para contar.
+function marcadoresSinLlenar(texto){
+  const out=[];
+  const re=/\[\s*([^\[\]]+?)\s*\]|\{\{\s*([^{}]+?)\s*\}\}|\{\s*([a-zA-Z0-9_\sáéíóúñÁÉÍÓÚÑ-]+?)\s*\}/g;
+  let m;
+  while((m=re.exec(texto||''))){
+    const escrito=String(m[1]||m[2]||m[3]||'').trim();
+    if(!escrito)continue;
+    out.push({marcador:m[0],clave:escrito.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'')});
+  }
+  // Y SIN REPETIR, porque un contrato puede tener el mismo marcador cinco veces
+  // y son cinco veces el mismo problema, no cinco problemas
+  const vistos={};
+  return out.filter(function(x){ if(vistos[x.clave])return false; vistos[x.clave]=1; return true; });
+}
+// Y EL AVISO SE DA EN "descargarEntrega", CON EL TEXTO YA COMPUESTO
+//
+// Porque buscar los marcadores sobre el texto final es lo único que sirve: un
+// marcador puede estar completo en la plantilla y quedar vacío porque el dato
+// del trabajador no está.
 async function descargarEntrega(entregaId){
   // Y POR QUE SE USA LA IMPRESIÓN DEL NAVEGADOR Y NO UNA LIBRERÍA
   //
@@ -769,11 +967,31 @@ async function descargarEntrega(entregaId){
   const w=workers.find(x=>x.code===e.trabajador_code);
   if(!p||!w){alert('No se encontró la plantilla o el trabajador.');return;}
   const hoja=document.getElementById('pantallaTotal');
-  hoja.innerHTML='<div class="hoja-papel">'
-    +reemplazarCampos(p.contenido,w,e.datos||{})
-    +htmlFirmas(p,e)
-    +htmlTimbre()
-    +'</div>';
+  // Y SE COMPONE UNA SOLA VEZ, PARA QUE LO QUE SE IMPRIME Y LO QUE SE AVISA SEAN
+  // EL MISMO TEXTO
+  //
+  // Antes se llamaba dos veces: una para imprimir y otra para el hash. Con el aviso
+  // son tres usos, y componiendo por separado cada uno podría salir distinto.
+  const cuerpo = reemplazarCampos(p.contenido,w,e.datos||{})
+    + htmlFirmas(p,e)
+    + htmlTimbre();
+  // Y ANTES DE IMPRIMIR, SE DICE SI FALTA ALGO
+  //
+  // Y se avisa del TEXTO YA COMPUESTO, que es donde se sabe qué quedó sin llenar:
+  // un marcador puede estar completo en la plantilla y quedar vacío porque el
+  // dato del trabajador no está.
+  const huecos=marcadoresSinLlenar(cuerpo);
+  if(huecos.length){
+    // Y EL AVISO DICE QUE SE PUEDE SEGUIR, PORQUE ES DEL USUARIO
+    if(!confirm(
+      'Este papel tiene '+huecos.length+' marcador(es) SIN LLENAR:\n\n'
+      +huecos.map(function(x){return '  · '+x.marcador;}).join('\n')
+      +'\n\nSi seguís, esos marcadores salen LITERALES en el papel, con las llaves'
+      +'\n y los corchetes a la vista.\n\n'
+      +'¿Querés cerrar el papel y completar los datos en la ficha del trabajador?'
+    )) return;
+  }
+  hoja.innerHTML='<div class="hoja-papel">'+cuerpo+'</div>';
   // Y UN CORTE ANTES DE IMPRIMIR, PORQUE LAS IMÁGENES NECESITAN SU TIEMPO
   //
   // Las firmas son imágenes (data URL). Si se imprime antes de que el navegador las
