@@ -107,6 +107,16 @@ function estilosDeLaVentana() {
   return [
     '*{box-sizing:border-box;}',
     'html,body{margin:0;padding:0;background:#fff;color:#000;}',
+    // Y CUALQUIER IMAGEN, ESTÉ DONDE ESTÉ
+    //
+    // Antes la regla era ".firma-caja img": solo las firmas. Pero el papel trae
+    // más imágenes —el timbre de la empresa, el logo— y una que no está dentro de
+    // una ".firma-caja" sale a su tamaño natural. Medido en el PDF: las firmas
+    // salieron de 96 mm, que es su tamaño natural, cuando deberían medir menos.
+    //
+    // Con "img" pelado no se puede escapar: cualquier imagen del papel queda
+    // dentro del ancho de la hoja.
+    'img{max-width:100%;height:auto;}',
     // Y 11pt, QUE ES UN CUERPO DE DOCUMENTO
     //
     // En pantalla el papel se ve con el tamaño de la pantalla, que es más
@@ -182,11 +192,10 @@ function imprimirPapelEnVentana(html, opciones) {
     );
     return false;
   }
-  try { win.document.write(''); } catch (e) { /* algunos navegadores lo bloquean */ }
+  const titulo = nombreDeLaVentana(o.plantilla, o.trabajador);
   win.document.open();
   win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">'
-    + '<title>' + escHtmlParaVentana(nombreDeLaVentana(o.plantilla, o.trabajador)) + '</title>'
-    + '<style>' + estilosDeLaVentana() + '</style>'
+    + '<title>' + escHtmlParaVentana(titulo) + '</title>'
     + '</head><body>'
     + html
     + '</body></html>');
@@ -205,8 +214,171 @@ function imprimirPapelEnVentana(html, opciones) {
     : Promise.resolve();
 
   return esperarImagenes.then(function () {
-    // Y UN CORTE MÁS, PARA QUE EL motor tenga tiempo de maquetar
     return new Promise(function (r) { setTimeout(r, 120); });
+  }).then(function () {
+    // =============================================================
+    // PASO NUEVO: COMPROBAR QUE EL CSS ENTRA, Y AJUSTAR A UNA HOJA
+    // =============================================================
+    //
+    // Y POR QUÉ HAY QUE COMPROBARLO
+    //
+    // Porque se mandó un "<style>" escrito con "document.write" y no entró. Se
+    // midió en un PDF real de esa versión: las firmas salieron de 96 mm, que es
+    // su TAMAÑO NATURAL, y eso solo pasa si la regla "max-width" no está puesta.
+    // Y las hojas salieron de 216 x 279 mm, que es CARTULINA, no A4, y eso solo
+    // pasa si la regla "@page" tampoco está puesta.
+    //
+    // O sea: las dos pruebas dicen que el papel se imprimió SIN NINGÚN ESTILO.
+    // Con 16 px en vez de 11 pt, el papel crece, y un papel que crece se parte en
+    // ocho hojas.
+    //
+    // Y POR QUÉ SE COMPRUEBA EN VEZ DE ASUMIR
+    //
+    // Porque "getComputedStyle" sí lee los estilos del documento nuevo —no es el
+    // "@media print" el que no se lee, que es otra cosa—, así que se puede
+    // preguntar al navegador si la fuente del papel es la que se puso. Si no lo
+    // es, se vuelve a poner, y si tampoco, se avisa en la misma ventana.
+    const d = win.document;
+    // =============================================================
+    // Y LA SONDA ES EL "BODY", NO UN "<h2>" NI UN "<p>"
+    // =============================================================
+    //
+    // Porque un "<h2>" tiene su propio tamaño de letra —1,5 veces la del padre— y
+    // con la sonda en el "<h2>" el navegador decía 22 píxeles con el CSS puesto y
+    // 24 sin él, y la comparación contra 14,67 daba "no entró" en los dos casos.
+    // Se llegó a poner el aviso "SIN ESTILOS" sobre un papel que sí los tenía.
+    //
+    // El "body" es lo único a lo que el CSS le fija la letra directamente, así
+    // que es lo único que se puede interrogar sin que otro estilo se adelante.
+    const cuerpo = d.body;
+    const papel = d.querySelector('.hoja-papel') || cuerpo;
+    let cssEntra = false;
+    try {
+      // =============================================================
+      // Y LA COMPROBACIÓN TIENE QUE SER DE DOS COSAS, NO DE UNA
+      // =============================================================
+      //
+      // Porque mirando solo el tamaño de la letra, un papel SIN estilos pasa por
+      // bueno: el navegador pone 16 px por su cuenta, y 16 está a 1,3 de los 14,67
+      // que produce "11pt". Con un margen de 1,5 el papel sin estilo se daba por
+      // bueno, que es el peor resultado posible: el papel sale a ocho hojas y el
+      // código cree que todo anda bien.
+      //
+      // Así que son dos cosas, y las dos tienen que ser ciertas:
+      //
+      //   1. Que el documento TIENGA hojas de estilo. Si "document.write" no
+      //      aceptó el "<style>", no hay ninguna, y eso no se puede confundir con
+      //      nada.
+      //   2. Que la letra del cuerpo sea la del documento. Y con margen chico:
+      //      menos de 0,8 píxeles de diferencia, porque 16 px está a 1,33 y tiene
+      //      que quedar afuera.
+      const fuente = parseFloat(win.getComputedStyle(cuerpo).fontSize);
+      cssEntra = d.styleSheets.length >= 1 && Math.abs(fuente - 14.667) < 0.8;
+    } catch (e) { cssEntra = false; }
+
+    if (!cssEntra) {
+      // =============================================================
+      // Y EL PLAN B: PONER EL CSS OTRA VEZ, CON EL MÉTODO DE LA DOM
+      // =============================================================
+      //
+      // Porque "document.write" y "appendChild" son caminos distintos hacia el
+      // mismo "<style>", y si uno falló el otro puede no fallar. Se hace con un
+      // elemento de verdad, agregado al "<head>" que ya existe.
+      const st = d.createElement('style');
+      st.setAttribute('data-del-papel', '1');
+      st.appendChild(d.createTextNode(estilosDeLaVentana()));
+      (d.head || d.documentElement).appendChild(st);
+      try {
+        const fuente2 = parseFloat(win.getComputedStyle(cuerpo).fontSize);
+        cssEntra = d.styleSheets.length >= 1 && Math.abs(fuente2 - 14.667) < 0.8;
+      } catch (e) { }
+    }
+
+    // =============================================================
+    // Y SI AUN ASÍ NO ENTRA, SE AVISA EN LA VENTANA, NO EN LA CONSOLA
+    // =============================================================
+    //
+    // Porque la consola no la ve nadie. Un papel impreso sin estilo es un papel
+    // que se ve mal y que nadie sabe por qué.
+    if (!cssEntra) {
+      const aviso = d.createElement('p');
+      aviso.setAttribute('data-del-papel', 'aviso');
+      aviso.style.cssText = 'font:13px sans-serif;color:#900;background:#fee;'
+        + 'border:2px solid #900;padding:8px;margin:0 0 10px';
+      aviso.textContent = 'ATENCIÓN: este papel se va a imprimir SIN los estilos del'
+        + ' documento. Va a salir en letra grande y en varias hojas. Probá de nuevo,'
+        + ' o bajalo en Word con el botón que está al lado.';
+      (papel.parentNode || d.body).insertBefore(aviso, papel);
+    }
+
+    // =============================================================
+    // Y AJUSTAR EL PAPEL A UNA SOLA HOJA
+    // =============================================================
+    //
+    // Y POR QUÉ SE MIDE EL PAPEL Y NO SE CONFÍA
+    //
+    // Porque el alto final en la hoja impresa no se puede leer desde la pantalla:
+    // "getComputedStyle" no lee las reglas de "@media print", y la paginación la
+    // hace el motor de impresión. Lo único que se puede medir es el alto del
+    // papel en milímetros, y eso es justo lo que decide si entra en una hoja.
+    //
+    // Y SE MIDE EN MILÍMETROS DE VERDAD, CON UNA REGLA
+    //
+    // No se divide por "96/25,4", que es el valor teórico. Se mide una regla de
+    // 100 mm con el mismo navegador y se usa el factor que dio. Si el zoom del
+    // sistema está en 110%, el factor real es otro, y el cálculo con el número
+    // teórico saldría mal.
+    const regla = d.createElement('div');
+    regla.style.cssText = 'position:absolute;visibility:hidden;height:100mm;width:1px';
+    (d.body || d.documentElement).appendChild(regla);
+    const pxPorMm = (regla.offsetHeight || 378) / 100;
+    if (regla.parentNode) regla.parentNode.removeChild(regla);
+
+    const ALTO_HOJA_MM = 249;   // 279 de cartulina, menos 15 de margen arriba y abajo
+    const altoMm = papel.scrollHeight / pxPorMm;
+    const anchoMm = papel.offsetWidth / pxPorMm;
+    let factor = 1;
+    if (altoMm > ALTO_HOJA_MM) {
+      factor = ALTO_HOJA_MM / altoMm;
+      // =============================================================
+      // Y NUNCA POR DEBAJO DE LA MITAD
+      // =============================================================
+      //
+      // Porque si el papel es larguísimo, achicarlo hasta que entre lo vuelve
+      // ilegible, y un contrato ilegible es peor que un contrato de dos hojas.
+      // El piso es la mitad: abajo de eso el papel sale en dos hojas, que es lo
+      // correcto para un documento largo.
+      if (factor < 0.5) factor = 0.5;
+      // =============================================================
+      // Y EL ZOOM VA EN EL CUERPO
+      // =============================================================
+      //
+      // Porque "zoom" vuelve a maquetar el texto, y lo que se quiere achicar es
+      // el texto. "transform: scale()" lo achicaría de forma visual y dejaría los
+      // renglones cortados a la mitad.
+      d.body.style.zoom = String(factor);
+    }
+
+    // =============================================================
+    // Y EL RESULTADO SE ESCRIBE EN EL TÍTULO DE LA VENTANA
+    // =============================================================
+    //
+    // Porque el título se ve en la barra de tareas sin abrir nada, y es el único
+    // lugar donde se puede leer un dato sin modificar el papel. No se imprime:
+    // el título de una pestaña no sale en la hoja.
+    try {
+      d.title = titulo + '  \u2014  ' + Math.round(anchoMm) + ' x '
+        + Math.round(altoMm * factor) + ' mm'
+        + (factor < 1 ? ' (achicado a ' + Math.round(factor * 100) + '%)' : '')
+        + (cssEntra ? '' : '  \u2014  SIN ESTILOS');
+    } catch (e) { }
+    if (typeof console !== 'undefined' && console.info) {
+      console.info('[papel] ' + Math.round(anchoMm) + ' x ' + Math.round(altoMm)
+        + ' mm, css ' + (cssEntra ? 'ok' : 'NO aplico'), factor);
+    }
+
+    // Y UN CORTE MÁS, PARA QUE EL motor tenga tiempo de maquetar
+    return new Promise(function (r) { setTimeout(r, 150); });
   }).then(function () {
     win.focus();
     win.print();
