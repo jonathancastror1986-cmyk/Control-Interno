@@ -1486,7 +1486,14 @@ function clearForm(){
   // Y los cinco de la 056 van en la lista. Si no, quedan con lo de la ficha anterior y
   // el siguiente trabajador nace con el apellido del otro: es el peor lugar para que un
   // campo se quede pegado, porque no se nota hasta que se imprimió la planilla.
-  ['w-code','w-name','w-nombres','w-apellido-paterno','w-apellido-materno','w-direccion','w-correo','w-afp-codigo','w-afp-nombre','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones','w-centro-costo'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['w-code','w-name','w-nombres','w-apellido-paterno','w-apellido-materno','w-direccion','w-correo','w-afp-codigo','w-afp-nombre','w-spec','w-phone','w-rut','w-fecha-ingreso','w-emerg-name','w-emerg-phone','w-emerg-rel','w-salud','w-medicamentos','w-precauciones','w-centro-costo','w-fecha-nac','w-nacionalidad','w-profesion','w-comuna','w-contrato-fecha-inicio','w-contrato-plazo-dias','w-contrato-fecha-hasta'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  // Y los dos selectores del contrato van en "Sin llenar"/"Sin elegir", no en vacío
+  // a secas: en un "<select>", un valor que no está en la lista queda en blanco y
+  // no se sabe si es que falta el dato o que el dato no existe.
+  const selCivil=document.getElementById('w-estado-civil');
+  if(selCivil)selCivil.value='';
+  const selPlazo=document.getElementById('w-contrato-tipo-plazo');
+  if(selPlazo)selPlazo.value='';
   document.getElementById('w-is-supervisor').checked=false;
   llenarSelectoresEspecialidad();
   if(document.getElementById('w-cargo')){
@@ -1657,10 +1664,53 @@ async function saveWorker(){
     name:componerNombre({nombres,apellido_paterno:apellidoPaterno,apellido_materno:apellidoMaterno}),
     direccion:document.getElementById('w-direccion').value.trim(),
     correo:document.getElementById('w-correo').value.trim(),
+        // ------------------------------------------------------------------
+        // LOS NUEVE CAMPOS DEL CONTRATO (migración 084)
+        // ------------------------------------------------------------------
+        // Y VAN LEÍDOS DEL FORMULARIO, COMO LOS OTROS, Y NO COPIADOS DEL "existing"
+        //
+        // Con los datos de salud van copiados del "existing" a propósito, porque el
+        // formulario no los tiene. Acá no: si se copiaran, el campo se llenaría una
+        // vez y nunca más, porque abrir la ficha y guardar sin tocarlo lo dejaría
+        // como estaba. Y es peor: alguien que corrija un dato desde otra pantalla
+        // —el Excel, por ejemplo— vería que la ficha lo pisa.
+        fecha_nac:document.getElementById('w-fecha-nac').value||null,
+        estado_civil:document.getElementById('w-estado-civil').value||null,
+        nacionalidad:document.getElementById('w-nacionalidad').value.trim()||null,
+        profesion:document.getElementById('w-profesion').value.trim()||null,
+        comuna:document.getElementById('w-comuna').value.trim()||null,
+        // Y EL PLAZO, QUE SON CUATRO CAMPOS
+        //
+        // Y "plazo_dias" pasa por Number, porque un texto no se compara con otro
+        // texto y la base lo rechaza con un check. Y si el tipo de plazo no es
+        // "dias", se guarda null aunque el campo tenga algo escrito: un plazo de
+        // 90 dias guardado en una ficha indefinida es un dato que no corresponde
+        // a ningún contrato.
+        contrato_tipo_plazo:document.getElementById('w-contrato-tipo-plazo').value||null,
+        contrato_plazo_dias:(()=>{
+          const t=document.getElementById('w-contrato-tipo-plazo').value;
+          const v=document.getElementById('w-contrato-plazo-dias').value.trim();
+          return (t==='dias'&&v)?Number(v):null;
+        })(),
+        contrato_fecha_inicio:document.getElementById('w-contrato-fecha-inicio').value||null,
+        contrato_fecha_hasta:(()=>{
+          const t=document.getElementById('w-contrato-tipo-plazo').value;
+          const v=document.getElementById('w-contrato-fecha-hasta').value||null;
+          return (t==='fecha')?v:null;
+        })(),
         // El sueldo base, con permiso propio. Va antes que el resto porque es el único
         // campo que puede salir en null aunque el usuario lo haya escrito: sin
         // "rem.editar" no se manda. Ver [rem-01].
-        sueldo_base: leerSueldoParaGuardar(worker),
+        //
+        // Y SE PASA "existing", NO "worker". Estaba "worker", y eso nunca funcionó:
+        // "worker" es el objeto que se está construyendo en esta misma línea, así que
+        // todavía está en su zona muerta, y la línea tiraba
+        //
+        //     ReferenceError: Cannot access 'worker' before initialization
+        //
+        // antes de que se guardara nada. Todo guardado desde este formulario fallaba.
+        // Lo que la función necesita es "el sueldo que ya tenía", que es "existing".
+        sueldo_base: leerSueldoParaGuardar(existing),
     afp_codigo:document.getElementById('w-afp-codigo').value.trim(),
     afp_nombre:document.getElementById('w-afp-nombre').value.trim(),
     spec,
@@ -2472,6 +2522,25 @@ function editWorker(code){
   document.getElementById('w-apellido-paterno').value=w.apellido_paterno||'';
   document.getElementById('w-apellido-materno').value=w.apellido_materno||'';
   document.getElementById('w-direccion').value=w.direccion||'';
+  // ------------------------------------------------------------------
+  // LOS NUEVE CAMPOS DEL CONTRATO (migración 084)
+  // ------------------------------------------------------------------
+  // Y LA FECHA VA CON LOS PRIMEROS DIEZ CARACTERES, QUE ES LO QUE "<input type=date>"
+  // ENTIENDE
+  //
+  // Y si la base devolviera la fecha con hora —"1959-09-09 00:00:00"—, el
+  // "<input type=date>" no la aceptaría y el campo se vería vacío: se vería un
+  // dato perdido que en realidad está. Por eso se corta.
+  document.getElementById('w-fecha-nac').value=(w.fecha_nac||'').slice(0,10);
+  document.getElementById('w-contrato-fecha-inicio').value=(w.contrato_fecha_inicio||'').slice(0,10);
+  document.getElementById('w-contrato-fecha-hasta').value=(w.contrato_fecha_hasta||'').slice(0,10);
+  document.getElementById('w-estado-civil').value=w.estado_civil||'';
+  document.getElementById('w-contrato-tipo-plazo').value=w.contrato_tipo_plazo||'';
+  document.getElementById('w-nacionalidad').value=w.nacionalidad||'';
+  document.getElementById('w-profesion').value=w.profesion||'';
+  document.getElementById('w-comuna').value=w.comuna||'';
+  document.getElementById('w-contrato-plazo-dias').value=
+    (w.contrato_plazo_dias==null||w.contrato_plazo_dias==='')?'':String(w.contrato_plazo_dias);
   document.getElementById('w-correo').value=w.correo||'';
   // Y la AFP. Si faltan acá, editar una ficha BORRA la AFP: el "upsert" manda todas las
   // columnas del objeto, y lo que no está llega como null.

@@ -189,6 +189,139 @@ funcione siempre y que funcione hasta que alguien cambia una fuente.
       </div>
     </div>
     <div class="w-seccion">
+      <h4>Datos para el contrato</h4>
+      <div class="row w-campos">
+        <div><label>Fecha de nacimiento <details class="ayuda"><summary class="ayuda-ico" title="Para qué sirve y por qué es una fecha, no un texto">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>Lo escribe el contrato:</b> "nacido(a) el 9 de Septiembre de 1959".
+  <br><br>
+  <b>Es un campo de fecha, no de texto.</b> Si fuera texto, "09-09-1959",
+  "9 de septiembre de 1959" y "1959-09-09" serían tres personas distintas. El texto
+  se arma solo al imprimir el papel.
+
+
+  </div>
+
+
+</details></label><input id="w-fecha-nac" type="date"></div>
+        <div><label>Estado civil <details class="ayuda"><summary class="ayuda-ico" title="Por qué lleva la (a) adentro">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>Se escribe como lo pide el papel:</b> "Casado(a)", "Soltero(a)".
+  <br><br>
+  <b>Por eso la lista tiene los valores con la (a) y no sin ella.</b> Si se
+  guardara "Casada", el contrato imprimiría "Casado(a)" con dos señales.
+  <br><br>
+  <b>No se escribe a mano.</b> Es una lista, para que todos los contratos
+  digan lo mismo.
+
+
+  </div>
+
+
+</details></label><select id="w-estado-civil">
+          <option value="">Sin llenar</option>
+          <option>Soltero(a)</option>
+          <option>Casado(a)</option>
+          <option>Conviviente civil</option>
+          <option>Separado(a)</option>
+          <option>Divorciado(a)</option>
+          <option>Viudo(a)</option>
+        </select></div>
+        <div><label>Nacionalidad</label><input id="w-nacionalidad" placeholder="Chileno/a"></div>
+        <div><label>Profesión u oficio</label><input id="w-profesion" placeholder="Maestro de obras"></div>
+        <div><label>Comuna</label><input id="w-comuna" placeholder="Puente Alto"></div>
+        <div><label>Inicio del contrato <details class="ayuda"><summary class="ayuda-ico" title="Por qué no es la fecha de ingreso">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>No es la fecha de ingreso.</b> Esa dice cuándo entró la persona a la empresa.
+  Esta dice desde cuándo rigió <i>el contrato</i>.
+  <br><br>
+  <b>Son dos fechas porque los contratos se firman después.</b> Alguien entra el
+  1 de enero y el contrato se firma el 10 de marzo, con efecto retroactivo desde
+  el 1 de enero. Con una sola fecha, o se pisa el ingreso real, o el contrato
+  dice una fecha que no es la que rigió.
+
+
+  </div>
+
+
+</details></label><input id="w-contrato-fecha-inicio" type="date"></div>
+        <div><label>Tipo de plazo <details class="ayuda"><summary class="ayuda-ico" title="Las cuatro formas de terminar un contrato">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>Un contrato no tiene "fecha de fin": tiene plazo.</b> Y el plazo tiene cuatro
+  formas, que son datos distintos entre sí.
+  <br><br>
+  <b>Por qué no alcanza con una fecha de fin:</b> el contrato indefinido se
+  guardaría como vacío, igual que un contrato a medio llenar. Los dos serían lo
+  mismo en la base, y en un contrato esa diferencia es toda.
+  <br><br>
+  <b>Lo más común en Chile es "Indefinido".</b>
+  <br><br>
+  <b>Si se elige "Por días" o "Hasta una fecha", hay que llenar el dato de al lado.</b>
+  Si no, el papel va a salir con el marcador adentro, que es la manera de que se
+  note que falta algo.
+
+
+  </div>
+
+
+</details></label><select id="w-contrato-tipo-plazo">
+          <option value="">Sin elegir</option>
+          <option value="indefinido">Indefinido</option>
+          <option value="partida">Por partida de contrato</option>
+          <option value="dias">Por días</option>
+          <option value="fecha">Hasta una fecha</option>
+        </select></div>
+        <div><label>Cantidad de días <details class="ayuda"><summary class="ayuda-ico" title="Solo si el plazo es por días">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>Solo si el tipo de plazo es "Por días".</b> Si no lo es, este campo no se usa.
+  <br><br>
+  <b>El número de días, no la fecha en que termina.</b> "Por 90 días" se cuenta
+  desde la fecha de inicio del contrato, y esa cuenta la hace quien firma.
+
+
+  </div>
+
+
+</details></label><input id="w-contrato-plazo-dias" type="number" min="1" step="1" placeholder="90"></div>
+        <div><label>Contrato hasta <details class="ayuda"><summary class="ayuda-ico" title="Solo si el plazo es hasta una fecha">i</summary>
+
+
+  <div class="ayuda-caja">
+
+
+  <b>Solo si el tipo de plazo es "Hasta una fecha".</b>
+  <br><br>
+  <b>Con plazo "Indefinido" este campo queda vacío a propósito.</b> No es un dato
+  sin llenar: es la forma de decir que el contrato no tiene término.
+
+
+  </div>
+
+
+</details></label><input id="w-contrato-fecha-hasta" type="date"></div>
+      </div>
+    </div>
+    <div class="w-seccion">
       <h4>Datos de contratación</h4>
       <div class="row w-campos">
         <div><label>Empresa <details class="ayuda"><summary class="ayuda-ico" title="A qué empresa pertenece y por qué importa">i</summary>
