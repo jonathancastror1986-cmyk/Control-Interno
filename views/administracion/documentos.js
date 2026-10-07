@@ -5422,7 +5422,7 @@ function pintarFirmas(){
        +'<b>Todavía no hay papeles firmados CON HUELLA.</b><br>'
        +'<small>Esta lista muestra los papeles firmados desde que se agregó la huella (la migración 079). '
        +'Los que se firmaron antes no aparecen: se firmaron sin ella, así que no se pueden verificar.<br><br>'
-       +'Abrí un papel desde "Kit de contratación", firmalo, y aparecerá acá con su hash.</small></div>';
+       +'Abrí un papel desde "Contratación y plantillas", firmalo, y aparecerá acá con su hash.</small></div>';
     return;
   }
   cont.innerHTML='<table class="tabla" style="width:100%"><thead><tr>'

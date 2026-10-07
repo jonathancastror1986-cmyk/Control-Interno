@@ -190,11 +190,43 @@ async function cargarEspecialidadesContratacion(){
 // reemplazo de texto y no con innerHTML sobre datos, para que un nombre con
 // < no rompa el documento: el nombre viene de la ficha, y las fichas se
 // importan de Excel.
+// -------------------------------------------------------------------
+// REEMPLAZAR LAS VARIABLES DEL PAPEL
+// -------------------------------------------------------------------
+// Y POR QUÉ HAY TRES FORMAS Y NO UNA
+//
+// Porque los papeles vienen de lados distintos: hay plantillas escritas en el
+// editor de la aplicación, que usan "[NOMBRE]", y hay documentos que se pegaron
+// desde Word o de un contrato que ya existía, que usan "{{nombre}}".
+//
+// Y EL DATO PUEDE VENIR POR VARIAS CLAVES
+//
+// "nombre_completo", "nombre", "nombres", "nombreCompleto" son el mismo dato
+// escrito de cuatro maneras, según quién escribió la plantilla. Y lo mismo con
+// "rut" y "rut_trabajador".
+//
+// Antes el regex era "/\{\{\s*([a-z_]+)\s*\}\}/": dos llaves, y letras y guion
+// bajo, NADA MÁS. Con eso "{{nombre_completo}}" no entraba —el "1" no es una
+// letra— y salía literal en el contrato. Un contrato firmado con
+// "{{nombre_completo}}" adentro es un documento con un hueco, y el hueco se
+// nota recién cuando alguien lo lee.
+//
+// El carácter del nombre ahora incluye números y guiones, y se aceptan las tres
+// formas. Y si el nombre no está en "datos", se busca entre las alternativas; si
+// tampoco está, se deja el marcador como estaba, que es mejor que inventar un
+// valor vacío: un "[RUT]" vacío se ve como un error de la empresa.
 function reemplazarCampos(plantilla,w,extra){
   const empresa=empresaDelPapel()||{};
   const esp=especialidadNombre(w.especialidad_clave||'');
+  // Y EL NOMBRE COMPLETO, QUE ANTES NO ESTABA EN LA LISTA
+  //
+  // "nombreCompleto" lo arma "dbToWorker" con los nombres separados, y es el que
+  // usan los papeles viejos. Si no está, "{{nombre_completo}}" sale literal.
+  const nombreLargo=(w.nombreCompleto||w.name||'').trim();
   const datos={
-    nombre:w.name||'',
+    nombre:largoO(nombreLargo,w.name),
+    nombre_completo:nombreLargo,
+    nombrecompleto:nombreLargo,
     codigo:codigoMostrar(w.code),
     rut:(w.rut||'').toUpperCase(),
     especialidad:esp||(w.spec||'')||'',
@@ -205,8 +237,40 @@ function reemplazarCampos(plantilla,w,extra){
     fecha:new Date().toLocaleDateString('es-CL'),
     ...(extra||{})
   };
-  return (plantilla||'').replace(/\{\{\s*([a-z_]+)\s*\}\}/gi,(m,clave)=>
-    datos[clave]!==undefined?String(datos[clave]):m);
+  // Y EL REEMPLAZO, QUE ACEPTA LAS TRES FORMAS
+  //
+  // "[NOMBRE]", "{{nombre}}" y "{nombre}". Con espacios adentro, porque al pegar
+  // desde Word quedan "{ { nombre } }".
+  const valor=function(clave){
+    if(clave===undefined||clave===null)return undefined;
+    const k=String(clave).trim();
+    if(datos[k]!==undefined)return datos[k];
+    // Y SI NO ESTÁ, SE BUSCA SIN TILDES Y SIN GUION BAJO
+    //
+    // "nombre-completo" y "nombre_completo" son lo mismo, y una plantilla
+    // pegada de Word trae las dos formas según de dónde salió.
+    const plano=k.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[-\s]/g,'_').toLowerCase();
+    const claves=Object.keys(datos);
+    for(let i=0;i<claves.length;i++){
+      const c=claves[i].normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[-\s]/g,'_').toLowerCase();
+      if(c===plano)return datos[claves[i]];
+    }
+    return undefined;
+  };
+  return (plantilla||'').replace(
+    /\[\s*([^\[\]]+?)\s*\]|\{\s*\{([^{}]+?)\}\s*\}|\{\s*([a-zA-Z0-9_\sáéíóúñÁÉÍÓÚÑ-]+?)\s*\}/g,
+    function(m,corchete,llaves,una){
+      const v=valor(corchete||llaves||una);
+      return v!==undefined&&v!==null&&v!==''?String(v):m;
+    }
+  );
+}
+// Y EL NOMBRE QUE NO ESTÁ VACÍO
+//
+// Porque un trabajador puede tener "nombreCompleto" vacío en la ficha y el
+// "name" bien. Con la regla de los dos, siempre se muestra uno.
+function largoO(primero,segundo){
+  return (primero&&String(primero).trim())?primero:(segundo||'');
 }
 function centroDeRelojDe(w){
   if(!relojes.length)return '';

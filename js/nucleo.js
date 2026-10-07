@@ -632,9 +632,18 @@ const navGroups = {
       {v:'relojes',label:'Relojes'},
       {v:'marcajes',label:'Marcajes'}
     ]},
-    {v:'kit',label:'Kit de contratación',options:[
+    // Y POR QUÉ "CONTRATACIÓN Y PLANTILLAS" Y NO "KIT DE CONTRATACIÓN"
+//
+// Porque "kit" es la palabra interna del código, y la pantalla no muestra
+// código. "Contratación y plantillas" dice las dos cosas que hay adentro: los
+// papeles que se entregan, y las plantillas con las que se arman.
+//
+// Y el submenú se parte en tres, no en dos, porque la vista de plantillas ya
+// tiene pestañas propias —plantillas, firmados, campos y datos, timbre— y el
+// desplegable mostraba solo dos cosas de cuatro.
+{v:'kit',label:'Contratación y plantillas',options:[
       {v:'kit',label:'Papeles del trabajador'},
-      {v:'plantillas-kit',label:'Editar plantillas y timbre'}
+      {v:'plantillas-kit',label:'Plantillas, firmados y campos'}
     ]},
     {v:'porteria',label:'Consultar trabajador'}
   ],
