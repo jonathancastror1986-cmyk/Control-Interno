@@ -161,6 +161,33 @@ function sincronizarAdmin(){
 }
 
 // ---------------------------------------------------------------------
+// ¿EL ADMINISTRADOR PASA TODO?
+// ---------------------------------------------------------------------
+// Y ESTO SE PREGUNTA EN CADA USO, Y NO SE LEE DE "window"
+//
+// Y POR QUÉ, CUANDO HABÍA UNA VARIABLE PARA ESO
+//
+// Porque "window.esAdminDelSistema" es una COPIA que se sacaba una sola vez, cuando
+// se cargaban los roles. Si esa copia quedó en "false" —porque se preguntó antes de
+// que llegaran los roles, o porque el archivo que la escribe no cargó— el
+// administrador quedaba tapado como cualquier otro, sin ningún aviso.
+//
+// Y eso es lo que pasó: el bypass existía, comparaba bien, y no se activaba. Un
+// administrador que no ve un módulo es la peor forma de falla un bypass: parece que
+// el módulo está apagado, y no lo está.
+//
+// Y LA RAZÓN DE QUE SIGA HABIENDO LA VARIABLE
+//
+// Porque hay código que la lee, y sacarla sería romperlo. Lo que se deja es que se
+// calcule sola, y que esta función sea la que decide.
+function adminPassaTodo(){
+  // Y CON EL VALOR DE LA VARIABLE COMO PLAN B, PARA EL CASO DE QUE "soyAdmin" NO
+  // ESTÉ DEFINIDA
+  if(typeof soyAdmin==='function')return soyAdmin();
+  return !!window.esAdminDelSistema;
+}
+
+// ---------------------------------------------------------------------
 // EL ESTADO, Y POR QUÉ NO SE CALCULA EN EL MOMENTO DE USARLO
 // ---------------------------------------------------------------------
 // Y SE GUARDA UNA VEZ, NO SE PREGUNTA CADA VEZ
@@ -304,7 +331,7 @@ function moduloActivo(vista){
   if(!vista) return true;
   const modulo = MODULO_POR_VISTA[vista];
   if(!modulo) return true;
-  if(typeof window !== 'undefined' && window.esAdminDelSistema && ADMIN_SIEMPRE_TODO) return true;
+  if(ADMIN_SIEMPRE_TODO && adminPassaTodo()) return true;
   if(!modulosCargados) return true;
   const empresas = empresasDelAmbito();
   // Y "null" ES "TODAVÍA NO SE SABE", Y NO ES "NO TIENE EMPRESAS"
@@ -404,7 +431,7 @@ function diagnosticoDeModulos() {
   // Y SI UN MÓDULO ENTERO ESTÁ APAGADO
 function moduloEncendido(modulo){
   if(!modulo) return true;
-  if(typeof window !== 'undefined' && window.esAdminDelSistema && ADMIN_SIEMPRE_TODO) return true;
+  if(ADMIN_SIEMPRE_TODO && adminPassaTodo()) return true;
   if(!modulosCargados) return true;
   const empresas = empresasDelAmbito();
   if(empresas===null) return true;
