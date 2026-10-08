@@ -620,6 +620,53 @@ function showAttendancePanel(name){
 //
 // Porque es información para cuando algo falla, no parte de la pantalla. Si se
 // colgara arriba, molestaría en el uso normal para servir en el anormal.
+// Y QUE EL ESTILO NO SEA VIEJO, QUE ES LO QUE MÁS HA PASADO
+//
+// Y POR QUÉ HAY QUE COMPARAR EL NÚMERO DEL CSS CON EL DEL JAVASCRIPT
+//
+// Porque "sube-la-version.js" sube el número de los enlaces del HTML y lo escribe
+// en "js/versiones.js". Y el CSS, que es un archivo más, lo sube también. Y hay
+// un momento en que el navegador tiene el Javascript nuevo y el CSS viejo, porque
+// cada archivo se guarda por separado y recargar no siempre los cambia a todos.
+//
+// Y qué pasa cuando eso ocurre: el Javascript nuevo trae reglas que el CSS viejo no
+// tiene, y la pantalla queda a medio camino. No con un error: sin error, que es
+// peor. Una barra de pestañas que vuelve a la forma anterior, un botón que
+// desaparece del medio, un color que no cuadra. Y no hay forma de saber si es que
+// el arreglo no sirvió o que el navegador tiene el archivo de ayer.
+//
+// Y POR QUÉ EL CSS DICE SU NÚMERO
+//
+// Porque un archivo de CSS no se puede preguntar por su versión. Con una variable
+// "--version-app" escrita en ":root", el Javascript la lee con
+// "getComputedStyle" y la compara con el número que él trae. Si no coinciden, el
+// estilo es viejo, y eso se dice en pantalla, en grande, y no se adivina.
+//
+// Y EL NÚMERO LO ESCRIBE "sube-la-version.js", Y LO COMPARA
+// "comprueba-la-version.js". Los tres sitios —el HTML, el Javascript y el CSS—
+// tienen que decir lo mismo, o el guardián avisa.
+(function avisarSiElEstiloEsViejo(){
+  const mia=(typeof VERSION_APP!=='undefined')?String(VERSION_APP):null;
+  if(!mia)return;
+  const valor=getComputedStyle(document.documentElement).getPropertyValue('--version-app');
+  const delCss=String(valor||'').replace(/['\s"]/g,'');
+  if(!delCss){
+    // Y SI NO ESTÁ LA VARIABLE, EL CSS ES ANTERIOR A ESTA COMPROBACIÓN
+    return;
+  }
+  if(delCss===mia)return;
+  // Y EL AVISO ES GIGANTE Y ROJO, PORQUE TIENE QUE GANARLE A TODO LO DEMÁS
+  const caja=document.createElement('div');
+  caja.id='avisoEstiloViejo';
+  caja.style.cssText='position:fixed;left:0;right:0;top:0;z-index:99999;'
+    +'padding:14px 18px;background:#7C2D12;color:#fff;'
+    +'font:600 14px/1.5 sans-serif;box-shadow:0 6px 20px rgba(0,0,0,.3)';
+  caja.textContent='EL ESTILO DE ESTA PANTALLA ESTÁ VIEJO. El código que corre es v'
+    +mia+' pero el archivo de estilos es v'+delCss+'. Por eso lo que se ve no '
+    +'corresponde. Recargá con Ctrl+Shift+R (o cerrá la pestaña y abrila de nuevo).';
+  document.body.appendChild(caja);
+})();
+
 (function marcarVersion(){
   const v=(typeof VERSION_APP!=='undefined')?String(VERSION_APP):'?';
   const donde=document.getElementById('versionApp');

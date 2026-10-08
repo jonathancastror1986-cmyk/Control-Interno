@@ -195,6 +195,37 @@ if (m[1] === NUEVA) {
 }
 
 // ---------------------------------------------------------------------
+// Y EL MISMO NÚMERO, ADENTRO DEL CSS
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ EL CSS TAMBIÉN, Y NO SÓLO EL HTML Y EL JS
+//
+// Porque el navegador guarda cada archivo por separado. Puede estar con el
+// Javascript de hoy y el CSS de ayer, y la pantalla queda a medio camino sin
+// ningún error: se ven mal cosas y no hay forma de saber por qué.
+//
+// Con "--version-app" escrita en ":root", el Javascript lee la variable con
+// "getComputedStyle" y la compara con su propio número. Si no coinciden, sale un
+// cartel rojo que lo dice. Es la única forma de que la aplicación detecte sola que
+// el navegador tiene el estilo viejo.
+const archivoCss = path.join(RAIZ, 'css', 'styles.css');
+if (fs.existsSync(archivoCss)) {
+  const css = fs.readFileSync(archivoCss, 'utf8');
+  const mc = css.match(/--version-app\s*:\s*'(\d+)'/);
+  if (!mc) {
+    console.log('  *** css/styles.css no tiene "--version-app"');
+    process.exit(1);
+  }
+  if (mc[1] === NUEVA) {
+    console.log('  ok  css/styles.css ya dice v' + NUEVA);
+  } else {
+    fs.writeFileSync(archivoCss,
+      css.replace(/(--version-app\s*:\s*)'\d+'/, "$1'" + NUEVA + "'"), 'utf8');
+    console.log('  **  css/styles.css: v' + mc[1] + ' -> v' + NUEVA);
+  }
+}
+
+// ---------------------------------------------------------------------
 // LA COMPROBACIÓN DE ESTA COMPROBACIÓN
 // ---------------------------------------------------------------------
 // Y POR QUÉ ESTÁ AL FINAL

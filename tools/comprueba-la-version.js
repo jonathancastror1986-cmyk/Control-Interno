@@ -100,6 +100,38 @@ if (iMod > 0 && iVers > iMod) {
   console.log('    ok  y antes que modulos.js');
 }
 
+// ---------------------------------------------------------------------
+// 4. EL NÚMERO DE ADENTRO DEL CSS
+// ---------------------------------------------------------------------
+// Y POR QUÉ ESTE TERCER SITIO, Y NO SÓLO LOS ENLACES Y EL JAVASCRIPT
+//
+// Porque el navegador guarda cada archivo por separado. Puede estar con el
+// Javascript de hoy y el CSS de ayer, y la pantalla queda a medio camino SIN
+// NINGÚN ERROR: se ven mal cosas y no hay forma de saber si el arreglo no sirvió
+// o si el archivo es viejo.
+//
+// Con "--version-app" en ":root", el Javascript la lee y la compara con su
+// número. Si no coinciden, sale un cartel rojo. Sin esta cuarta comprobación, el
+// cartel mentiría: mostraría "el estilo está viejo" cuando los dos dicen lo
+// mismo, y la gente dejaría de leerlo.
+console.log('');
+console.log('  === el número del CSS ===');
+const css = leer('css/styles.css');
+const mc = css.match(/--version-app\s*:\s*'(\d+)'/);
+if (!mc) {
+  console.log('    *** css/styles.css no tiene "--version-app": la aplicación no puede detectar un estilo viejo');
+  problemas++;
+} else {
+  console.log('    css/styles.css dice: v' + mc[1]);
+  if (mc[1] !== dentro) {
+    console.log('    *** el Javascript dice v' + dentro + ' y el CSS dice v' + mc[1]
+      + ': el cartel de "estilo viejo" aparecería siempre');
+    problemas++;
+  } else {
+    console.log('    ok  el CSS y el Javascript dicen lo mismo');
+  }
+}
+
 console.log('');
 if (problemas) {
   console.log('  *** ' + problemas + ' PROBLEMA(S) ===');
@@ -108,7 +140,7 @@ if (problemas) {
   console.log('      node tools/sube-la-version.js ' + dentro);
   process.exit(1);
 }
-console.log('  ok  todo dice v' + dentro);
+console.log('  ok  los tres sitios dicen v' + dentro);
 
 // ---------------------------------------------------------------------
 // LA COMPROBACIÓN DE ESTA COMPROBACIÓN

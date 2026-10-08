@@ -5372,6 +5372,31 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
    Las dos líneas van apretadas y con la misma altura de línea, porque el nombre
    partido sigue siendo un nombre: "Justificar" arriba, "inasistencia" abajo. */
+/* ===================================================================
+   LA VERSIÓN DEL ESTILO, PARA QUE EL JAVASCRIPT PUEDA COMPARARLA
+   ===================================================================
+   Esta variable no sirve para nada visual. Está para que el Javascript sepa si el
+   archivo de estilos que tiene cargado es el mismo que el código que está
+   corriendo.
+
+   Porque el navegador guarda cada archivo por separado: puede tener el Javascript
+   de hoy y el CSS de ayer, y recargar a veces no los cambia a todos. Cuando eso
+   pasa, la pantalla queda a medio camino y no hay ningún error: se ven mal cosas,
+   y no hay forma de saber si el arreglo no sirvió o si el archivo es viejo.
+
+   Con esto, "app.js" lee la variable y la compara con su propio número. Si no
+   coinciden, sale un cartel rojo que lo dice.
+
+   Y EL NÚMERO LO ESCRIBE "tools/sube-la-version.js", EN EL MISMO MOMENTO QUE
+   SUBE EL "?v=" DE LOS ENLACES. "tools/comprueba-la-version.js" compara los tres.
+
+   Para cambiarla a mano hay que cambiar también "VERSION_APP" de
+   "js/versiones.js" y el "?v=" de los enlaces. O mejor: correr el guion.
+*/
+:root{
+  --version-app:'127';
+}
+
 .attendance-tabs .pest-txt{
   min-width:0;
   /* Y QUITADO EL "text-overflow" Y EL "white-space:nowrap" */
