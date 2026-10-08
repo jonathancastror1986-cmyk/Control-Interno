@@ -2755,6 +2755,16 @@ async function loadPermisosUsuario(){
     }
     misPermisosCargados=true;
     quitarAvisoPermisos();
+    // Y SE SINCRONIZA EL "ES ADMINISTRADOR", QUE LO USAN LOS MÓDULOS
+    //
+    // Va acá y no más abajo porque "misRoles" se acaba de llenar, y el filtro de
+    // módulos necesita saber si esta persona es administradora del sistema para
+    // mostrarle la pantalla que prende los módulos y para dejarlo pasar a todo.
+    //
+    // Y se sincroniza CADA VEZ que cambian los roles, que es lo que pasa al
+    // promover a alguien en Soporte. Sin esto, un administrador nuevo tenía que
+    // recargar la página para que le apareciera.
+    if(typeof sincronizarAdmin==='function')sincronizarAdmin();
   }catch(error){
     // Si falla (migración 013 sin aplicar) no se bloquea la app, pero se
     // avisa: sin este control cualquier persona ve y cambia todo.

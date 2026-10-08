@@ -723,7 +723,20 @@ const navGroups = {
     // qué puede ver esta empresa. Va suelto y no dentro de Configuración porque
     // la pregunta que contesta no es "cómo se configura el sistema" sino "qué
     // trabaja esta empresa", que es de RRHH y se pregunta seguido.
-    {v:'empresas-cargos',label:'Empresas: cargos y permisos'}
+    {v:'empresas-cargos',label:'Empresas: cargos y permisos'},
+    // Y POR QUÉ ESTÁ SEPARADO DE "EMPRESAS: CARGOS Y PERMISOS", Y NO ADENTRO
+    //
+    // Porque "cargos y permisos" es una pantalla de RRHH: qué oficios maneja la
+    // empresa y qué puede ver su gente. Y esta es de administración del sistema:
+    // qué productos contrató la empresa. Son preguntas distintas, de gente distinta,
+    // y mezclarlas haría que un encargado de RRHH viera botones que no puede
+    // usar.
+    //
+    // Y además esta pantalla solo la ve el administrador del sistema. Está anotado
+    // en "filtrarNavItemsNoAdmin", que la saca del menú para todos los demás, y la
+    // base la impide igual: la política de escritura de "empresa_modulos" es
+    // "es_admin()" y no hay permiso que la abra.
+    {v:'empresa-modulos',label:'Empresas: módulos'}
   ],
   'asistente-social': [
     {v:'alertas-sociales',label:'Alertas'},

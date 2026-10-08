@@ -117,8 +117,48 @@ const MODULO_POR_VISTA = {
   'v-invitar-usuario': 'empresas',
   'v-permisos': 'empresas',
   'v-empresa': 'empresas',
+  'v-empresa-modulos': 'empresas',
   'v-expedientes': 'expedientes',
 };
+
+// ---------------------------------------------------------------------
+// ¿ESTA PERSONA ES ADMINISTRADORA DEL SISTEMA?
+// ---------------------------------------------------------------------
+// Y "soyAdmin()" YA EXISTE, Y NO SE REPITE
+//
+// Está en "views/soporte/soporte.js", al lado de "puede()", y hace lo mismo: mira
+// si "misRoles" tiene "admin". Los archivos comparten el ámbito, así que definirla
+// otra vez acá no agrega nada: una de las dos pisa a la otra según cuál cargó
+// último, y las dos son iguales ahora, hasta que alguien cambie una. Ver
+// [word-04].
+//
+// Y LA BASE TIENE "es_admin()", QUE ES LA QUE MANDA
+//
+// Porque es la que revisan las políticas de RLS, y con la 073 el administrador ya
+// no tiene acceso total por la puerta de atrás. Si el Javascript dijera "sí" y la
+// base dijera "no", se vería un botón que no funciona.
+//
+// Y NO SE USA UN PERMISO NUEVO, Y POR QUÉ
+//
+// Un permiso como "sistema.modulos" tendría que existir en la tabla "permisos",
+// en "roles_permisos", y repartirse. Eso es una migración más que hay que correr
+// desde el panel, y para una pantalla que solo ve el administrador del sistema.
+//
+// "es_admin()" ya responde la pregunta, y la base la usa igual. Con eso, la
+// pantalla y la política están de acuerdo por construcción, y no hay una tercera
+// respuesta que pueda contradecir a las otras dos.
+//
+// Y EL "ADMIN_SIEMPRE_TODO" DE ARRIBA USA ESTA MISMA FUNCIÓN
+//
+// Y SE DEJA TAMBIÉN EN "window", PORQUE EL FILTRO DE ARRIBA LO USABA
+//
+// Y se sincroniza cada vez que cambian los roles, que es lo que pasa al promover a
+// alguien en Soporte. Sin esto, un administrador nuevo tenía que recargar la
+// página para que le apareciera la pantalla.
+function sincronizarAdmin(){
+  window.esAdminDelSistema=(typeof soyAdmin==='function')?soyAdmin():false;
+  return window.esAdminDelSistema;
+}
 
 // ---------------------------------------------------------------------
 // EL ESTADO, Y POR QUÉ NO SE CALCULA EN EL MOMENTO DE USARLO
@@ -201,19 +241,32 @@ async function cargarModulos(){
 
 // Y LA LISTA DE EMPRESAS QUE SE ESTÁ MIRANDO AHORA
 //
-// Y "TODAS LAS EMPRESAS" CUANDO EL ÁMBITO ES 0
+// Y DEVUELVE "null" CUANDO TODAVÍA NO SE SABE, QUE ES DISTINTO DE "NO HAY NINGUNA"
 //
-// Y EN "TODAS", UN MÓDULO ESTÁ DISPONIBLE SOLO SI ESTÁ EN TODAS LAS EMPRESAS
+// Y esa diferencia es todo el fallo que se corrigió
 //
-// Y por qué la más restrictiva y no la más generosa: el selector de arriba puede
-// estar en "Todas las empresas". Si el módulo está prendido en la empresa 1 y
-// apagado en la 2, y se mostrara por estar en alguna, al abrir la vista se vería
-// un módulo que no existe para la mitad de lo que hay en pantalla. Con la regla
-// estricta, el módulo no aparece, que es la respuesta que no confunde.
+// "loadPermisosUsuario()" —que es donde se leen los módulos— corre ANTES que
+// "loadEmpresas()". Está en ese orden en "js/app.js", y es el correcto: los
+// permisos no dependen de la lista de empresas y la lista sí se necesita para
+// otras cosas.
 //
-// Y una excepción: si el usuario NO tiene ninguna empresa en el ámbito, no hay nada
-// que cruce y no se muestra nada. Es lo mismo que no tener módulos.
+// El problema es qué se hace mientras la lista está vacía. Antes, una lista vacía
+// se leía como "esta persona no tiene ninguna empresa", y de ahí salía "no hay
+// módulos". Resultado: al abrir la aplicación, con los once módulos
+// correctamente prendidos en la base, todo salía bloqueado:
+//
+//     La empresa no tiene este módulo contratado. La pantalla "porteria" es del
+//     módulo "porteria", que está apagado para las empresas a las que tenés acceso.
+//
+// Y el mensaje era VERDADERO Y ESTABA MAL A LA VEZ: la empresa sí tenía el módulo;
+// lo que no se sabía era todavía cuál era su ámbito.
+//
+// Por eso devuelve "null" mientras no se sepa, y "moduloActivo" deja pasar. Es la
+// misma regla que con "modulosCargados": mientras no se sabe, no se cierra nada.
+// Y después, "aplicarModulos()" vuelve a pintar cuando la lista llega.
 function empresasDelAmbito(){
+  // Y SI LA LISTA DE EMPRESAS AÚN NO TERMINÓ DE CARGAR, NO SE OPINA
+  if(typeof empresasCargadas!=='undefined' && !empresasCargadas) return null;
   const lista = (typeof empresas !== 'undefined' && Array.isArray(empresas)) ? empresas : [];
   const propias = (typeof misEmpresas !== 'undefined' && Array.isArray(misEmpresas) && misEmpresas.length)
     ? misEmpresas
@@ -252,6 +305,8 @@ function moduloActivo(vista){
   if(typeof window !== 'undefined' && window.esAdminDelSistema && ADMIN_SIEMPRE_TODO) return true;
   if(!modulosCargados) return true;
   const empresas = empresasDelAmbito();
+  // Y "null" ES "TODAVÍA NO SE SABE", Y NO ES "NO TIENE EMPRESAS"
+  if(empresas===null) return true;
   if(!empresas.length) return false;
   return empresas.every(function(id){
     const deEsta = modulosPorEmpresa[String(id)];
@@ -266,6 +321,7 @@ function moduloEncendido(modulo){
   if(typeof window !== 'undefined' && window.esAdminDelSistema && ADMIN_SIEMPRE_TODO) return true;
   if(!modulosCargados) return true;
   const empresas = empresasDelAmbito();
+  if(empresas===null) return true;
   if(!empresas.length) return false;
   return empresas.every(function(id){
     const deEsta = modulosPorEmpresa[String(id)];
@@ -345,6 +401,160 @@ function quitarAvisoModulos(){
 }
 
 // ---------------------------------------------------------------------
+// LA PANTALLA QUE PRENDE Y APAGA
+// ---------------------------------------------------------------------
+// Y POR QUÉ ESCRIBE "empresa_modulos" Y NO OTRA TABLA
+//
+// Porque "empresa_modulos" es exactamente la tabla que hace falta para esto, y ya
+// tiene lo que se le pidió: qué módulos tiene cada empresa y si están prendidos.
+// Agregar una pantalla y una tabla nueva para lo mismo sería la segunda fuente de
+// verdad, que es donde empiezan los datos que no coinciden entre sí.
+//
+// Y LO QUE NO ESTÁ, DICHO DE ANTEMANO
+//
+// No queda registrado QUIÉN apagó un módulo ni CUÁNDO. Sólo queda la fecha de la
+// fila. Para auditarlo hace falta una columna más y una pantalla de historial, y
+// no se hizo.
+//
+// Lo que sí queda es la fila con "activo = false": el módulo está apagado, pero se
+// ve que existe y que alguien lo apagó a propósito. Eso es lo que permite
+// distinguir "lo apagó alguien" de "nunca se prendió", que con sólo las filas
+// prendidas no se distinctions.
+async function pintarModulos(){
+  const lista=document.getElementById('modList');
+  const sel=document.getElementById('modEmpresa');
+  if(!lista||!sel)return;
+
+  // Y SI NO ES ADMINISTRADOR, NO SE PINTA NADA
+  //
+  // Y no es un aviso: no se abre. La política de "empresa_modulos" es "es_admin()"
+  // para escribir y deja leer a la empresa, así que un usuario normal podría ver
+  // la pantalla vacía sin error. Lo que tiene que hacer la pantalla es no existir.
+  if(!soyAdmin()){
+    lista.innerHTML='<p style="opacity:.8">Esta pantalla es solo para el administrador del sistema.</p>';
+    return;
+  }
+  const emps=(typeof empresas!=='undefined'&&Array.isArray(empresas))?empresas:[];
+  const elegida=sel.value||(emps[0]&&emps[0].id)||'';
+  sel.innerHTML=emps.map(function(e){
+    return '<option value="'+e.id+'">'+escHtml(e.nombre)+' (id '+e.id+')</option>';
+  }).join('');
+  if(elegida)sel.value=elegida;
+  const id=parseInt(sel.value,10);
+
+  const {data,error}=await window.supabaseClient.from('empresa_modulos')
+    .select('modulo_nombre,activo').eq('empresa_id',id);
+  const aviso=document.getElementById('modAviso');
+  if(error){
+    // Y SI FALLA LA LECTURA, SE DICE EN PANTALLA Y NO SE PINTA UNA LISTA VACÍA
+    //
+    // Porque una lista vacía con "no tenés nada" es distinta de "no se pudo leer",
+    // y la diferencia es si el problema es tuyo o del sistema.
+    if(aviso)aviso.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);'
+      +'color:var(--danger);padding:10px 12px;border-radius:8px">'
+      +'No se pudieron leer los módulos de esta empresa: '+escHtml(error.message)
+      +'<br><small>Si la migración 085 no está aplicada, aplicala.</small></div>';
+    lista.innerHTML='';
+    return;
+  }
+  if(aviso)aviso.innerHTML='';
+  const deEsta={};
+  (data||[]).forEach(function(f){ deEsta[f.modulo_nombre]=!!f.activo; });
+
+  lista.innerHTML=
+    '<p style="margin:0 0 10px;opacity:.8">Una empresa sin módulos no ve nada. '
+    +'Con <b>relojes</b> apagado sigue viendo <b>marcajes</b>: son cosas distintas, '
+    +'las marcas se cargan a mano y el aparato es el que no está certificado.</p>'
+    +MODULOS_CONOCIDOS.map(function(m){
+      const marcado=deEsta[m]?' checked':'';
+      const titulo=TITULOS_DE_MODULO[m]||m;
+      return '<label style="display:flex;gap:9px;align-items:flex-start;padding:7px 0;'
+        +'border-bottom:1px solid var(--borde,#eee);cursor:pointer">'
+        +'<input type="checkbox" data-modulo="'+m+'"'+marcado+' style="margin-top:2px">'
+        +'<span><b>'+escHtml(titulo)+'</b><br>'
+        +'<small style="opacity:.7"><code>'+escHtml(m)+'</code></small></span></label>';
+    }).join('');
+}
+// Y LOS TÍTULOS LEGIBLES, QUE EL CÓDIGO ES PARA MÍ
+const TITULOS_DE_MODULO={
+  porteria:'Registro de ingresos y salidas',
+  trabajadores:'Fichas y listado de trabajadores',
+  asistencia:'Tarja mensual, justificación diaria y bitácora',
+  carga_masiva:'Carga masiva de trabajadores',
+  empresas:'Usuarios, permisos y datos de empresa',
+  contratos:'Contratación: kit, plantillas y papeles firmados',
+  expedientes:'Expedientes de documentos',
+  solicitar_ingreso:'Solicitud de ingreso del supervisor',
+  epp:'Bodega: EPP, kits y herramientas',
+  remuneraciones:'Remuneraciones',
+  relojes:'Relojes y centros de costo (el aparato; sin certificar)',
+  marcajes:'Marcajes del sistema de asistencia',
+};
+
+function modMarcarTodas(valor){
+  document.querySelectorAll('#modList input[data-modulo]').forEach(function(c){ c.checked=!!valor; });
+}
+async function guardarModulos(){
+  if(!soyAdmin()){
+    alert('Solo el administrador del sistema puede prender y apagar módulos.');
+    return;
+  }
+  const sel=document.getElementById('modEmpresa');
+  const id=parseInt(sel.value,10);
+  const empresasDeEsta=[];
+  const apagados=[];
+  document.querySelectorAll('#modList input[data-modulo]').forEach(function(c){
+    empresasDeEsta.push({modulo_nombre:c.dataset.modulo, activo:!!c.checked});
+    if(!c.checked)apagados.push(c.dataset.modulo);
+  });
+  if(apagados.length&&apagados.indexOf('relojes')>=0){
+    const ok=confirm('Se va a apagar "relojes" (el Tótem y el reloj).\n\n'
+      +'Esa empresa va a dejar de ver esas pantallas. Las marcas ya cargadas se '
+      +'quedan guardadas y "marcajes" sigue disponible.\n\n¿Seguir?');
+    if(!ok)return;
+  }
+  // Y SE BORRA Y SE VUELVE A ESCRIBIR, EN VEZ DE UN "UPSERT" POR CADA UNO
+  //
+  // Porque "upsert" no puede apagar una fila que existe: sólo la crea o la
+  // actualiza. Para dejar un módulo en falso hay que escribir la fila, y para
+  // quitarlo del todo hay que borrarla. Con la fila en "activo = false" el módulo
+  // está apagado y se ve que alguien lo apagó a propósito, que es información.
+  const nombres=empresasDeEsta.map(function(m){ return m.modulo_nombre; });
+  const {error:borrar}=await window.supabaseClient.from('empresa_modulos')
+    .delete().eq('empresa_id',id).in('modulo_nombre',nombres);
+  if(borrar){
+    alert('No se pudieron cambiar los módulos: '+borrar.message);
+    return;
+  }
+  const {error:poner}=await window.supabaseClient.from('empresa_modulos')
+    .insert(empresasDeEsta.map(function(m){
+      return {empresa_id:id, modulo_nombre:m.modulo_nombre, activo:m.activo};
+    }));
+  if(poner){
+    alert('No se pudieron guardar los módulos: '+poner.message+'\n\n'
+      +'Puede que no seas el administrador del sistema: la base sólo deja escribir '
+      +'a "es_admin()".');
+    return;
+  }
+  await cargarModulos();
+  await pintarModulos();
+  // Y EL AVISO AL TERMINAR DICE QUÉ SE PRENDIÓ Y QUÉ SE APAGÓ, Y NO SÓLO "LISTO"
+  //
+  // Y no es por prolijidad. En una lista de once casillas, una que se olvidó de
+  // destrabar cambia lo que la empresa ve sin que nadie se entere, y un "guardado"
+  // a secas no dice cuál fue.
+  //
+  // Y el mensaje dice que el cambio es SÓLO de esta empresa, porque el nombre del
+  // campo de arriba puede hacer creer que se guardó para todas.
+  const prendidos=empresasDeEsta.filter(function(m){ return m.activo; })
+    .map(function(m){ return m.modulo_nombre; });
+  alert('Guardado para la empresa '+id+'.\n\n'
+    +(prendidos.length?('Encendidos: '+prendidos.join(', ')+'\n\n'):'')
+    +(apagados.length?('Apagados: '+apagados.join(', ')+'\n\n'):'')
+    +'Esto vale solo para esta empresa. Las otras no se mueven.');
+}
+
+// ---------------------------------------------------------------------
 // FILTRAR EL MENÚ
 // ---------------------------------------------------------------------
 // Y SE FILTRA LA LISTA QUE SE DIBUJA, NO EL DOM
@@ -366,6 +576,22 @@ function quitarAvisoModulos(){
 function filtrarNavItems(items){
   if(!Array.isArray(items)) return [];
   return items.filter(function(it){
+    // Y LA PANTALLA DE MÓDULOS SOLO PARA EL ADMINISTRADOR
+    //
+    // Sin esto, un encargado de RRHH vería "Empresas: módulos" en el menú, entraría,
+    // y la base le rechazaría cada escritura con un error de RLS que en pantalla es
+    // un "new row violates row-level security policy" que no significa nada para
+    // quien lo lee.
+    //
+    // Es la única vista que se filtra por rol y no por módulo, y por eso está
+    // explícita acá y no en una lista más. La base sigue siendo la que manda.
+    // Y CON "typeof" PORQUE "soyAdmin" ESTÁ EN OTRO ARCHIVO
+//
+// "soyAdmin" vive en "views/soporte/soporte.js", que se carga DESPUÉS que este
+// archivo. While está definido cuando se llega a usar —que es después de iniciar
+// sesión—, si ese archivo llegara a fallar, acá la llamada saltaría y con ella el
+// menú entero. Con "typeof" no salta: la pantalla no se muestra y el resto sigue.
+if(it.v==='empresa-modulos'&&!(typeof soyAdmin==='function'&&soyAdmin())) return false;
     // Y SI EL PADRE TIENE VISTA PROPIA, SU MÓDULO TAMBIÉN CUENTA
     //
     // Porque un padre con "v" es una vista: se le pide permiso, y se le tiene que

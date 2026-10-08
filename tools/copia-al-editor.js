@@ -127,6 +127,92 @@ if (!faltan.length) {
 }
 
 // ---------------------------------------------------------------------
+// Y LAS SECCIONES DE VISTA, QUE SON OTRO HUECO DEL MISMO TIPO
+// ---------------------------------------------------------------------
+//
+// Los scripts se copiaban. Las "<section class='view'>" no, y son lo mismo: una
+// vista nueva que existe en la aplicación y no en el editor de pruebas es una
+// vista que no se puede probar, y el editor de pruebas dice que todo anda bien.
+//
+// Y NO SE COPIAN TODAS, SOLO LAS QUE FALTAN, POR LA MISMA RAZA QUE LOS SCRIPTS
+console.log('');
+console.log('  === las vistas ===');
+
+function vistas(rel) {
+  const t = fs.readFileSync(path.join(RAIZ, rel), 'utf8');
+  const out = [];
+  const re = /<section class="view[^"]*" id="(v-[a-z0-9-]+)">[\s\S]*?<\/section>/gi;
+  let m;
+  while ((m = re.exec(t))) {
+    out.push({ id: m[1], linea: t.slice(0, m.index).split(/\r\n|\n|\r/).length, texto: m[0] });
+  }
+  return out;
+}
+const VA = vistas(ORIGEN);
+const VB = vistas(DESTINO);
+const idsB = VB.map(function (v) { return v.id; });
+const vfaltan = VA.filter(function (v) { return idsB.indexOf(v.id) < 0; });
+const vsobran = VB.filter(function (v) {
+  return !VA.some(function (x) { return x.id === v.id; });
+});
+console.log('    ' + ORIGEN + ': ' + VA.length + '   ' + DESTINO + ': ' + VB.length);
+if (vsobran.length) console.log('    ojo  tiene de mas: ' + vsobran.map(function (v) { return v.id; }).join(', '));
+
+if (!vfaltan.length) {
+  console.log('    ok  no le falta ninguna vista');
+} else {
+  let texto = fs.readFileSync(path.join(RAIZ, DESTINO), 'utf8');
+  vfaltan.forEach(function (v) {
+    // Y ANTES DE PEGAR, SE SACA LA COPIA ANTERIOR
+    //
+    // Para que correr el guion dos veces no duplique la vista. Como un "<section>"
+    // puede contener otro, el recorte por el "<section ... id='...'>" de ESTA vista
+    // y el primer "</section>" que sigue es un recorte aproximado: alcanza para una
+    // vista sin secciones adentro, que es el caso de todas las que se copiaron.
+    const previo = texto.indexOf('id="' + v.id + '"');
+    if (previo >= 0) {
+      const desde = texto.lastIndexOf('<section', previo);
+      const hasta = texto.indexOf('</section>', previo);
+      if (desde >= 0 && hasta > desde) {
+        texto = texto.slice(0, desde) + texto.slice(hasta + '</section>'.length);
+        console.log('    **  ' + v.id + ': se saca la copia anterior antes de pegar');
+      }
+    }
+    // Y LA ANCLA ES LA VISTA ANTERIOR QUE SÍ ESTÁ EN LOS DOS ARCHIVOS
+    let ancla = null;
+    for (let i = VA.indexOf(v) - 1; i >= 0; i--) {
+      if (idsB.indexOf(VA[i].id) >= 0) { ancla = VA[i]; break; }
+    }
+    if (!ancla) { console.log('    *** ' + v.id + ': no hay ancla comun'); return; }
+    const marca = '<section class="view';
+    const p = texto.indexOf(marca, texto.indexOf('id="' + ancla.id + '"'));
+    if (p < 0) { console.log('    *** ' + v.id + ': no se encuentra el ancla ' + ancla.id); return; }
+    // Y ENTRE EL "<section ...>" Y SU ">", PARA QUEDAR EN EL MISMO LUGAR
+    const fin = texto.indexOf('>', p);
+    texto = texto.slice(0, fin + 1) + '\n\n' + v.texto + texto.slice(fin + 1);
+    console.log('    **  ' + v.id + '  pegada después de ' + ancla.id);
+  });
+  fs.writeFileSync(path.join(RAIZ, DESTINO), texto, 'utf8');
+  // Y SE COMPRUEBA POR EL "id", Y NO VOLVIENDO A CONTAR SECCIONES
+  //
+  // Porque el recorte por "<section ...> ... </section>" no entiende las vistas
+  // anidadas: el "</section>" del primer nivel corta antes de tiempo y una vista
+  // que sí está pegada puede parecer que no está. La comprobación tiene que mirar
+  // lo único que importa: que el "id" aparezca una vez.
+  const final = fs.readFileSync(path.join(RAIZ, DESTINO), 'utf8');
+  const siguen = [];
+  VA.forEach(function (v) {
+    const n = final.split('id="' + v.id + '"').length - 1;
+    if (n !== 1) siguen.push(v.id + ' (aparece ' + n + ' veces)');
+  });
+  if (siguen.length) {
+    console.log('    *** problema con: ' + siguen.join(', '));
+    process.exit(1);
+  }
+  console.log('    ok  el editor tiene las ' + VA.length + ' vistas, cada una una vez');
+}
+
+// ---------------------------------------------------------------------
 // Y LAS VERSIONES, QUE ES EL OTRO MEDIO DEL MISMO PROBLEMA
 // ---------------------------------------------------------------------
 console.log('');

@@ -439,6 +439,12 @@ function initView(v){
   if(v==='buscar-tarjeta'){fillCardSelect();renderCard();}
   if(v==='imprimir-tarjetas'){fillPdfChecks();}
   if(v==='empresa'){loadEmpresaForm();revisarMigraciones();}
+  // Y LA PANTALLA DE MÓDULOS
+  //
+  // Se pinta al abrir, no al arrancar, y por eso hay que recargarla: la lista de
+  // empresas cambia, y un módulo se puede prender desde el panel de la base sin
+  // pasar por acá.
+  if(v==='empresa-modulos')pintarModulos();
   if(v==='nuevo-trabajador'){
     // Y LIMPIAR, que antes solo pasaba después de guardar. Abrir el alta desde el menú
     // dejaba lo del alta anterior, y el centro de costo encima porque no estaba en la
@@ -615,6 +621,27 @@ function showView(v){
   // Porque si la empresa no tiene el módulo, el permiso que le falta no es el
   // problema y no se debe ir a pedir a un administrador un permiso que no va a
   // servir. Primero se dice que el módulo está apagado para esta empresa.
+  // Y ESTA VISTA ES LA ÚNICA QUE SE FILTRA POR ROL Y NO POR MÓDULO
+  //
+  // "empresa-modulos" prende y apaga módulos, y la política de "empresa_modulos" es
+  // "es_admin()": no hay permiso que la abra. El menú la esconde para los demás, y
+  // acá se cierra el otro camino, que es llegar con el nombre de la vista escrito
+  // a mano.
+  //
+  // Y POR QUÉ NO SE USA "data-sin-permiso", COMO LAS OTRAS
+  //
+  // Porque esa marca se resuelve con "VISTAS_POR_PERMISO", que son permisos de rol.
+  // Esta pantalla no tiene permiso: depende de ser administradora del sistema. Si se
+  // pusiera en esa lista, habría que inventar un permiso "sistema.modulos", meterlo
+  // en la base y repartirse, y quedaría una cuarta respuesta a "¿quién puede?" junto
+  // a "es_admin()", el permiso y la política. Con tres, alguna se contradice.
+  if(v==='empresa-modulos'&&typeof soyAdmin==='function'&&!soyAdmin()){
+    alert('Esta pantalla es solo del administrador del sistema.\n\n'
+      +'Prender y apagar módulos decide qué productos contrató cada empresa, y eso '
+      +'no lo hace un encargado de empresa.');
+    abrirPrimeraVistaPermitida();
+    return;
+  }
   if(seccion&&seccion.dataset.sinModulo==='1'&&typeof moduloEncendido==='function'){
     const modulo=(typeof MODULO_POR_VISTA!=='undefined')?MODULO_POR_VISTA['v-'+v]:null;
     alert('La empresa no tiene este módulo contratado.\n\n'
@@ -5552,6 +5579,17 @@ async function boot(){
     registrarAcceso('entrada');
     await loadPermisosUsuario();          // qué menús y acciones ve esta persona
     await loadEmpresas();                 // antes de los trabajadores: define su ámbito
+    // Y LOS MÓDULOS SE VUELVEN A APLICAR AQUÍ, Y POR QUÉ EN ESTE EXACTO LUGAR
+    //
+    // Porque los módulos se leen DENTRO de "loadPermisosUsuario()", que corre una
+    // línea antes que ésta. En ese momento "empresas" y "misEmpresas" todavía están
+    // vacías, así que el ámbito del módulo no se sabe, y "moduloActivo" deja pasar
+    // (no cierra nada mientras no sabe). Acá ya se sabe, y hay que volver a pintar.
+    //
+    // Sin esta línea, los once módulos quedaban prendidos en la base y todos
+    // bloqueados en pantalla, con un mensaje que decía "la empresa no tiene este
+    // módulo contratado" y que era verdad sólo a medias.
+    if(typeof aplicarModulos==='function')aplicarModulos();
     fillWorkerEmpresaSelect();
     // La jerarquía de grupos y cargos va temprano y en segundo plano, porque la
     // usan el ingreso y la ficha del trabajador. Si la 051 no está, devuelve
