@@ -30,4 +30,4 @@
 // "comprueba-la-version.js" lo dice. Es la regla del proyecto: un número que
 // aparece en dos lugares tiene que haber un guardián que los compare.
 
-const VERSION_APP = '123';
+const VERSION_APP = '124';
