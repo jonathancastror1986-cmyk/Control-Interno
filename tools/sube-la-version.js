@@ -166,6 +166,35 @@ if (problemas) {
 console.log('  ok  ' + subidos + ' enlace(s) subidos, ' + yaEstaban + ' ya estaban en v' + NUEVA);
 
 // ---------------------------------------------------------------------
+// Y EL NÚMERO DENTRO DE LA APLICACIÓN, QUE SE MUESTRA EN PANTALLA
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ SE ESCRIBE ACÁ Y NO A MANO
+//
+// Porque la versión aparece en dos lugares: el "?v=" de los enlaces y el
+// "VERSION_APP" de "js/versiones.js". Escritos a mano en dos momentos distintos,
+// terminan distintos, y de las dos maneras que hay:
+// el archivo queda viejo y la pantalla miente, o los enlaces piden una versión que
+// no existe y el script da 404 sin avisar.
+//
+// El guardián "comprueba-la-version.js" compara los dos. Si escribís el número acá,
+// no hay nada que recordar.
+const archivoVersion = path.join(RAIZ, 'js/versiones.js');
+const contenido = fs.readFileSync(archivoVersion, 'utf8');
+const m = contenido.match(/const\s+VERSION_APP\s*=\s*'(\d+)'/);
+if (!m) {
+  console.log('  *** js/versiones.js no tiene "const VERSION_APP = \'...\'"');
+  process.exit(1);
+}
+if (m[1] === NUEVA) {
+  console.log('  ok  js/versiones.js ya dice v' + NUEVA);
+} else {
+  fs.writeFileSync(archivoVersion,
+    contenido.replace(/const\s+VERSION_APP\s*=\s*'\d+'/, "const VERSION_APP = '" + NUEVA + "'"), 'utf8');
+  console.log('  **  js/versiones.js: v' + m[1] + ' -> v' + NUEVA);
+}
+
+// ---------------------------------------------------------------------
 // LA COMPROBACIÓN DE ESTA COMPROBACIÓN
 // ---------------------------------------------------------------------
 // Y POR QUÉ ESTÁ AL FINAL

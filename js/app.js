@@ -603,6 +603,39 @@ function showAttendancePanel(name){
   // de la última vez que se abrió la pestaña.
   if(name==='marcaje'&&typeof prepararMarcajeManual==='function')prepararMarcajeManual();
 }
+// LA VERSIÓN, QUE SE VE EN PANTRALA
+//
+// Y POR QUÉ SE MUESTRA
+//
+// Porque hace varios turnos que el síntoma es siempre el mismo y no se sabe de qué
+// es: "no carga". Y la respuesta siempre era "recargá", que no es una respuesta: no
+// dice cómo se sabe que la recarga sirvió.
+//
+// Con el número en pantalla, se ve. Si dice 123, el código es el nuevo. Si dice
+// 120, el navegador tiene lo viejo y hay que recargar de verdad. Y si dice 123 y
+// algo igual no funciona, entonces el problema NO es la caché, y se busca en otro
+// lado con la cabeza tranquila.
+//
+// Y VA ABAJO A LA IZQUIERDA, CHIQUITO Y TENUE
+//
+// Porque es información para cuando algo falla, no parte de la pantalla. Si se
+// colgara arriba, molestaría en el uso normal para servir en el anormal.
+(function marcarVersion(){
+  const v=(typeof VERSION_APP!=='undefined')?String(VERSION_APP):'?';
+  const donde=document.getElementById('versionApp');
+  if(donde){ donde.textContent='v'+v; return; }
+  // Y SI NO ESTÁ EL HUECO EN EL HTML, SE CREA UNO ADELANTE
+  //
+  // Para que agregar la versión no dependa de acordarse de dónde ponerla.
+  const caja=document.createElement('span');
+  caja.id='versionApp';
+  caja.textContent='v'+v;
+  caja.style.cssText='position:fixed;left:8px;bottom:6px;z-index:5;opacity:.35;'
+    +'font:10px/1 ui-monospace,Consolas,monospace;color:var(--muted,#888);'
+    +'pointer-events:none;user-select:none';
+  document.body.appendChild(caja);
+})();
+
 function showView(v){
   // El menú del móvil se cierra al elegir algo. Si quedara abierto taparía la
   // vista que se acaba de abrir, y sería peor que no haberlo abierto.
