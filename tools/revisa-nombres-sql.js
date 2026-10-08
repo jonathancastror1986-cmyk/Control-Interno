@@ -70,7 +70,22 @@ leerDel().forEach(function (t) {
 // en la lista de tablas era lo que hacía que el guardián apruebara cualquier
 // "public.storage.cualquierCosa" —porque de ese nombre el guardián solo leía "storage", y
 // "storage" estaba en la lista. Ver [sql-01].
-['empresa', 'trabajadores'].forEach(function (t) { existen.add(t); });
+// Y "profiles" TAMBIÉN ESTÁ, Y POR QUÉ
+//
+// Viene del mismo lado que "trabajadores" y "empresa": el esquema original de la
+// aplicación en Supabase. Ninguna migración del repositorio la crea con "create
+// table", y sin embargo el código la usa en todas partes —
+// "from('perfiles')", "auth.uid()", el nombre de quien creó una fila—.
+//
+// Y LO QUE PASÓ AL NO ESTAR
+//
+// La 086 nombra "public.profiles" en las funciones de permisos horarios, y el
+// guardián dijo que no existía. Existe. Lo que no existía era la lista.
+//
+// Y por qué no se relaja el guardián para que pase: porque una lista incompleta que
+// se relaja para que un archivo pase deja de avisar de los nombres que están de
+// verdad mal. La lista se completa; el guardián sigue igual de estricto.
+['empresa', 'trabajadores', 'profiles'].forEach(function (t) { existen.add(t); });
 
 // Los esquemas que existen pero NO son del "public". Se permiten como prefijo, y solo como
 // prefijo: "storage.objects" sí, "public.storage.objects" no.

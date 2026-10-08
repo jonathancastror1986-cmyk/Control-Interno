@@ -164,7 +164,22 @@ arch.forEach(function (f) {
     // Las columnas del 077 quedaron con tres espacios y el patron pedia dos, asi que decia que
     // "provision" no estaba definida -- y si lo estaba. Un guardian que se equivoca de lado hace
     // dudar del otro lado tambien.
-    const mm = /^\s+([a-z_][a-z0-9_]*)\s+(integer|int|text|date|boolean|uuid|numeric|timestamptz)\b/i.exec(x);
+    //
+    // Y LA LISTA DE TIPOS TIENE QUE ESTAR COMPLETA, QUE NO SE TRATA DE ESTETICA
+    //
+    // Le faltaban "time" y "serial". Con eso, una columna declarada
+    // "hora_inicio time not null" NO se reconocia, y el "comment on column" de esa
+    // misma columna se reportaba como "hace comment de una columna que no esta
+    // definida". La columna existia y el guardian la daba por ausente.
+    //
+    // O sea: el guardian avisaba de un error que no habia, que es la forma en que
+    // un guardian se deja de creer. Con "serial" pasa igual con las claves
+    // primarias, que en este proyecto son casi todas.
+    //
+    // Y EL "b" DEL FINAL ES LO QUE IMPIDE QUE "time" SE COMA A "timestamptz": si
+    // "time" matchea pero despues viene una "s", el "b" falla y el motor prueba la
+    // siguiente alternativa.
+    const mm = /^\s+([a-z_][a-z0-9_]*)\s+(integer|int|bigint|smallint|numeric|real|double|serial|text|date|time|timestamptz|boolean|uuid|jsonb)\b/i.exec(x);
     if (mm) columnas.add(mm[1]);
   });
   if (columnas.size) {
