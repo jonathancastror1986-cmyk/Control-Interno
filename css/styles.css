@@ -2289,7 +2289,37 @@ button[role="tab"][aria-selected="true"] .ico {
 .supTabs {
   display: flex;
   gap: 6px;
-  overflow-x: auto;
+  /* -------------------------------------------------------------------
+     Y POR QUÉ SE PARTEN EN DOS FILAS EN VEZ DE DESPLAZARSE DE LADO
+     -------------------------------------------------------------------
+     Con "overflow-x:auto" y sin "flex-wrap", cuando las pestañas no entran salía
+     una barra de desplazamiento horizontal DEBAJO de ellas, con una rayita que no
+     se sabe qué es, y la última quedaba cortada contra el borde.
+
+     Lo medido con las cinco pestañas de hoy, en una pantalla de 991 px:
+
+         Asistencia diaria                    200 px
+         Conciliar el reloj con la planilla    402 px
+         Mis avisos de ingreso                267 px
+         Avisos del día                        190 px
+         Importar marcajes desde Excel         353 px
+         ----------------------------------------------------------------
+         lo que necesitan, en una fila       1436 px
+         lo que hay                             991 px
+
+     Faltan 445 px. Con "flex-wrap:wrap" entran en dos filas y no hay nada que
+     desplazar: se ven TODAS, que es lo único que importa en una barra de
+     pestañas. Antes había que adivinar que había una quinta abajo a la derecha.
+
+     Y POR QUÉ NO SE ACORTARON LOS RÓTULOS
+
+     Porque el más largo, "Conciliar el reloj con la planilla", mide 402 px, y
+     aunque se le quitaran dos palabras seguiría sin entrar. Acortar palabras para
+     que quepan es la forma más común de que un rótulo termine diciendo menos de
+     lo que hace, y esa es la forma en que la gente lo carga en el lugar
+     equivocado. */
+  flex-wrap: wrap;
+  row-gap: 2px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
@@ -5308,12 +5338,46 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
   font-weight:700;
 }
 
-/* La palabra, que se puede cortar con puntos. */
+/* -------------------------------------------------------------------
+   LA PALABRA DE LA PESTAÑA
+   -------------------------------------------------------------------
+   Y POR QUÉ SE PARTE EN DOS LÍNEAS Y NO SE CORTA CON PUNTOS SUSPENSIVOS
+
+   Porque con "text-overflow:ellipsis" el rótulo se perdía, y un rótulo que se
+   pierde NO ES un rótULO: es un botón sin nombre. Y estos botones son la única
+   forma de importar marcajes desde el reloj y de justificar una inasistencia.
+
+   Lo medido, con la barra de pestañas abierta:
+
+       Tarja mensual               necesita 107 px    tiene 143 px    cabe
+       Registrar marcaje            necesita 136 px    tiene 143 px    cabe
+       Cargar desde Excel           necesita 144 px    tiene 143 px    NO CABA
+       Justificar inasistencia      necesita 164 px    tiene 143 px    NO CABA
+
+   O sea que dos de las cuatro pestañas estaban cortadas siempre, y una de ellas
+   por UN PÍXEL. En la pantalla se veían como "CARGAR DESDE EXC..." y
+   "JUSTIFICAR INASISTE...", que no dicen qué hacen.
+
+   Y POR QUÉ NO SE ARREGLA DÁNDOLE MÁS ANCHO A LA BARRA
+
+   Porque el botón tiene 32 px de relleno, 8 de separación y unos 17 de ícono: de
+   un track de 200 px al texto le quedan 143. Con 21 px más entraban las dos, y
+   con el teléfono los botones ya son más angostos que eso, así que volvería a
+   pasar.
+
+   Con dos líneas no depende del ancho: en una pantalla ancha ocupa una, en una
+   angosta ocupa dos, y el nombre está entero siempre.
+
+   Y EL RELLENO Y EL INTERLINEADO, PARA QUE NO PAREZCA QUE SE ROMPIÓ
+
+   Las dos líneas van apretadas y con la misma altura de línea, porque el nombre
+   partido sigue siendo un nombre: "Justificar" arriba, "inasistencia" abajo. */
 .attendance-tabs .pest-txt{
   min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  /* Y QUITADO EL "text-overflow" Y EL "white-space:nowrap" */
+  white-space:normal;
+  overflow-wrap:break-word;
+  line-height:1.2;
 }
 
 /* -------------------------------------------------------------------

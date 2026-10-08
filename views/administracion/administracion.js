@@ -1668,6 +1668,58 @@ function llevarArchivoAlMarcajes(){
       '<b>'+escHtml(archivoExcelParaMarcajes.name)+'</b> y aprieta <b>Revisar archivo</b>.</div>';
   },150);
 }
+// ---------------------------------------------------------------------
+// LLEVAR AL IMPORTADOR DEL RELOJ
+// ---------------------------------------------------------------------
+// Y POR QUÉ HAY UN BOTÓN QUE SÓLO LLEVA A OTRA PANTALLA
+//
+// Porque hay DOS importadores de Excel y se llamaban los dos "Cargar desde
+// Excel". Uno trae el archivo del RELOJ —columnas Tipo, Evento, Rut,
+// Colaborador, Fecha, Hora— y el otro trae una PLANILLA —columnas codigo, fecha,
+// estado—.
+//
+// Con los dos igual de nombrados, el que se abría primero era el equivocado, y el
+// síntoma era "el archivo no tiene filas", que es un mensaje de un archivo que sí
+// las tenía: sólo que de otro tipo.
+//
+// Y POR QUÉ NO SE COPIA EL IMPORTADOR DEL RELOJ ACÁ
+//
+// Es el mismo código, con el mismo análisis de a quién pertenece cada marcaje y las
+// mismas reglas para el caso de un RUT que no está en la lista. Copiarlo sería la
+// segunda versión de lo mismo, y las dos versiones divergen: primero en un
+// mensaje, después en un criterio, y al final nadie sabe cuál manda.
+//
+// Y POR QUÉ COMPRUEBA EL PERMISO ANTES DE LLEVAR
+//
+// Porque la pantalla del supervisor exige "tarja.marcaje". Sin ese permiso el
+// botón llevaría a una vista que no abre, y el que hizo clic pensaría que la
+// aplicación se rompió.
+function llevarAlImportadorDelReloj(){
+  const msg=document.getElementById('irAlRelojMsg');
+  const aviso=(html)=>{ if(msg)msg.innerHTML=html; };
+
+  if(typeof puede==='function'&&!puede('tarja.marcaje')){
+    aviso('<div class="gpsWarn">No tenés permiso para registrar marcajes, que es lo que hace '
+      +'la pantalla del importador del reloj. Se necesita <b>tarja.marcaje</b>.</div>');
+    return;
+  }
+  // Y SE ABRE LA VISTA DEL SUPERVISOR, EN SU PESTAÑA DE IMPORTAR
+  showView('sup-diaria');
+  // Y CON UN CORTE, PORQUE LA PESTAÑA SE ARMA DESPUÉS DE ABRIRSE LA VISTA
+  setTimeout(function(){
+    const tab=document.querySelector('[data-sup-tab="importar"]');
+    if(tab)tab.click();
+    setTimeout(function(){
+      const archivo=document.getElementById('marcajesFile');
+      if(archivo)archivo.focus();
+      aviso('<div style="background:rgba(46,125,50,.07);border:1px solid var(--accent);'
+        +'border-radius:8px;padding:10px 12px">Listo: estás en <b>Importar marcajes desde Excel</b>. '
+        +'Acepta el archivo del reloj (.xlsx o .csv). Si tu empresa no tiene reloj, lo que '
+        +'carga esta pantalla es una <b>planilla</b>, que es la pestaña de al lado.</div>');
+    },120);
+  },180);
+}
+
 async function loadAttendance(){
   if(!exigirPermiso('tarja.excel','No tienes permiso para cargar asistencia desde Excel.'))return;
   const f=document.getElementById('attFile').files[0];
