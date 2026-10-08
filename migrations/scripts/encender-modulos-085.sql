@@ -67,17 +67,31 @@ begin;
 --
 -- Y SON TRES CONSULTAS DE SOLO LECTURA: SI ESTA CONSULTA FALLA, NO SE CORRIÓ NADA
 
--- 1. Las empresas que hay, y cuántas filas se van a crear.
+-- 1. Las empresas que hay, y lo que se va a crear en cada una.
+--
+-- Y POR QUÉ AQUÍ NO HAY UN "select count(*) from (values ...)" PARA DECIR
+-- CUÁNTAS FILAS VAN A CREARSE
+--
+-- La primera versión lo tenía, para que la consulta dijera "se crearán 11
+-- filas". No lo tiene ahora, y la razón es que esa construcción—anidada, con un
+-- "values" adentro de un "select" dentro de un "cast" dentro de una concatenación
+-- — tenía un paréntesis de más y PostgreSQL la rechazó entera:
+--
+--     ERROR: 42601: syntax error at or near ")"
+--
+-- O sea: por poner un número decorativo en una vista previa, no se encendió
+-- NINGÚN módulo de NINGUNA empresa. Y el error no señalaba la causa: el paréntesis
+-- de más estaba tres renglones más arriba del que marcaba.
+--
+-- El "cast(... as text)" tampoco hacía falta acá, porque una palabra ya es texto.
+-- Se había puesto por uniformidad con las otras consultas, y la uniformidad fue
+-- justo lo que hizo el error más difícil de ver.
 select
-  cast('--- 1. LAS EMPRESAS QUE HAY ---'                                   as texto),
-  cast(e.id::text as text)                                                 as empresa_id,
-  cast(e.nombre as text)                                                   as nombre,
-  cast(('se crearan ' || (select count(*) from (values
-         ('porteria'),('trabajadores'),('asistencia'),('carga_masiva'),('empresas'),
-         ('contratos'),('expedientes'),('solicitar_ingreso'),('epp'),
-         ('remuneraciones'),('marcajes')) as v(modulo)) ) || ' filas'
-       ) as text)                                                           as filas,
-  cast('*** NO se prende "relojes": el aparato no esta certificado' as text)  as aviso
+  cast('--- 1. LAS EMPRESAS QUE HAY ---' as text)                              as texto,
+  cast(e.id::text as text)                                                    as empresa_id,
+  cast(e.nombre as text)                                                      as nombre,
+  cast('una fila por cada módulo, MENOS "relojes"' as text)                   as filas,
+  cast('*** "relojes" NO se prende: el aparato no esta certificado' as text)  as aviso
 from public.empresa e
 order by e.id;
 
@@ -106,23 +120,40 @@ commit;
 
 begin;
 
--- Y LA LISTA DE LO QUE SE ENCIENDE, ESCRITA UNA SOLA VEZ
+-- Y LA LISTA DE LO QUE SE ENCIENDE, EN UN "CTE"
 --
--- Para que la vista previa y el encendido no puedan separarse: las dos leen la
--- misma lista. Si se escribieran los once nombres dos veces, con el tiempo uno
--- se corregiría y el otro no, y quedaría un módulo que la vista previa prometía y
--- el encendido no hacía.
+-- Y POR QUÉ UN "WITH" Y NO UN "(values ...)" ADENTRO DEL "INSERT"
+--
+-- Porque el "values" anidado dentro del "select" del "insert" es lo quedifficulta
+-- contar paréntesis, y la primera versión de este guion tenía uno de más y no
+-- prendió nada. Con un "with" la lista va arriba, aparte, y el "insert" de abajo
+-- es una línea: es más fácil de leer y más difícil de romper.
+--
+-- Y LA LISTA APARECE DOS VECES EN ESTE ARCHIVO: ACÁ Y EN EL "INSERT"
+--
+-- Y no hay forma de que aparezca una sola vez, porque son dos sentencias
+-- separadas y un "with" no sobrevive de una a otra. Se podría con una tabla
+-- temporal, que es más trabajo para once palabras.
+with mods(modulo) as (
+  values ('porteria'),
+         ('trabajadores'),
+         ('asistencia'),
+         ('carga_masiva'),
+         ('empresas'),
+         ('contratos'),
+         ('expedientes'),
+         ('solicitar_ingreso'),
+         ('epp'),
+         ('remuneraciones'),
+         ('marcajes')
+)
 insert into public.empresa_modulos (empresa_id, modulo_nombre, activo)
 select
   e.id,
   m.modulo,
   true
 from public.empresa e
-cross join (values
-  ('porteria'),('trabajadores'),('asistencia'),('carga_masiva'),('empresas'),
-  ('contratos'),('expedientes'),('solicitar_ingreso'),('epp'),
-  ('remuneraciones'),('marcajes')
-) as m(modulo)
+cross join mods m
 -- Y "ON CONFLICT DO NOTHING", QUE ES LO QUE LO HACE SEGURO DE VOLVER A CORRER
 --
 -- Y sobre todo lo que lo hace seguro de NO PISAR: si el módulo ya está, esta fila
@@ -154,7 +185,7 @@ select
   -- analizador puede castear el "where" en vez del resultado. Con
   -- "cast(count(*) filter (where ...) as text)" no hay duda: lo que se castea es
   -- la cuenta.
-  cast(cast(count(*) filter (where m.activo) as text) as text) as prendidas,
+  cast(count(*) filter (where m.activo) as text) as prendidas,
   cast(case when m.modulo_nombre = 'relojes' and count(*) > 0
        then '*** el RELOJ se prendio: hay que apagarlo a mano'
        else 'ok' end as text)                  as aviso
