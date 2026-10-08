@@ -60,44 +60,47 @@
 function conciliarDia(supCode){
   const equipo=equipoDe(supCode);
   const planillaPorCode=new Map(asistenciaDia.map(a=>[a.code,a]));
-  // Tolerancia para considerar que dos horas "coinciden". Un minuto de
-  // diferencia entre lo que escribió el supervisor y lo que vio el reloj
-  // es redondeo, no una discrepancia. Se agranda a 10 minutos, que es lo
-  // habitual entre un reloj y una anotación.
-  const TOLERANCIA_MIN=10;
+  // Y LA DECISIÓN NO SE TOMA AQUÍ
+  //
+  // Se toma en "js/conciliacion.js", que es donde vive "situacionDe()". Aquí sólo
+  // se junta lo que hay de cada persona y se le pregunta.
+  //
+  // Antes se decidía en estas líneas, y se decidía MAL, y se puede ver por qué
+  // mirando lo que se comparaba: "presenteEnPlanilla" era "el estado es X". Con
+  // sólo mirar X:
+  //
+  //   - la planilla decía "F" y el reloj tenía marcaje -> salía "falta marcar en la
+  //     planilla", con el botón de MARCAR ENTRADA. O sea,.invoke a pisar una falta
+  //     que alguien había puesto, cuando lo que había era una contradicción entre
+  //     dos fuentes que no se resuelve con un clic.
+  //
+  //   - la planilla decía "L", "P", "V", "A", "PP" o "LL" y no había marcaje ->
+  //     salía "sin registro en ninguno de los dos". Seis de los ocho estados que
+  //     acepta la base, y ninguno es una discrepancia: es lo que tiene que pasar.
+  //
+  // Y ahora la tolerancia sale de la lista compartida en vez de estar escrita acá,
+  // para que las dos pantallas usen la misma. Diez minutos.
   const filas=[];
   equipo.forEach(w=>{
     const ent=marcajeDe(w.code,'entrada');
     const sal=marcajeDe(w.code,'salida');
     const reloj=ent||sal;
     const planilla=planillaPorCode.get(w.code)||null;
-    const presenteEnPlanilla=!!planilla&&planilla.estado==='X';
-    const marcajeReloj=!!ent;
-
-    let situacion;
-    if(marcajeReloj&&!presenteEnPlanilla){
-      // ESTE es el caso que se pidió: fichó en el reloj, no está en la
-      // planilla. Falta marcar.
-      situacion='falta_marcar';
-    }else if(!marcajeReloj&&presenteEnPlanilla){
-      // Al revés: quedó presente sin que el reloj registre nada.
-      situacion='sin_marcaje';
-    }else if(marcajeReloj&&presenteEnPlanilla){
-      // Los dos dicen que presente. Ahora: ¿coincide la hora?
-      const minReloj=minutosDe(reloj.hora);
-      const minPlanilla=planilla&&planilla.hora_llegada?minutosDe(String(planilla.hora_llegada).slice(0,5)):null;
-      const dif=(minReloj!=null&&minPlanilla!=null)?Math.abs(minReloj-minPlanilla):null;
-      situacion=(dif!=null&&dif>TOLERANCIA_MIN)?'diferencia_hora':'al_day';
-    }else{
-      situacion='ninguno';
-    }
-    const difMin=(()=>{
-      if(!reloj||!planilla||!planilla.hora_llegada)return null;
-      const a=minutosDe(reloj.hora);
-      const b=minutosDe(String(planilla.hora_llegada).slice(0,5));
-      return (a!=null&&b!=null)?a-b:null;
-    })();
-    filas.push({w,ent,sal,reloj,planilla,presenteEnPlanilla,marcajeReloj,situacion,difMin});
+    // Y LA DIFERENCIA DE MINUTOS, TAMBIÉN DE AHÍ
+    //
+    // Y es "null" cuando no se puede comparar, que es distinto de cero: cero
+    // significa que las dos horas dicen lo mismo.
+    const difMin=(typeof diferenciaDeMinutos==='function')?diferenciaDeMinutos(reloj,planilla):null;
+    // Y EL NOMBRE DE LA SITUACIÓN
+    const situacion=(typeof situacionDe==='function')
+      ? situacionDe(planilla,reloj)
+      // Y EL PLAN B, PARA CUANDO EL ARCHIVO NUEVO NO ESTÉ CARGADO
+      //
+      // Antes se decidía acá, y por eso el plan b es la decisión mala. Si el
+      // archivo no cargó, el cálculo queda como estaba y no se rompe la pantalla.
+      : (reloj?'falta_marcar':'ninguno');
+    filas.push({w,ent,sal,reloj,planilla,presenteEnPlanilla:!!(planilla&&planilla.estado==='X'),
+                marcajeReloj:!!reloj,situacion:situacion,difMin:difMin});
   });
   return filas;
 }
@@ -156,18 +159,42 @@ function renderConciliacion(){
   }
   const filas=conciliarDia(supCode);
   const cuenta=k=>filas.filter(f=>f.situacion===k).length;
-  const falta=cuenta('falta_marcar');
-  const sinMarca=cuenta('sin_marcaje');
-  const dif=cuenta('diferencia_hora');
-  const alertas=filas.filter(f=>f.situacion!=='al_day'&&f.situacion!=='ninguno');
-  const etiqueta={
-    falta_marcar:{t:'Falta marcar en la planilla',b:'faltaMarcar',c:'var(--danger)'},
-    // --accent2 es un gris de superficie: en modo oscuro es #404040 sobre
-    // #1e1e1e, que es invisible. Para TEXTO va --secondary-text.
-    sin_marcaje:{t:'Presente en la planilla, sin marcaje del reloj',b:'sinMarcaje',c:'var(--secondary-text)'},
-    diferencia_hora:{t:'La hora no coincide',b:'difHora',c:'var(--warn)'},
-    al_day:{t:'Coincide',b:'ok',c:'var(--accent)'},
-    ninguno:{t:'Sin registro en ninguno de los dos',b:'ninguno',c:'var(--muted)'}
+  // Y LAS ALERTAS VIENEN DE LA LISTA ÚNICA
+  //
+  // Antes era "todo lo que no es 'al_day' ni 'ninguno'", o sea una lista de
+  // excepciones: si mañana se agrega una situación, queda como alerta por no estar
+  // en la lista de las que no son. Y "F con marcaje" era una alerta con el botón
+  // de marcar, que es lo que hacía peligroso al bug.
+  const alertas=(typeof estaEnAlerta==='function')
+    ? filas.filter(f=>estaEnAlerta(f.situacion))
+    : filas.filter(f=>f.situacion!=='al_day'&&f.situacion!=='ninguno');
+  // Y LOS BOTONES, SEGÚN QUÉ SE PUEDE HACER EN CADA SITUACIÓN
+  //
+  // Y NO TODAS TIENEN "MARCAR". La contradicción —la planilla dice F y el reloj
+  // dice que entró— NO ofrece marcar: las dos fuentes pueden estar bien, el reloj
+  // puede estar marcando de más, y la respuesta la tiene la persona. Con el botón
+  // ahí, un clic y la falta quedaba pisada sin que nadie hubiera resuelto nada.
+  const puedeMarcar=(function(k){
+    if(typeof SITUACIONES!=='undefined'&&SITUACIONES[k])return SITUACIONES[k].acciones.indexOf('marcar')>=0;
+    return true;
+  });
+  const puedeAvisar=(function(k){
+    if(typeof SITUACIONES!=='undefined'&&SITUACIONES[k])return SITUACIONES[k].acciones.indexOf('avisar')>=0;
+    return true;
+  });
+  // Y LA ETIQUETA VIENE DE LA TABLA COMPARTIDA
+  //
+  // Y el texto largo se muestra abajo de la fila, porque "La planilla dice F y el
+  // reloj tiene marcaje" no entra en una etiqueta de tres palabras.
+  const etiqueta=(typeof SITUACIONES!=='undefined')?SITUACIONES:{
+    falta_en_planilla:{corto:'Falta marcar en la planilla',color:'var(--danger)',texto:'El reloj tiene marcaje y la planilla no lo tiene'},
+    contradictorio:{corto:'F con marcaje',color:'var(--danger)',texto:'La planilla dice F y el reloj tiene marcaje'},
+    sin_marcaje:{corto:'Presente sin reloj',color:'var(--secondary-text)',texto:'Está en la planilla como presente y el reloj no registró nada'},
+    diferencia_hora:{corto:'La hora no coincide',color:'var(--warn)',texto:'Está en los dos, a horas distintas'},
+    coincide:{corto:'Coincide',color:'var(--accent)',texto:'Los dos dicen presente y la hora es razonable'},
+    justificado:{corto:'Justificado',color:'var(--accent)',texto:'Tiene permiso o licencia y no hay marcaje'},
+    ausente_coherente:{corto:'Ausente',color:'var(--muted)',texto:'La planilla dice F y el reloj tampoco registró nada'},
+    ninguno:{corto:'Sin registro',color:'var(--muted)',texto:'No hay registro en ninguno de los dos'}
   };
 
   // LA LISTA, EN TABLA
@@ -185,7 +212,7 @@ function renderConciliacion(){
   // tabla no lleva borde, así que va en la primera celda. Se ve igual: el
   // color sigue a la izquierda de cada persona.
   const filasTabla=alertas.map(f=>{
-    const v=etiqueta[f.situacion];
+    const v=etiqueta[f.situacion]||etiqueta.ninguno;
     const difMin=f.difMin!=null?` · ${f.difMin>0?'+':''}${f.difMin} min de diferencia`:'';
     const cod=escHtml(f.w.code);
     const nom=escHtml(f.w.name);
@@ -196,25 +223,41 @@ function renderConciliacion(){
     const planillaPie=f.planilla&&f.planilla.hora_llegada
       ?'a las '+escHtml(String(f.planilla.hora_llegada).slice(0,5))
       :'—';
+    // Y LOS BOTONES, SOLO LOS QUE CORRESPONDEN A ESTA SITUACIÓN
+    //
+    // Antes los dos botones estaban en todas las filas. Con eso, una fila de "F con
+    // marcaje" —la planilla dice que faltó y el reloj dice que entró— tenía el
+    // botón de MARCAR ENTRADA, y un clic pisaba la falta.
+    const botones=
+      (puedeMarcar(f.situacion)
+        ? '<button class="btnIcono" type="button" data-dato="Marcar entrada"'
+          +' title="Marcar entrada" aria-label="Marcar entrada a '+nom+'"'
+          +' onclick="conciliarMarcar(\''+cod+'\',\'entrada\')">@ICONO_ENTRADA@</button>'
+        : '')
+      + (puedeAvisar(f.situacion)
+        ? '<button class="btnIcono" type="button" data-dato="Marcar y avisar"'
+          +' title="Marcar y avisar" aria-label="Marcar y avisar a '+nom+'"'
+          +' onclick="marcarYAvisar(\''+cod+'\',\'entrada\')">@ICONO_AVISAR@</button>'
+        : '');
+    // Y CUANDO NO QUEDA NINGÚN BOTÓN, SE DICE QUÉ HACER EN VEZ DE DEJAR LA
+    // CELDA VACÍA
+    //
+    // Una celda de acciones vacía parece un error de la pantalla. Y aquí la
+    // respuesta existe: hay que hablar con la persona.
+    const sinNada=botones?'':'<small style="opacity:.8">'+(v.queSePuedeHacer?'Ver con la persona':'Nada')+'</small>';
     return `<tr>
-      <td class="conCelda conCeldaNombre conCeldaSituacion" style="border-left-color:${v.c}">
+      <td class="conCelda conCeldaNombre conCeldaSituacion" style="border-left-color:${v.color}">
         <b>${cod}</b> ${nom}
         <small>${esp}</small>
       </td>
       <td class="conCelda conCeldaMarca">${reloj}<small>${relojPie}</small></td>
       <td class="conCelda conCeldaMarca">${planilla}<small>${planillaPie}</small></td>
       <td class="conCelda conCeldaEstado">
-        <span class="conPill" style="border-color:${v.c};color:${v.c}">${escHtml(v.t)}</span>
-        <small>${difMin||'—'}</small>
+        <span class="conPill" style="border-color:${v.color};color:${v.color}">${escHtml(v.corto)}</span>
+        <small>${escHtml(v.texto||'')}</small>
+        <small>${difMin}</small>
       </td>
-      <td class="conCelda conCeldaAcciones">
-        <button class="btnIcono" type="button" data-dato="Marcar entrada"
-          title="Marcar entrada" aria-label="Marcar entrada a ${nom}"
-          onclick="conciliarMarcar('${cod}','entrada')">@ICONO_ENTRADA@</button>
-        <button class="btnIcono" type="button" data-dato="Marcar y avisar"
-          title="Marcar y avisar" aria-label="Marcar y avisar a ${nom}"
-          onclick="marcarYAvisar('${cod}','entrada')">@ICONO_AVISAR@</button>
-      </td>
+      <td class="conCelda conCeldaAcciones">${botones||sinNada}</td>
     </tr>`;
   }).join('');
 
@@ -233,18 +276,28 @@ function renderConciliacion(){
   tabla=tabla.split('@ICONO_ENTRADA@').join(iconoMenu('marcar-entrada'));
   tabla=tabla.split('@ICONO_AVISAR@').join(iconoMenu('marcar-avisar'));
 
+  // Y EL RESUMEN, EN EL ORDEN DE URGENCIA Y NO EN EL ORDEN DEL ARCHIVO
   const resumen='<div class="row" style="margin-bottom:10px">'
-    +Object.entries(etiqueta).map(([k,v])=>{
+    +((typeof ORDEN_SITUACIONES!=='undefined')?ORDEN_SITUACIONES:Object.keys(etiqueta)).map((k)=>{
+      const v=etiqueta[k];
+      if(!v)return '';
       const n=cuenta(k);
-      return `<span class="conPill" style="border-color:${v.c};color:${v.c}">${escHtml(v.t)}: <b>${n}</b></span>`;
+      return `<span class="conPill" style="border-color:${v.color};color:${v.color}">${escHtml(v.corto)}: <b>${n}</b></span>`;
     }).join('')+'</div>';
 
   // La explicación de la tolerancia va DEBAJO de la tabla, no arriba. Arriba
   // empujaba las filas hacia abajo y había que bajar para leerla.
-  const pie='<p><small style="color:var(--muted)">Se considera coincidente cuando la diferencia de hora es de hasta 10 minutos,'
-    +' que es lo habitual entre lo que registró el reloj y lo que anotó una persona.</small></p>';
+  // Y LA TOLERANCIA SALE DE LA LISTA COMPARTIDA, Y NO DE UN NÚMERO ESCRITO AQUÍ
+  //
+  // Antes decía "hasta 10 minutos" en el texto, y el 10 estaba en otra línea, en
+  // "conciliarDia". Si cambiaba uno y no el otro, el pie de la pantalla explicaba
+  // una regla que el cálculo no usaba. Ahora los dos salen del mismo número.
+  const tolMin=(typeof TOLERANCIA_MIN!=='undefined')?TOLERANCIA_MIN:10;
+  const pie='<p><small style="color:var(--muted)">Se considera coincidente cuando la diferencia de hora es de hasta '
+    +tolMin+' minutos, que es lo habitual entre lo que registró el reloj y lo que anotó una persona.'
+    +' Si la planilla no tiene hora, no se pueden comparar y no se cuenta como diferencia.</small></p>';
 
   box.innerHTML=resumen
-    +(alertas.length?tabla:'<small>El reloj y la planilla coinciden en todo el equipo.</small>')
+    +(alertas.length?tabla:'<small>Ninguna discrepancia: el reloj y la planilla dicen lo mismo en todo el equipo.</small>')
     +pie;
 }

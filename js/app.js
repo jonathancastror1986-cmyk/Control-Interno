@@ -2856,7 +2856,20 @@ function renderJustificacionDiaria(){
   const attDe={};
   attendance.filter(a=>a.date===fecha).forEach(a=>{attDe[a.code]=a;});
 
-  const esJustificado=(e)=>['P','L','V','A','PP'].includes(e);
+  // Y LA LISTA DE ESTADOS JUSTIFICADOS VIENE DE "js/conciliacion.js"
+  //
+  // Estaba escrita acá: "['P','L','V','A','PP']". Y la Conciliación, en el otro
+  // archivo, tenía la misma lista por su cuenta. Dos copias de la misma lista.
+  //
+  // Y la segunda copia tenía menos: le faltaba "LL", el día de lluvia. Que es un
+  // estado que la base acepta, que la Justificación Diaria ya nombraba con su
+  // texto, y que no estaba en la lista de justificados de ninguna de las dos.
+  //
+  // Con eso, un trabajador con día de lluvia y sin marcaje salía como "sin marcar",
+  // que es una falta que no existe: con lluvia no se marca, porque no se trabaja.
+  const esJustificado=(typeof ESTADOS_JUSTIFICADOS!=='undefined')
+    ? (e)=>ESTADOS_JUSTIFICADOS.indexOf(e)>=0
+    : (e)=>['P','L','V','A','PP','LL'].includes(e);
   const nombresEstado={X:'Presente',F:'Falta',P:'Permiso',L:'Licencia',A:'Accidente Mutual',PP:'Permiso Pagado',V:'Vacaciones',LL:'Día lluvia'};
 
   // El equipo depende de la fecha: alguien que ingresó ayer no tiene nada
