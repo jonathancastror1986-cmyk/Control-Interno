@@ -208,6 +208,7 @@ const ADMIN_SIEMPRE_TODO = true;
 // Modules de empresas que no son suyas para que el filtro los descarte después.
 async function cargarModulos(){
   modulosPorEmpresa = {};
+  filasLeidas = 0;
   errorAlCargarModulos = '';
   try{
     const {data,error} = await window.supabaseClient
@@ -220,6 +221,7 @@ async function cargarModulos(){
       if(!modulosPorEmpresa[id]) modulosPorEmpresa[id]=new Set();
       if(fila.activo) modulosPorEmpresa[id].add(fila.modulo_nombre);
     });
+    filasLeidas=(data||[]).length;
     modulosCargados = true;
   }catch(error){
     // Y SI FALLA, SE DICE EN PANTALLA, Y SE MUESTRA TODO
@@ -307,6 +309,8 @@ function moduloActivo(vista){
   const empresas = empresasDelAmbito();
   // Y "null" ES "TODAVÍA NO SE SABE", Y NO ES "NO TIENE EMPRESAS"
   if(empresas===null) return true;
+  // Y CERO FILAS LEÍDAS TAMBIÉN ES "NO SE SABE". Ver "noSeSabeElModulo()".
+  if (filasLeidas === 0) return true;
   if(!empresas.length) return false;
   return empresas.every(function(id){
     const deEsta = modulosPorEmpresa[String(id)];
@@ -315,13 +319,97 @@ function moduloActivo(vista){
   });
 }
 
-// Y SI UN MÓDULO ENTERO ESTÁ APAGADO
+// Y CERO FILAS LEÍDAS NO ES "TODO APAGADO": ES "NO SE SABE"
+//
+// Y ESTA ES LA REGLA QUE FALTABA, Y LA QUE ESTABA ROMPIENDO LA APLICACIÓN
+//
+// La consulta a "empresa_modulos" puede devolver CERO filas sin que haya un solo
+// módulo apagado en el sistema. Pasa cuando el RLS no deja ver nada a esta persona,
+// y entonces "sin fila = apagado" —que es la regla correcta para una empresa— se
+// convierte en "todo el mundo tiene todo apagado", que es un conclusión que
+// nobody drew.
+//
+// Y es un error que se ve fatal: la aplicación entera queda bloqueada, y el aviso
+// dice "la empresa no tiene este módulo contratado", que es VERDAD Y ESTÁ MAL A LA
+// VEZ. La empresa sí lo tenía; lo que no se pudo ver fue la fila.
+//
+// Y POR QUÉ CERO FILAS ES "NO SE SABE" Y NO "NADA CONTRATADO"
+//
+// Porque una instalación real SIEMPRE tiene filas: el guion de encendido creó once
+// por empresa. Si alguien llega a cero, o no se aplicó el guion, o el RLS ocultó
+// todo, o se está mirando otra base. En los tres casos, tapar la pantalla entera no
+// ayuda a nadie: deja la aplicación sin usar y sin explicación.
+//
+// Y LA DIFERENCIA CON "ESTA EMPRESA NO TIENE EL MÓDULO"
+//
+// Eso sí se ve, y se sigue respetando: si hay filas y esta empresa no tiene la
+// suya, el módulo está apagado y se avisa. Lo que no se hace es confundir "no hay
+// datos" con "todo está apagado".
+let filasLeidas = 0;
+
+function noSeSabeElModulo() {
+  return modulosCargados && filasLeidas === 0;
+}
+
+// Y EL AVISO DEL BLOQUEO, QUE DICE LOS DATOS Y NO SÓLO EL VEREDICTO
+//
+// Y por qué: un aviso que dice "no lo tenés" cuando el problema puede ser otro hace
+// que se vaya a buscar el problema en el lugar equivocado. Con los datos adentro,
+// el que lo lee sabe si es un problema de empresa, de permisos o de instalación.
+//
+// Y lo que se muestra es lo que hay, no una interpretación: el ámbito que se está
+// mirando, cuántas filas se leyeron, y si esta persona es administradora.
+function avisoDeModuloBloqueado(vista) {
+  const modulo=(typeof MODULO_POR_VISTA!=='undefined')?(MODULO_POR_VISTA['v-'+vista]||'?'):'?';
+  if (noSeSabeElModulo()) {
+    return 'No se pudo saber qué módulos tiene esta empresa.\n\n'
+      +'La pantalla "'+vista+'" es del módulo "'+modulo+'", pero la consulta a la base\n'
+      +'no devolvió NINGUNA fila de módulos.\n\n'
+      +'Eso NO quiere decir que la empresa no lo tenga. Quiere decir que las filas\n'
+      +'no se pudieron ver, y por eso no se tapa la pantalla a ciegas: se muestra\n'
+      +'todo y se avisa.\n\n'
+      +'Cosas para revisar, en este orden:\n'
+      +'  1. Que se haya corrido migrations/scripts/encender-modulos-085.sql.\n'
+      +'  2. Que tu usuario tenga empresas asignadas en Soporte → Empresas: cargos\n'
+      +'     y permisos. Sin empresas asignadas, el RLS no deja ver nada.\n'
+      +'  3. Que la consulta haya muerto por la red: recargá con Ctrl+F5.\n\n'
+      +diagnosticoDeModulos();
+  }
+  const empresas=empresasDelAmbito();
+  return 'La empresa no tiene este módulo contratado.\n\n'
+    +'La pantalla "'+vista+'" es del módulo "'+modulo+'", que está apagado para las\n'
+    +'empresas a las que tenés acceso.\n\n'
+    +diagnosticoDeModulos();
+}
+
+// Y LOS DATOS, PARA PEGARLOS Y QUE NO HAYA QUE ADIVINAR
+function diagnosticoDeModulos() {
+  const empresas=empresasDelAmbito();
+  const alcance=Array.isArray(empresas)
+    ? ('empresa(s) en el ámbito: '+empresas.join(', '))
+    : ('ámbito: sin determinar todavía');
+  let leidas=0;
+  Object.keys(modulosPorEmpresa).forEach(function(id){
+    if(modulosPorEmpresa[id]&&modulosPorEmpresa[id].size)leidas++;
+  });
+  return 'Lo que la pantalla está mirando ahora mismo:\n'
+    +'  · ' + alcance + '\n'
+    +'  · filas de módulos leídas: ' + filasLeidas
+      + (filasLeidas===0 ? '   <-- por eso no se puede saber' : '') + '\n'
+    +'  · empresas con módulos visibles: ' + leidas + '\n'
+    +'  · módulos cargados: ' + (modulosCargados?'sí':'NO, todavía o falló')
+      + (errorAlCargarModulos?(' ('+errorAlCargarModulos+')'):'') + '\n'
+    +'  · administradora del sistema: ' + (typeof soyAdmin==='function'&&soyAdmin()?'sí':'no');
+}
+  // Y SI UN MÓDULO ENTERO ESTÁ APAGADO
 function moduloEncendido(modulo){
   if(!modulo) return true;
   if(typeof window !== 'undefined' && window.esAdminDelSistema && ADMIN_SIEMPRE_TODO) return true;
   if(!modulosCargados) return true;
   const empresas = empresasDelAmbito();
   if(empresas===null) return true;
+  // Y SI NO SE LEYÓ NINGUNA FILA, NO SE SABE
+  if (filasLeidas === 0) return true;
   if(!empresas.length) return false;
   return empresas.every(function(id){
     const deEsta = modulosPorEmpresa[String(id)];

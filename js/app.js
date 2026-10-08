@@ -643,12 +643,13 @@ function showView(v){
     return;
   }
   if(seccion&&seccion.dataset.sinModulo==='1'&&typeof moduloEncendido==='function'){
-    const modulo=(typeof MODULO_POR_VISTA!=='undefined')?MODULO_POR_VISTA['v-'+v]:null;
-    alert('La empresa no tiene este módulo contratado.\n\n'
-      +'La pantalla "'+v+'" es del módulo "'+(modulo||'(desconocido)')+'", que está apagado'
-      +'\npara las empresas a las que tenés acceso.\n\n'
+    alert(typeof avisoDeModuloBloqueado==='function'?avisoDeModuloBloqueado(v):(
+      'La empresa no tiene este módulo contratado.\n\n'
+      +'La pantalla "'+v+'" es del módulo "'
+      +((typeof MODULO_POR_VISTA!=='undefined')?(MODULO_POR_VISTA['v-'+v]||'?'):'?')
+      +'", que está apagado para las empresas a las que tenés acceso.\n\n'
       +'Esto no se arregla con un permiso: lo prende un administrador del sistema'
-      +'\nen Soporte → Empresas: módulos.');
+      +'\nen Soporte → Empresas: módulos.'));
     abrirPrimeraVistaPermitida();
     return;
   }
