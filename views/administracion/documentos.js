@@ -498,6 +498,20 @@ function totalDeFilas(a){
 
 
 async function initDiaria(){
+  // Y TODO EL BLOQUE VA DENTRO DE UN "TRY", PORQUE ANTES NO PASABA NADA
+  //
+  // Antes, si cualquiera de las cuatro esperas fallaba, la función salía por arriba
+  // y "#diariaLista" se quedaba VACÍO: sin tabla, sin mensaje, sin nada.
+  //
+  // Y eso es lo que se veía en pantalla. No es que la asistencia no existiera: es
+  // que el dibujo nunca llegó a correr, y un error que no dibuja nada parece una
+  // pantalla que no tiene datos.
+  //
+  // Y POR QUÉ NO SE AVISA EN LA CONSOLA
+  //
+  // Porque la consola no la ve nadie. El error va al mismo lugar donde iba a estar
+  // la tabla, que es donde uno va a mirar.
+  try{
   const sel=document.getElementById('supDiariaSup');
   if(sel){
     const sups=supervisoresActivos();
@@ -517,13 +531,40 @@ async function initDiaria(){
   await loadMarcajesDia();          // ya dispara loadAsistenciaDelDia
   await loadAvisosDia();
   await loadAvisosIngresoDia();
-  renderDiaria();
+  // Y "renderDiaria" SE ESPERA AHORA
+  //
+  // Antes se llamaba sin esperar, y como es "async" su error se perdía como promesa
+  // rechazada sin que nadie la atendiera. Con el "await", un fallo cae en el
+  // "catch" de abajo y se ve.
+  await renderDiaria();
   renderConciliacion();
   renderAvisosIngresoEnviados();
   // Las pestañas se inician acá y no en un arranque aparte: si la lista cambia
   // al cambiar de supervisor o de fecha, tienen que seguir andando, y eso ya
   // pasa porque se vuelve a llamar.
   initPestanasSup();
+  }catch(error){
+    // Y EL MENSAJE DICE QUÉ FALLÓ, NO SÓLO QUE FALLÓ
+    //
+    // Y POR QUÉ NO SE USA "escHtml" ACÁ TAMPOCO
+    //
+    // Por lo mismo que en "renderDiaria": el aviso se probó rompiendo "escHtml",
+    // y el aviso se cayó con ella. El escapado va escrito, sin llamar a nada,
+    // para que si el resto de la pantalla está caído, esto siga funcionando.
+    if(list){
+      const txt=String((error&&error.message)||error||'sin mensaje')
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      const cod=error&&error.code?String(error.code).replace(/[<>&]/g,''):'';
+      list.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);'
+        +'color:var(--danger);padding:12px;border-radius:8px">'
+        +'<b>No se pudo dibujar la asistencia del día.</b><br>'
+        +'<small>'+txt+'</small>'
+        +(cod?'<br><small>Código: '+cod+'</small>':'')
+        +'</div>';
+    }
+    console.error('initDiaria:',error);
+  }
 }
 async function verAvisosDelTrabajador(code){
   const w=workers.find(x=>x.code===code);

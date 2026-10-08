@@ -471,10 +471,25 @@ async function motivosDePuerta(){
 }
 
 function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta){
-  if(!ent) return {clase:'dia-rojo', texto:'Sin marcar'};
+  // Y POR QUÉ EL MOTIVO SE MIRA PRIMERO, Y NO AL FINAL
+  //
+  // Antes la primera pregunta era "¿fichó?". Con esa pregunta primero, un
+  // trabajador con licencia y sin marcaje salía como "Sin marcar", en rojo: que es
+  // exactamente lo contrario de lo que dice la portería, que lo licenció. Y al
+  // supervisor le tocaba ir a preguntarle por qué no marcó, cuando la respuesta ya
+  // estaba escrita y a la vista.
+  //
+  // Y la otra mitad del problema: si la pregunta va primero, el color de licencia
+  // sólo aparecía para quien había fichado. O sea que el mismo motivo pintaba de
+  // dos colores distintos según si la persona pasó su tarjeta o no. Un día con
+  // licencia no depende de que la persona pase la tarjeta.
+  //
+  // Y por eso ahora el motivo gana siempre. "Sin marcar" queda para cuando no hay
+  // ningún motivo, que es el único caso en que la falta de marcaje es un problema.
   if(motivoPuerta==='accidente'||motivoPuerta==='licencia')
     return {clase:'dia-azul', texto: motivoPuerta==='accidente'?'Accidente':'Licencia'};
   if(motivoPuerta==='permiso') return {clase:'dia-amarillo', texto:'Permiso'};
+  if(!ent) return {clase:'dia-rojo', texto:'Sin marcar'};
   if(tarde) return {clase:'dia-amarillo', texto:'Presente, tarde'};
   if(abierto) return {clase:'dia-amarillo', texto:'Presente, sin salida'};
   return {clase:'dia-verde', texto: sal?'Completo':'Presente'};
@@ -482,13 +497,14 @@ function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta){
 
 
 async function renderDiaria(){
+  const list=document.getElementById('diariaLista');
+  if(!list)return;
+  try{
   // Los motivos de la portería se piden antes de pintar. Se espera por ellos
   // porque si no, la primera vez que se abre la tabla sale sin los colores
   // de permiso, accidente y licencia, y alguien puede leer que ese no tiene
   // permiso cuando sí lo tiene.
   motivosPuerta=await motivosDePuerta();
-  const list=document.getElementById('diariaLista');
-  if(!list)return;
   const selSup=document.getElementById('supDiariaSup');
   const supCode=selSup?selSup.value:miCodigoSupervisor;
   if(!supCode){list.innerHTML='<small>Selecciona un supervisor.</small>';return;}
@@ -520,6 +536,18 @@ if(social||prev){
     +'</span>';
 }
 
+    // Y POR QUÉ ACÁ SE SACA EL MOTIVO DE LA PORTERÍA PARA CADA UNO
+    //
+    // Antes se pasaba "motivoPuerta" a secas. Ese nombre no existía en ninguna
+    // parte de esta función: lo único que se llamaba así era el PARÁMETRO de
+    // "situacionDiaria". Leerlo acá era un "ReferenceError", y como pasaba
+    // adentro del dibujado de cada fila, la función se caía SIEMPRE, con equipo
+    // o sin equipo, y "#diariaLista" quedaba vacío.
+    //
+    // Y por eso la pantalla parecía no tener datos: no era que faltaran, era que
+    // el dibujo nunca llegó a terminar. Un error que borra la pantalla entera es
+    // indistinguible de una pantalla vacía, salvo que el error esté a la vista.
+    const motivoPuerta=motivosPuerta[w.code]||'';
     const sit=situacionDiaria(ent, sal, tarde, abiertas.length>0, motivoPuerta);
     return `<tr class="diaFila" data-code="${escHtml(w.code)}">
       <td class="diaCelda diaCeldaNombre">
@@ -563,6 +591,40 @@ if(social||prev){
   if(resumen){
     resumen.innerHTML=`<b>${presentes}</b> de <b>${equipo.length}</b> presentes · <b>${completos}</b> con salida registrada`+
       (conAviso?` · <b style="color:var(--accent2)">${conAviso}</b> aviso(s) por atender`:'');
+  }
+  }catch(error){
+    // Y POR QUÉ EL ERROR SE PONE EN LA LISTA Y NO EN LA CONSOLA
+    //
+    // Porque este es el segundo error seguido que terminaba dejando la pantalla
+    // en blanco, y en los dos la consola tenía la respuesta mientras la persona
+    // veía una tabla que no estaba. Un error que borra todo parece una pantalla
+    // sin datos, y hace perder el rato buscando datos que sí estaban.
+    //
+    // Con esto, si vuelve a pasar, sale el texto del motivo en el mismo lugar
+    // donde debería estar la tabla.
+    //
+    // Y POR QUÉ ACA NO SE USA "escHtml"
+    //
+    // Porque se probó, y falló: al romper "escHtml" a propósito para ver si el
+    // aviso aparecía, lo que pasó fue que el aviso también se cayó. El
+    // mensajero estaba hecho con la misma herramienta que se había roto, así que
+    // cuando el camino estaba cortado no quedaba nadie para decir que estaba
+    // cortado.
+    //
+    // Por eso el escapado se escribe acá, con cuatro replacements y sin llamar a
+    // nada. Si el aviso tiene que ser lo último que funciona, no puede depender
+    // de lo primero.
+    const txt=String((error&&error.message)||error||'sin mensaje')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const cod=error&&error.code?String(error.code).replace(/[<>&]/g,''):'';
+    list.innerHTML='<div style="background:var(--danger-surface);border:1px solid var(--danger);'
+      +'color:var(--danger);padding:12px;border-radius:8px">'
+      +'<b>No se pudo dibujar la asistencia del día.</b><br>'
+      +'<small>'+txt+'</small>'
+      +(cod?'<br><small>Código: '+cod+'</small>':'')
+      +'</div>';
+    console.error('renderDiaria:',error);
   }
 }
 

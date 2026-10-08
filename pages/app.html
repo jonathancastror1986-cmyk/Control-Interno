@@ -20,19 +20,19 @@ proyecto: cero build, cero "node_modules". -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=127"></script>
-<script src="../config/supabase.client.js?v=127"></script>
-<script src="../config/auth.js?v=127"></script>
-<script src="../controllers/theme.js?v=127"></script>
-<script src="../controllers/clima-reloj.js?v=127"></script>
-<link rel="stylesheet" href="../css/base.css?v=127">
+<script src="../config/supabase.config.js?v=128"></script>
+<script src="../config/supabase.client.js?v=128"></script>
+<script src="../config/auth.js?v=128"></script>
+<script src="../controllers/theme.js?v=128"></script>
+<script src="../controllers/clima-reloj.js?v=128"></script>
+<link rel="stylesheet" href="../css/base.css?v=128">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=127">
-<link rel="stylesheet" href="../css/grupos.css?v=127">
-<link rel="stylesheet" href="../css/styles.css?v=127">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=127">
+<link rel="stylesheet" href="../css/tokens.css?v=128">
+<link rel="stylesheet" href="../css/grupos.css?v=128">
+<link rel="stylesheet" href="../css/styles.css?v=128">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=128">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=127"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=128"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,13 +68,13 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=127">
-<link rel="stylesheet" href="../css/vistas.css?v=127">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=127">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=127">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=127">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=127">
-<link rel="stylesheet" href="../css/movil.css?v=127" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=128">
+<link rel="stylesheet" href="../css/vistas.css?v=128">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=128">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=128">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=128">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=128">
+<link rel="stylesheet" href="../css/movil.css?v=128" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -3205,21 +3205,21 @@ sin el antes y el después no dice nada: "se corrigó" puede ser cualquier cosa.
 </div>
 
 <!-- Y LA VERSIÓN, PRIMERO DE TODO: es lo que usan "app.js" para mostrar el número -->
-<script src="../js/versiones.js?v=127"></script>
-<script src="../js/nucleo.js?v=127"></script>
+<script src="../js/versiones.js?v=128"></script>
+<script src="../js/nucleo.js?v=128"></script>
 <!-- Y LOS MÓDULOS -->
 <!-- Va acá y no al final porque "showGroup" dibuja el menú apenas arranca, y el -->
 <!-- filtro de módulos tiene que estar cargado antes de que alguien abra una vista. -->
 <!-- No necesita "defer": sus funciones se llaman después de iniciar sesión, -->
 <!-- cuando todos los scripts ya se cargaron. -->
-<script src="../js/modulos.js?v=127"></script>
+<script src="../js/modulos.js?v=128"></script>
 <!-- Y LA CONCILIACIÓN, ANTES QUE TODO: LA USA LA JUSTIFICACIÓN DIARIA Y EL SUPERVISOR -->
-<script src="../js/conciliacion.js?v=127"></script>
-<script src="../views/porteria/escaner.js?v=127"></script>
+<script src="../js/conciliacion.js?v=128"></script>
+<script src="../views/porteria/escaner.js?v=128"></script>
 
-<script src="../views/asistencia/relojes.js?v=127"></script>
-<script src="../views/soporte/soporte.js?v=127"></script>
-<script src="../views/administracion/administracion.js?v=127"></script>
+<script src="../views/asistencia/relojes.js?v=128"></script>
+<script src="../views/soporte/soporte.js?v=128"></script>
+<script src="../views/administracion/administracion.js?v=128"></script>
 <!--
 LA IMPRESION DEL PAPEL
 =====================
@@ -3229,15 +3229,15 @@ recien cuando alguien aprieta Descargar. Por eso el orden aqui es solo de
 lectura, no de dependencia.
 Ver "js/impresion-papel.js".
 -->
-<script src="../js/impresion-papel.js?v=127"></script>
-<script src="../views/bodega/bodega.js?v=127"></script>
+<script src="../js/impresion-papel.js?v=128"></script>
+<script src="../views/bodega/bodega.js?v=128"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
-<script src="../views/administracion/docx.js?v=127"></script>
-<script src="../views/administracion/documentos.js?v=127"></script>
-<script src="../views/supervisores/supervisores.js?v=127"></script>
-<script src="../js/app.js?v=127"></script>
+<script src="../views/administracion/docx.js?v=128"></script>
+<script src="../views/administracion/documentos.js?v=128"></script>
+<script src="../views/supervisores/supervisores.js?v=128"></script>
+<script src="../js/app.js?v=128"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================

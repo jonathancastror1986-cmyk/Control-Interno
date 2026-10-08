@@ -5394,7 +5394,7 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
    "js/versiones.js" y el "?v=" de los enlaces. O mejor: correr el guion.
 */
 :root{
-  --version-app:'127';
+  --version-app:'128';
 }
 
 .attendance-tabs .pest-txt{
