@@ -2762,6 +2762,18 @@ async function loadPermisosUsuario(){
     mostrarAvisoPermisos('⚠️ No se pudieron cargar tus permisos ('+error.message+'). Se muestra todo sin restricciones. Ejecuta la migración 013 y revisa que tengas roles asignados en Soporte → Permisos por rol.');
   }
   aplicarPermisos();
+  // Y LOS MÓDULOS, DESPUÉS DE LOS PERMISOS Y ANTES DE QUE SE ABRA NADA
+  //
+  // Y en este orden porque son dos puertas y la segunda necesita el ámbito que
+  // deja la primera: los permisos dicen qué puede ver esta persona, y los módulos
+  // dicen qué existe en las empresas a las que tiene acceso. Si los módulos se
+  // leyeran primero, "aplicarModulos" correría con el ámbito viejo.
+  //
+  // Y sin "await" a propósito: que el menú no espere a la base. "cargarModulos"
+  // deja pasar todo mientras no haya leído (ver "moduloActivo"), así que la
+  // aplicación abre igual, y los módulos se aplican cuando llegan. Bloquear la
+  // apertura sería peor que esperar un instante.
+  if(typeof cargarModulos==='function')cargarModulos();
   // Los iconos de las pestañas van desde el arranque, no cuando se elige
   // una: la primera que se muestra ya tiene que salir con su icono.
   ponerIconosEnPestanas();

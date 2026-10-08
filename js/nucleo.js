@@ -666,9 +666,29 @@ const navGroups = {
       {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
       {v:'aprobar-cambio',label:'Aprobar solicitudes'}
     ]},
+    // Y POR QUÉ "RELOJES" Y "MARC AJES" SON DOS DESPLEGABLES Y NO UNO
+    //
+    // Porque estaban juntos dentro de "Relojes y centros de costo", y con el
+    // Tótem apagado quedaba un desplegable que se llamaba "Relojes" y adentro solo
+    // tenía "Marcajes". Se veía el nombre del módulo apagado en el menú, que es
+    // justo lo que se quería que no se viera.
+    //
+    // Y NO ES SOLO COSA DEL NOMBRE: mientras "marcajes" esté dentro del grupo de
+    // "relojes", apagar el Tótem por módulo no alcanza. El desplegable sobrevive
+    // porque tiene un hijo vivo, y el nombre del padre —el del aparato— queda
+    // arriba. Medido en el navegador.
+    //
+    // Y QUÉ PASA CON "RELOJES" CUANDO ESTÁ APAGADO
+    //
+    // El desplegable se cae solo: "filtrarNavItems" saca los grupos que se quedan
+    // sin nada adentro. Con el Tótem apagado, no aparece nada en su lugar, y no
+    // hace falta poner un cartel diciendo "aquí iría el reloj". Cuando se encienda
+    // el módulo, el desplegable vuelve a aparecer solo, sin tocar el código.
     {v:'relojes',label:'Relojes y centros de costo',options:[
-      {v:'relojes',label:'Relojes'},
-      {v:'marcajes',label:'Marcajes'}
+      {v:'relojes',label:'Relojes'}
+    ]},
+    {v:'marcajes',label:'Marcajes',options:[
+      {v:'marcajes',label:'Marcajes del sistema'}
     ]},
     // Y POR QUÉ "CONTRATACIÓN Y PLANTILLAS" Y NO "KIT DE CONTRATACIÓN"
 //

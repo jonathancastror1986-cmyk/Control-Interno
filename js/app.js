@@ -604,6 +604,27 @@ function showView(v){
   if(typeof stopLiveScan==='function')stopLiveScan(); // no dejar la cámara corriendo al cambiar de vista
   // no abrir una vista para la que no hay permiso
   const seccion=document.getElementById('v-'+v);
+  // Y ESTA ES LA SEGUNDA PUERTA, Y ES LA QUE DE VERDAD IMPIDE ABRIR
+  //
+  // Porque el filtro del menú es lo que la persona VE, y el menú se puede armar a
+  // mano: un botón con "data-v" escrito en la consola, o una vista abierta antes de
+  // que terminara de cargar la base. Ocultar el botón no impide abrir la pantalla.
+  //
+  // Y POR QUÉ VA DESPUÉS DE LA DE PERMISOS, Y NO ANTES
+  //
+  // Porque si la empresa no tiene el módulo, el permiso que le falta no es el
+  // problema y no se debe ir a pedir a un administrador un permiso que no va a
+  // servir. Primero se dice que el módulo está apagado para esta empresa.
+  if(seccion&&seccion.dataset.sinModulo==='1'&&typeof moduloEncendido==='function'){
+    const modulo=(typeof MODULO_POR_VISTA!=='undefined')?MODULO_POR_VISTA['v-'+v]:null;
+    alert('La empresa no tiene este módulo contratado.\n\n'
+      +'La pantalla "'+v+'" es del módulo "'+(modulo||'(desconocido)')+'", que está apagado'
+      +'\npara las empresas a las que tenés acceso.\n\n'
+      +'Esto no se arregla con un permiso: lo prende un administrador del sistema'
+      +'\nen Soporte → Empresas: módulos.');
+    abrirPrimeraVistaPermitida();
+    return;
+  }
   if(seccion&&seccion.dataset.sinPermiso==='1'&&typeof puede==='function'&&!puede(VISTAS_POR_PERMISO['v-'+v])){
     // Se avisa por qué y a quién pedirlo. Antes solo se saltaba a otra
     // vista, sin decir nada: la persona hacía clic, la pantalla cambiaba a
@@ -712,7 +733,20 @@ function showGroup(group){
   // toma el color de la seccion por la misma regla, en vez de tener su
   // propia lista de colores, que un dia se quedaria vieja.
   sub.dataset.group=group;
-  const items=navGroups[group];
+  // Y LOS MÓDULOS, QUE SON UNA PUERTA MÁS, Y NO LA MISMA QUE LOS PERMISOS
+  //
+  // El permiso dice QUIÉN puede ver la vista. El módulo dice SI ESA EMPRESA tiene
+  // esa cosa. Son dos preguntas distintas y se necesitan las dos: si el Reloj/Tótem
+  // está apagado para la empresa, que nadie tenga su permiso no alcanza, porque la
+  // fila de permisos sigue ahí y basta con que alguien se la dé.
+  //
+  // Y SE FILTRA LA LISTA QUE SE DIBUJA, NO EL DOM DESPUÉS
+  //
+  // Porque la línea siguiente hace "sub.innerHTML = ...", que rearma el submenú
+  // entero cada vez que se cambia de grupo. Lo que se borrara del DOM volvía en el
+  // siguiente clic. Y borrar del DOM tampoco es seguridad: la fila de la base
+  // sigue ahí, y el permiso sigue dado.
+  const items=(typeof filtrarNavItems==='function')?filtrarNavItems(navGroups[group]):navGroups[group];
   // si el grupo no tiene ningún permiso, se avisa y se abre el primero visible
   if(typeof puede==='function'&&misPermisosCargados){
     const reqs=GRUPOS_POR_PERMISOS[group];
