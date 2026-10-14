@@ -283,6 +283,114 @@ function resumirSituacionesDiarias(equipo, registros, avisos, fecha, horaEntrada
   };
 }
 
+// ---------------------------------------------------------------------
+// EL DETALLE DE LOS DÍAS ABIERTOS, DÍA POR DÍA
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ ESTO ESTÁ EN LA MISCA PANTALLA Y NO EN UNA CONSOLA SUELTA
+//
+// Porque hasta ahora el conteo decía "7 personas, 13 días abiertos, el más
+// antiguo el 28-09" y no decía NI UNO de esos trece días. Con ese dato solo hay
+// dos historias posibles —un día que se rompió a todos, o trece atrasos de trece
+// personas—, y son cosas COMPLETAMENTE distintas: la primera se arregla en el
+// sistema, la segunda hablando con la gente.
+//
+// Y esa pregunta se contesta mirando la columna "origen" de cada día abierto:
+// 'excel' es una importación, 'qr' es que alguien pasó la tarjeta y no volvió a
+// pasarla, 'manual' es que alguien lo anotó a mano. Con la lista a la vista se
+// sabe en un segundo de dónde vino el problema.
+//
+// Y POR QUÉ "SALIDAS=0" EN TODOS
+//
+// Porque "diasSinSalida()" —y por lo tanto el estado "Entró y no fichó salida"—
+// busca días con entrada y SIN salida. Cada fila abierta es, por definición, un día
+// donde hay una entrada y no hay ninguna salida.
+//
+// Y ESO ES LO QUE HACE QUE ESTA LISTA SEA MÁS ÚTIL QUE EL CONTEO: si en algún día
+// apareciera una salida con "salida pendiente", ahí sí hay un problema de la
+// persona y no del sistema, y esa fila se va a ver distinta. Por eso la columna se
+// llama así y no "salida pendiente": no promete que falte, muestra lo que hay.
+//
+// ---------------------------------------------------------------------
+function detalleDeDiasAbiertos(resumen){
+  // Y SE JUNTAN TODOS LOS DÍAS DE TODAS LAS PERSONAS EN UNA SOLA LISTA
+  const abiertos=[];
+  resumen.filas.forEach(f=>{
+    f.abiertas.forEach(m=>abiertos.push({persona:f.trabajador,marcaje:m}));
+  });
+  if(!abiertos.length){
+    return '<p class="diaVacia">Ningún equipo tiene días abiertos sin salida.</p>';
+  }
+  // Y ORDENADOS POR FECHA, Y DESPUÉS POR PERSONA
+  //
+  // Por fecha primero, porque lo que se busca es el día que se rompió: si todos
+  // empiezan el mismo día, el día es el problema. Ordenado por persona, en cambio,
+  // cada fila sería una persona distinta y el patrón se vería peor de lo que es.
+  abiertos.sort((a,b)=>
+    a.marcaje.fecha<b.marcaje.fecha?-1:a.marcaje.fecha>b.marcaje.fecha?1:
+    (a.persona.name||'').localeCompare(b.persona.name||''));
+
+  const primeraFecha=abiertos.length?abiertos[0].marcaje.fecha:'';
+  const deLaPrimera=abiertos.filter(a=>a.marcaje.fecha===primeraFecha).length;
+  const sonTodas=abiertos.length>1&&deLaPrimera===abiertos.length;
+
+  // Y EL AVISO, SOLO CUANDO EL PATRÓN LO DICE
+  //
+  // No siempre: solo cuando TODAS las filas abiertas son del mismo día y hay más
+  // de una. Si hay una sola, o si están repartidas, no se dice nada, porque el
+  // patrón no está y el texto sería ruido.
+  let aviso='';
+  if(sonTodas){
+    aviso='<div class="gpsWarn" style="margin:10px 0"><b>Todas las filas abiertas son del mismo día.</b>'
+      +'<br><small>'+escHtml(fechaLegible(primeraFecha)||primeraFecha)+': '+deLaPrimera+' personas con entrada y '
+      +'ninguna salida. Eso no son '+deLaPrimera+' atrasos, es un solo día que se rompió a todos a la vez. '
+      +'Mirá la columna "origen": si dice "excel", el archivo del reloj mandó las entradas y las salidas no llegaron.'
+      +'</small></div>';
+  }
+
+  const filas=abiertos.map(a=>{
+    const m=a.marcaje;
+    return '<tr>'
+      +'<td>'+escHtml(codigoMostrar(a.persona.code))+' '+escHtml(a.persona.name)+'</td>'
+      +'<td>'+escHtml(fechaLegible(m.fecha)||m.fecha)+'</td>'
+      +'<td>'+escHtml(m.hora||'—')+'</td>'
+      +'<td>'+escHtml(m.origen||'—')+'</td>'
+      +'<td>'+escHtml(comoDiceLasSalidas(salidasDeEseDia(m)))+'</td>'
+      +'</tr>';
+  }).join('');
+
+  return aviso
+    +'<h4 style="margin:16px 0 6px">Los días abiertos, uno por uno ('+abiertos.length+')</h4>'
+    +'<div class="overflow"><div class="diaTablaCaja"><table class="diaTabla">'
+    +'<thead><tr><th>Persona</th><th>Día</th><th>Entrada</th><th>Origen</th><th>Salidas de ese día</th></tr></thead>'
+    +'<tbody>'+filas+'</tbody></table></div></div>';
+}
+
+// Y CUÁNTAS SALIDAS HAY ESE DÍA, PARA QUE LA FILA DIGA SI FALTA LA SALIDA O FALTA EL DÍA
+//
+// Porque son dos problemas distintos: "entró y nunca fichó la salida" se resuelve
+// preguntándoselo a la persona, y "no hay nada de ese día" se resuelve mirando el
+// archivo del reloj. Con el número al lado se distinguen de un vistazo.
+//
+// Y usa el arreglo "marcajes" que ya está cargado, y no vuelve a consultar: esta
+// función se llama al final de la medición, con todo ya en memoria.
+function salidasDeEseDia(entrada){
+  return marcajes.filter(m=>m.code===entrada.code&&m.fecha===entrada.fecha&&m.tipo==='salida').length;
+}
+
+// Y CÓMO SE DICE EL NÚMERO DE SALIDAS
+//
+// Porque "0 de 1 salida" se lee como una fracción, y no lo es: no hay ninguna
+// salida y debería haber una. La persona tiene que leer eso y entender "falta la
+// salida", no hacer la cuenta.
+//
+// Y el "1" solo aparece cuando está, porque ahí sí es un número cerrado.
+function comoDiceLasSalidas(cuantas){
+  if(cuantas===0)return '0 — falta la salida';
+  if(cuantas===1)return '1';
+  return String(cuantas);
+}
+
 async function medirAsistenciaDiaria(){
   const caja=document.getElementById('medicionAsistenciaDiaria');
   if(!caja)return;
@@ -340,6 +448,7 @@ async function medirAsistenciaDiaria(){
       (resumen.fechaMasAntigua?escHtml(fechaLegible(resumen.fechaMasAntigua)||resumen.fechaMasAntigua):'—')+
       '<br><b>Promedio de días abiertos por persona:</b> '+resumen.promedioDiasAbiertos.toFixed(1)+'</p>';
     if(exentos)caja.innerHTML+='<p><small>Fuera de las cinco situaciones: '+exentos+' con permiso, licencia o accidente.</small></p>';
+    caja.innerHTML+=detalleDeDiasAbiertos(resumen);
   }catch(error){
     caja.innerHTML='<div class="gpsWarn"><b>No se pudo leer la asistencia.</b><br><small>'+escHtml(error.message||error)+'</small></div>';
   }
