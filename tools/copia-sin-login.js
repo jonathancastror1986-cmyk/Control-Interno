@@ -188,7 +188,49 @@ if (donde < 0) {
   process.exit(1);
 }
 
-const salida = conRutas.slice(0, donde) + MANCHA.split('\n').join(NL) + NL + conRutas.slice(donde);
+const salidaBase = conRutas.slice(0, donde) + MANCHA.split('\n').join(NL) + NL + conRutas.slice(donde);
+const pruebaPermisosHorario = [
+  '<aside class="card" id="pruebaPermisosHorario" style="margin:16px">',
+  '  <h2>Prueba de permisos con hora</h2>',
+  '  <button class="btn secondary" type="button" onclick="probarRenderPermisosHorario()">Probar dibujo de la lista</button>',
+  '  <button class="btn secondary" type="button" onclick="probarErrorPermisosHorario()">Probar aviso de error</button>',
+  '  <p id="resultadoPruebaPermisosHorario" role="status" aria-live="polite"></p>',
+  '</aside>',
+  '<script>',
+  'function probarRenderPermisosHorario(){',
+  '  const resultado=document.getElementById("resultadoPruebaPermisosHorario");',
+  '  const listaAnterior=permisosHorarioLista.slice();',
+  '  const errorAnterior=permisosHorarioError;',
+  '  try{',
+  '    const code=(workers&&workers[0]&&workers[0].code)||"__PRUEBA__";',
+  '    permisosHorarioError="";',
+  '    permisosHorarioLista=[{id:1,code,fecha:"2026-10-08",hora_inicio:"11:00:00",hora_fin:"14:00:00",motivo:"Prueba de lectura",estado:"pendiente",pedido_por_nombre:"Supervisor de prueba",pedido_por_rol:"supervisor",creado_en:new Date().toISOString()}];',
+  '    renderListaPermisosHorario();',
+  '    const texto=document.getElementById("permisosHorarioLista").textContent||"";',
+  '    resultado.textContent=texto.includes("11:00")&&texto.includes("Pendiente")&&texto.includes("Supervisor de prueba")?"OK: franja, estado y solicitante visibles.":"FALLÓ: faltan datos en la tabla.";',
+  '  }catch(error){resultado.textContent="FALLÓ: "+String((error&&error.message)||error||"sin mensaje");}',
+  '  finally{permisosHorarioLista=listaAnterior;permisosHorarioError=errorAnterior;renderListaPermisosHorario();}',
+  '}',
+  'function probarErrorPermisosHorario(){',
+  '  const resultado=document.getElementById("resultadoPruebaPermisosHorario");',
+  '  const errorAnterior=permisosHorarioError;',
+  '  try{',
+  '    permisosHorarioError="Fallo simulado de lectura";',
+  '    renderListaPermisosHorario();',
+  '    const texto=document.getElementById("permisosHorarioLista").textContent||"";',
+  '    resultado.textContent=texto.includes("Fallo simulado de lectura")?"OK: el error aparece en la caja de la lista.":"FALLÓ: el error no quedó visible.";',
+  '  }catch(error){resultado.textContent="FALLÓ: "+String((error&&error.message)||error||"sin mensaje");}',
+  '  finally{permisosHorarioError=errorAnterior;renderListaPermisosHorario();}',
+  '}',
+  '</script>',
+].join(NL);
+const cierreBody=salidaBase.lastIndexOf('</body>');
+if(cierreBody<0){
+  console.log('');
+  console.log('  *** NO SE ENCONTRÓ </body> PARA INSERTAR LAS PRUEBAS ***');
+  process.exit(1);
+}
+const salida=salidaBase.slice(0,cierreBody)+pruebaPermisosHorario+NL+salidaBase.slice(cierreBody);
 
 // -------------------------------------------------------------------
 // LOS MODOS, ANTES DE LA GUARDA

@@ -60,6 +60,7 @@ let asistenciaDiaError=null;
 let avisosIngresoDia=[];
 let avisosIngresoError=null;
 let fechaDiaria=hoyLocal();
+let filtroDiaria='todos';
 // Se declara AQUÍ y no más abajo, junto a recalcularMiSupervisor. La leen
 // empresaDeEquipo() y horaEntradaDe(), que se pueden llamar antes de que
 // la línea de abajo se haya ejecutado: con "let" eso es una ReferenceError
@@ -233,6 +234,117 @@ function diasSinSalida(code){
   return marcajes.filter(m=>m.code===code&&m.tipo==='entrada'&&m.fecha<hoy&&!salidas.has(m.fecha));
 }
 
+const SITUACIONES_MEDIBLES=[
+  {clave:'presente',texto:'Presente, marcó'},
+  {clave:'tarde',texto:'Presente, tarde'},
+  {clave:'pendiente',texto:'Presente, pendiente marca'},
+  {clave:'abierto',texto:'Entró y no fichó salida'},
+  {clave:'sin_marcar',texto:'Sin marcar'}
+];
+
+function claveSituacionDiaria(entrada,tarde,avisoRRHH,hayDiasAbiertos,motivoPuerta){
+  if(['accidente','licencia','permiso'].includes(motivoPuerta))return motivoPuerta;
+  if(!entrada)return 'sin_marcar';
+  if(avisoRRHH)return 'pendiente';
+  if(hayDiasAbiertos)return 'abierto';
+  if(tarde)return 'tarde';
+  return 'presente';
+}
+
+function resumirSituacionesDiarias(equipo, registros, avisos, fecha, horaEntrada, tolerancia, motivos){
+  const esperado=minutosDe(horaEntrada);
+  const minutosTolerancia=Number(tolerancia)||0;
+  const salidas=new Set(registros.filter(m=>m.tipo==='salida').map(m=>m.code+'|'+m.fecha));
+  const filas=equipo.map(w=>{
+    const delDia=registros.filter(m=>m.code===w.code&&m.fecha===fecha);
+    const entrada=delDia.find(m=>m.tipo==='entrada')||null;
+    const salida=delDia.find(m=>m.tipo==='salida')||null;
+    const abiertas=registros.filter(m=>m.code===w.code&&m.tipo==='entrada'&&m.fecha<fecha&&!salidas.has(m.code+'|'+m.fecha));
+    const avisoRRHH=avisos.some(a=>a.code===w.code&&!a.visto&&a.tipo_alerta==='sin_salida');
+    const minEntrada=entrada?minutosDe(entrada.hora):null;
+    const tarde=minEntrada!=null&&esperado!=null&&minEntrada>esperado+minutosTolerancia;
+    const motivo=motivos&&motivos[w.code]||'';
+    const clave=claveSituacionDiaria(entrada,tarde,avisoRRHH,abiertas.length>0,motivo);
+    const exento=['accidente','licencia','permiso'].includes(clave);
+    return {trabajador:w,entrada,salida,abiertas,avisoRRHH,tarde,clave,exento};
+  });
+  const conteos=Object.fromEntries(SITUACIONES_MEDIBLES.map(s=>[s.clave,0]));
+  filas.forEach(f=>{if(Object.prototype.hasOwnProperty.call(conteos,f.clave))conteos[f.clave]++;});
+  const conDiasAbiertos=filas.filter(f=>f.abiertas.length>0);
+  const fechasAbiertas=conDiasAbiertos.flatMap(f=>f.abiertas.map(m=>m.fecha));
+  const fechaMasAntigua=fechasAbiertas.length?fechasAbiertas.sort()[0]:null;
+  const totalDiasAbiertos=fechasAbiertas.length;
+  return {
+    filas,conteos,
+    filasConDiasAbiertos:conDiasAbiertos.length,
+    totalDiasAbiertos,
+    fechaMasAntigua,
+    promedioDiasAbiertos:conDiasAbiertos.length?totalDiasAbiertos/conDiasAbiertos.length:0
+  };
+}
+
+async function medirAsistenciaDiaria(){
+  const caja=document.getElementById('medicionAsistenciaDiaria');
+  if(!caja)return;
+  caja.innerHTML='<small>Leyendo la asistencia de hoy…</small>';
+  const supCode=(document.getElementById('supDiariaSup')||{}).value||miCodigoSupervisor;
+  if(!supCode){
+    caja.innerHTML='<div class="gpsWarn">Selecciona un supervisor para medir su equipo.</div>';
+    return;
+  }
+  const equipo=equipoDe(supCode);
+  if(!equipo.length){
+    caja.innerHTML='<div class="gpsWarn">No se encontró el equipo del supervisor seleccionado.</div>';
+    return;
+  }
+  const hoy=hoyLocal();
+  const horaEntrada=horaEntradaDe(supCode);
+  const tolerancia=toleranciaDe(supCode);
+  const desde=new Date();
+  desde.setDate(desde.getDate()-DIAS_HISTORIA_MARCAJES);
+  const desdeIso=isoLocal(desde);
+  const consultarTodo=async(tabla,preparar)=>{
+    const filas=[];
+    for(let inicio=0;;inicio+=1000){
+      let consulta=window.supabaseClient.from(tabla).select('*');
+      consulta=preparar(consulta);
+      const {data,error}=await consulta.range(inicio,inicio+999);
+      if(error)return {data:null,error};
+      filas.push(...(data||[]));
+      if(!data||data.length<1000)return {data:filas,error:null};
+    }
+  };
+  try{
+    const [resultadoMarcajes,resultadoAvisos]=await Promise.all([
+      consultarTodo('marcajes',q=>q.gte('fecha',desdeIso).lte('fecha',hoy)
+        .order('fecha',{ascending:true}).order('code',{ascending:true}).order('hora',{ascending:true})),
+      consultarTodo('avisos_marcaje',q=>q.eq('fecha',hoy)
+        .order('created_at',{ascending:true}).order('code',{ascending:true}))
+    ]);
+    const errores=[resultadoMarcajes.error,resultadoAvisos.error].filter(Boolean);
+    if(errores.length){
+      caja.innerHTML='<div class="gpsWarn"><b>No se pudo leer la asistencia.</b><br><small>'+errores.map(e=>escHtml(e.message||e)).join('<br>')+'</small></div>';
+      return;
+    }
+    const motivos=await motivosDePuerta();
+    const resumen=resumirSituacionesDiarias(equipo,resultadoMarcajes.data,resultadoAvisos.data,
+      hoy,horaEntrada,tolerancia,motivos);
+    const pendientes=resumen.filas.filter(f=>!f.exento&&f.clave!=='presente').length;
+    const exentos=resumen.filas.filter(f=>f.exento).length;
+    const aviso=pendientes===0?'<p><b>Nadie tiene nada pendiente hoy.</b></p>':'';
+    caja.innerHTML=aviso+'<p><b>Hora de entrada del equipo:</b> '+escHtml(horaEntrada)+' (tolerancia '+tolerancia+' min)</p>'+
+      '<table class="diaTabla"><thead><tr><th>Situación</th><th>Filas</th></tr></thead><tbody>'+
+      SITUACIONES_MEDIBLES.map(s=>'<tr><td><span class="diaPill">'+escHtml(s.texto)+'</span></td><td>'+resumen.conteos[s.clave]+'</td></tr>').join('')+
+      '</tbody></table><p><b>Filas con días abiertos:</b> '+resumen.filasConDiasAbiertos+
+      ' personas ('+resumen.totalDiasAbiertos+' días abiertos en total)<br><b>El más antiguo:</b> '+
+      (resumen.fechaMasAntigua?escHtml(fechaLegible(resumen.fechaMasAntigua)||resumen.fechaMasAntigua):'—')+
+      '<br><b>Promedio de días abiertos por persona:</b> '+resumen.promedioDiasAbiertos.toFixed(1)+'</p>';
+    if(exentos)caja.innerHTML+='<p><small>Fuera de las cinco situaciones: '+exentos+' con permiso, licencia o accidente.</small></p>';
+  }catch(error){
+    caja.innerHTML='<div class="gpsWarn"><b>No se pudo leer la asistencia.</b><br><small>'+escHtml(error.message||error)+'</small></div>';
+  }
+}
+
 async function registrarMarcaje(code,tipo,origen,nota,horaPedida){
   const w=workers.find(x=>x.code===code);
   if(!w)return null;
@@ -321,6 +433,10 @@ async function marcarPorEscaneo(scanned){
   // Ya fichó entrada y salida: solo se informa.
   if(entrada&&salida){
     renderDiaria();
+    // Cerramos solo cuando el resultado ya es visible en la planilla. La
+    // alternativa de “marcar siguiente” era viable, pero hoy la cámara es la
+    // confirmación inmediata del resultado y no hace falta un paso extra.
+    stopLiveScan();
     abrirAvisoMarcaje(w,{yaCompleto:true,entrada,salida,avisos:avisosSinSalida(w)});
     return;
   }
@@ -332,6 +448,11 @@ async function marcarPorEscaneo(scanned){
   await guardarAvisos(w.code,m,avisos);
   await loadAvisosDia();
   renderDiaria();
+  // La cámara sigue abierta en los caminos de error para poder reintentar
+  // sin volver a abrir el lector; en el éxito, se cierra de inmediato para
+  // que el supervisor pueda ir al siguiente trabajador sin quedar en un
+  // estado ambiguo.
+  stopLiveScan();
   abrirAvisoMarcaje(w,{tipo,hora,marcaje:m,avisos});
 }
 
@@ -470,7 +591,7 @@ async function motivosDePuerta(){
   return mapa;
 }
 
-function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta){
+function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta, avisoRRHH){
   // Y POR QUÉ EL MOTIVO SE MIRA PRIMERO, Y NO AL FINAL
   //
   // Antes la primera pregunta era "¿fichó?". Con esa pregunta primero, un
@@ -486,15 +607,42 @@ function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta){
   //
   // Y por eso ahora el motivo gana siempre. "Sin marcar" queda para cuando no hay
   // ningún motivo, que es el único caso en que la falta de marcaje es un problema.
-  if(motivoPuerta==='accidente'||motivoPuerta==='licencia')
-    return {clase:'dia-azul', texto: motivoPuerta==='accidente'?'Accidente':'Licencia'};
-  if(motivoPuerta==='permiso') return {clase:'dia-amarillo', texto:'Permiso'};
-  if(!ent) return {clase:'dia-rojo', texto:'Sin marcar'};
-  if(tarde) return {clase:'dia-amarillo', texto:'Presente, tarde'};
-  if(abierto) return {clase:'dia-amarillo', texto:'Presente, sin salida'};
-  return {clase:'dia-verde', texto: sal?'Completo':'Presente'};
+  const clave=claveSituacionDiaria(ent,tarde,avisoRRHH,abierto,motivoPuerta);
+  if(clave==='accidente'||clave==='licencia')
+    return {clave,clase:'dia-azul', texto: clave==='accidente'?'Accidente':'Licencia'};
+  if(clave==='permiso') return {clave,clase:'dia-amarillo', texto:'Permiso'};
+  const situacion=SITUACIONES_MEDIBLES.find(s=>s.clave===clave);
+  return {clave,clase:situacion.clase,texto:situacion.texto};
 }
 
+function alternarFiltroDiaria(){
+  filtroDiaria=filtroDiaria==='pendientes'?'todos':'pendientes';
+  const btn=document.getElementById('diariaFiltroBtn');
+  if(btn){
+    btn.value=filtroDiaria;
+    btn.dataset.filtro=filtroDiaria;
+  }
+  renderDiaria();
+}
+
+function cambiarFiltroDiaria(valor){
+  const validos=['todos','pendientes',...SITUACIONES_MEDIBLES.map(s=>s.clave),'accidente','licencia','permiso'];
+  filtroDiaria=validos.includes(valor)?valor:'todos';
+  renderDiaria();
+}
+
+function filtrarFilasDiarias(filas,filtro){
+  if(filtro==='todos')return filas;
+  if(filtro==='pendientes')return filas.filter(f=>f.pendiente);
+  return filas.filter(f=>f.situacion===filtro);
+}
+
+function syncFiltroDiariaBtn(){
+  const btn=document.getElementById('diariaFiltroBtn');
+  if(!btn)return;
+  btn.value=filtroDiaria;
+  btn.dataset.filtro=filtroDiaria;
+}
 
 async function renderDiaria(){
   const list=document.getElementById('diariaLista');
@@ -513,7 +661,7 @@ async function renderDiaria(){
 
   const entradaEsp=horaEntradaDe(supCode);
   const tolerancia=toleranciaDe(supCode);
-  const filas=equipo.map(w=>{
+  const filaDatos=equipo.map(w=>{
     const ent=marcajeDe(w.code,'entrada');
     const sal=marcajeDe(w.code,'salida');
     const minEnt=ent?minutosDe(ent.hora):null;
@@ -548,8 +696,15 @@ if(social||prev){
     // el dibujo nunca llegó a terminar. Un error que borra la pantalla entera es
     // indistinguible de una pantalla vacía, salvo que el error esté a la vista.
     const motivoPuerta=motivosPuerta[w.code]||'';
-    const sit=situacionDiaria(ent, sal, tarde, abiertas.length>0, motivoPuerta);
-    return `<tr class="diaFila" data-code="${escHtml(w.code)}">
+    const avisoRRHH=pendientes.some(a=>a.tipo_alerta==='sin_salida');
+    const sit=situacionDiaria(ent, sal, tarde, abiertas.length>0, motivoPuerta, avisoRRHH);
+    const pendiente=['accidente','licencia','permiso'].includes(motivoPuerta)
+      ?false
+      :(!ent || (ent&&!sal&&abiertas.length>0) || pendientes.length>0);
+    return {
+      pendiente,
+      situacion:sit.clave,
+      html:`<tr class="diaFila" data-code="${escHtml(w.code)}">
       <td class="diaCelda diaCeldaNombre">
         <b>${escHtml(codigoMostrar(w.code))}</b> ${escHtml(w.name)}
         <small>${escHtml(w.spec||'')}</small>
@@ -559,6 +714,7 @@ if(social||prev){
       <td class="diaCelda diaCeldaHora">${sal?escHtml(sal.hora):(ent?'<span class="diaVacia">&mdash;</span>':'')}</td>
       <td class="diaCelda diaCeldaSit">
         <span class="diaPill ${sit.clase}">${escHtml(sit.texto)}</span>
+        ${marcaPermisoHorario(w.code)}
         ${abiertas.length?'<small class="diaVacia">salida pendiente del '+escHtml(abiertas.map(m=>fechaLegible(m.fecha)||m.fecha).join(', '))+'</small>':''}
       </td>
       <td class="diaCelda diaCeldaAvisos">
@@ -569,9 +725,28 @@ if(social||prev){
           onclick="marcarManual('${escHtml(w.code)}','${ent?'salida':'entrada'}')">${ent?'Marcar salida':'Marcar entrada'}</button>
         ${ent?'':'<button class="btn" type="button" style="margin:0 0 0 4px;padding:4px 8px;font-size:.7rem;white-space:nowrap" onclick="marcarYAvisar(\''+escHtml(w.code)+'\',\'entrada\')" title="Marca y deja la indicación para que Administración la confirme">Marcar y avisar</button>'}
       </td>
-    </tr>`;
+    </tr>`
+    };
 
-  }).join('');
+  });
+  const aMostrar=filtrarFilasDiarias(filaDatos,filtroDiaria);
+  const totalFilas=filaDatos.length;
+  const visibles=aMostrar.length;
+  const resumen=document.getElementById('diariaFiltroResumen');
+  if(resumen){
+    if(filtroDiaria==='pendientes'){
+      resumen.innerHTML = visibles
+        ? '<small>Mostrando <b>'+visibles+'</b> pendientes · ver los <b>'+totalFilas+'</b> del equipo</small>'
+        : '<small><b>Nadie tiene nada pendiente hoy.</b> El equipo está bien o todavía no se pudo leer la carga.</small>';
+    }else if(filtroDiaria==='todos'){
+      resumen.innerHTML='<small>Mostrando los <b>'+totalFilas+'</b> del equipo</small>';
+    }else{
+      const nombreFiltro=(SITUACIONES_MEDIBLES.find(s=>s.clave===filtroDiaria)||{}).texto||
+        ({accidente:'Accidente',licencia:'Licencia',permiso:'Permiso'})[filtroDiaria]||filtroDiaria;
+      resumen.innerHTML='<small>Mostrando <b>'+visibles+'</b> · '+escHtml(nombreFiltro)+'</small>';
+    }
+  }
+  syncFiltroDiariaBtn();
 
   const presentes=equipo.filter(w=>marcajeDe(w.code,'entrada')).length;
   const completos=equipo.filter(w=>marcajeDe(w.code,'entrada')&&marcajeDe(w.code,'salida')).length;
@@ -580,16 +755,28 @@ if(social||prev){
   // va con "sticky" para que los titulos se queden arriba al bajar, que con
   // cuarenta personas es la diferencia entre saber que columna es cual y
   // tener que subir a recordarlo.
+  if(filtroDiaria!=='todos'&&!visibles){
+    const nombreFiltro=(SITUACIONES_MEDIBLES.find(s=>s.clave===filtroDiaria)||{}).texto||filtroDiaria;
+    const vacio=filtroDiaria==='pendientes'?'Nadie tiene nada pendiente hoy.':'No hay filas con la situación '+nombreFiltro+'.';
+    list.innerHTML='<div class="eppVacio">'+escHtml(vacio)+'</div>';
+    renderAvisosDia();
+    const resumenGeneral=document.getElementById('diariaResumen');
+    if(resumenGeneral){
+      resumenGeneral.innerHTML=`<b>${presentes}</b> de <b>${equipo.length}</b> presentes · <b>${completos}</b> con salida registrada`+
+        (conAviso?` · <b style="color:var(--accent2)">${conAviso}</b> aviso(s) por atender`:'' );
+    }
+    return;
+  }
   list.innerHTML='<div class="diaTablaCaja"><table class="diaTabla">'
     +'<thead><tr><th>Trabajador</th><th class="diaThHora">Entrada</th>'
     +'<th class="diaThHora">Salida</th><th>Situación</th>'
     +'<th class="diaThAvisos">Avisos</th>'
     +'<th class="diaThAcciones">Acciones</th></tr></thead>'
-    +'<tbody>'+filas+'</tbody></table></div>';
+    +'<tbody>'+aMostrar.map(f=>f.html).join('')+'</tbody></table></div>';
   renderAvisosDia();
-  const resumen=document.getElementById('diariaResumen');
-  if(resumen){
-    resumen.innerHTML=`<b>${presentes}</b> de <b>${equipo.length}</b> presentes · <b>${completos}</b> con salida registrada`+
+  const resumenGeneral=document.getElementById('diariaResumen');
+  if(resumenGeneral){
+    resumenGeneral.innerHTML=`<b>${presentes}</b> de <b>${equipo.length}</b> presentes · <b>${completos}</b> con salida registrada`+
       (conAviso?` · <b style="color:var(--accent2)">${conAviso}</b> aviso(s) por atender`:'');
   }
   }catch(error){

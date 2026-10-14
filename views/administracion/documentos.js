@@ -531,6 +531,7 @@ async function initDiaria(){
   await loadMarcajesDia();          // ya dispara loadAsistenciaDelDia
   await loadAvisosDia();
   await loadAvisosIngresoDia();
+  await cargarPermisosHorarioDia();
   // Y "renderDiaria" SE ESPERA AHORA
   //
   // Antes se llamaba sin esperar, y como es "async" su error se perdía como promesa

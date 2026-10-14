@@ -70,22 +70,45 @@ leerDel().forEach(function (t) {
 // en la lista de tablas era lo que hacía que el guardián apruebara cualquier
 // "public.storage.cualquierCosa" —porque de ese nombre el guardián solo leía "storage", y
 // "storage" estaba en la lista. Ver [sql-01].
-// Y "profiles" TAMBIÉN ESTÁ, Y POR QUÉ
+// Y "profiles" ESTABA EN ESTA LISTA, Y HAY QUE SACARLA, Y POR QUÉ CUENTA
 //
-// Viene del mismo lado que "trabajadores" y "empresa": el esquema original de la
-// aplicación en Supabase. Ninguna migración del repositorio la crea con "create
-// table", y sin embargo el código la usa en todas partes —
-// "from('perfiles')", "auth.uid()", el nombre de quien creó una fila—.
+// Porque la tabla de usuarios se llama "perfiles", en castellano, y está definida
+// en 001_schema.sql L7. "profiles" no se crea en NINGUNA migración: no existe en
+// ninguna de las bases.
 //
-// Y LO QUE PASÓ AL NO ESTAR
+// La 086 la nombro mal en las dos funciones de permisos horarios, y el resultado
+// fue lo que se vio en la pantalla al apretar "Guardar permiso":
 //
-// La 086 nombra "public.profiles" en las funciones de permisos horarios, y el
-// guardián dijo que no existía. Existe. Lo que no existía era la lista.
+//     relation "public.profiles" does not exist
+//     Código 42P01
 //
-// Y por qué no se relaja el guardián para que pase: porque una lista incompleta que
-// se relaja para que un archivo pase deja de avisar de los nombres que están de
-// verdad mal. La lista se completa; el guardián sigue igual de estricto.
-['empresa', 'trabajadores', 'profiles'].forEach(function (t) { existen.add(t); });
+// Y LO PEOR NO FUE EL ERROR: FUE CÓMO SE ESCONDIÓ
+//
+// Cuando el guardián avisó, lo que se hizo fue agregar "profiles" a esta lista
+// para que dejara de reclamar. Y este mismo archivo lo desaconseja, unas líneas
+// más arriba: "una lista incompleta que se relaja para que un archivo pase deja
+// de avisar de los nombres que están de verdad mal".
+//
+// Con eso se apagó la alarma que habría encontrado el nombre malo. El guardián
+// quedó en verde y la aplicación se rompió. Un guardián al que se le enseña un
+// nombre falso para que calle es peor que no tener guardián, porque da confianza.
+//
+// Y POR QUÉ NO SALIÓ ANTES
+//
+// Porque "CREATE FUNCTION" no comprueba las tablas de adentro: PL/pgSQL valida
+// el cuerpo en la PRIMERA llamada. La 086 se aplicó sin un error, la tabla se
+// creó, las funciones se crearon. Todo parecía bien hasta que alguien las usó.
+//
+// Y POR QUÉ "perfiles" NO ENTRA EN LA LISTA
+//
+// Porque la lista es solo para los nombres que NO aparecen en las migraciones.
+// "perfiles" aparece, en 001_schema.sql, así que el guardián lo encuentra solo y no
+// lo necesita acá.
+//
+// La regla que queda escrita: si un nombre no está en ningún "create table" de
+// las migraciones, NO entra en esta lista. Aunque el código lo use, y aunque el
+// error sea molesto. El guardián tiene que avisar, y avisar molesta.
+['empresa', 'trabajadores'].forEach(function (t) { existen.add(t); });
 
 // Los esquemas que existen pero NO son del "public". Se permiten como prefijo, y solo como
 // prefijo: "storage.objects" sí, "public.storage.objects" no.

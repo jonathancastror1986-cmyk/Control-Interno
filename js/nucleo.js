@@ -587,6 +587,7 @@ const ICONOS_MENU={
   'avisos-mios':'<rect x="2" y="5" width="20" height="14" rx="2" ry="2"/><polyline points="2 7 12 13 22 7"/><circle cx="19" cy="19" r="4"/><polyline points="19 16.5 19 19 21 19.8"/>',
   'avisos-dia':'<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>',
   'importar-excel':'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><polyline points="9 18 12 15 15 18"/><line x1="12" y1="15" x2="12" y2="10"/>',
+  'permisos-horarios':'<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/><path d="M5 4 3 6"/>',
   'marcar-entrada':'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/><polyline points="7 12 5 12 6 10"/>',
   'marcar-avisar':'<circle cx="10" cy="12" r="8"/><polyline points="10 8 10 12 13.5 13.5"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>'
 };

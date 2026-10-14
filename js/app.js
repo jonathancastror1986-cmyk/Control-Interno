@@ -1020,7 +1020,10 @@ function abrirPrimeraVistaPermitida(){
   document.querySelectorAll('#subNav button').forEach(x=>x.classList.toggle('active',x.dataset.v===corto));
   initView(corto);
 }
-document.querySelectorAll('#mainNav button').forEach(b=>b.addEventListener('click',()=>showGroup(b.dataset.group)));
+document.addEventListener('click',event=>{
+  const boton=event.target.closest&&event.target.closest('#mainNav button[data-group]');
+  if(boton)showGroup(boton.dataset.group);
+});
 // Un clic fuera del submenú lo cierra. Sin esto, el desplegable se queda
 // abierto tapando el contenido, y hay que acertarle al título para
 // cerrarlo. Escape también, que es lo que se prueba por costumbre.
@@ -2993,7 +2996,7 @@ function renderJustificacionDiaria(){
     // justo cuando más importaba.
     if(!ent&&estado==='F'){motivo='falta';detalle='La planilla lo tiene como F y no hay marcaje del reloj.';}
     else if(ent&&estado==='F'){motivo='falta_con_marca';detalle='La planilla lo tiene como F pero hay marcaje de entrada a las '+ent.hora+'. Los dos datos no pueden ser ciertos a la vez.'+atrasoTxt;}
-    else if(!ent&&estado==='X'){motivo='sin_marcaje';detalle='Está en la planilla como presente, pero no hay marcaje del reloj de este día. La hora se completa cuando llegue el reporte.';}
+    else if(!ent&&estado==='X'){motivo='sin_marcaje';detalle='No marcó en el reloj. Debe pasar por RRHH para revisar el registro.';}
     else if(!ent&&!justificante){motivo='sin_marcar';detalle='No hay ningún marcaje de entrada de este día.';}
     else if(ent&&!sal){motivo='sin_salida';detalle='Marcó entrada a las '+ent.hora+' y no hay salida registrada.'+atrasoTxt;}
     else if(ent&&tarde){motivo='tarde';detalle='Entró a las '+ent.hora+' y la hora de entrada es '+entradaEsp+' (tolerancia '+tolerancia+' min).';}
@@ -3047,7 +3050,7 @@ function renderJustificacionDiaria(){
 
   const etiqueta={
     sin_marcar:{t:'Sin marcar',c:'var(--danger)'},
-    sin_marcaje:{t:'Presente sin reloj',c:'var(--warn)'},
+    sin_marcaje:{t:'No marcó en el reloj',c:'var(--warn)'},
     falta:{t:'F sin marcaje',c:'var(--danger)'},
     falta_con_marca:{t:'F con marcaje',c:'var(--warn)'},
     sin_salida:{t:'Sin salida',c:'var(--warn)'},
@@ -3064,9 +3067,36 @@ function renderJustificacionDiaria(){
     .sort((a,b)=>orden.indexOf(a.motivo)-orden.indexOf(b.motivo)||compararPorCodigo(a.w.code,b.w.code))
     .map(x=>{
       const et=etiqueta[x.motivo];
-      const sup=x.w.supervisor_code?workers.find(s=>s.code===x.w.supervisor_code):null;      return `<tr class="justFila" data-code="${escHtml(x.w.code)}">        <td class="justCelda justCeldaNombre">          <b>${escHtml(codigoMostrar(x.w.code))}</b> ${escHtml(x.w.name)}          <small>${escHtml(x.w.spec||'')}${sup?(' · Supervisor: '+escHtml(sup.name)):''}</small>        </td>        <td class="justCelda">          <span class="mkPill" style="border-color:${et.c};color:${et.c}">${escHtml(et.t)}</span>        </td>        <td class="justCelda justCeldaDetalle">${escHtml(x.detalle)}</td>        <td class="justCelda justCeldaAcciones">          ${x.motivo==='ok'||x.motivo==='justificado'?'':            `<button class="btn" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"              onclick="abrirJustificarCon('${escHtml(x.w.code)}','${escHtml(fecha)}')"              title="Abre el formulario de justificación con el trabajador y el día ya puestos">Justificar</button>`}          <button class="btn secondary" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"            onclick="marcarRelojConHoraAhora('${escHtml(x.w.code)}','${escHtml(fecha)}')"            title="Registra que marcó el reloj AHORA, con la hora actual. Al día siguiente, cuando se cargue el Excel del reloj, esa hora se corrige con la que diga el reporte.">Marcó reloj</button>          <button class="btn secondary" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"            onclick="abrirTarjaDe('${escHtml(x.w.code)}')">Tarja</button>        </td>      </tr>`;
+      const sup=x.w.supervisor_code?workers.find(s=>s.code===x.w.supervisor_code):null;
+      return `<tr class="justFila" data-code="${escHtml(x.w.code)}">
+        <td class="justCelda justCeldaNombre">
+          <b>${escHtml(codigoMostrar(x.w.code))}</b> ${escHtml(x.w.name)}
+          <small>${escHtml(x.w.spec||'')}${sup?(' · Supervisor: '+escHtml(sup.name)):''}</small>
+        </td>
+        <td class="justCelda">
+          <span class="mkPill" style="border-color:${et.c};color:${et.c}">${escHtml(et.t)}</span>
+        </td>
+        <td class="justCelda justCeldaDetalle">${escHtml(x.detalle)}</td>
+        <td class="justCelda justCeldaAcciones">
+          ${x.motivo==='ok'||x.motivo==='justificado'?'':
+            `<button class="btn" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"
+              onclick="abrirJustificarCon('${escHtml(x.w.code)}','${escHtml(fecha)}')"
+              title="Abre el formulario de justificación con el trabajador y el día ya puestos">Justificar</button>`}
+          <button class="btn secondary" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"
+            onclick="marcarRelojConHoraAhora('${escHtml(x.w.code)}','${escHtml(fecha)}')"
+            title="Registra que marcó el reloj AHORA, con la hora actual. Al día siguiente, cuando se cargue el Excel del reloj, esa hora se corrige con la que diga el reporte.">Marcó reloj</button>
+          <button class="btn secondary" type="button" style="margin:0;padding:4px 8px;font-size:.7rem;white-space:nowrap"
+            onclick="abrirTarjaDe('${escHtml(x.w.code)}')">Tarja</button>
+        </td>
+      </tr>`;
     }).join('');
-  lista.innerHTML='<div class="justTablaCaja">'    +'<table class="justTabla">'    +'<thead><tr><th>Trabajador</th><th>Situación</th>'    +'<th class="justThDetalle">Detalle</th>'    +'<th class="justThAcciones">Acciones</th></tr></thead>'    +'<tbody>'+cuerpo+'</tbody></table></div>';
+
+  lista.innerHTML='<div class="justTablaCaja">'
+    +'<table class="justTabla">'
+    +'<thead><tr><th>Trabajador</th><th>Situación</th>'
+    +'<th class="justThDetalle">Detalle</th>'
+    +'<th class="justThAcciones">Acciones</th></tr></thead>'
+    +'<tbody>'+cuerpo+'</tbody></table></div>';
 }
 // Abre el formulario de justificación con el trabajador y el día ya puestos.
 // Se reusa el que ya existe en la pestaña "Justificar" de Asistencia
@@ -3518,7 +3548,7 @@ async function conciliarMarcar(code,tipo){
 
 async function cambiarFechaDiaria(){
   fechaDiaria=(document.getElementById('diariaFecha')||{}).value||hoyLocal();
-  loadMarcajesDia().then(loadAvisosDia).then(renderDiaria);
+  loadMarcajesDia().then(loadAvisosDia).then(cargarPermisosHorarioDia).then(renderDiaria);
 }
 
 // ============================================================

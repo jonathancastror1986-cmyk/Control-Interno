@@ -1,7 +1,7 @@
 EL MAPA DE "js/app.js"
 ======================
 
-  Medido el 2026-10-01 sobre 4740 renglones y 190 funciones.
+  Medido el 2026-10-14 sobre 5769 renglones y 211 funciones.
 
   Cómo se generó:  node tools/mapa-js.js
   Cómo se verifica que no esté viejo:  node tools/mapa-js.js --verificar
@@ -12,20 +12,20 @@ EL MAPA DE "js/app.js"
   LAS SECCIONES
   ----------------------------------------------------------------------------
 
-    L  289  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   1797 regl.   70 fn.   abre L287
-    L 2086  ASISTENCIA DIARIA DEL SUPERVISOR    285 regl.    5 fn.   abre L2079
-    L 2371  CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ    134 regl.    3 fn.   abre L2369
-    L 2505  BITÁCORA DE ACCESO    221 regl.    5 fn.   abre L2503
-    L 2726  IMPORTAR MARCAJES DESDE EXCEL    588 regl.   40 fn.   abre L2724
-    L 3314  MULTI-EMPRESA    572 regl.   14 fn.   abre L3308
-    L 3886  BAJAR LA PLANTILLA EN WORD     41 regl.    0 fn.   (solo el banner)   abre L3884
-    L 3927  EL BLOQUEO REAL    170 regl.   11 fn.   abre L3927
-    L 4097  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     34 regl.    0 fn.   (solo el banner)   abre L4095
-    L 4131  LA ESPECIALIDAD DEL TRABAJADOR    136 regl.    5 fn.   abre L4131
-    L 4267  EL ENCABEZADO SE ENCOGE AL BAJAR    474 regl.   21 fn.   abre L4265
+    L  289  LOS DOS DESPLEGABLES ANIDADOS: GRUPO Y CARGO   2587 regl.   85 fn.   abre L287
+    L 2876  ASISTENCIA DIARIA DEL SUPERVISOR    325 regl.    5 fn.   abre L2869
+    L 3201  CONCILIACIÓN: LA PLANILLA CONTRA EL RELOJ    134 regl.    3 fn.   abre L3199
+    L 3335  BITÁCORA DE ACCESO    221 regl.    5 fn.   abre L3333
+    L 3556  IMPORTAR MARCAJES DESDE EXCEL    657 regl.   42 fn.   abre L3554
+    L 4213  MULTI-EMPRESA    572 regl.   14 fn.   abre L4207
+    L 4785  BAJAR LA PLANTILLA EN WORD     41 regl.    0 fn.   (solo el banner)   abre L4783
+    L 4826  EL BLOQUEO REAL    170 regl.   11 fn.   abre L4826
+    L 4996  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES     34 regl.    0 fn.   (solo el banner)   abre L4994
+    L 5030  LA ESPECIALIDAD DEL TRABAJADOR    136 regl.    5 fn.   abre L5030
+    L 5166  EL ENCABEZADO SE ENCOGE AL BAJAR    604 regl.   25 fn.   abre L5164
 
   ----------------------------------------------------------------------------
-  174 de 190 funciones (92%) caen dentro de una sección.
+  195 de 211 funciones (92%) caen dentro de una sección.
 
 
   LAS 16 FUNCIONES QUE NO CAEN EN NINGUNA SECCIÓN
@@ -55,8 +55,8 @@ EL MAPA DE "js/app.js"
   Son un banner con el título y nada más: toda la función está en la de abajo.
   No están rotas. Se listan para no pensar que falta algo.
 
-    L 3886  BAJAR LA PLANTILLA EN WORD
-    L 4097  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES
+    L 4785  BAJAR LA PLANTILLA EN WORD
+    L 4996  GENERAR Y ROTAR LA CLAVE DESDE LA PANTALLA DE RELOJES
 
   Y LO QUE ESTO NO DICE
   ----------------------------------------------------------------------------

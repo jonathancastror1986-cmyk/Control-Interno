@@ -1,64 +1,128 @@
 -- ===================================================================
 -- comprobar-086-permisos-horarios.sql
 -- ===================================================================
--- QUÉ COMPRUEBA Y POR QUÉ NO ES UN "SELECT 1"
+-- QUÉ COMPRUEBA Y POR QUÉ ESTÁ PARTIDO EN DOS
 -- ===================================================================
 --
--- Porque la pregunta que importa no es "¿existe la tabla?", que ya sabemos que
--- existe, sino "¿puede el Javascript talking con ella?".
+-- Porque hay dos tipos de comprobación y no se pueden hacer en el mismo lugar:
 --
--- Y eso son tres cosas separadas, que pueden fallar por separado y dar el mismo
--- symptom en pantalla:
+--   PARTE A   desde el SQL Editor. Mira que la tabla, las columnas, las
+--             funciones, las políticas y los índices existan. Eso se ve desde
+--             cualquier lado, y siempre da el mismo resultado.
 --
---   1. que la tabla exista con todas sus columnas
---   2. que las dos funciones existan y se puedan llamar
---   3. que el RLS deje pasar a este usuario
+--   PARTE B   la llamada de verdad: pedir un permiso y resolverlo. Eso NO se
+--             puede hacer desde acá, y no es un problema del script.
 --
--- Y el síntoma de las tres es el mismo: la pestaña de permisos no muestra nada.
--- Por eso la comprobación tiene que distinguir, y no devolver un "ok" genérico.
+-- Y POR QUÉ LA PARTE B NO SE PUEDE HACER DESDE EL EDITOR SQL
+-- ===================================================================
+--
+-- Porque las dos funciones deciden mirando QUIÉN llama:
+--
+--   pedir_permiso_horario      exige es_usuario_activo() O es_admin()
+--                               O tiene_permiso('tarja.marcaje')
+--   resolver_permiso_horario   exige es_admin()
+--                               O tiene_permiso('tarja.aprobar_cambio')
+--
+-- Y esas tres funciones leen "auth.uid()". Desde el SQL Editor no hay nadie
+-- firmado adentro, así que "auth.uid()" es nulo, las tres dan falso, y la función
+-- contesta:
+--
+--     42501  No tienes permiso para pedir permisos horarios
+--
+-- Que es la respuesta CORRECTA. No es un error del script ni de la base: es el
+-- control de permisos funcionando. Si desde acá no se cuela nadie, está bien.
+--
+-- Y LA PRIMERA VERSIÓN DE ESTE ARCHIVO SE EQUIVOCÓ EN ESO
+-- ---------------------------------------------------------------------
+--
+-- Metía la llamada de verdad acá adentro, y fallaba siempre. Peor: venía
+-- envuelta en un "do $$ ... $$" con manejador de error que volvía a levantar el
+-- error, y en el SQL Editor un error a mitad de script corta TODO lo que sigue.
+-- Así que ese paso malo dejaba sin ver los otros cuatro, y devolvía un "ok"
+-- parcial que no servía para nada.
+--
+-- Y MÁS AÚN: usaba un 'code' inventado, '__COMPROBACION__', y esa columna tiene
+-- clave foránea a "trabajadores(code)". Iba a fallar por violation de clave
+-- foránea en una base perfectamente sana. Una comprobación que falla cuando todo
+-- está bien enseña a ignorar sus errores, que es el peor daño que puede hacer.
+--
+-- ---------------------------------------------------------------------
+-- Y SI TE SALE UN ERROR DE SINTAXIS, NO VUELVAS A PEGAR TODO
+-- ---------------------------------------------------------------------
+--
+-- Porque ya pasó dos veces con este archivo, y las dos veces el resultado fue lo
+-- mismo: un error y NADA MÁS. Ni la tabla, ni las columnas, ni las funciones.
+--
+-- Y no es que las consultas de arriba no se hayan corrido: es que el editor
+-- devuelve solo el ÚLTIMO resultado, y si el último falló, los anteriores no se
+-- ven. Por eso un error de sintaxis al final del archivo hace perder todo lo que
+-- ya se había comprobado.
+--
+-- La forma de no perder nada: **corré un paso por vez**. Cada bloque de este
+-- archivo es un "select" independiente, así que se puede seleccionar uno y correr
+-- solo ese, con "Run" sobre el texto seleccionado. Con esa forma, si un paso da
+-- error, los otros siguen dando su resultado igual, porque ya no hay un error que
+-- corte el archivo entero.
+--
+-- Y el error que cortó las dos veces fue este:
+--
+--     42601  syntax error at or near "when"
+--
+-- Un "case" al que se le olvidó el "then" de la primera rama. Ya está corregido en
+-- L152 y L156. Si vuelve a aparecer, es que se pegó una versión vieja del archivo.
 --
 -- ---------------------------------------------------------------------
 -- CÓMO SE USA
--- ---------------------------------------------------------------------
+-- ===================================================================
 --
---   1. Pegá esto entero en el SQL Editor de Supabase y corrélo.
---   2. Copiá TODOS los resultados y mandámelos, en orden.
---
--- ---------------------------------------------------------------------
--- Y POR QUÉ SON "SELECT" SUELTOS Y NO UN "DO" CON MANEJADOR DE ERROR
--- ---------------------------------------------------------------------
---
--- Porque la primera versión de este archivo metía las llamadas dentro de un
--- "do $$ ... $$" con un "exception when others" que volvía a levantar el error. Y
--- se probó: en el editor SQL de Supabase, un error en el medio del script corta
--- TODO lo que sigue. Un solo paso malo te deja sin ver los otros cuatro, y con
--- un "ok" parcial que no sirve para nada.
---
--- Con un "select" por paso, cada uno es un resultado aparte: el que falla marca
--- rojo y los demás se muestran igual. Se pierde eltry de "un error corta el
--- script", que es exactamente lo que había que evitar.
---
--- Y el manejo del error ahora es al revés: la consulta que falla HABLA, y su
--- mensaje es la respuesta. Las funciones de la 086 escriben sus errores en
--- castellano a propósito, porque un "violates check constraint" no le dice a
--- nadie qué hacer.
+--   1. Corré la PARTE A (los "select" sueltos de abajo) y mandame los
+--      resultados en orden. Con eso sabemos si la migración quedó entera.
+--   2. La PARTE B no se corre acá. La hace la pantalla de permisos, desde la
+--      aplicación, con el usuario adentro. Se prueba con los botones de prueba
+--      de tools/pruebas/app-sin-login.html.
+
+-- ===================================================================
+-- PARTE A — DESDE EL SQL EDITOR
+-- ===================================================================
 
 -- ---------------------------------------------------------------------
--- 1. LA TABLA Y SUS COLUMNAS
+-- 1. QUÉ TABLA ES, Y SI ESTÁ EN EL ESQUEMA CORRECTO
 -- ---------------------------------------------------------------------
 --
--- Las quince, con las que la pantalla los necesita. Si falta una, este conteo
--- lo dice y el paso 2 dice cuál.
+-- El esquema importa tanto como el nombre: una "permiso_horario" creada sin
+-- "public." delante funciona en el editor y es invisible para la aplicación, que
+-- busca siempre en "public".
+select
+  'tabla' as que,
+  table_schema,
+  table_name,
+  (table_schema = 'public') as en_el_esquema_correcto
+from information_schema.tables
+where table_name = 'permiso_horario';
+
+-- ---------------------------------------------------------------------
+-- 2. LAS QUINCE COLUMNAS
+-- ---------------------------------------------------------------------
+--
+-- El conteo solo no alcanza: si falta una y sobra otra, el número dice quince.
+-- Por eso el paso 3 lista los nombres, y el paso 4 dice cuáles faltan.
 select
   'columnas' as que,
   count(*)   as cuantas,
   case when count(*) = 15 then 'todo en orden'
-       else 'faltan columnas' end as veredicto
+       else 'FALTAN COLUMNAS' end as veredicto
 from information_schema.columns
 where table_schema = 'public'
   and table_name   = 'permiso_horario';
 
--- Y QUÉ COLUMNAS FALTAN, CON SU NOMBRE, PORQUE "faltan columnas" NO ALUNZA
+-- Y QUÉ COLUMNAS HAY, CON SU TIPO Y SI ADMITEN NULO
+--
+-- Y POR QUÉ SE PIDE EL TIPO Y NO SÓLO EL NOMBRE
+--
+-- Porque "hora_inicio" tiene que ser "time", no "text". Si alguien la creó como
+-- texto, la tabla existe, el conteo da quince, la pantalla carga, y el primer
+-- permiso que se guarda es "11:00" como cadena. Eso no falla al insertar: falla
+-- días después, cuando alguien pregunta por qué el permiso no se suma.
 select
   column_name,
   data_type,
@@ -69,139 +133,220 @@ where table_schema = 'public'
   and table_name   = 'permiso_horario'
 order by ordinal_position;
 
+-- Y CUÁLES FALTAN DE LAS QUINCE, DICHO POR NOMBRE
+--
+-- "FALTAN COLUMNAS" sin decir cuáles obliga a comparar dos listas a ojo. Esta
+-- consulta devuelve una fila por cada columna que falta, que es la forma en que
+-- un problema se puede leer sin esfuerzo.
+select falta.column_name as falta_esta_columna
+from (values
+    ('id'),('code'),('fecha'),('hora_inicio'),('hora_fin'),('motivo'),
+    ('estado'),('pedido_por'),('pedido_por_nombre'),('pedido_por_rol'),
+    ('confirmado_por'),('confirmado_por_nombre'),('confirmado_at'),
+    ('comentario'),('creado_en')
+  ) as falta(column_name)
+where not exists (
+  select 1
+  from information_schema.columns c
+  where c.table_schema = 'public'
+    and c.table_name   = 'permiso_horario'
+    and c.column_name  = falta.column_name
+);
+
 -- ---------------------------------------------------------------------
--- 2. LAS DOS FUNCIONES
+-- 4. LAS DOS FUNCIONES Y SUS TIPOS DE ARGUMENTO
 -- ---------------------------------------------------------------------
 --
--- Que existan no es lo mismo que que se puedan llamar. Una función puede estar
--- creada y seguir dando permission denied al invocarla, y eso lo decide el
--- "grant", que es una cosa aparte de la creación. Por eso más abajo hay un
--- intento de llamada de verdad, y este paso solo mira que estén las dos.
+-- Y POR QUÉ SE COMPRUEBA LA FIRMA COMPLETA Y NO SÓLO EL NOMBRE
+--
+-- Porque una función con el nombre bien y los argumentos cambiados es una
+-- trampa: el Javascript llama con seis argumentos y la base dice "no existe esa
+-- función", cuando la que existe se llama distinto. El mensaje no lleva a
+-- ninguna parte, y es fácil de dar por un problema de permisos.
+--
+-- Por eso acá se comparan los nombres de los argumentos, en orden. Si la
+-- pantalla los llama con nombre ("p_code => ..."), esto es directamente lo que
+-- tiene que coincidir.
 select
   'funciones' as que,
-  count(*)    as cuantas,
-  case when count(*) = 2 then 'todo en orden'
-       else 'no hay permisos' end as veredicto
+  p.proname,
+  pg_get_function_identity_arguments(p.oid) as argumentos,
+  case when p.proname = 'pedir_permiso_horario'
+            and pg_get_function_identity_arguments(p.oid)
+                like '%p_code%' and pg_get_function_identity_arguments(p.oid) like '%p_motivo%'
+            then 'ok'
+       when p.proname = 'resolver_permiso_horario'
+            and pg_get_function_identity_arguments(p.oid)
+                like '%p_id%' and pg_get_function_identity_arguments(p.oid) like '%p_acepta%'
+            then 'ok'
+       else 'FIRMA DISTINTA A LA ESPERADA'
+  end as veredicto
 from pg_proc p
 join pg_namespace n on n.oid = p.pronamespace
 where n.nspname = 'public'
-  and p.proname in ('pedir_permiso_horario','resolver_permiso_horario');
+  and p.proname in ('pedir_permiso_horario','resolver_permiso_horario')
+order by p.proname;
 
 -- ---------------------------------------------------------------------
--- 3. LOS PERMISOS QUE TIENE ESTE USUARIO
+-- 5. LAS POLÍTICAS DE RLS
 -- ---------------------------------------------------------------------
 --
--- Esto se ve desde la sesión del usuario que va a usar la aplicación, que no es
--- el mismo rol que el del editor SQL. Si acá salen todos en false pero en la
--- aplicación funcionan, el problema no es la base: es que el usuario que estás
--- probando no tiene el permiso.
+-- Existe una sola, y es de lectura. Las escrituras van por funciones
+-- "security definer", y por eso no hay política de "insert" ni de "update": esa
+-- ausencia es la protección, no unForget pendiente.
 --
--- Y "tarja.marcaje" es el de PEDIR, y "tarja.aprobar_cambio" el de RESOLVER. Son
--- distintos a propósito: con el mismo, un supervisor podría aprobarse a sí mismo
--- el permiso que acaba de pedir, y el circuito de "alguien lo revisa" no revisaría
--- nada.
+-- Y que el RLS esté ACTIVADO es lo importante: una política escrita sobre una
+-- tabla sin RLS turned no filtra nada, y la tabla queda abierta para cualquiera
+-- que tenga la URL de la API.
 select
-  'permisos' as que,
+  'rls' as que,
+  c.relrowsecurity                as rls_activado,
+  count(p.polname)                as cuantas_politicas,
+  string_agg(p.polname, ' | ')    as los_nombres
+from pg_class c
+join pg_namespace n on n.oid = c.relnamespace
+left join pg_policy p on p.polrelid = c.oid
+where n.nspname = 'public'
+  and c.relname = 'permiso_horario'
+group by c.relrowsecurity;
+
+-- Y LAS POLÍTICAS, UNA POR FILA, CON SU CONDICIÓN
+--
+-- Porque el nombre de la política no dice nada, y lo que importa es si la
+-- condición deja pasar a quien tiene que pasar.
+select
+  p.polname        as policyname,
+  p.polcmd         as cmd,
+  p.polqual        as condicion,
+  p.polwithcheck   as condicion_para_escribir
+from pg_policy p
+join pg_class c on c.oid = p.polrelid
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public'
+  and c.relname = 'permiso_horario';
+
+-- ---------------------------------------------------------------------
+-- 6. LOS TRES ÍNDICES, Y CUÁLES IMPORTAN DE VERDAD
+-- ---------------------------------------------------------------------
+--
+-- El único que protege de verdad es "permiso_horario_no_repetido", y solo
+-- funciona si su "where" es correcto. Por eso se pide la definición entera y
+-- no solo el nombre: un índice único sin el filtro bloquearía volver a pedir un
+-- permiso que alguien rechazó hace un rato, y eso no se nota hasta que alguien
+-- lo necesita.
+--
+-- Y el "check" de que la hora de fin vaya después de la inicio, que es la regla
+-- que más difícil de leer es un "-3 horas de permiso".
+select
+  'indices' as que,
+  indexname,
+  indexdef
+from pg_indexes
+where schemaname = 'public'
+  and tablename  = 'permiso_horario'
+order by indexname;
+
+-- ---------------------------------------------------------------------
+-- 7. LAS REGLAS DE LA TABLA: EL CHECK Y LA CLAVE FORÁNEA
+-- ---------------------------------------------------------------------
+--
+-- El "estado" tiene lista cerrada: pendiente, confirmado, anulado. Y no hay
+-- "aplicado", a propósito, porque el permiso nunca cambia la planilla. Si
+-- alguien agregar un estado más, la pantalla va a tener que decidir qué pintar
+-- con un color que nunca vio.
+select
+  'reglas' as que,
+  con.conname,
+  pg_get_constraintdef(con.oid) as la_regla
+from pg_constraint con
+join pg_class c     on c.oid = con.conrelid
+join pg_namespace n on n.oid = c.relnamespace
+where n.nspname = 'public'
+  and c.relname = 'permiso_horario'
+  and con.contype in ('c','f')
+order by con.conname;
+
+-- ---------------------------------------------------------------------
+-- 8. LOS PERMISOS QUE TIENE ESTE USUARIO
+-- ---------------------------------------------------------------------
+--
+-- OJO CON ESTE RESULTADO, QUE SE LEE MAL LA PRIMERA VEZ
+--
+-- Esto corre como el dueño de la base, no como el usuario de la aplicación.
+-- Así que ver "falso" acá NO significa que falten permisos: significa que el
+-- dueño de la base no es un usuario de la aplicación, que es lo normal.
+--
+-- El que sirve es el resultado de adentro de la app, con el usuario firmado
+-- adentro. Este paso está para ver de qué rol se está mirando, y para que
+-- quede escrito que la diferencia es esperable y no un problema.
+select
+  'este_rol' as que,
+  current_user         as usuario_de_la_base,
+  auth.uid()           as usuario_autenticado,
+  (auth.uid() is null) as sin_usuario_dentro,
   public.es_usuario_activo()             as activo,
   public.es_admin()                       as admin,
   public.tiene_permiso('tarja.marcaje')        as puede_pedir,
   public.tiene_permiso('tarja.aprobar_cambio') as puede_resolver;
 
 -- ---------------------------------------------------------------------
--- 4. QUE HAYA AL MENOS UN TRABAJADOR
+-- 9. CUÁNTOS PERMISOS HAY, Y DE QUÉ TIPO
 -- ---------------------------------------------------------------------
 --
--- Y POR QUÉ ESTE PASO ESTÁ, Y POR QUÉ LA PRIMERA VERSIÓN DEL ARCHIVO NO LO TENÍA
+-- Con cero filas en todo lo demás, ESTE es el resultado que confirma que la
+-- parte A está bien: la tabla existe, está vacía y no tiene nada raro. Una tabla
+-- de permisos vacía es lo que se ve el primer día y no es un error: es la
+-- pantalla todavía sin nada que mostrar.
 --
--- Porque "code" tiene clave foránea a "trabajadores(code)". Y la primera versión
--- usaba un código inventado, '__COMPROBACION__', que por supuesto no existe en
--- ninguna ficha. El paso de pedir el permiso fallaba con una violación de clave
--- foránea, en una base que estaba perfectamente bien.
---
--- Una comprobación que falla cuando todo está bien teaches a ignorar los
--- errores de la comprobación, y ese es el peor daño que puede hacer.
---
--- Así que el código sale de acá, de una ficha real.
+-- Y si por el camino llegaste a tener filas de una versión anterior de este
+-- archivo, con el motivo '__COMPROBACION__' o el que empiece por
+-- 'COMPROBACION', aparecen acá y hay que borrarlas.
 select
-  'trabajadores' as que,
-  count(*)       as cuantos,
-  (select code from public.trabajadores order by code limit 1) as uno_para_probar
-from public.trabajadores;
+  'contenido' as que,
+  count(*) filter (where estado = 'pendiente')  as pendientes,
+  count(*) filter (where estado = 'confirmado') as confirmados,
+  count(*) filter (where estado = 'anulado')    as anulados,
+  count(*) filter (where motivo like 'COMPROBACION%') as filas_de_comprobacion_a_borrar
+from public.permiso_horario;
 
--- ---------------------------------------------------------------------
--- 5. PEDIR UN PERMISO DE VERDAD
--- ---------------------------------------------------------------------
+-- ===================================================================
+-- PARTE B — DESDE LA APLICACIÓN, NO DESDE ACÁ
+-- ===================================================================
 --
--- Con una fecha vieja y un motivo que dice que es una prueba. Esto ESCRIBE una
--- fila. Si este paso no da error, la pantalla puede pedir permisos y no hay nada
--- más que comprobar del lado de la base.
+-- Estas NO se correr en el SQL Editor. La respuesta va a ser 42501 siempre, y
+-- esa es la respuesta correcta.
 --
--- Y el "code" sale de un trabajador real, y no se escribe en el texto: así el
--- mismo archivo sirve aunque las fichas tengan otros códigos.
+-- La hace la pantalla de permisos, con el usuario adentro. Si querés verlas
+-- una por una, el camino es el botón de prueba de la página
+-- tools/pruebas/app-sin-login.html.
 --
--- Y QUE SE USE EL MOTIVO PARA MARCAR LA FILA, Y NO EL CÓDIGO
+-- Lo que hay que confirmar, en orden:
 --
--- Porque el motivo es el único campo que es de esta comprobación y no del
--- negocio. Con una marca en el "code" habría que inventar un código que no
--- existe; con una marca en el motivo, el paso 6 la encuentra y el borrado del
--- final la borra, y ninguna de las dos depende de conocer las fichas.
-select
-  'pedir' as que,
-  public.pedir_permiso_horario(
-    p_code        := (select code from public.trabajadores order by code limit 1),
-    p_fecha       := date '2000-01-01',
-    p_hora_inicio := time '11:00',
-    p_hora_fin    := time '14:00',
-    p_motivo      := 'COMPROBACION automatica 086: se puede borrar sin problema'
-  ) as id;
-
--- ---------------------------------------------------------------------
--- 6. RESOLVERLO, PARA PROBAR LA SEGUNDA FUNCIÓN
--- ---------------------------------------------------------------------
+--   1. Un supervisor con 'tarja.marcaje' entra a la pestaña y la lista sale.
+--      Vacía es correcto si no hay permisos ese día: tiene que decirlo, no
+--      mostrar una tabla en blanco que parece un error.
 --
--- Con p_acepta en false, que la deja en 'anulado'. Y 'anulado' es el único estado
--- del que no queda prohibición para volver a pedir el mismo horario, así que la
--- fila no bloquea nada.
+--   2. Pide un permiso de 11:00 a 14:00. Tiene que salir con estado
+--      'pendiente' y decir quién lo pidió.
 --
--- Y POR QUÉ BUSCA EL ID CON UN "SELECT" Y NO CON UNA VARIABLE
+--   3. Lo pide otra vez, mismo día y mismo horario. Tiene que salir el error
+--      "Ese horario se pisa con un permiso que ya existe para ese día".
 --
--- Porque no hay variables entre consultas. Y da lo mismo: los "select" de un
--- script se ejecutan en orden, así que la fila que acaba de insertar el paso 5 ya
--- existe cuando corre este. Y la función devuelve "void", así que el resultado
--- es una fila, y lo que interesa es que no haya dado error.
-select
-  'resolver' as que,
-  public.resolver_permiso_horario(
-    p_id         := (select id from public.permiso_horario
-                     where motivo like 'COMPROBACION automatica 086%'
-                     order by id desc limit 1),
-    p_acepta     := false,
-    p_comentario := 'Comprobacion 086: se anula, no es un permiso real'
-  ) as hecho;
-
--- ---------------------------------------------------------------------
--- 7. LO QUE DEJÓ LA COMPROBACIÓN, QUE HAY QUE LIMPIAR
--- ---------------------------------------------------------------------
+--   4. Lo pide con la hora de fin antes de la de inicio. Tiene que salir el
+--      error "La hora de fin tiene que ser posterior a la de inicio".
 --
--- Tiene que salir exactamente una fila, con estado 'anulado'.
+--   5. Lo pide sin motivo. "Falta el motivo del permiso..."
 --
--- Y si este paso sale vacío, ES UNA RESPUESTA: quiere decir que el paso 5 no llegó
--- a insertar, y hay que mirar el error que dio ese paso, no este.
-select
-  id, code, fecha, hora_inicio, hora_fin, estado, comentario
-from public.permiso_horario
-where motivo like 'COMPROBACION automatica 086%'
-order by id desc;
-
--- Y PARA LIMPIARLA, DESPUÉS DE HABER VISTO EL RESULTADO DEL PASO 7
+--   6. Con la fila pendiente, alguien con 'tarja.aprobar_cambio' la confirma.
+--      Y alguien SIN ese permiso NO tiene que ver los botones.
 --
--- Borra las filas de comprobación. Es un "delete" y por eso está aparte y
--- comentado, para que nadie lo corra sin querer junto con las consultas de
--- arriba. Son de este archivo y de ningún negocio.
+--   7. Se resuelve dos veces la misma. "Ese permiso ya fue resuelto".
 --
---   delete from public.permiso_horario
---    where motivo like 'COMPROBACION automatica 086%';
-
--- Y PARA VOLVER ATRÁS DEL TODO
+--   8. Un usuario sin permiso para pedir, en la misma pantalla. 42501 en
+--      pantalla, no en la consola.
 --
---   drop table if exists public.permiso_horario cascade;
+-- Y EL PASO QUE MÁS SE OLVIDA
+--
+-- Que el día en 'asistencia' de esa persona SIGA en 'X'. El permiso con hora
+-- registra una excepción de horario; no cambia la planilla. Si algún día el
+-- permiso aparece como un cambio de estado, eso está mal y hay que decirlo.

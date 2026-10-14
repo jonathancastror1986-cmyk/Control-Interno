@@ -377,8 +377,25 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 
 .day-label-holiday{background:#f5dada!important;color:#3b2424!important;font-weight:700}
 .day-label-holiday small{color:#3b2424!important;font-weight:700}
-.attendance-tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px;border-bottom:1px solid var(--line)}
+/* -------------------------------------------------------------------
+     LAS PESTANAS: ESTAS TRES REGLAS SE BORRARON DE ACÁ, A PROPÓSITO
+     -------------------------------------------------------------------
+     Estaba esta copia, y era la segunda de las mismas pestañas: la misma
+     clase definida en cuatro archivos. Con cuatro copias gana la última que se
+     carga, y cuál es la última depende del orden de los <link>. Por eso un
+     archivo nuevo agregado al final cambia el aspecto de las pestañas de todo
+     el sistema sin tocar una línea de pestañas.
+
+     Esta copia además traía "overflow-x:auto", que es lo que hacía aparecer la
+     rayita de desplazamiento horizontal abajo de la barra, con la última
+     pestaña cortada contra el borde.
+
+     Ahora están en UN solo lugar: css/styles.css, en la sección de las
+     pestañas del supervisor. Esa regla dice por qué van en dos filas.
+     ------------------------------------------------------------------- */
+.pestanas button,
 .attendance-tabs button{flex:0 0 auto;margin:0;padding:11px 12px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font:600 .72rem 'Montserrat',system-ui,sans-serif;text-transform:uppercase;white-space:nowrap;cursor:pointer}
+.pestanas button.active,
 .attendance-tabs button.active{border-color:var(--accent);color:var(--secondary-text)}
 .attendance-panel{display:none}
 .attendance-panel.active{display:block}

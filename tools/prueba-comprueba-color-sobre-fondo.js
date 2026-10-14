@@ -66,7 +66,18 @@ function cuerpoDeRegla(texto, desdeSelector) {
   return cuerpo.join('');
 }
 
-const real = fs.readFileSync(CSS, 'utf8');
+// Y POR QUÉ SE NORMALIZA EL FIN DE LÍNEA ANTES DE BUSCAR
+//
+// Porque los archivos del proyecto están en CRLF, y el texto que se busca está
+// partido con "\n" a secas. En CRLF, entre las dos líneas hay un "\r" de más, así
+// que la búsqueda nunca encontraba nada y la prueba se terminaba diciendo que no
+// existe la regla de referencia.
+//
+// Y eso es peor que un error visible: el guardián de colores estaba en verde, y la
+// prueba que tiene que comprobar que ese guardián todavía ve algo, no estaba
+// probándolo. Un verde que no se prueba no es un verde.
+const realCrudo = fs.readFileSync(CSS, 'utf8');
+const real = realCrudo.replace(/\r\n/g, '\n');
 const iSel = real.indexOf('#v-asistencia #matrixArea th,\n#v-supervisores #supMatrixArea th{');
 
 if (iSel < 0) {

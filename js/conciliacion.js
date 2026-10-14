@@ -218,11 +218,11 @@ const SITUACIONES = {
     acciones: [],
   },
   sin_marcaje: {
-    texto: 'Está en la planilla como presente y el reloj no registró nada',
-    corto: 'Presente sin reloj',
+    texto: 'No marcó en el reloj. Debe pasar por RRHH para revisar el registro.',
+    corto: 'No marcó en el reloj',
     color: 'var(--warn)',
     alerta: true,
-    queSePuedeHacer: 'Revisar si corresponde, o marcar y avisar para dejarlo asentado',
+    queSePuedeHacer: 'Derivar a RRHH para revisar el marcaje del reloj',
     acciones: ['avisar'],
   },
   diferencia_hora: {

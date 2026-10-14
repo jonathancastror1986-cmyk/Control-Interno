@@ -189,7 +189,7 @@ function renderConciliacion(){
   const etiqueta=(typeof SITUACIONES!=='undefined')?SITUACIONES:{
     falta_en_planilla:{corto:'Falta marcar en la planilla',color:'var(--danger)',texto:'El reloj tiene marcaje y la planilla no lo tiene'},
     contradictorio:{corto:'F con marcaje',color:'var(--danger)',texto:'La planilla dice F y el reloj tiene marcaje'},
-    sin_marcaje:{corto:'Presente sin reloj',color:'var(--secondary-text)',texto:'Está en la planilla como presente y el reloj no registró nada'},
+    sin_marcaje:{corto:'No marcó en el reloj',color:'var(--warn)',texto:'No marcó en el reloj. Debe pasar por RRHH para revisar el registro.'},
     diferencia_hora:{corto:'La hora no coincide',color:'var(--warn)',texto:'Está en los dos, a horas distintas'},
     coincide:{corto:'Coincide',color:'var(--accent)',texto:'Los dos dicen presente y la hora es razonable'},
     justificado:{corto:'Justificado',color:'var(--accent)',texto:'Tiene permiso o licencia y no hay marcaje'},

@@ -290,7 +290,7 @@ begin
   values (
     p_code, p_fecha, p_hora_inicio, p_hora_fin, v_motivo, 'pendiente',
     auth.uid(),
-    (select nombre from public.profiles where id = auth.uid()),
+    (select nombre from public.perfiles where id = auth.uid()),
     (select rol from public.perfiles where id = auth.uid()),
     nullif(btrim(coalesce(p_comentario, '')), '')
   )
@@ -337,7 +337,7 @@ begin
   update public.permiso_horario
      set estado = case when p_acepta then 'confirmado' else 'anulado' end,
          confirmado_por = auth.uid(),
-         confirmado_por_nombre = (select nombre from public.profiles where id = auth.uid()),
+         confirmado_por_nombre = (select nombre from public.perfiles where id = auth.uid()),
          confirmado_at = now(),
          comentario = nullif(btrim(coalesce(p_comentario, '')), '')
    where id = p_id;
@@ -348,6 +348,30 @@ grant execute on function public.resolver_permiso_horario(uuid,boolean,text)
   to authenticated;
 
 -- ---------------------------------------------------------------------
+-- ---------------------------------------------------------------------
+-- Y UNA CORRECCIÓN QUE ESTE ARCHIVO NECESITÓ DESPUÉS
+-- ---------------------------------------------------------------------
+--
+-- Las dos funciones de abajo piden el nombre de quien pide y de quien resuelve
+-- con un "select" sobre la tabla de usuarios. Ese "select" decía
+-- "public.profiles", y esa tabla NO EXISTE: la de usuarios se llama
+-- "perfiles", en castellano, y está definida en 001_schema.sql L7.
+--
+-- Se veía en pantalla al apretar "Guardar permiso":
+--
+--     relation "public.profiles" does not exist
+--     Código 42P01
+--
+-- Y POR QUÉ NO SALIÓ AL APLICAR ESTA MIGRACIÓN
+--
+-- Porque "CREATE FUNCTION" no comprueba las tablas que aparecen adentro del
+-- cuerpo: PL/pgSQL valida en la PRIMERA llamada. La migración se aplicó limpia,
+-- la tabla se creó, las funciones se crearon, y todo parecía bien. El error
+-- apareció el primer día que alguien usó la pantalla de verdad.
+--
+-- El nombre quedó corregido acá para que el archivo no mienta. Y en la base,
+-- que ya tenía la versión vieja, lo arregla migrations/087_corregir_profiles.sql.
+--
 -- LOS COMENTARIOS
 -- ---------------------------------------------------------------------
 --

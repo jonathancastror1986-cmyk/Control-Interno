@@ -700,45 +700,39 @@
   hay cuatro pestañas, las cuatro se reparten el ancho entero y cada una mide 450.
 
   MEDIDO antes: cuatro pestañas de unos 450px, con el rótulo perdido en medio. */
-.attendance-tabs{
-  display:grid;
-  /* Y ESTE "none" ES LO QUE SACA LA REGLA VIEJA DE EN MEDIO.
+/* -------------------------------------------------------------------
+     EL "GRID" DE LAS PESTANAS SE BORRÓ DE ACÁ
+     -------------------------------------------------------------------
+     Estas reglas ponían "display:grid" con "grid-auto-flow:column" y
+     "grid-auto-columns:200px", o sea una columna de 200 píxeles por pestaña.
+     Con el "white-space:nowrap" de los botones, un rótulo más largo que 200
+     píxeles se sale de su celda y se encima con el de al lado: eso es lo que se
+     veía, con "CONCILIAR EL RELOJ CON LA PLANILLA" encima de "MIS AVISOS DE
+     INGRESO" y las dos pegadas.
 
-     MEDIDO con ella puesta: "grid-template-columns" computado =
-     "241.8px 241.8px 241.8px 241.8px 0px". La regla vieja de "auto-fit" seguía generando
-     columnas explícitas, y en CSS "grid-template-columns" le gana a "grid-auto-flow" con
-     "grid-auto-columns": las cuatro pestañas se repartían el ancho entero y medían 450.
+     El problema original que el "grid" venía a arreglar sí era real: con
+     "repeat(auto-fit,minmax(190px,1fr))" las cuatro pestañas se repartían el
+     ancho entero de una pantalla de 1820 y cada una midía 450. Ese problema
+     lo resuelve igual el "flex" que se usa ahora, con "flex:0 0 auto": cada
+     pestaña mide lo que mide su rótulo, que es justo lo que se quería.
 
-     Sin este "none", el "grid-auto-columns:200px" de abajo no se usaba para nada. Y tiene que
-     ir en la MISMA regla base y no en una aparte: dos reglas con la misma especificidad se
-     deciden por orden de aparición, que es lo más frágil que hay. */
-  grid-template-columns:none;
-  grid-auto-flow:column;
-  grid-auto-columns:200px;
-  justify-content:start;
-  align-items:stretch;
-  max-width:100%;
-  gap:8px;
-  margin-bottom:14px;
-}
+     Y el "flex" ademásEnvuelve: con "flex-wrap:wrap" las pestañas que no entran
+     pasan a la fila siguiente en vez de superponerse.
+
+     Y los dos "@media" que venían abajo fijaban la barra en dos columnas y
+     después en una, con la misma lógica del "grid". Con "flex:wrap" no hacen
+     falta: en una pantalla angosta las pestañas ya bajan solas.
+
+     La regla única está en css/styles.css.
+     ------------------------------------------------------------------- */
 
 /* Y 200 y no "1fr" ni "max-content": con "1fr" se reparten el sobrante, que ahora es toda la
    pantalla, y con "max-content" quedarían de cuatro anchos distintos. El número sale de la
    medición: el rótulo más largo pide 190 con su borde y su ícono, y 200 es lo que sobra con
    margen. */
-@media (max-width:900px){
-  .attendance-tabs{
-    grid-auto-flow:row;
-    grid-auto-columns:auto;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-}
 
-@media (max-width:560px){
-  .attendance-tabs{
-    grid-template-columns:minmax(0,1fr);
-  }
-}
+
+
 
   -------------------------------------------------------------------
   2) LA COLUMNA "CÓDIGO" SE COMÍA MEDIA TABLA
@@ -845,3 +839,52 @@
     max-height:300px;
   }
 }
+
+.permisoHorarioTabla{
+  width:100%;
+  border-collapse:collapse;
+  font-size:.82rem;
+}
+.permisoHorarioTabla th,
+.permisoHorarioTabla td{
+  padding:8px 10px;
+  border-bottom:1px solid var(--line);
+  text-align:left;
+  vertical-align:top;
+}
+.permisoHorarioTabla th{white-space:nowrap}
+.permisoHorarioMeta{
+  display:block;
+  margin-top:3px;
+  color:var(--muted);
+  font-size:.72rem;
+}
+.permisoHorarioEstado,
+.permisoHorarioMarca{
+  display:inline-block;
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:2px 6px;
+  line-height:1.35;
+}
+.permisoHorarioEstado.confirmado,
+.permisoHorarioMarca.confirmado{
+  color:var(--accent);
+  background:rgba(46,125,50,.1);
+}
+.permisoHorarioEstado.pendiente,
+.permisoHorarioMarca.pendiente{
+  color:var(--warn-ink);
+  background:var(--warn-surface);
+}
+.permisoHorarioEstado.anulado,
+.permisoHorarioMarca.anulado{
+  color:var(--muted);
+  text-decoration:line-through;
+}
+.permisoHorarioMarca{
+  display:table;
+  margin-top:4px;
+  white-space:normal;
+}
+.permisoHorarioMarca.error{color:var(--danger)}

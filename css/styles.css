@@ -2286,45 +2286,20 @@ button[role="tab"][aria-selected="true"] .ico {
    Se reusa la misma clase de las pestañas de asistencia mensual: ya tiene
    el comportamiento de la raya de abajo y la alineación, y una clase nueva
    para lo mismo son dos reglas que un dia no coinciden. */
-.supTabs {
+.pestanas,
+.supTabs,
+.attendance-tabs {
   display: flex;
   gap: 6px;
-  /* -------------------------------------------------------------------
-     Y POR QUÉ SE PARTEN EN DOS FILAS EN VEZ DE DESPLAZARSE DE LADO
-     -------------------------------------------------------------------
-     Con "overflow-x:auto" y sin "flex-wrap", cuando las pestañas no entran salía
-     una barra de desplazamiento horizontal DEBAJO de ellas, con una rayita que no
-     se sabe qué es, y la última quedaba cortada contra el borde.
-
-     Lo medido con las cinco pestañas de hoy, en una pantalla de 991 px:
-
-         Asistencia diaria                    200 px
-         Conciliar el reloj con la planilla    402 px
-         Mis avisos de ingreso                267 px
-         Avisos del día                        190 px
-         Importar marcajes desde Excel         353 px
-         ----------------------------------------------------------------
-         lo que necesitan, en una fila       1436 px
-         lo que hay                             991 px
-
-     Faltan 445 px. Con "flex-wrap:wrap" entran en dos filas y no hay nada que
-     desplazar: se ven TODAS, que es lo único que importa en una barra de
-     pestañas. Antes había que adivinar que había una quinta abajo a la derecha.
-
-     Y POR QUÉ NO SE ACORTARON LOS RÓTULOS
-
-     Porque el más largo, "Conciliar el reloj con la planilla", mide 402 px, y
-     aunque se le quitaran dos palabras seguiría sin entrar. Acortar palabras para
-     que quepan es la forma más común de que un rótulo termine diciendo menos de
-     lo que hace, y esa es la forma en que la gente lo carga en el lugar
-     equivocado. */
   flex-wrap: wrap;
   row-gap: 2px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--line);
 }
 
-.supTabs button {
+.pestanas button,
+.supTabs button,
+.attendance-tabs button {
   flex: 0 0 auto;
   margin: 0;
   padding: 11px 12px;
@@ -2342,12 +2317,16 @@ button[role="tab"][aria-selected="true"] .ico {
   gap: 6px;
 }
 
-.supTabs button.active {
+.pestanas button.active,
+.supTabs button.active,
+.attendance-tabs button.active {
   border-color: var(--accent);
   color: var(--secondary-text);
 }
 
-.supTabs button .ico {
+.pestanas button .ico,
+.supTabs button .ico,
+.attendance-tabs button .ico {
   width: 15px;
   height: 15px;
   flex: 0 0 auto;
@@ -5241,14 +5220,23 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
    Y con "auto-fit" el mínimo hace el trabajo solo: si el ancho alcanza para cuatro, van cuatro;
    si no, entran las que quepan y las demás bajan. En un teléfono angosto se parten en dos filas
    sin que haya que escribir un "@media" para eso. */
-.attendance-tabs{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
-  align-items:stretch;
-  max-width:100%;
-  gap:8px;
-  margin-bottom:14px;
-}
+/* -------------------------------------------------------------------
+     EL "AUTO-FIT" DE LAS PESTANAS SE BORRÓ DE ACÁ
+     Esta regla ponía "grid-template-columns:repeat(auto-fit,minmax(190px,1fr))",
+     que hace que las pestañas se repartan el ancho entero de la pantalla: con una
+     pantalla ancha salen cuatro columnas de 190 y sobran 1000 píxeles, que se van
+     a columnas vacías al final y empujan las cuatro pestañas al medio.
+     
+     Es lo que se veía antes: cuatro pestañas de unos 450 píxeles cada una, con el
+     rótulo perdido en el medio de un botón gigante.
+     
+     La regla que quedó en su lugar es "flex" con "flex-wrap:wrap" y
+     "flex:0 0 auto", que hace lo mismo que se quería: cada pestaña mide lo que
+     mide su rótulo, y las que no entran bajan a la fila siguiente.
+     
+     Y por eso esta copia se borra y no se arregla: dos reglas para lo mismo, y
+     gana la que se carga última, que es la que nadie recuerda que existe.
+     ------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------
    CADA PESTAÑA
@@ -5274,15 +5262,16 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
   align-items:center;
   justify-content:flex-start;
   gap:8px;
-  padding:11px 16px;
-  border:1px solid var(--line);
-  border-radius:9px;
-  background:var(--panel);
-  color:var(--text);
+  padding:11px 12px;
+  border:0;
+  border-bottom:2px solid transparent;
+  border-radius:7px;
+  background:none;
+  color:var(--muted);
   font-family:var(--menu-fuente-pila);
-  font-size:.72rem;
+  font-size:inherit;
   font-weight:600;
-  letter-spacing:.03em;
+  letter-spacing:.05em;
   line-height:1.2;
   text-align:left;
   white-space:nowrap;
@@ -5325,17 +5314,30 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
    cambian el fondo y el borde, que es lo que hay que notar. */
 .attendance-tabs button[role="tab"]:hover,
 .attendance-tabs button[role="tab"]:focus-visible{
-  background:var(--surface-hover);
-  border-color:var(--accent);
+  background:none;
+  border-bottom-color:var(--accent);
 }
 
 .attendance-tabs button[role="tab"].active,
 .attendance-tabs button[role="tab"][aria-selected="true"]{
-  background:var(--panel);
-  border-color:var(--accent2);
+  background:none;
+  border-bottom-color:var(--accent);
+  color:var(--secondary-text);
   border-width:2px;
   color:var(--text);
-  font-weight:700;
+  /* Y POR QUÉ NO SE PONE "font-weight:700" EN LA ACTIVA
+   *
+   * Porque la activa del supervisor no lo tiene, y con "700" acá las dos barras
+   * seguían sin verse iguales justo en la pestaña que más se mira.
+   *
+   * MEDIDO después de unificar todo lo demás, y solo por esto:
+   *
+   *     mensual      font-weight: 700
+   *     supervisor   font-weight: 600
+   *
+   * La activa se distingue por la raya de abajo y por el color, que es lo que
+   * alcanza, y no necesita estar en negrita además. */
+  font-weight:600;
 }
 
 /* -------------------------------------------------------------------
@@ -5394,7 +5396,7 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
    "js/versiones.js" y el "?v=" de los enlaces. O mejor: correr el guion.
 */
 :root{
-  --version-app:'128';
+  --version-app:'135';
 }
 
 .attendance-tabs .pest-txt{
@@ -5765,7 +5767,7 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
   color: var(--muted);
 
-  font: 600 .82rem 'Montserrat',system-ui,sans-serif;
+  font: 600 .82rem var(--menu-fuente-pila);
 
   text-transform: uppercase;
 
@@ -5835,7 +5837,7 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
   color: var(--muted);
 
-  font: 700 .7rem 'Montserrat',system-ui,sans-serif;
+  font: 700 .7rem var(--menu-fuente-pila);
 
   letter-spacing: 0;
 
