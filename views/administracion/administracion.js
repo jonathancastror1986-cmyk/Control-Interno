@@ -87,6 +87,95 @@ function toleranciaDe(supCode){
   const emp=empresaDeEquipo(supCode);
   return (emp&&emp.tolerancia_minutos!=null)?Number(emp.tolerancia_minutos):10;
 }
+// ---------------------------------------------------------------------
+// LA HORA DE SALIDA DEL TURNO, PARA PODER CERRAR UN DÍA SIN QUE NADIE FICHARA
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ HACE FALTA UNA FUNCIÓN APARTE
+//
+// Porque "horaEntradaDe()" ya existe y devuelve '08:00' si la empresa no tiene
+// hora puesta. Para la entrada eso está bien: una entrada sin hora configurada
+// igual hay que compararla con algo.
+//
+// Para la salida es distinto, y por eso NO tiene valor por omisión. Si una
+// empresa no tiene hora de salida puesta, no se puede inventar una: se cierra el
+// día con la hora de la última entrada, que es un dato real, y se avisa que fue
+// esa. Poner un '17:00' inventado sería fabricar una hora en un registro que se
+// usa para calcular cuántas horas trabajó.
+// Y DEVUELVE NULL CUANDO NO HAY, PARA QUE EL QUE CIERRA LO SEPA
+function horaSalidaDe(supCode){
+  const emp=empresaDeEquipo(supCode);
+  return (emp&&emp.hora_salida)||null;
+}
+// ---------------------------------------------------------------------
+// LAS DOS HORAS DE ENTRADA: LA DEL RELOJ Y LA DEL SUPERVISOR
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ HAY QUE SEPARARLAS
+//
+// Porque son dos hechos distintos y la tabla los mezclaba en una sola columna.
+//
+//   la del reloj     la máquina de la obra leyó la tarjeta. Es un dato.
+//   la del supervisor alguien vio a la persona y lo anotó. Es un dato también.
+//
+// Y al mezclarlas pasaba esto: la columna ENTRADA mostraba una de las dos, sin
+// decir cuál, y el "Presente, tarde" se calculaba sobre la que apareciera primero.
+// Con la del reloj a las 08:00 y la del supervisor a las 12:21, la fila decía
+// "Presente, tarde" — y no se sabía si llegaba tarde o si el supervisor lo vio
+// más tarde.
+//
+// Y LA DECISIÓN, QUE NO ES MÍA
+//
+// El reloj manda para el atraso, y la del supervisor se muestra aparte. La razón
+// es que el reloj no se puede equivocar ni tener mauvaise voluntad: si leyó la
+// tarjeta, esa hora es el hecho. La del supervisor es lo que él vio, que puede
+// ser más tarde porque llegó después.
+//
+// ---------------------------------------------------------------------
+// QUÉ ES "DEL RELOJ" Y QUÉ ES "DEL SUPERVISOR"
+//
+// Y POR QUÉ NO SE USA EL NOMBRE DEL ORIGEN SINO LA LISTA
+//
+// Porque "marcajes.origen" fue creciendo migración por migración: 017 lo creó con
+// (qr, manual, excel, porteria, app), 020 le agregó 'reloj', 026 le agregó 'sistema',
+// 035 le agregó 'offline_csv'. Un día de estos aparece otro y queda del lado
+// equivocado sin que nadie lo note.
+//
+// Las dos listas están acá, en un solo lugar, y se pueden leer de un vistazo.
+const ORIGENES_DEL_RELOJ=['excel','reloj','offline_csv'];
+const ORIGENES_DEL_SUPERVISOR=['qr','manual','porteria','app'];
+function esDelReloj(origen){return ORIGENES_DEL_RELOJ.indexOf(origen)>=0;}
+function esDelSupervisor(origen){return ORIGENES_DEL_SUPERVISOR.indexOf(origen)>=0;}
+// Y LAS TRES QUE SON "DEL SISTEMA", QUE NO SON NINGUNA DE LAS DOS COSAS
+//
+// 'sistema' es el origen del cierre automático de un día. No es el reloj ni es el
+// supervisor: es la máquina decidiendo por lo que los dos no hicieron. Por eso va
+// aparte y no se cuelga en la lista de ningún otro.
+const ORIGENES_DEL_SISTEMA=['sistema'];
+
+// Y LAS ENTRADAS DE UN DÍA, SEPARADAS POR QUIÉN LAS REGISTRÓ
+//
+// Devuelve null cuando no hay, y no un objeto vacío: un "reloj: {}" obliga a
+// preguntar por dentro, y un null obliga a preguntar "¿hay?". La segunda es la
+// pregunta que uno se hace de verdad.
+function entradasSeparadas(registros,code,fecha){
+  const delDia=registros.filter(m=>m.code===code&&m.fecha===fecha&&m.tipo==='entrada');
+  return {
+    reloj:delDia.find(m=>esDelReloj(m.origen))||null,
+    supervisor:delDia.find(m=>esDelSupervisor(m.origen))||null
+  };
+}
+// Y LA ENTRADA QUE CORRESPONDE PARA EL CÁLCULO DEL ATRASO
+//
+// Y POR QUÉ ESTA FUNCIÓN Y NO USAR LA ENTRADA A SECAS EN TODOS LOS LUGARES
+//
+// Porque si el reloj leyó, esa es la hora. Si no leyó, la que hay es la del
+// supervisor, y es lo mejor que hay. Devolver el objeto entero, en cambio, obliga
+// a que cada lugar que calcule algo decida por su cuenta cuál de las dos usa, y
+// es exactamente lo que pasó.
+function entradaParaElAtraso(separadas){
+  return separadas.reloj||separadas.supervisor||null;
+}
 // "1 h 20 min", "20 min", o "" si no hay nada. Se usaba escrito al revés
 // en dos lugares distintos y en cada uno distinto; el de la conciliación
 // mostraba "llegó 480", que son minutos desde medianoche y no dicen nada
@@ -234,12 +323,34 @@ function diasSinSalida(code){
   return marcajes.filter(m=>m.code===code&&m.tipo==='entrada'&&m.fecha<hoy&&!salidas.has(m.fecha));
 }
 
+// Y POR QUÉ CADA UNA TRAE SU "clase"
+//
+// Porque "situacionDiaria()" termina con esta línea:
+//
+//     const situacion=SITUACIONES_MEDIBLES.find(s=>s.clave===clave);
+//     return {clave,clase:situacion.clase,texto:situacion.texto};
+//
+// y si la entrada no tiene "clase", eso devuelve "undefined", y una etiqueta con
+// clase "undefined" no tiene color: sale con el mismo tono que el texto de la
+// tabla. Cuatro de las cinco pastillas salían sin color, y solo se veían
+// "Accidente" y "Licencia", que no salen de esta lista.
+//
+// Y POR QUÉ EL VERDE ES EL CASO NORMAL Y NO UNA EXCEPCIÓN
+//
+// Porque "Presente, marcó" es lo que le pasa a la mayoría de las personas todos
+// los días. Si lo que sale siempre es "Presente, tarde", el amarillo es lo de
+// siempre y no llama la atención de nadie: cuando todos están mal, ninguno está
+// marcándose como mal.
+//
+// Y "Entró y no fichó salida" es amarilla, y no roja: el rojo es para "Sin marcar",
+// que es la única cosa que el supervisor tiene que ir a hacer HOY. Seis filas rojas
+// no tienen ninguna que destaque.
 const SITUACIONES_MEDIBLES=[
-  {clave:'presente',texto:'Presente, marcó'},
-  {clave:'tarde',texto:'Presente, tarde'},
-  {clave:'pendiente',texto:'Presente, pendiente marca'},
-  {clave:'abierto',texto:'Entró y no fichó salida'},
-  {clave:'sin_marcar',texto:'Sin marcar'}
+  {clave:'presente',texto:'Presente, marcó',clase:'dia-verde'},
+  {clave:'tarde',texto:'Presente, tarde',clase:'dia-amarillo'},
+  {clave:'pendiente',texto:'Presente, pendiente marca',clase:'dia-amarillo'},
+  {clave:'abierto',texto:'Entró y no fichó salida',clase:'dia-amarillo'},
+  {clave:'sin_marcar',texto:'Sin marcar',clase:'dia-rojo'}
 ];
 
 function claveSituacionDiaria(entrada,tarde,avisoRRHH,hayDiasAbiertos,motivoPuerta){
@@ -455,6 +566,45 @@ async function medirAsistenciaDiaria(){
 }
 
 async function registrarMarcaje(code,tipo,origen,nota,horaPedida){
+  // Y ANTES DE ESCRIBIR LA ENTRADA DE HOY, SE CIERRAN LOS DÍAS VIEJOS
+  //
+  // Va primero, y por una razón que parece al revés: una entrada nueva es la
+  // señal de que esa persona volvió a la obra. Si tenía días abiertos de antes,
+  // esos días ya no están esperando nada: pasaron. Cerrarlos ahora, y no en una
+  // tarea aparte, es lo que evita que se acumulen para siempre.
+  //
+  // Y SOLO CUANDO ES UNA ENTRADA
+  //
+  // Cuando es una salida no se cierra nada: significaría cerrar el día de hoy con
+  // una salida y después marcarla de nuevo, y el día quedaría con dos salidas, que
+  // el índice único de (code, fecha, tipo) no deja.
+  if(tipo==='entrada'){
+    try{
+      const cerradas=await cerrarDiasAbiertosDe(code,miCodigoSupervisor);
+      // Y SE DICE EN PANTALLA, NO EN LA CONSOLA
+      //
+      // Porque si se cerrara un día en silencio, la primera vez que alguien lo
+      // viera lo tomaría por un error: una salida que nadie registró. Con el
+      // aviso, se sabe que el sistema lo cerró y por qué.
+      const inferidas=cerradas.filter(c=>c.cerrada).length;
+      if(inferidas>0){
+        const conHora=cerradas.filter(c=>c.cerrada&&c.hora).map(c=>c.hora).join(', ');
+        const sinCerrar=cerradas.filter(c=>!c.cerrada).length;
+        alert('Se cerraron '+inferidas+' día(s) que estaban sin salida'
+          +(conHora?(' con estas horas: '+conHora):'')
+          +'.\n\nLa salida no se había registrado, así que el día se cerró con la hora de salida '
+          +'del turno, no porque alguien la haya fichado. Si está mal, hay que abrir ese día en Soporte.'
+          +(sinCerrar?('\n\nQuedaron '+sinCerrar+' sin poder cerrar: no hay hora de salida ni entrada.'):''));
+      }
+    }catch(error){
+      // Y SI EL CIERRE FALLA, NO SE IMPIDE MARCAR
+      //
+      // Porque el marcaje es lo importante y ya se puede hacer; el cierre es una
+      // limpieza. Si falla, el día queda abierto y visible, que es exactamente el
+      // estado de antes de esta función y no un daño nuevo.
+      console.error('cerrarDiasAbiertosDe:',error);
+    }
+  }
   const w=workers.find(x=>x.code===code);
   if(!w)return null;
   const yaExiste=marcajeDe(code,tipo);
@@ -616,6 +766,83 @@ function abrirAvisoMarcaje(w,info){
   document.getElementById('marcajeModal').classList.add('open');
 }
 
+// ---------------------------------------------------------------------
+// EL CIERRE AUTOMÁTICO DE UN DÍA QUE QUEDÓ ABIERTO
+// ---------------------------------------------------------------------
+//
+// Y EL PROBLEMA QUE RESUELVE
+//
+// La regla de "el siguiente escaneo es la salida" funciona solo si la persona
+// vuelve a pasar la tarjeta al salir. Si pasa la tarjeta una sola vez al llegar —
+// que es lo normal— ese día queda abierto para siempre. Y como nadie vuelve al
+// lector de salida, cada día abierto queda abierto para siempre.
+//
+// MEDIDO en la base: 50 días abiertos, y CERO salidas registradas en ninguno. El
+// 28 de septiembre entraron 35 personas de golpe por la importación del reloj, y
+// de ahí en adelante las que pasaron la tarjeta no volvieron a pasarla.
+//
+// Y POR QUÉ CIERRA CON LA HORA DE SALIDA DEL TURNO, Y NO CON UNA INVENTADA
+//
+// Porque la hora de salida está configurada por empresa: es "empresa.hora_salida",
+// la misma que ya usa el reporte de colación. Si existe, se usa: es la hora en que
+// la gente se va, y por lo tanto la hora en que terminó ese día.
+//
+// Y SI NO ESTÁ CONFIGURADA
+//
+// No se inventa. Se usa la última entrada que hay de ese día, que es un dato real,
+// y la nota lo dice. Poner un '17:00' inventado sería fabricar una hora en un
+// registro que después se usa para calcular cuántas horas trabajó, y eso es peor
+// que un día visiblemente abierto.
+//
+// Y LA MARCA DE QUE FUE INFERIDO
+//
+// El origen es 'sistema', que ya estaba en el "check" de la columna desde la
+// migración 026, justamente para esto: un marcaje que no hizo ni el reloj ni una
+// persona. Y la nota lo dice en texto, para que quien lo lea no piense que la
+// persona se quedó hasta esa hora.
+//
+// ---------------------------------------------------------------------
+async function cerrarDiasAbiertosDe(code,supCode){
+  const abiertas=diasSinSalida(code);
+  if(!abiertas.length)return [];
+  const horaSalidaTurno=horaSalidaDe(supCode||miCodigoSupervisor);
+  const cerradas=[];
+  for(const abierta of abiertas){
+    // Y LA HORA DE SALIDA DE ESE DÍA EN CONCRETO
+    //
+    // Se busca la última entrada de ESE día, no la de hoy: el día que se cierra es
+    // el viejo, y su última entrada es la de ese día viejo.
+    const delDia=marcajes.filter(m=>m.code===code&&m.fecha===abierta.fecha&&m.tipo==='entrada')
+      .sort((a,b)=>minutosDe(b.hora)-minutosDe(a.hora))[0];
+    const hora=(horaSalidaTurno&&minutosDe(horaSalidaTurno)>minutosDe(abierta.hora))
+      ? horaSalidaTurno
+      : (delDia?delDia.hora:null);
+    // Y SI NO HAY NI UNA NI OTRA, NO SE CIERRA
+    //
+    // Porque cerrar un día sin hora de salida es escribir un "sin hora", que es
+    // peor que dejarlo abierto y visible. Queda para que alguien lo mire.
+    if(!hora){
+      cerradas.push({fecha:abierta.fecha, cerrada:false, motivo:'sin hora de salida'});
+      continue;
+    }
+    const fueInferida=!!horaSalidaTurno;
+    const {data,error}=await window.supabaseClient.from('marcajes').insert({
+      code, fecha:abierta.fecha, hora, tipo:'salida',
+      origen:'sistema',
+      nota: fueInferida
+        ? 'Cierre automático: la salida no se registró y se cierra con la hora de salida del turno.'
+        : 'Cierre automático: no hay hora de salida configurada, se cierra con la última entrada del día.'
+    }).select().single();
+    if(error){
+      cerradas.push({fecha:abierta.fecha, cerrada:false, motivo:error.message});
+      continue;
+    }
+    marcajes.push(data);
+    cerradas.push({fecha:abierta.fecha, cerrada:true, hora, inferida:fueInferida});
+  }
+  return cerradas;
+}
+
 // Formatea una fecha sin arriesgarse a mostrar "Invalid Date" si el dato
 // viene vacío o con un formato inesperado.
 //
@@ -623,6 +850,33 @@ function abrirAvisoMarcaje(w,info){
 // "2026-09-20", y new Date() la interpreta como MEDIANOCHE UTC. En Chile
 // eso es el 19 a las 21:00, así que el día se mostría corrido en uno. Por
 // eso las fechas "YYYY-MM-DD" se arman a mano en hora local.
+// Y CÓMO SE DIBUJA CADA UNA DE LAS DOS HORAS
+//
+// Y POR QUÉ UNA CELDA CON DOS HORAS EN VEZ DE UNA COLUMNA QUE LAS JUNTE
+//
+// Porque juntarlas en un renglón obliga a leer una etiqueta chiquita para saber
+// cuál es cuál, y con siete personas y cuatro horas en pantalla eso se lee mal.
+//
+// Y por qué la del reloj va marcada: es la que manda para el atraso, y si se ve
+// que una fila tiene dos horas, hay que poder distinguir de un vistazo cuál de
+// las dos está mandando. Por eso la del reloj va en negrita y la del supervisor en
+// tono bajo, y no al revés.
+//
+// Y CUANDO SOLO HAY UNA, NO SE DICE DE QUIÉN ES
+//
+// Porque una sola hora no necesita etiqueta: no hay dos cosas de las que
+// distinguir. La etiqueta solo aparece cuando hay las dos, que es cuando hay algo
+// que distinguir.
+function celdaDeHora(marcaje,tipo){
+  if(!marcaje)return '';
+  const hora=escHtml(marcaje.hora);
+  const otra=tipo==='reloj'?'el supervisor lo vio':'el reloj no leyó';
+  return tipo==='reloj'
+    ? '<b>'+hora+'</b><small class="diaVacia">reloj</small>'
+    : '<span>'+hora+'</span><small class="diaVacia">'+escHtml(otra)+'</small>';
+}
+
+// Formatea una fecha sin arriesgarse a mostrar "Invalid Date" si el dato
 function fechaLegible(valor,conHora){
   if(!valor)return '';
   const soloFecha=typeof valor==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(valor);
@@ -700,7 +954,60 @@ async function motivosDePuerta(){
   return mapa;
 }
 
-function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta, avisoRRHH){
+// Y SI EL DÍA ABIERTO ES DE HOY O DE AYER
+//
+// Y POR QUÉ UN DÍA Y NO UNA SEMANA
+//
+// Porque el cierre automático ocurre cuando la persona vuelve a marcar entrada:
+// si estuvo ayer y llegó hoy, lo de ayer ya se cerró solo. Un día abierto que
+// sobrevive a eso significa que no volvió a pasar, y eso sí es raro.
+//
+// Y por qué con la lista completa de días abiertos y no solo con la fecha del más
+// viejo: porque se pregunta por el más reciente, que es el que dice "hace cuánto".
+// Si el más reciente es de hoy o de ayer, hay algo que hacer; si es más viejo, no.
+function diasAbiertosAntiguos(abiertas){
+  if(!abiertas||!abiertas.length)return false;
+  // Y LAS DOS FECHAS QUE IMPORTAN, CALCULADAS DE UNA VEZ
+  //
+  // "hoyLocal()" devuelve "AAAA-MM-DD", que es texto. Y el "slice" con un "-1"
+  // encima NO es restar un día: es restar el número a una cadena, y "08" menos
+  // uno da un número sin los ceros. Comparar "7" contra "08" da falso, y el día
+  // abierto de ayer se pintaría como viejo.
+  //
+  // Por eso la fecha de ayer se arma con un Date y se vuelve a formatear. Es más
+  // líneas, pero las líneas dicen lo que hacen.
+  const hoy=hoyLocal();
+  const ayer=(function(){
+    const d=new Date();
+    d.setDate(d.getDate()-1);
+    const mes=String(d.getMonth()+1).padStart(2,'0');
+    const dia=String(d.getDate()).padStart(2,'0');
+    return d.getFullYear()+'-'+mes+'-'+dia;
+  })();
+  // Y ALGO ABIERTO ES "VIEJO" SOLO SI NINGUNO ES DE HOY NI DE AYER
+  //
+  // El más reciente manda: si hay uno de ayer y otro de hace un mes, todavía hay
+  // algo que mirar esta mañana, y no se pinta de gris.
+  return !abiertas.some(m=>m.fecha===hoy||m.fecha===ayer);
+}
+
+// Y LA FECHA CORTA DE LA ETIQUETA
+//
+// Ya existe una: "fechaCorta()" en "views/administracion/documentos.js", que
+// devuelve "28/09/2026". Se usa esa y no otra.
+//
+// Y POR QUÉ NO SE ESCRIBE UNA AQUÍ
+//
+// Porque "documentos.js" se carga DESPUÉS que este archivo, así que una función
+// con el mismo nombre escrita acá se pierde en silencio: no da error, simplemente
+// la de más abajo gana. Ya se cayó en eso una vez, y el síntoma es que la fecha
+// sale con otro formato del esperado y nadie sabe por qué.
+//
+// Y está bien que gane esa: es la que usa el resto de las pantallas, y una fecha
+// escrita de una manera en la asistencia y de otra en los relojes se lee como un
+// error aunque no lo sea.
+
+function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta, avisoRRHH,abiertas){
   // Y POR QUÉ EL MOTIVO SE MIRA PRIMERO, Y NO AL FINAL
   //
   // Antes la primera pregunta era "¿fichó?". Con esa pregunta primero, un
@@ -717,6 +1024,34 @@ function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta, avisoRRHH){
   // Y por eso ahora el motivo gana siempre. "Sin marcar" queda para cuando no hay
   // ningún motivo, que es el único caso en que la falta de marcaje es un problema.
   const clave=claveSituacionDiaria(ent,tarde,avisoRRHH,abierto,motivoPuerta);
+  // Y UN DÍA ABIERTO VIEJO NO ES UNA ALERTA, Y POR QUÉ
+  //
+  // La decisión fue del usuario: en amarillo o rojo solo lo de HOY. Un día sin
+  // salida de hace un mes no es algo que el supervisor pueda ir a resolver esta
+  // mañana, y si aparece en amarillo cada día, la lista de pendientes se llena de
+  // cosas que no se van a resolver nunca y la lista de verdad se deja de mirar.
+  //
+  // Y QUÉ ES "VIEJO"
+  //
+  // Un día. Porque el cierre automático ocurre cuando la persona vuelve a marcar
+  // entrada: si estuvo ayer y hoy llegó, lo de ayer ya se cerró solo. Si sigue
+  // abierto después de un día, es porque no volvió a pasar, y eso sí es raro y sí
+  // merece una llamada.
+  //
+  // Y EL TEXTO DICE QUÉ DÍA ES
+  //
+  // Porque un gris sin fecha no dice nada. Si dice "abierto del 28-09", uno puede
+  // decidir si le importa; si solo dice "abierto", no hay nada con qué decidir.
+  if(clave==='abierto'&&diasAbiertosAntiguos(abiertas)){
+    // Y EL GRIS, QUE ES LO NUEVO
+    //
+    // Es un color que ya existe en el tema: si no, hay que crearlo, y un color
+    // nuevo necesita que "comprueba-color-sobre-fondo" lo revise. Con el gris, el
+    // día abierto viejo se ve sin gritar, y lo de hoy sigue siendo lo único
+    // amarillo o rojo de la columna.
+    return {clave,clase:'dia-abierto-viejo',
+      texto:'Abierto del '+fechaCorta(abiertas[0].fecha)};
+  }
   if(clave==='accidente'||clave==='licencia')
     return {clave,clase:'dia-azul', texto: clave==='accidente'?'Accidente':'Licencia'};
   if(clave==='permiso') return {clave,clase:'dia-amarillo', texto:'Permiso'};
@@ -771,8 +1106,23 @@ async function renderDiaria(){
   const entradaEsp=horaEntradaDe(supCode);
   const tolerancia=toleranciaDe(supCode);
   const filaDatos=equipo.map(w=>{
-    const ent=marcajeDe(w.code,'entrada');
     const sal=marcajeDe(w.code,'salida');
+    // Y LAS DOS HORAS, SEPARADAS POR QUIÉN LAS REGISTRÓ
+    //
+    // Antes el cálculo del atraso usaba "marcajeDe(w.code,'entrada')", que
+    // devuelve la PRIMERA entrada que encuentra del día, sin mirar de quién es.
+    // Con una entrada del reloj a las 08:00 y una del supervisor a las 12:21, la
+    // dos. Con una entrada del reloj a las 08:00 y una del supervisor a las 12:21, la
+    // dos. Ahora está dicho cuál manda.
+    const separadas=entradasSeparadas(marcajes,w.code,fechaDiaria);
+    const entDelReloj=separadas.reloj;
+    const entDelSupervisor=separadas.supervisor;
+    // Y LA QUE MANDA PARA EL RETRASO
+    //
+    // La del reloj si la hay; si el reloj no leyó, la del supervisor, que es lo
+    // mejor que hay. La decisión la tomó el usuario: el reloj no se puede
+    // equivocar, y lo que el supervisor vio puede ser más tarde.
+    const ent=entDelReloj||entDelSupervisor;
     const minEnt=ent?minutosDe(ent.hora):null;
     const minEsp=minutosDe(entradaEsp);
     const tarde=minEnt!=null&&minEsp!=null&&minEnt>minEsp+tolerancia;
@@ -806,7 +1156,7 @@ if(social||prev){
     // indistinguible de una pantalla vacía, salvo que el error esté a la vista.
     const motivoPuerta=motivosPuerta[w.code]||'';
     const avisoRRHH=pendientes.some(a=>a.tipo_alerta==='sin_salida');
-    const sit=situacionDiaria(ent, sal, tarde, abiertas.length>0, motivoPuerta, avisoRRHH);
+    const sit=situacionDiaria(ent, sal, tarde, abiertas.length>0, motivoPuerta, avisoRRHH,abiertas);
     const pendiente=['accidente','licencia','permiso'].includes(motivoPuerta)
       ?false
       :(!ent || (ent&&!sal&&abiertas.length>0) || pendientes.length>0);
@@ -819,7 +1169,8 @@ if(social||prev){
         <small>${escHtml(w.spec||'')}</small>
         ${etiquetasTags}
       </td>
-      <td class="diaCelda diaCeldaHora">${ent?escHtml(ent.hora):''}</td>
+      <td class="diaCelda diaCeldaHora">${celdaDeHora(entDelReloj,'reloj')}</td>
+      <td class="diaCelda diaCeldaHora">${celdaDeHora(entDelSupervisor,'supervisor')}</td>
       <td class="diaCelda diaCeldaHora">${sal?escHtml(sal.hora):(ent?'<span class="diaVacia">&mdash;</span>':'')}</td>
       <td class="diaCelda diaCeldaSit">
         <span class="diaPill ${sit.clase}">${escHtml(sit.texto)}</span>
@@ -877,7 +1228,8 @@ if(social||prev){
     return;
   }
   list.innerHTML='<div class="diaTablaCaja"><table class="diaTabla">'
-    +'<thead><tr><th>Trabajador</th><th class="diaThHora">Entrada</th>'
+    +'<thead><tr><th>Trabajador</th><th class="diaThHora">Entrada reloj</th>'
+    +'<th class="diaThHora">Con el supervisor</th>'
     +'<th class="diaThHora">Salida</th><th>Situación</th>'
     +'<th class="diaThAvisos">Avisos</th>'
     +'<th class="diaThAcciones">Acciones</th></tr></thead>'

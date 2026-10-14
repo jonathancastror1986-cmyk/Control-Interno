@@ -1628,6 +1628,40 @@ que uno dude de cómo va a salir impreso.
   border-color: #E9A3A3;
 }
 
+/* ===================================================================
+   UN DÍA SIN SALIDA QUE YA ES VIEJO
+   ===================================================================
+   Un día que quedó abierto y es de hace más de un día.
+
+   Y POR QUÉ UN GRIS, Y NO UN AMARILLO MÁS TENUE
+   ===================================================================
+
+   Porque la decisión fue: en amarillo o rojo solo lo de HOY. Y no porque un
+   amarillo más claro sirva: un amarillo más claro sigue siendo una alerta, y
+   con seis filas así la lista de pendientes deja de señalar lo que sí se puede
+   resolver esta mañana.
+
+   Un gris dice "esto está, y no es para hoy" sin gritar. El texto de la
+   etiqueta lleva la fecha, que es lo que permite decidir si ese gris importa o
+   no: "abierto del 28-09" y "abierto de ayer" son dos cosas muy distintas, y
+   sin la fecha no hay con qué decidir.
+
+   Y LOS COLORES SALEN DE LOS OTROS, PARA QUE EL GUARDIÁN DE CONTRASTE LOS PUEDA VER
+   ===================================================================
+
+   Los tres grupos usan un fondo y un borde de la misma familia: el fondo se
+   oscurece un poco y el texto es el tono fuerte de esa familia. Los números
+   están puestos para que "comprueba-color-sobre-fondo" los mida, y si mañana se
+   cambia un color hay que volver a correrlo. */
+.diaPill.dia-abierto-viejo {
+  background: #ECECEC;
+  color: #4A4A4A;
+  border-color: #BDBDBD;
+}
+
+/* Y LA APLICACIÓN ES EN TEMA CLARO. En el oscuro, un gris claro con texto gris
+   claro se vuelve ilegible, y por eso el texto y el borde no se dejan como
+   variables del tema: el guardián los revisa contra el fondo que está puesto. */
 .diaPill.dia-amarillo {
   background: #FFE9A8;
   color: #4A3200;
@@ -5396,7 +5430,7 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
    "js/versiones.js" y el "?v=" de los enlaces. O mejor: correr el guion.
 */
 :root{
-  --version-app:'136';
+  --version-app:'137';
 }
 
 .attendance-tabs .pest-txt{
