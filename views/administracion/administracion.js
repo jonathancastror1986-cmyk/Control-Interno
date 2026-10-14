@@ -354,7 +354,7 @@ const SITUACIONES_MEDIBLES=[
 ];
 
 function claveSituacionDiaria(entrada,tarde,avisoRRHH,hayDiasAbiertos,motivoPuerta){
-  if(['accidente','licencia','permiso'].includes(motivoPuerta))return motivoPuerta;
+  if(MOTIVOS_EXENTOS.includes(motivoPuerta))return motivoPuerta;
   if(!entrada)return 'sin_marcar';
   if(avisoRRHH)return 'pendiente';
   if(hayDiasAbiertos)return 'abierto';
@@ -376,7 +376,7 @@ function resumirSituacionesDiarias(equipo, registros, avisos, fecha, horaEntrada
     const tarde=minEntrada!=null&&esperado!=null&&minEntrada>esperado+minutosTolerancia;
     const motivo=motivos&&motivos[w.code]||'';
     const clave=claveSituacionDiaria(entrada,tarde,avisoRRHH,abiertas.length>0,motivo);
-    const exento=['accidente','licencia','permiso'].includes(clave);
+    const exento=MOTIVOS_EXENTOS.includes(clave);
     return {trabajador:w,entrada,salida,abiertas,avisoRRHH,tarde,clave,exento};
   });
   const conteos=Object.fromEntries(SITUACIONES_MEDIBLES.map(s=>[s.clave,0]));
@@ -545,7 +545,7 @@ async function medirAsistenciaDiaria(){
       caja.innerHTML='<div class="gpsWarn"><b>No se pudo leer la asistencia.</b><br><small>'+errores.map(e=>escHtml(e.message||e)).join('<br>')+'</small></div>';
       return;
     }
-    const motivos=await motivosDePuerta();
+    const motivos=motivosDePuerta();
     const resumen=resumirSituacionesDiarias(equipo,resultadoMarcajes.data,resultadoAvisos.data,
       hoy,horaEntrada,tolerancia,motivos);
     const pendientes=resumen.filas.filter(f=>!f.exento&&f.clave!=='presente').length;
@@ -942,15 +942,70 @@ function renderAvisosDia(){
 // marcar asistencia, y el peor lugar para descubrirlo es en la portería, con
 // gente esperando.
 let motivosPuerta={};
-async function motivosDePuerta(){
+// ---------------------------------------------------------------------
+// EL MOTIVO DE LA PORTERÍA, Y DE DÓNDE SALE DE VERDAD
+// ---------------------------------------------------------------------
+//
+// Y LA FUNCIÓN QUE SE LLAMABA NO EXISTE
+//
+// Antes esto llamaba a "rpc('motivos_porteria_hoy')". Esa función NO ESTÁ en
+// ninguna migración: se inventó el nombre. El resultado era un 404 en cada
+// dibujado de la tabla, o sea en cada cambio de fecha y cada vez que se abría la
+// pantalla, y el "catch" se lo tragaba en silencio.
+//
+// Y lo peor del silencio: sin esos motivos, la fila de una persona con licencia o
+// con accidente se pintaba como "Sin marcar" en rojo. O sea que el mismo error
+// hacía que la pantalla dijera UNA cosa falsa y no dijera nada.
+//
+// Y DÓNDE ESTÁ EL DATO, QUE YA EXISTE
+//
+// Está en "asistencia.estado", que es la planilla. La lista de estados es:
+//
+//     X   presente          F   falta
+//     P   permiso           L   licencia
+//     A   accidente mutuo   PP  permiso pagado
+//     V   vacaciones       LL  día lluvia
+//
+// Y "asistenciaDia" ya está cargado en memoria: lo llena "cargarAsistenciaDelDia()"
+// con el mismo día que se está dibujando. No hace falta una consulta por la fila, y
+// no hace falta una función en la base.
+//
+// ---------------------------------------------------------------------
+// Y EL MAPEO, Y POR QUÉ NO SE USA EL CÓDIGO CRUDO DE LA BASE
+//
+// Porque "A" en la base es "accidente mutuo" y en el código la fila dice
+// "Accidente"; "P" es permiso y "PP" es permiso pagado, que NO es lo mismo: un
+// permiso pagado no es una excepción de horario, es un día que ya se payó. Por eso
+// los dos están separados acá y no en la base.
+//
+// Y "X" NO APARECE EN EL MAPEO
+//
+// Porque "X" es "estuvo", que es lo normal y no es un motivo. Si "X" entrara en el
+// mapa, la fila que está bien sería tratada como si tuviera un motivo.
+const MOTIVO_DESDE_ESTADO={
+  P:'permiso',
+  PP:'permiso',
+  L:'licencia',
+  A:'accidente',
+  V:'vacaciones',
+  LL:'lluvia'
+};
+// Y QUÉ HAY QUE EXPONER COMO "EXENTO"
+//
+// Porque "situacionDiaria()" da por hecho que el motivo gana: con licencia o
+// permiso, la fila dice "Permiso" aunque no haya fichado. Y eso está bien para los tres
+// que son una excepción real. Pero "vacaciones" y "lluvia" NO son excepciones de
+// horario: no son "no estuvo", son días que la propia planilla cuenta de otra
+// manera. Por eso van aparte, y se pueden pintar distinto más adelante sin
+// tener que tocar el mapa.
+const MOTIVOS_EXENTOS=['accidente','licencia','permiso'];
+
+function motivosDePuerta(){
   const mapa={};
-  try{
-    const r=await window.supabaseClient.rpc('motivos_porteria_hoy');
-    const filas=Array.isArray(r.data)?r.data:(r.data||[]);
-    filas.forEach(f=>{ if(f&&f.code)mapa[f.code]=f.motivo; });
-  }catch(error){
-    // Sin registro de portería todavía. No es un error.
-  }
+  if(asistenciaDiaError)return mapa;
+  asistenciaDia.forEach(a=>{
+    if(a&&a.code&&MOTIVO_DESDE_ESTADO[a.estado])mapa[a.code]=MOTIVO_DESDE_ESTADO[a.estado];
+  });
   return mapa;
 }
 
@@ -1096,7 +1151,7 @@ async function renderDiaria(){
   // porque si no, la primera vez que se abre la tabla sale sin los colores
   // de permiso, accidente y licencia, y alguien puede leer que ese no tiene
   // permiso cuando sí lo tiene.
-  motivosPuerta=await motivosDePuerta();
+  motivosPuerta=motivosDePuerta();
   const selSup=document.getElementById('supDiariaSup');
   const supCode=selSup?selSup.value:miCodigoSupervisor;
   if(!supCode){list.innerHTML='<small>Selecciona un supervisor.</small>';return;}
@@ -1157,7 +1212,7 @@ if(social||prev){
     const motivoPuerta=motivosPuerta[w.code]||'';
     const avisoRRHH=pendientes.some(a=>a.tipo_alerta==='sin_salida');
     const sit=situacionDiaria(ent, sal, tarde, abiertas.length>0, motivoPuerta, avisoRRHH,abiertas);
-    const pendiente=['accidente','licencia','permiso'].includes(motivoPuerta)
+    const pendiente=MOTIVOS_EXENTOS.includes(motivoPuerta)
       ?false
       :(!ent || (ent&&!sal&&abiertas.length>0) || pendientes.length>0);
     return {
