@@ -337,10 +337,41 @@ async function pedirConfirmacionMarcaje(text,purpose){
     <small style="display:block;color:var(--muted);margin-top:6px">Se escaneó la tarjeta <b>${escHtml(text)}</b>. Revisa el nombre antes de confirmar.</small>
   </div>`;
   document.getElementById('camOk').addEventListener('click',async()=>{
-    panel.style.display='none';
-    panel.innerHTML='';
-    await handleScannedCode(text,purpose);
-    mostrarResultadoEnCamara(text,purpose);
+    // Y POR QUÉ NO SE BORRA EL PANEL ANTES DE REGISTRAR
+    //
+    // Antes se vaciaba y después se registraba. Si el registro fallaba, el panel ya
+    // estaba en blanco y el error se perdía: la pantalla quedaba con un cuadro
+    // vacío y sin una palabra, y el marcaje no estaba. Ahora el panel se borra solo
+    // si el registro salió bien.
+    const boton=document.getElementById('camOk');
+    const otro=document.getElementById('camNo');
+    if(boton){boton.disabled=true;boton.textContent='Registrando…';}
+    if(otro)otro.disabled=true;
+    try{
+      await handleScannedCode(text,purpose);
+      // Y SI SALIÓ BIEN, EL CUADRO SE VAYA
+      //
+      // Es lo que se pidió: al terminar de marcar, el lector se cierra y el turno
+      // sigue. La persona ya vio el nombre antes de apretar, así que no se pierde
+      // el control: se pierde la pantalla que queda tapando la lista de asistencia
+      // mientras llega la fila siguiente.
+      stopLiveScan();
+    }catch(error){
+      const mensaje=(error&&error.message)||error;
+      panel.style.display='';
+      panel.innerHTML='<div class="camResultado"><p class="gpsWarn">No se pudo registrar: '
+        +escHtml(mensaje)+'</p>'
+        +'<button class="btn secondary" type="button" id="camReintentar">Intentar de nuevo</button>'
+        +'</div>';
+      if(boton){boton.disabled=false;boton.textContent=accion;}
+      if(otro)otro.disabled=false;
+      const reintentar=document.getElementById('camReintentar');
+      if(reintentar)reintentar.addEventListener('click',()=>{
+        panel.innerHTML='';
+        panel.style.display='none';
+        openQrCamera(purpose);
+      });
+    }
   });
   document.getElementById('camNo').addEventListener('click',()=>{
     openQrCamera(purpose);

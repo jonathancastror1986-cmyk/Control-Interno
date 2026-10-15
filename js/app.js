@@ -380,6 +380,7 @@ function initView(v){
   if(v==='permisos'){renderPermisos();}
   if(v==='empresas-cargos'){cargarEmpresasCargos();}
   if(v==='buscar-tarjeta'){fillCardSelect();renderCard();}
+if(v==='ficha-trabajador'){initFichaTrabajador();}
   if(v==='imprimir-tarjetas'){fillPdfChecks();}
   if(v==='empresa'){loadEmpresaForm();revisarMigraciones();}
   // Y LA PANTALLA DE MÓDULOS

@@ -96,10 +96,27 @@ async function cargarTareas(code){
     // está, hay que correr la migración 089; si la consulta falla, hay que mirar la
     // red. Decir "no se pudieron leer" para los dos deja a la persona sin saber qué
     // hacer.
-    const falta=/trabajador_tareas[\s\S]*does not exist|relation[\s\S]*does not exist/i.test(error.message||'');
-    tareasEstadoError=falta
+    //
+    // Y CÓMO SE RECONOCE QUE FALTA LA TABLA
+    //
+    // Porque Supabase lo dice en varios formatos según de dónde venga el error, y
+    // con uno solo la mitad de las veces la persona lee un mensaje técnico en vez de
+    // "corré la migración 089", que es lo único que puede hacer:
+    //
+    //   relation "public.trabajador_tareas" does not exist
+    //   Could not find the table 'public.trabajador_tareas' in the schema cache
+    //   PGRST205: Could not find the table
+    //
+    // Y EL NOMBRE DE LA TABLA TIENE QUE ESTAR EN EL MENSAJE
+    //
+    // Porque "does not exist" a secas también lo dice un índice o una columna que
+    // falta, y eso es otro problema con otra solución.
+    const mensajeError=String(error.message||error);
+    const faltaTabla=/trabajador_tareas/.test(mensajeError)
+      && /(does not exist|Could not find the table|schema cache|PGRST205)/i.test(mensajeError);
+    tareasEstadoError=faltaTabla
       ? 'Falta correr la migración 089: la tabla trabajador_tareas no está en la base todavía.'
-      : 'No se pudieron leer las tareas: '+(error.message||error);
+      : 'No se pudieron leer las tareas: '+mensajeError;
     tareasEstado={};
     return;
   }

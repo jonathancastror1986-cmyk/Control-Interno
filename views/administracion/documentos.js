@@ -3228,9 +3228,74 @@ const ESTADOS_TARJA_TOTEM=[
 let fichaEnPantalla=null;
 
 function abrirFichaTrabajador(code){
+  // Y SI EL CÓDIGO VIENE VACÍO, ES QUE SE VOLVIÓ A "ELIGE UN TRABAJADOR"
+  //
+  // Y no un error: la primera opción del selector es ésa, y volver a ella es una
+  // cosa normal de hacer. Antes de esto saltaba un "No se encontró al trabajador .",
+  // con un punto y nada más, que parece un error de la pantalla.
+  if(!code||!String(code).trim()){
+    const sel=document.getElementById('fichaSelector');
+    if(sel)sel.value='';
+    pintarFichaVacia();
+    return;
+  }
   const w=trabajadorEnCualquierEmpresa(code)||trabajadorEnAlcance(code);
   if(!w){alert('No se encontro al trabajador '+code+'.');return;}
+  mostrarFicha(w);
+  if(typeof showView==='function')showView('ficha-trabajador');
+}
+
+// ---------------------------------------------------------------------
+// DIBUJAR LA FICHA, SEPARADO DE ABRIR LA PANTALLA
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ SON DOS FUNCIONES Y NO UNA
+//
+// Porque "abrirFichaTrabajador()" termina llamando a "showView()", y "showView()"
+// termina llamando a "initView()", que es lo que dibuja la pantalla al entrar. Si el
+// gancho de entrada volviera a llamar a "abrirFichaTrabajador()", se volvería a
+// "showView()" y de ahí otra vez: un círculo que no termina.
+//
+// Con las dos separadas, "abrirFichaTrabajador()" es "andá a esta persona" y
+// "mostrarFicha()" es "pintá esta persona". Entrar a la pantalla por el menú pinta
+// lo que haya elegido, y entrar desde el listado además cambia de vista.
+//
+// ---------------------------------------------------------------------
+// Y LA FICHA VACÍA, QUE ES LO QUE SE VE AL ENTRAR POR EL MENÚ
+// ---------------------------------------------------------------------
+//
+// Porque hasta ahora la pantalla no se podía abrir sola: solo se llegaba desde el
+// listado. Al meterla en el menú hay que decidir qué se ve antes de elegir a
+// alguien, y no puede ser la ficha del primero de la lista: si alguien aprieta
+// "Imprimir" sin mirar, imprimiría el papel de otra persona. Con la instrucción a la
+// vista, el botón avisa y no sale ningún papel.
+function mostrarFicha(w){
+  if(!w)return;
   fichaEnPantalla=w;
+  // Y EL DESPLEGABLE TIENE QUE DECIR QUIÉN ESTÁ MIRANDO
+  //
+  // Poner "sel.value = código" no funciona si ese código no está entre las opciones:
+  // el navegador lo ignora en silencio y el desplegable se queda con "Elige un
+  // trabajador" mientras la ficha de abajo es de otra persona. Peor todavía es lo que
+  // pasaba después: al entrar a la pantalla, "initFichaTrabajador()" veía el
+  // desplegable vacío y borraba la ficha que se acababa de dibujar.
+  //
+  // Por eso, si la opción no está, se agrega. Alguien puede estar mirando la ficha
+  // de una persona que no está en la lista del desplegable —de otra empresa, o de una
+  // carga que todavía no llegó— y el papel que se imprima tiene que ser el suyo.
+  const sel=document.getElementById('fichaSelector');
+  if(sel){
+    if(sel.value!==w.code){
+      llenarSelectorFicha();
+      if(sel.value!==w.code){
+        const op=document.createElement('option');
+        op.value=w.code;
+        op.textContent=codigoMostrar(w.code)+' — '+(w.name||'');
+        sel.appendChild(op);
+      }
+      sel.value=w.code;
+    }
+  }
   pintarFicha(w);
   // Y EL CHECKLIST DE INGRESO Y DE TÉRMINO, QUE VA EN LA MISMA FICHA
   //
@@ -3244,7 +3309,51 @@ function abrirFichaTrabajador(code){
   if(typeof cargarTareas==='function'){
     cargarTareas(w.code).then(function(){renderChecklist();});
   }
-  if(typeof showView==='function')showView('ficha-trabajador');
+}
+
+function pintarFichaVacia(){
+  fichaEnPantalla=null;
+  const titulo=document.getElementById('fichaTitulo');
+  const caja=document.getElementById('fichaCuerpo');
+  const resumen=document.getElementById('fichaResumen');
+  if(titulo)titulo.textContent='Ficha del trabajador';
+  if(resumen)resumen.textContent='';
+  if(caja)caja.innerHTML='<div class="gpsBox">Elige un trabajador en la lista de arriba para ver su ficha, '
+    +'sus precauciones y el checklist de ingreso.</div>';
+  // Y EL CHECKLIST SE DIBUJA IGUAL, PARA QUE DIGA LO MISMO QUE EL PAPEL
+  //
+  // Sin esto, la caja queda con lo del trabajador anterior. Volver a la pantalla sin
+  // elegir a nadie dejaría los ocho tildes de la última persona, y el botón de
+  // imprimir, que sí avisa, quedaría al lado de datos que ya no son de nadie.
+  if(typeof renderChecklist==='function')renderChecklist();
+}
+
+// Y ENTRAR A LA PANTALLA SIN HABER VENIDO DEL LISTADO
+function initFichaTrabajador(){
+  llenarSelectorFicha();
+  const sel=document.getElementById('fichaSelector');
+  if(!sel){pintarFichaVacia();return;}
+  const elegido=sel.value;
+  // Y SI YA HABÍA ALGUIEN ELEGIDO, SE VUELVE A PINTAR ESA MISMA
+  //
+  // Porque al salir de la pantalla y volver, lo razonable es encontrar lo mismo que
+  // estaba. Y si la persona ya no está en la lista —la desvincularon, la borraron—,
+  // se dibuja la ficha vacía en vez de dejar el nombre de alguien que ya no existe.
+  const todos=(workers||[]).concat(todosWorkers||[]);
+  // Y SI NO HAY NADIE ELEGIDO PERO SÍ HAY UNA FICHA EN PANTALLA, SE VUELVE A PINTAR ESA
+  //
+  // Porque se llega acá en dos momentos distintos: entrando por el menú, donde no hay
+  // ninguna elegida, y volviendo desde "abrirFichaTrabajador()", que ya dibujó una y
+  // deja el desplegable con el valor puesto. Si el valor no quedó —porque esa persona
+  // no estaba en la lista de opciones— mirar el desplegable vacío y decidir que no hay
+  // nada abierto borraba la ficha que el usuario estaba viendo.
+  if(!elegido&&fichaEnPantalla&&fichaEnPantalla.code){
+    mostrarFicha(fichaEnPantalla);
+    return;
+  }
+  const sigue=elegido?(todos.find(function(x){return x&&x.code===elegido;})||trabajadorEnCualquierEmpresa(elegido)||null):null;
+  if(elegido&&sigue){mostrarFicha(sigue);return;}
+  pintarFichaVacia();
 }
 
 // La lista para elegir a quien se le ve la ficha. Se usan todos los

@@ -533,6 +533,13 @@ const navGroups = {
       {v:'listado-trabajadores',label:'Listado de trabajadores'},
       {v:'asignar-supervisor',label:'Asignar supervisor'},
       {v:'carga-csv-trabajadores',label:'Carga masiva CSV'},
+      // Y LA FICHA, QUE ANTES SOLO SE ABRIA DESDE EL LISTADO
+      //
+      // Porque era el único camino: apretar la celda de problemas o el menú de la
+      // fila. Eso esconde la pantalla entera, y con ella el botón de imprimir la
+      // ficha para el archivador y el checklist de ingreso, que son cosas que se
+      // usan solas y no como consecuencia de revisar a otra persona.
+      {v:'ficha-trabajador',label:'Ficha del trabajador'},
       {label:'Tarjeta',children:[
         {v:'buscar-tarjeta',label:'Buscar tarjeta'},
         {v:'imprimir-tarjetas',label:'Imprimir varias tarjetas'}

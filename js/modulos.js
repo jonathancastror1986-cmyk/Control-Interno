@@ -19,6 +19,7 @@ const MODULO_POR_VISTA = {
   'v-porteria': 'porteria',
   'v-nuevo-trabajador': 'trabajadores',
   'v-listado-trabajadores': 'trabajadores',
+'v-ficha-trabajador': 'trabajadores',
   'v-asignar-supervisor': 'trabajadores',
   'v-carga-csv-trabajadores': 'carga_masiva',
   'v-buscar-tarjeta': 'trabajadores',
