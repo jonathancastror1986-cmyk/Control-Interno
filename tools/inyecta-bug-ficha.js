@@ -74,23 +74,32 @@ probarBug('el sello de agua tapa el texto del pie',
   && detectados++;
 probados++;
 
-// Y POR QUÉ EL SIGUIENTE BUG ROMPE "datosDeCabecera" Y NO EL ENCABEZADO
+// Y POR QUÉ EL SIGUIENTE BUG ROMPE LA BÚSQUEDA DE LA EMPRESA
 //
-// La primera versión rompía "escHtml(cab.empresa)", que es la escritura del
-// encabezado. Y la prueba no lo vio, porque el mismo nombre de la empresa se
-// imprime otra vez en la sección C. El papel perdía la marca de arriba y quedaba
-// completo, que es justo lo que hay que mirar.
+// La primera versión rompía la escritura del nombre en el encabezado, y la prueba no
+// lo vio, porque el mismo nombre se imprime otra vez en la sección de contratación:
+// el papel perdía la marca de arriba y quedaba completo.
 //
-// Un bug de prueba tiene que romper lo que dice romper. Este rompe la fuente del
-// nombre, que es lo que de verdad se puede romper.
-probarBug('el encabezado no lleva la empresa',
-  FICHA, "empresa:(emp&&(emp.nombre||emp.razon_social))||'Empresa'",
-  "empresa:'Empresa'") && detectados++;
+// Y LA SEGUNDA VERSIÓN DEL BUG ROMPIÓ OTRA COSA, QUE ES LA QUE PASÓ DE VERDAD
+//
+// La ficha buscaba la empresa con una función que no existía en la aplicación. El
+// nombre salía "Empresa" y no había logo ni sello, y todo lo demás del papel estaba
+// bien. Por eso el bug va en la búsqueda —que nunca encontraba nada— y no en la
+// escritura.
+probarBug('la empresa del trabajador no se encuentra',
+  FICHA, 'return e&&String(e.id)===String(id);', 'return false;')
+  && detectados++;
 probados++;
 
+// Y POR QUÉ EL BUG ENTRA POR LA LÍNEA DEL "if", Y NO POR EL TEXTO DEL AVISO
+//
+// Porque el aviso "No hay ninguna ficha abierta..." se reescribe cada vez que se le
+// mejora la redacción, y una prueba que lo copia entero se pone roja sola el día que
+// se toca el texto. Lo que hace el bug es quitar el "return", y eso no cambia cuando
+// cambia el mensaje. "if(!w){" aparece una sola vez en la ficha, que también se
+// comprobó.
 probarBug('sin ficha abierta imprime un papel en blanco',
-  FICHA, "if(!w){\n    alert('No hay ninguna ficha abierta. Abrí la ficha de un trabajador primero.');\n    return;\n  }",
-  "if(!w){\n    return;\n  }") && detectados++;
+  FICHA, "if(!w){\n", "if(!w){\n    return;\n") && detectados++;
 probados++;
 
 probarBug('la foto casual deja de servir de respaldo',

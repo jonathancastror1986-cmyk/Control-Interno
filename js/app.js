@@ -1436,6 +1436,16 @@ function nombreCentroCosto(id){
   return c?c.nombre:null;
 }
 
+// Y POR QUÉ DEVUELVE ALGO Y NO SOLO AVISA
+//
+// Porque hay un botón que guarda y después imprime la ficha, y necesita saber si
+// el guardado fue bueno antes de imprimir: si no lo fue, imprimir una ficha de
+// alguien que no quedó guardado es un papel falso en el archivador. Que esta
+// función diga "sí, y este es el trabajador" evita tener el guardado escrito dos
+// veces, que es lo que pasa cuando un botón copia el "upsert" de otro.
+//
+// Y CUANDO NO HAY ERROR NO PASA NADA: el botón de "Guardar trabajador" la llama
+// igual, sin argumentos, y se comporta exactamente igual que antes.
 async function saveWorker(){
   const code=document.getElementById('w-code').value.trim();
   const spec=document.getElementById('w-spec').value.trim();
@@ -1452,17 +1462,17 @@ async function saveWorker(){
 
   // Y si no hay nombres, se avisa acá y no en la base. La base no avisa "falta el
   // apellido paterno": guarda lo que le manden, y el nombre queda a medias.
-  if(!code){alert('El código es obligatorio');return;}
+  if(!code){alert('El código es obligatorio');return {ok:false};}
   // Y el centro de costo se pide, no se adivina. Ver [centro-03].
   const selCentro=document.getElementById('w-centro-costo');
   if(selCentro&&!selCentro.value.trim()){
     alert('Falta elegir el centro de costo. Es contra qué centro se justifica la asistencia de esta persona.');
     selCentro.focus();
-    return;
+    return {ok:false};
   }
   if(!nombres||!apellidoPaterno){
     alert('Nombres y apellido paterno son obligatorios. El apellido materno es opcional.');
-    return;
+    return {ok:false};
   }
 
   const existing=workers.find(w=>w.code===code)||todosWorkers.find(w=>w.code===code);
@@ -1551,18 +1561,179 @@ async function saveWorker(){
       const choque=(workers.concat(todosWorkers)).find(w=>w.code!==code&&normalizarRut(w.rut)===normalizarRut(worker.rut));
       alert('El RUT '+worker.rut+' ya está cargado en '+(choque?choque.code+' - '+choque.name:'otro trabajador')+'.\n\n'+
         'Un RUT identifica a una sola persona, así que no puede repetirse. Corrige el RUT o bórralo si no lo tienes.');
-      return;
+      return {ok:false};
     }
     const archivo=migracionQueFalta(error);
     alert(archivo
       ? errorDeGuardar('No se pudo guardar el trabajador',error)
       : 'No se pudo guardar en la base de datos: '+error.message);
-    return;
+    return {ok:false};
   }
   await loadWorkers();
+  // Y EL QUE SE DEVUELVE ES EL QUE VOLVIÓ DE LA BASE, NO EL DEL FORMULARIO
+  //
+  // Porque el formulario arma el objeto con los nombres de las columnas ("spec",
+  // "correo", "casual"), y la ficha del archivador lee los nombres de la tabla
+  // ("cargo", "correo", "foto_casual_url"). Son el mismo trabajador con dos
+  // nombres distintos en cada lado, y el que sale de "loadWorkers()" ya viene
+  // pasado por "dbToWorker()": es exactamente el mismo que ve la pantalla de
+  // ficha, que es el que tiene que salir impreso.
+  const guardado=(workers.find(function(x){return x.code===code;})
+    ||todosWorkers.find(function(x){return x.code===code;})
+    ||worker);
   clearForm();
   showView('listado-trabajadores');
   alert('Trabajador guardado');
+  return {ok:true,worker:guardado};
+}
+
+// ===================================================================
+// GUARDAR E IMPRIMIR LA FICHA PARA EL ARCHIVADOR, EN EL MISMO CLIC
+// ===================================================================
+//
+// Y POR QUÉ NO HAY DOS GUARDADOS EN ESTE ARCHIVO
+//
+// Porque este botón llama a "saveWorker()", que es el mismo del botón de al lado:
+// mismo formulario, mismo "upsert", mismos mensajes y misma vuelta al listado. Si
+// aquí se escribiera el "upsert" otra vez, el día que cambie una validación del
+// guardado habría que cambiarla en dos lugares, y la mitad de las veces se cambia
+// en uno solo.
+//
+// Y QUÉ PASA SI EL GUARDADO FALLA
+//
+// No se imprime nada. Un RUT repetido o un error de base dejan al trabajador sin
+// guardar, y una ficha impresa de alguien que no está en la base es un papel falso
+// en el archivador: dentro de seis meses alguien lo usa como prueba de que esa
+// persona trabajó aquí. El "alert" que yapone "saveWorker()" se muestra igual, sin
+// cambiar ni una palabra.
+//
+// ---------------------------------------------------------------------
+// Y LA VENTANA SE ABRE ANTES DE ESPERAR NADA, Y POR QUÉ
+// ---------------------------------------------------------------------
+//
+// Porque "imprimirPapelEnVentana()" abre su ventana con "window.open()", y una
+// ventana pedida DESPUÉS de un "await" la bloquean Chrome y Edge como emergente:
+// "window.open" devuelve null y salta el aviso de "no se pudo abrir la ventana".
+// Guardar es esperar la base, o sea un "await". Entonces "esperar y después imprimir"
+// no funciona: la ventana nunca se abre.
+//
+// Así que la ventana se abre aquí, en la primera línea del manejador del clic, que es
+// lo único que el navegador no bloquea, y se le pasa después a
+// "imprimirPapelEnVentana()" con "opciones.ventana". Entre que se abre y que se
+// imprime, la misma ventana muestra qué está pasando.
+//
+// Y SI EL NAVEGADOR LA BLOQUEA IGUAL
+//
+// Porque puede: con las ventanas emergentes apagadas para esa página, el
+// "window.open" devuelve null. El guardado NO se cae: el trabajador se guarda
+// igual, que es lo importante, y al final se avisa que la ficha quedó pendiente y
+// dónde se imprime. Perder el trabajo de alguien que ya lo escribió es peor que
+// no imprimir un papel.
+//
+// Y ESTE BOTÓN NO PIDE UN PERMISO QUE NO EXISTA
+//
+// Porque hace exactamente lo mismo que el botón de al lado, así que tiene
+// exactamente los mismos permisos: los del guardado. Si algún día se decide que
+// imprimir la ficha es otra cosa, lo razonable sería "contratacion.editar", que es el
+// permiso de la ficha del trabajador, pero esa decisión es de una persona, no del
+// botón.
+async function guardarEImprimirFicha(){
+  // Y ESTA ES LA LÍNEA QUE NO SE PUEDE MOVER
+  //
+  // Porque tiene que estar antes de cualquier "await" del cuerpo: si alguien mete
+  // una espera arriba de esta línea, el botón vuelve a abrir la ventana después de
+  // esperar y Chrome la bloquea. Lo comprueba "prueba-guardar-ficha.js".
+  const win=window.open('', '_blank');
+  escribirMensajeEnVentanaDePapel(win,'Preparando la ficha…',
+    'Se está guardando el trabajador y armando su ficha para el archivador.');
+
+  // Y SI NO HAY BASE, NO SE ABRE NADA
+  //
+  // Porque "window.supabaseFallo" es lo que deja la configuración cuando la
+  // librería de Supabase no cargó o no hay URL ni llave. El "alert" dice qué hacer,
+  // que es lo único que puede hacer esa persona: recargar la página.
+  if(typeof window.supabaseFallo!=='undefined'&&window.supabaseFallo){
+    alert('No se pudo guardar el trabajador: '+window.supabaseFallo.mensaje
+      +'\n\nRecarga la página. Si sigue igual, avisa al que administra el sistema.');
+    cerrarVentanaDePapel(win);
+    return;
+  }
+
+  const r=await saveWorker();
+
+  // Y SI NO SE GUARDÓ, LA VENTANA DICE POR QUÉ Y SE QUEDA ABIERTA PARA LEERLO
+  //
+  // Porque el "alert" de "saveWorker()" ya explicó el problema, pero la ventana
+  // quedó en blanco y parece que la aplicación se colgó. Con el motivo escrito
+  // adentro, lo que pasó está a la vista. Y no se cierra sola de golpe, porque el
+  // aviso queda a un clic de la otra pantalla y no hay que andar buscándolo.
+  if(!r||!r.ok){
+    escribirMensajeEnVentanaDePapel(win,'No se guardó el trabajador',
+      'No se imprimió ninguna ficha. Vuelve al formulario, corrige lo que falte y guarda otra vez.');
+    return;
+  }
+
+  // Y SI LA VENTANA NO SE PUDO ABRIR, EL TRABAJADOR YA ESTÁ GUARDADO
+  //
+  // Porque el "upsert" ya salió bien: avisar solo del papel y no de eso haría pensar
+  // que también se perdió el alta.
+  if(!win){
+    // Porque el aviso tiene que decir las DOS cosas: que el alta quedó y que el papel
+    // no. Un aviso que solo Dice que no se pudo imprimir deja pensando que el
+    // trabajador tampoco quedó, y esa es la duda que hace que alguien lo vuelva a
+    // escribir entero.
+    alert('El trabajador quedó guardado, pero el navegador no dejó abrir la ventana de impresión, así que la ficha no se imprimió.\n\n'
+      +'No hay que escribirlo de nuevo: está guardado. La ficha se imprime cuando quieras desde "Listado de trabajadores", abriendo al trabajador y apretando "Imprimir".');
+    return;
+  }
+
+  // Y LAS TAREAS ANTES DE IMPRIMIR, PORQUE EL CHECKLIST ES PARTE DE LA FICHA
+  //
+  // Porque "checklistParaElPapel()" lee la copia en memoria "tareasEstado". Sin esta
+  // llamada saldrían las ocho casillas vacías de cualquier ficha, que en una ficha
+  // archivada dicen "no se hizo nada" cuando lo que pasó es que no se preguntó. Y si
+  // la tabla todavía no existe —la migración 089 sin correr— "cargarTareas()" deja
+  // el aviso puesto y ese aviso sale en el papel.
+  if(typeof cargarTareas==='function')await cargarTareas(r.worker.code);
+
+  imprimirFichaTrabajador(r.worker,{ventana:win});
+}
+
+// ---------------------------------------------------------------------
+// LO QUE SE ESCRIBE EN LA VENTANA DE PAPEL ANTES DE TENER EL PAPEL
+// ---------------------------------------------------------------------
+//
+// Porque la ventana se abre al principio del clic y el papel llega varios segundos
+// después, cuando la base respondió. Sin nada escrito, se ve una pestáña en
+// blanco al lado y no se sabe si está trabajando o si se cayó.
+//
+// Y CON TEXTO PLANO Y "document.write", COMO EL RESTO DEL PAPEL
+//
+// Porque el motor de impresión también escribe así, y una ventana con una cosa
+// escrita de una forma y el papel con otra se ve raro el día que se abre con dos
+// pestñas. Esto es un aviso, no un documento: por eso no trae "<style>".
+function escribirMensajeEnVentanaDePapel(win,titulo,texto){
+  if(!win)return;
+  try{
+    win.document.open();
+    win.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">'
+      +'<title>'+escHtml(titulo)+'</title></head>'
+      +'<body style="font-family:Segoe UI,Arial,sans-serif;color:#1f2430;padding:32px">'
+      +'<h1 style="font-size:20px">'+escHtml(titulo)+'</h1>'
+      +'<p style="font-size:14px">'+escHtml(texto)+'</p>'
+      +'</body></html>');
+    win.document.close();
+  }catch(e){
+    // Porque una ventana cerrada a mano mientras se guarda no puede romper el guardado.
+  }
+}
+
+// Y CERRAR LA VENTANA, QUE ES LO ÚNICO QUE HACE FALTA CUANDO NO HAY BASE
+//
+// Porque en ese caso no hay nada que esperar y una ventana en blanco no dice nada.
+function cerrarVentanaDePapel(win){
+  if(!win)return;
+  try{win.close();}catch(e){}
 }
 
 // Un error que no es de columna, traducido a lo que hay que hacer.

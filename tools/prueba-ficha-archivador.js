@@ -75,12 +75,28 @@ function fechaLegible(v) {
   const f = String(v || '');
   return /^\d{4}-\d{2}-\d{2}/.test(f) ? f.slice(8, 10) + '-' + f.slice(5, 7) : '';
 }
-const empresas = [{
+// Y LA LISTA DE EMPRESAS, CON LA FORMA QUE TIENE EN LA APLICACIÓN
+//
+// Y POR QUÉ NO SE USA "obtenerEmpresaActual()"
+//
+// Porque esa función no existe en la aplicación: se la inventó la primera versión de
+// la ficha, y por eso la prueba pasaba mientras el papel real salía con la palabra
+// "Empresa" y sin logo. La lista global real se llama "empresas" y cada elemento
+// trae "logo_url", no "logo". MEDIDO en el PDF que salió de la app.
+//
+// Una prueba que falsea con la forma que el código espera —en vez de la que la app
+// tiene— no está probando nada: está probando la invención.
+const EMPRESAS_CON_LOGO = [{
   id: 'e1',
   nombre: 'Constructora Prueba',
   centro_costo: 'PU',
-  // Y EL LOGO, PARA EL ENCABEZADO Y PARA EL SELLO DE AGUA
-  logo: 'https://ejemplo.test/logo-empresa.png'
+  logo_url: 'https://ejemplo.test/logo-empresa.png'
+}];
+const EMPRESAS_SIN_LOGO = [{
+  id: 'e1',
+  nombre: 'Constructora Prueba',
+  centro_costo: 'PU',
+  logo_url: null
 }];
 function obtenerEmpresaActual() { return empresas; }
 function puedeGuardar() { return true; }
@@ -100,20 +116,47 @@ console.log('  === la ficha del archivador ===');
 // ---------------------------------------------------------------------
 // EL TRABAJADOR COMPLETO, PARA QUE NADA SALGA EN BLANCO
 // ---------------------------------------------------------------------
+// ---------------------------------------------------------------------
+// EL TRABAJADOR COMPLETO, PARA QUE NADA SALGA EN BLANCO
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ USA LOS NOMBRES DE LA APLICACIÓN Y NO LOS DE LA FICHA
+//
+// Porque el nombre real del cargo en memoria es "spec", el del correo es "correo", el
+// del código de AFP es "afp_codigo", y el del centro de costo es un ID. La primera
+// versión de esta prueba usaba "cargo", "email", "afp_rut" y "centro_costo", que son
+// los nombres que la ficha se había inventado.
+//
+// Con esos nombres, la prueba pasaba y el papel real salía con el cargo vacío y el
+// centro de costo con un guion. Una prueba escrita con los nombres equivocados
+// comprueba que el equivocado esté bien escrito.
+//
+// Y EL CENTRO DE COSTO ES UN NÚMERO, COMO EN LA BASE
+// Porque en la base no está el nombre, está el ID, y el nombre lo da
+// "nombreCentroCosto()". Esa función se falsea más abajo, con un solo centro.
+const CENTROS = [{ id: 7, nombre: 'PU' }];
+function nombreCentroCosto(id) {
+  const c = CENTROS.filter(function (x) { return String(x.id) === String(id); })[0];
+  return c ? c.nombre : '';
+}
 const w = {
-  code: '0021', name: 'Adasme Verdugo Jaime Patricio', cargo: 'Maestro Gasfiter',
+  code: '0021', name: 'Adasme Verdugo Jaime Patricio',
+  spec: 'Maestro Gasfiter',
   status: 'activo', rut: '13.199.887-2', fecha_nac: '1990-03-15',
   nacionalidad: 'Chilena', estado_civil: 'Soltero', profesion: 'Maestro de obras',
-  comuna: 'Puente Alto', phone: '', email: '', supervisor_code: 'S9',
+  comuna: 'Puente Alto', phone: '',
+  correo: 'adasme@ejemplo.cl',
+  supervisor_code: 'S9',
   contrato_tipo_plazo: 'fijo', contrato_plazo_dias: 90,
   contrato_fecha_inicio: '2026-08-01', contrato_fecha_hasta: '',
-  fecha_ingreso: '2026-08-01', empresa_id: 'e1', centro_costo: 'PU',
-  grupo_cargo: 'Maestros', afp_nombre: 'AFP Habitat', afp_rut: '12.345.678-9',
-  tipo_trabajador: 'Permanente', cargo_planillas: '',
+  fecha_ingreso: '2026-08-01', empresa_id: 'e1',
+  centro_costo_id: 7,
+  afp_nombre: 'AFP Habitat', afp_codigo: '12.345.678-9',
+  tipo_trabajador: 'Permanente',
   foto_seguridad_url: 'https://ejemplo.test/foto.jpg',
   precauciones: 'Trabajo en altura. Uso de arnés obligatorio.',
-  medicamentos: null, salud_notas: null,
-  emerg_nombre: 'Ana Pérez', emerg_telefono: '+56 9 1234 5678', emerg_relacion: 'madre'
+  medicamentos: null, salud: null,
+  emerg_name: 'Ana Pérez', emerg_phone: '+56 9 1234 5678', emerg_rel: 'madre'
 };
 
 // Y LAS TAREAS: DOS HECHAS Y DOS NO, QUE ES EL CASO QUE IMPORTA
@@ -141,7 +184,12 @@ const TAREA_ESTADO = {
 //
 // Porque hay que probar el caso de la empresa que no tiene logo, y sin esto no se
 // podría: la lista era una constante.
-function correr(estadoTareas, textoError, ficha, listaEmpresas) {
+// Y "argumentos", PARA PODER PROBAR LA FICHA DE ALGUIEN QUE SE PASA
+//
+// Porque "imprimirFichaTrabajador()" ahora recibe el trabajador y las opciones, que es
+// lo que usa el botón "Guardar e imprimir ficha" de "Nuevo trabajador": no hay ninguna
+// ficha abierta en la pantalla todavía.
+function correr(estadoTareas, textoError, ficha, listaEmpresas, argumentos) {
   impreso = null;
   let alertas = null;
   const previo = global.alert;
@@ -151,21 +199,26 @@ function correr(estadoTareas, textoError, ficha, listaEmpresas) {
       + FICHA + '\n'
       + 'return {\n'
       + '  sembrar:function(e,t){tareasEstado=e;tareasEstadoError=t;},\n'
-      + '  imprimirFichaTrabajador:function(){return imprimirFichaTrabajador();}\n'
+      + '  imprimirFichaTrabajador:function(t,o){return imprimirFichaTrabajador(t,o);}\n'
       + '};';
+    // Y "empresas" SE PASA COMO PARÁMETRO, CON SU NOMBRE REAL
+    //
+    // Y con el nombre que tiene en la aplicación. Si el código de la ficha dejara de
+    // mirar ese arreglo y pasara a usar otra cosa, la prueba lo vería al no encontrar
+    // el nombre de la empresa, que es exactamente lo que pasó en el papel real.
     const api = new Function(
       'escHtml', 'fechaLarga', 'fechaLegible',
-      'obtenerEmpresaActual', 'puedeGuardar', 'imprimirPapelEnVentana',
+      'empresas', 'puedeGuardar', 'imprimirPapelEnVentana', 'nombreCentroCosto',
       'fichaEnPantalla', 'workers', 'window', 'document', 'alert',
       cuerpo
     )(
       escHtml, fechaLarga, fechaLegible,
-      function () { return listaEmpresas || empresas; },
-      puedeGuardar, imprimirPapelEnVentana,
+      listaEmpresas || EMPRESAS_CON_LOGO,
+      puedeGuardar, imprimirPapelEnVentana, nombreCentroCosto,
       ficha, [], { supabaseClient: {} }, {}, function (m) { alertas = m; }
     );
     api.sembrar(estadoTareas, textoError);
-    api.imprimirFichaTrabajador();
+    api.imprimirFichaTrabajador.apply(null,argumentos||[]);
   } finally {
     global.alert = previo;
   }
@@ -322,8 +375,38 @@ ok(h.indexOf('fichaVacio') >= 0, 'lo que no está lleno sale con un guion, no en
 // valor en la misma línea, y la larga, que pone la etiqueta sola en una fila y el
 // valor en la de abajo. Se comprueban las dos porque una puede romperse sin que se
 // rompa la otra.
-ok(/Correo<\/td><td class="fichaValor"><span class="fichaVacio">/.test(h),
+//
+// Y EL VACÍO ES EL TELÉFONO, NO EL CORREO
+//
+// Porque el correo se le cargó para que la ficha tenga que traducir "correo" a
+// "email" —que es uno de los nombres que se habían inventado— y entonces dejó de
+// servir como ejemplo de campo vacío. El teléfono sí está vacío en el trabajador de
+// esta prueba.
+ok(/Tel\u00e9fono<\/td><td class="fichaValor"><span class="fichaVacio">/.test(h),
   'el campo corto vacío sale con el guion');
+
+// ---------------------------------------------------------------------
+// LOS DATOS QUE ESTABAN GUARDADOS Y NO SALÍAN
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ ESTAS COMPROBACIONES SON EL MOTIVO DE ESTA PRUEBA
+//
+// Porque el PDF que salió de la app tenía el cargo en "Sin cargo cargado", el centro
+// de costo en "—" y el correo vacío, y los tres estaban guardados. La ficha pedía
+// "cargo", "centro_costo" y "email"; en la aplicación se llaman "spec", se llama
+// "centro_costo_id" (un número) y "correo".
+//
+// Un "undefined" en una celda sale como guion, y un guion en una ficha archivada
+// parece un dato que el trabajador no tiene.
+ok(/Maestro Gasfiter/.test(h), 'el cargo sale, y sale del campo que se llama "spec"');
+ok(h.indexOf('Sin cargo cargado') < 0, 'y NO dice que no tenga cargo');
+ok(h.indexOf('>PU<') >= 0, 'el centro de costo sale, y sale del id resuelto por nombre');
+ok(/adasme@ejemplo\.cl/.test(h), 'el correo sale, y sale del campo que se llama "correo"');
+ok(/AFP Habitat · 12\.345\.678-9/.test(h), 'la AFP sale con el nombre y el código juntos');
+ok(!/<td class="fichaEtiqueta">Grupo del cargo<\/td>/.test(cuerpo),
+  'no sale una fila de grupo del cargo, porque ese dato no se guarda en ninguna parte');
+ok(/Cargo para las planillas<\/td>/.test(cuerpo),
+  'y en su lugar sale el cargo, que es el dato que sí existe');
 
 // Y POR QUÉ AQUÍ NO SE COMPRUEBA UN CAMPO LARGO VACÍO
 //
@@ -339,6 +422,40 @@ ok(h.indexOf('Medicamentos') === -1 && h.indexOf('Salud') === -1,
   'las advertencias que están vacías no salen, en vez de salir con un guion');
 ok(/Precauciones en obra<\/td><\/tr><tr><td class="fichaValor" colspan="2">/.test(h),
   'la advertencia que sí está ocupa la fila entera, sin que le corten el texto');
+
+// ---------------------------------------------------------------------
+// EL TRABAJADOR DESVINCULADO
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ SE COMPRUEBA LA FECHA Y NO SOLO LA INSIGNIA
+//
+// Porque la insignia puede decir "Desvinculado" con cualquier fecha y quedar bien. Lo
+// que se salió fue la fecha: salía como "2026-09-30" mientras dos renglones más abajo
+// la de ingreso salía como "1 de Agosto de 2026". Dos formas de escribir una fecha en
+// la misma hoja, y solo se vea mirando el papel.
+r = correr(TAREA_ESTADO, '', Object.assign({}, w, {
+  status: 'desvinculado', fecha_desvinculacion: '2026-09-30'
+}));
+ok(/fichaInsenia-desvinculado/.test(r.impreso.html),
+  'un trabajador desvinculado sale con la insignia roja, no con la verde');
+
+// Y LA FECHA, COMPARADA CONTRA LA PROPIA FUNCIÓN DE FECHA
+//
+// Y POR QUÉ NO SE ESCRIBE LA FECHA ESPERADA A MANO
+//
+// Porque esta prueba usa una versión corta de "fechaLarga" —la de la aplicación
+// escribe "30 de Septiembre de 2026" y esta escribe "30-09-2026"— y si el papel
+// depende de la función, lo que hay que comprobar es que la usó, no cómo escribe.
+//
+// Escribir la fecha esperada a mano obliged a cambiar el texto de la prueba cada vez
+// que se toca el formato, y un día alguien lo cambia sin querer y la prueba sigue
+// dando verde.
+const esperada = fechaLarga('2026-09-30');
+ok(r.impreso.html.indexOf('Desvinculado el ' + esperada) >= 0,
+  'y la fecha de desvinculación pasa por "fechaLarga", sale como "' + esperada
+  + '" y no cruda');
+ok(r.impreso.html.indexOf('Desvinculado el 2026-09-30') < 0,
+  'y NO sale cruda, que es como salía antes');
 
 // ---------------------------------------------------------------------
 // EL LOGO DE LA EMPRESA: ENCABEZADO Y SELLO DE AGUA
@@ -411,6 +528,42 @@ ok(r.impreso.html.indexOf('NO se pudieron leer') >= 0,
 r = correr({}, '', null);
 ok(r.alertas && /ficha abierta/.test(r.alertas),
   'sin ficha abierta avisa en vez de imprimir un papel en blanco');
+
+// ---------------------------------------------------------------------
+// Y LA FICHA DE ALGUIÉN QUE SE PASA, SIN TENER NINGUNA ABIERTA
+// ---------------------------------------------------------------------
+//
+// Porque es lo que hace el botón "Guardar e imprimir ficha para archivador": en el
+// momento de imprimir, el trabajador recién creado no está en ninguna pantalla. Si esta
+// parte no anduviera, ese botón imprimiría el papel de la persona que estuviera
+// abierta de antes, que es el peor error posible en un archivador: un papel con el
+// nombre equivocado.
+const RECIEN_CREADO = {
+  code: '0099', name: 'Nueva Apellido, testing',
+  empresa_id: 'e1', fecha_ingreso: '2026-10-01',
+  status: 'activo', foto_seguridad_url: '', foto_casual_url: ''
+};
+const VENTANA = { etiqueta: 'la del botón' };
+r = correr({}, '', null, null, [RECIEN_CREADO, { ventana: VENTANA }]);
+
+ok(!!r.impreso, 'un trabajador que se pasa imprime su ficha aunque no haya ninguna abierta');
+ok(r.impreso && r.impreso.opciones && r.impreso.opciones.ventana === VENTANA,
+  'y el papel va a la ventana que le pasó el botón, la que se abrió en el clic');
+ok(!!r.impreso && /0099/.test(r.impreso.html) && /Nueva Apellido/.test(r.impreso.html),
+  'y el papel es el de esa persona: código y nombre');
+
+// Y EL CHECKLIST Y LA FOTO DE UN TRABAJADOR QUE NO TIENE NADA AÚ
+//
+// Porque un alta recién hecha no tiene filas en "trabajador_tareas" ni fotos subidas.
+// Las ocho casillas tienen que salir igual, porque en el archivador se marcan a mano;
+// y donde no hay foto tiene que salir el recuadro que lo dice.
+const cuerpoNuevo = (r.impreso ? r.impreso.html : '').replace(/<style>[\s\S]*?<\/style>/g, '');
+ok((cuerpoNuevo.match(/class="fichaCheckCaja"/g) || []).length === 8,
+  'el recién creado igual sale con las ocho casillas del checklist');
+ok(/<div class="fichaFotoVacia">Sin foto<\/div>/.test(cuerpoNuevo),
+  'y sin foto sale el recuadro que lo dice, no un hueco');
+ok(/0 de 4 hechas/.test(cuerpoNuevo),
+  'y el checklist dice que está en cero, que es lo cierto');
 
 console.log('');
 if (fallos) {

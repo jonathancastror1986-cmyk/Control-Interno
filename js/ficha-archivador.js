@@ -79,10 +79,27 @@
 // tiempo. Y el día que haya que cambiar un color se cambia en un solo lugar.
 function estilosDelPapel(){
   return '<style>'
-    // ---- LO GENERAL ----
-    +'*{box-sizing:border-box;}'
+    // ---- LA PÁGINA ----
+    //
+    // Y POR QUÉ LA FICHA DECLARA SU PROPIA PÁGINA
+    //
+    // Porque el motor de impresión compartido pone su "@page" DENTRO de un
+    // "@media print", y esa forma no la respetan todos los navegadores: si no se
+    // aplica, la hoja sale con el ancho que el diálogo de impresión decida, y el
+    // resultado es un papel de medio metro de ancho con todo diminuto. MEDIDO en el
+    // PDF que salió de la app: la tabla llegaba al borde de una hoja larguísima.
+    //
+    // Y POR QUÉ ADEMÁS SE FIJA EL ANCHO DEL CONTENIDO
+    //
+    // Porque aunque la página salga bien, si el contenido no tiene un ancho fijo se
+    // estira hasta el borde y las letras quedan diminutas. Con "190mm" el papel se
+    // ve igual en cualquier impresora, y si alguien usa un papel más grande, queda
+    // centrado con los dos lados en blanco.
+    //
+    // Los 190 son el ancho del A4 menos los dos márgenes de 10: 210 menos 20.
+    +'@page{size:A4 portrait;margin:10mm;}'
     +'.ficha{font-family:"Montserrat","Segoe UI",Arial,sans-serif;color:#1f2430;'
-    +'font-size:9.5pt;line-height:1.4;}'
+    +'font-size:11pt;line-height:1.42;width:190mm;max-width:100%;margin:0 auto;}'
     +'.fichaVacio{color:#9aa0ad;}'
 
     // ---- LA TARJETA DE ARRIBA, LA QUE DICE DE QUIÉN ES ESTA FICHA ----
@@ -93,12 +110,12 @@ function estilosDelPapel(){
     +'.fichaQuien{flex:1 1 auto;min-width:0;}'
     // Y EL NOMBRE, QUE ES LO MÁS GRANDE DE TODA LA FICHA
     // Porque es lo que se busca cuando se abre la carpeta.
-    +'.fichaNombre{font-size:19pt;font-weight:800;line-height:1.12;color:#1b1f3b;'
+    +'.fichaNombre{font-size:22pt;font-weight:800;line-height:1.1;color:#1b1f3b;'
     +'margin:0 0 1mm;}'
-    +'.fichaCargo{font-size:10pt;color:#4b5163;margin:0 0 1.5mm;}'
+    +'.fichaCargo{font-size:11.5pt;color:#4b5163;margin:0 0 1.5mm;}'
     +'.fichaInsenias{display:flex;gap:4px;flex-wrap:wrap;align-items:center;}'
     +'.fichaInsenia{display:inline-block;padding:1mm 3mm;border-radius:6mm;'
-    +'font-size:8pt;font-weight:700;letter-spacing:.02em;}'
+    +'font-size:9.5pt;font-weight:700;letter-spacing:.02em;}'
     // Y EL ESTADO, QUE VA CON COLOR SEGUN SEA
     // Verde si está trabajando, rojo si ya no. Es el dato que más se mira de la
     // tarjeta, y por color se lee sin leer.
@@ -109,13 +126,13 @@ function estilosDelPapel(){
     // ---- LA FOTO ----
     // Con marco y sombra, porque es el elemento que más hace que una ficha se vea
     // como una ficha y no como una hoja de texto con un hueco.
-    +'.fichaFoto img{width:26mm;height:32mm;object-fit:cover;border-radius:3mm;'
+    +'.fichaFoto img{width:30mm;height:37mm;object-fit:cover;border-radius:3mm;'
     +'border:2.5px solid #fff;box-shadow:0 1px 4px rgba(31,36,48,.28);display:block;}'
     +'.fichaFoto small{display:block;text-align:center;font-size:7pt;color:#6b7280;'
     +'margin-top:1.5mm;}'
-    +'.fichaFotoVacia{width:26mm;height:32mm;border:1.5px dashed #b9bdd0;border-radius:3mm;'
+    +'.fichaFotoVacia{width:30mm;height:37mm;border:1.5px dashed #b9bdd0;border-radius:3mm;'
     +'background:#f4f4f8;display:flex;align-items:center;justify-content:center;'
-    +'flex-direction:column;gap:1mm;font-size:8pt;color:#8a8fa3;text-align:center;padding:2mm;}'
+    +'flex-direction:column;gap:1mm;font-size:9.5pt;color:#8a8fa3;text-align:center;padding:2mm;}'
 
     // ---- LOS DATOS DESTACADOS ----
     // Los cuatro que más se miran, con el valor sobre un fondo de color.
@@ -123,15 +140,15 @@ function estilosDelPapel(){
     +'.fichaClave{background:#f7f8fc;border:1px solid #e5e7f2;border-radius:3mm;'
     +'padding:2.5mm 3mm;display:flex;justify-content:space-between;gap:3mm;'
     +'align-items:center;}'
-    +'.fichaClave span{font-size:8pt;color:#5d6377;white-space:nowrap;}'
-    +'.fichaClave b{font-size:9.5pt;color:#1b1f3b;text-align:right;word-break:break-word;}'
+    +'.fichaClave span{font-size:9.5pt;color:#5d6377;white-space:nowrap;}'
+    +'.fichaClave b{font-size:11pt;color:#1b1f3b;text-align:right;word-break:break-word;}'
 
     // ---- LOS RÓTULOS DE SECCIÓN ----
     +'.fichaSeccion{display:flex;align-items:center;gap:2.5mm;margin:5mm 0 2mm;'
-    +'font-size:8.5pt;font-weight:800;color:#3b3f8f;text-transform:uppercase;'
+    +'font-size:10.5pt;font-weight:800;color:#3b3f8f;text-transform:uppercase;'
     +'letter-spacing:.06em;border-bottom:1px solid #dcd9f5;padding-bottom:1.5mm;}'
-    +'.fichaSeccion b{background:#3b3f8f;color:#fff;border-radius:2mm;padding:.5mm 2mm;'
-    +'font-size:8.5pt;}'
+    +'.fichaSeccion b{background:#3b3f8f;color:#fff;border-radius:2mm;padding:.5mm 2.5mm;'
+    +'font-size:10.5pt;}'
     // Y CADA SECCIÓN CON SU TONO
     // Porque el color de la letra dice en qué sección se está sin tener que leer el
     // título entero, y el fondo del rótulo es el mismo en todas.
@@ -158,10 +175,10 @@ function estilosDelPapel(){
     // La solución es que cada celda diga de qué color es, y no confiar en que no haya
     // nada detrás.
     +'.fichaTabla td,.fichaCheck td{background:#fff;color:#1f2430;text-align:left;}'
-    +'.fichaEtiqueta{width:32%;background:#f3f4fa;border:1px solid #e2e5f0;'
-    +'border-right:0;padding:2mm 2.5mm;font-size:8pt;font-weight:700;color:#4b5163;'
+    +'.fichaEtiqueta{width:17%;background:#f3f4fa;border:1px solid #e2e5f0;'
+    +'border-right:0;padding:2mm 2.5mm;font-size:9.5pt;font-weight:700;color:#4b5163;'
     +'text-align:left;vertical-align:top;}'
-    +'.fichaValor{border:1px solid #e2e5f0;padding:2mm 2.5mm;font-size:9pt;color:#1f2430;'
+    +'.fichaValor{border:1px solid #e2e5f0;padding:2mm 2.5mm;font-size:10.5pt;color:#1f2430;'
     +'background:#fff;text-align:left;vertical-align:top;}'
     // Y EL VALOR DESTACADO, QUE ES EL QUE SE LEE DE VERAS
     // Fondo claro y letra pesada. Con esto, un nombre o un cargo se distingue de
@@ -169,26 +186,26 @@ function estilosDelPapel(){
     +'.fichaDestacado{font-weight:800;color:#1b1f3b;background:#eef1ff;}'
 
     // ---- EL CHECKLIST EN EL PAPEL ----
-    +'.fichaCheck{width:100%;border-collapse:collapse;font-size:8.5pt;margin-bottom:2mm;'
+    +'.fichaCheck{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:2mm;'
     +'background:#fff;}'
     +'.fichaCheck td{border-bottom:1px solid #e7e9f2;padding:1.6mm 1mm;vertical-align:middle;'
     +'background:#fff;text-align:left;}'
     +'.fichaCheck td:first-child{text-align:center;width:7mm;}'
-    +'.fichaCheckCaja{display:inline-block;width:3.4mm;height:3.4mm;border:1.2px solid #6b7280;'
-    +'border-radius:1mm;vertical-align:middle;text-align:center;line-height:3.2mm;'
-    +'font-size:9pt;font-weight:800;color:#136c33;background:#fff;}'
+    +'.fichaCheckCaja{display:inline-block;width:4.2mm;height:4.2mm;border:1.2px solid #6b7280;'
+    +'border-radius:1mm;vertical-align:middle;text-align:center;line-height:4mm;'
+    +'font-size:10pt;font-weight:800;color:#136c33;background:#fff;}'
     // Y EL TÍTULO DE CADA ETAPA DEL CHECKLIST
     // Con fondo y alineación propios, por lo mismo que las celdas: el tema oscuro
     // los centra y les cambia el fondo.
     +'.ficha h4{background:transparent;text-align:left;color:#3b3f8f;'
-    +'font-size:8.5pt;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}'
+    +'font-size:10.5pt;font-weight:800;text-transform:uppercase;letter-spacing:.05em;}'
     +'.fichaCheck td:nth-child(2){width:62%;}'
 
     // ---- LO QUE NO SE PUDO LEER ----
     +'.fichaAviso{border:1.5px solid #e0a800;background:#fff8e1;color:#7a5c00;'
-    +'padding:2.5mm 3mm;font-size:8.5pt;border-radius:2mm;margin-bottom:3mm;}'
+    +'padding:2.5mm 3mm;font-size:10pt;border-radius:2mm;margin-bottom:3mm;}'
     +'.fichaPie{margin-top:4mm;padding-top:2mm;border-top:1px solid #e2e5f0;'
-    +'font-size:7.5pt;color:#6b7280;text-align:center;}'
+    +'font-size:9pt;color:#6b7280;text-align:center;}'
 
     // ---- EL ENCABEZADO ----
     // A la izquierda, quién emitió la ficha. A la derecha, qué es la ficha. Las dos
@@ -197,14 +214,14 @@ function estilosDelPapel(){
     +'.fichaEncabezado{display:flex;justify-content:space-between;align-items:flex-end;'
     +'gap:5mm;border-bottom:1.5px solid #dcd9f5;padding-bottom:2mm;margin-bottom:3mm;}'
     +'.fichaMarca{display:flex;align-items:center;gap:3mm;min-width:0;}'
-    +'.fichaMarcaLogo{max-width:34mm;max-height:11mm;object-fit:contain;'
+    +'.fichaMarcaLogo{max-width:38mm;max-height:13mm;object-fit:contain;'
     +'border:1px solid #e2e5f0;border-radius:2mm;padding:1mm;background:#fff;}'
-    +'.fichaMarca b{display:block;font-size:12pt;color:#3b3f8f;line-height:1.2;}'
-    +'.fichaMarca small{display:block;font-size:8pt;color:#6b7280;margin-top:.5mm;}'
+    +'.fichaMarca b{display:block;font-size:13.5pt;color:#3b3f8f;line-height:1.2;}'
+    +'.fichaMarca small{display:block;font-size:9.5pt;color:#6b7280;margin-top:.5mm;}'
     +'.fichaTituloPapel{text-align:right;}'
-    +'.fichaTituloPapel b{display:block;font-size:11pt;font-weight:800;color:#1b1f3b;'
+    +'.fichaTituloPapel b{display:block;font-size:13pt;font-weight:800;color:#1b1f3b;'
     +'letter-spacing:.06em;}'
-    +'.fichaTituloPapel small{display:block;font-size:8pt;color:#6b7280;margin-top:.5mm;}'
+    +'.fichaTituloPapel small{display:block;font-size:9.5pt;color:#6b7280;margin-top:.5mm;}'
 
     // ---- EL SELLO DE AGUA ----
     //
@@ -223,75 +240,220 @@ function estilosDelPapel(){
     +'.fichaSelloArea{position:relative;margin-top:4mm;padding-top:2mm;'
     +'border-top:1px solid #e2e5f0;overflow:hidden;}'
     +'.fichaSello{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) '
-    +'rotate(-22deg);width:92mm;opacity:.14;pointer-events:none;z-index:0;'
+    +'rotate(-22deg);width:105mm;opacity:.14;pointer-events:none;z-index:0;'
     +'filter:grayscale(100%);}'
     +'.fichaSello img{width:100%;display:block;object-fit:contain;}'
-    +'.fichaPieTxt{position:relative;z-index:1;text-align:center;font-size:7.5pt;'
+    +'.fichaPieTxt{position:relative;z-index:1;text-align:center;font-size:9pt;'
     +'color:#6b7280;}'
     // Y CUANDO NO HAY LOGO, EL PIE QUEDA IGUAL
     // Porque sin logo no hay sello, y el texto del pie tiene que estar igual. Un pie
     // que se mueve según la empresa es un pie que hay que releer.
     +'.fichaPie{margin-top:4mm;padding-top:2mm;border-top:1px solid #e2e5f0;'
-    +'font-size:7.5pt;color:#6b7280;text-align:center;}'
+    +'font-size:9pt;color:#6b7280;text-align:center;}'
+
+    // ==================================================================
+    // LO QUE SE ROMPE AL IMPRIMIR
+    // ==================================================================
+    //
+    // MEDIDO con las alturas que declara este mismo CSS (el papel lleno mide
+    // unos 504 mm y el vacío unos 380, contra 277 mm imprimibles de un A4):
+    // el caso lleno necesita DOS HOJAS y el corte cae en medio de la sección D;
+    // el vacío, en medio de la E. O sea: el corte de página no es una
+    // casualidad, es la norma, y sin reglas de salto lo parte donde cae.
+    //
+    // Y POR QUÉ ESTO VA AL FINAL Y NO EN SU LUGAR
+    //
+    // Porque son reglas que ganan contra las de arriba por ir después y por ser
+    // de impresión. Si cada bloque las trajera, la mitad se olvidaría.
+
+    // ---- NADA QUE SE PARTA A LA MITAD ----
+    //
+    // Porque sin esto el navegador parte donde le da: una fila partida deja el
+    // rótulo de un campo en el borde de arriba y su valor en el de abajo —con
+    // "—" y todo—, que en una ficha archivada parece que el dato no existe; y
+    // el rótulo de sección se puede quedar solo, de título sin contenido.
+    // Con "avoid" el bloque entero pasa a la hoja siguiente y el corte cae entre
+    // bloques, que es lo único que se puede cortar sin perder sentido.
+    //
+    // El "page-break-inside" va al lado porque es la propiedad vieja: hay
+    // impresoras y previsores (y el motor de PDF de algunas versiones de
+    // Chrome) que todavía la miran y no la moderna.
+    +'.fichaEncabezado,.fichaTarjeta,.fichaClaves,.fichaTabla,.fichaCheck,'
+    +'.fichaAviso,.fichaSelloArea{break-inside:avoid;page-break-inside:avoid;}'
+
+    // ---- Y QUE EL RÓTULO SE VAYA CON LO QUE ANUNCIA ----
+    //
+    // El "break-inside" de arriba no alcanza solo: el rótulo de sección y la
+    // tabla que anuncia son DOS elementos hermanos, y el corte puede caer en el
+    // medio. Con "break-after" el rótulo no queda huérfano arriba de una hoja.
+    // Lo mismo con el encabezado y la tarjeta, que son la respuesta a "¿de quién
+    // es esta ficha?": una hoja que empieza con el nombre y sigue con los datos
+    // de otro es peor que una hoja partida.
+    +'.fichaSeccion,.ficha h4,.fichaEncabezado,.fichaTarjeta,.fichaClaves,'
+    +'.fichaTabla,.fichaCheck{break-after:avoid;page-break-after:avoid;}'
+
+    // ---- QUE NINGUNA TABLA SE SALGA DEL ANCHO DE LA HOJA ----
+    //
+    // ".ficha" mide 190 mm y una tabla con "width:100%" debería medir lo mismo,
+    // pero con el reparto automático de columnas NO ES GARANTIZADO: si una
+    // palabra es más ancha que su columna, el navegador ensancha la celda y la
+    // tabla se sale de la hoja y el papel sale recortado por la derecha. En la
+    // sección E el detalle de cada tarea se escribe junto en la celda de quién la
+    // hizo, y eso es justo el caso: nombres largos más fecha más hora no entran en
+    // 31% de 190 mm.
+    //
+    // Con "table-layout:fixed" el ancho lo mandan las columnas declaradas, no el
+    // texto: la tabla se queda en 190 mm pase lo que pase, y lo que no entre se
+    // parte en dos líneas, que es lo que hay que hacer con un dato.
+    //
+    // Y POR QUÉ SÓLO EN EL CHECKLIST Y NO EN TODAS
+    //
+    // Porque "fichaTabla" tiene filas de DOS y de CUATRO celdas, y hay filas
+    // con "colspan=2" —la etiqueta de cada advertencia de la sección D—. Con
+    // ancho fijo, esa celda repartida reparte su 17% entre las dos columnas que
+    // cubre y la columna de las etiquetas queda en la mitad de angosta. Se
+    // arregla con "overflow-wrap": una palabra larga se parte dentro de la celda
+    // en vez de estirar la columna.
+    +'.fichaCheck{table-layout:fixed;max-width:100%;}'
+    +'.fichaTabla td,.fichaCheck td{overflow-wrap:anywhere;}'
+
+    // ---- LA FOTO NO SE ACHICA NI SE SALE DEL MARCO ----
+    //
+    // La tarjeta es un "flex", y un "flex" reparte el ancho que sobra apretando
+    // a los hijos. La foto tiene 30 mm fijos, pero su envoltorio no: con un nombre
+    // muy largo el envoltorio se encoge, la imagen se sale de él y queda pegada
+    // encima del texto. "flex:0 0 auto" le dice que no se toque el tamaño.
+    +'.fichaTarjeta>.fichaFoto,.fichaTarjeta>.fichaFotoVacia{flex:0 0 auto;}'
+
+    // ---- EL PISO DE LA LETRA ----
+    //
+    // El rótulo chico de la foto ("Foto de seguridad", "Foto casual") estaba en
+    // 7 puntos, que es menos de lo que sacan bien las impresoras de depósito, que
+    // son las que hay en la oficina de portería. A 8 puntos entra igual de bien.
+    +'.fichaFoto small{font-size:8pt;}'
+    // Y AQUÍ SÍ VA "!important", Y ESTE ES EL MOTIVO
+    //
+    // Porque esas dos celdas y ese título traen el tamaño en un atributo
+    // "style" de la línea, escrito en "checklist-trabajador.js", y un atributo
+    // en línea gana a cualquier hoja de estilo. El papel no puede tocar ese
+    // archivo (es el que arma el checklist y no es CSS), así que la única forma
+    // de levantar el piso de letra del papel es ganarle al atributo.
+    +'.fichaCheck td:last-child{font-size:8pt !important;}'
+    +'.ficha h4{font-size:9pt !important;}'
     +'</style>';
 }
 
 // ---------------------------------------------------------------------
-// EL LOGO DE LA EMPRESA
+// LA EMPRESA DEL TRABAJADOR
 // ---------------------------------------------------------------------
 //
-// Y DE DÓNDE SE SACA
+// Y DE DÓNDE SE SACA, Y POR QUÉ NO SE INVENTA UNA FUNCIÓN
 //
-// De "empresas.logo_url", que la aplicación ya trae en el objeto de la empresa como
-// "logo". No se agrega una columna ni se busca en otro lado: es el mismo logo que se
-// ve en la tarjeta y en el reloj.
+// La aplicación tiene un arreglo global "empresas" —declarado en
+// "views/administracion/administracion.js"— con la forma
 //
-// Y SI NO HAY LOGO, NO SE DEJA UN HUECO
+//     [{id, nombre, logo_url, rut, giro, direccion, telefono, email, sitio_web}]
 //
-// Porque el nombre de la empresa está al lado de todos modos, y un recuadro vacío
-// con un borde se lee como "falta algo" cuando lo que pasa es que esa empresa no
-// tiene logo cargado. Que salga el nombre solo es la verdad.
-function logoDeEmpresa(w){
-  const empresaActual=(typeof obtenerEmpresaActual==='function')?obtenerEmpresaActual():null;
-  const emp=(empresaActual||[]).find(function(e){
-    return e&&e.id==(w&&w.empresa_id);
-  });
-  return (emp&&(emp.logo||emp.logo_url))||'';
+// y además "empresaActual", que NO es una lista: es un NÚMERO, el id de la empresa
+// que se está mirando, o cero cuando se están viendo todas.
+//
+// Y la función "obtenerEmpresaActual()" que usaba la primera versión de esta ficha
+// no existe en ninguna parte de la aplicación. En la pantalla de pruebas, donde esa
+// función estaba falseada con una lista, se veía el nombre y el logo. En el papel
+// real no había ninguno de los dos: salía la palabra "Empresa" y ni logo ni sello.
+//
+// MEDIDO en el PDF que salió de la app. Por eso la empresa se busca en el arreglo
+// que existe, y no en una función que uno se acaba de inventar.
+//
+// Y SI NO ESTÁ EN LA LISTA
+//
+// Porque puede pasar: la persona es de una empresa a la que esta sesión no tiene
+// acceso, o la empresa se borró. Se cae al nombre que trae el trabajador, y si no
+// trae ninguno, se dice que no se encontró. Un papel sin nombre de empresa es un
+// papel que no se puede archivar donde va, y hay que enterarse al verlo, no después.
+// ---------------------------------------------------------------------
+// LOS DATOS DEL TRABAJADOR, TRADUCIDOS A LOS NOMBRES QUE USA ESTA FICHA
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ EXISTE ESTE PASO
+//
+// Porque la ficha se inventó los nombres de los campos, y en la aplicación varios de
+// esos campos no existen con ese nombre. MEDIDO en el PDF que salió de la app:
+//
+//     la ficha pedía        lo que hay de verdad
+//     ──────────────────────────────────────────────────────────
+//     w.cargo               w.spec        el cargo no salía: decía "Sin cargo cargado"
+//     w.email               w.correo
+//     w.centro_costo        w.centro_costo_id   NUNCA existió: salía "—"
+//     w.afp_rut             w.afp_codigo
+//     w.salud_notas         w.salud
+//     w.emerg_nombre        w.emerg_name
+//     w.emerg_telefono      w.emerg_phone
+//     w.emerg_relacion      w.emerg_rel
+//
+// Un "undefined" en una celda sale como guion, y un guion en una ficha archivada
+// parece un dato que el trabajador no tiene. No lo tiene: está guardado.
+//
+// Y POR QUÉ "spec" ES EL CARGO
+//
+// Porque "spec" es el texto que sale impreso en la credencial y en las planillas. En
+// la base la columna se llama "cargo", que es lo que hizo el lío: el nombre de la
+// columna y el del campo en memoria son distintos, y los dos ciertos. El formulario
+// lo llama "Cargo para las planillas", que es más honesto.
+//
+// Y EL CENTRO DE COSTO SE RESUELVE POR ID
+//
+// Porque en la base está el número, y el nombre lo sabe "nombreCentroCosto()". Si la
+// ficha guardara el nombre aparte, habría dos copias del mismo dato y algún día no
+// coincidirían.
+//
+// Y SI LA FUNCIÓN NO ESTÁ, QUEDA VACÍO
+//
+// Porque la ficha se puede imprimir desde donde no esté cargada la lista de centros
+// de costo. Sale el guion de siempre y el papel entero, en vez de un error que lo
+// parte por la mitad.
+function datosDeLaFicha(w){
+  if(!w)return null;
+  const f=Object.assign({},w);
+  f.cargo=w.spec||'';
+  f.email=w.correo||'';
+  f.afp_rut=w.afp_codigo||'';
+  f.salud_notas=w.salud||'';
+  f.emerg_nombre=w.emerg_name||'';
+  f.emerg_telefono=w.emerg_phone||'';
+  f.emerg_relacion=w.emerg_rel||'';
+  f.centro_costo=(w.centro_costo_id!=null&&typeof nombreCentroCosto==='function')
+    ? (nombreCentroCosto(w.centro_costo_id)||'')
+    : '';
+  return f;
 }
 
-// Y EL "onerror" DE TODAS LAS IMÁGENES DEL PAPEL
-//
-// El papel se escribe con "document.write", que no corre scripts, así que no hay
-// forma de dejar un manejador en el Javascript. El atributo en línea sí funciona,
-// porque es HTML.
-//
-// Y QUÉ HACE: esconde la imagen y deja que se vea el nombre de al lado. Una foto de
-// empresa que no carga sale como el cuadrito roto del navegador, que en una ficha
-// archivada parece una marca dañada.
-function imagenDelPapel(url){
-  return '<img src="'+escHtml(url)+'" alt=""'
-    +' onerror="this.style.display=\'none\'">';
+// ---------------------------------------------------------------------
+// LA EMPRESA DEL TRABAJADOR
+// ---------------------------------------------------------------------
+function empresaDelTrabajador(w){
+  const lista=(typeof empresas!=='undefined'&&Array.isArray(empresas))?empresas:[];
+  const id=w&&w.empresa_id;
+  const emp=(id!=null)
+    ? lista.find(function(e){return e&&String(e.id)===String(id);})
+    : null;
+  return emp||null;
 }
 
-// ---------------------------------------------------------------------
-// LOS DATOS DE LA EMPRESA, PARA EL ENCABEZADO
-// ---------------------------------------------------------------------
-//
-// Y POR QUÉ SE CALCULA UNA VEZ Y NO EN CADA Renglón
-//
-// Porque el nombre de la empresa y el centro de costo están arriba, en la tarjeta, y
-// repetirlos en cada fila que los mentione hace una hoja más larga sin agregar nada.
-// Se calcula una vez y se pasa a la plantilla.
 function datosDeCabecera(w){
-  const empresaActual=(typeof obtenerEmpresaActual==='function')?obtenerEmpresaActual():null;
-  const emp=(empresaActual||[]).find(function(e){
-    return e&&e.id==(w&&w.empresa_id);
-  });
+  const emp=empresaDelTrabajador(w);
+  // Y EL LOGO, PARA EL ENCABEZADO Y PARA EL SELLO DE AGUA
+  //
+  // La columna se llama "logo_url". Se acepta también "logo" porque hay un par de
+  // lugares de la aplicación que le ponen el nombre corto al leer.
+  const logo=(emp&&(emp.logo_url||emp.logo))||'';
+  const nombreEmpresa=(emp&&emp.nombre)
+    || (w&&w.empresa_nombre)
+    || (emp?null:'Empresa no encontrada');
   return {
-    empresa:(emp&&(emp.nombre||emp.razon_social))||'Empresa',
-    centro:(w&&w.centro_costo)||(emp&&(emp.centro_costo))||'—',
-    // Y EL LOGO, PARA EL ENCABEZADO Y PARA EL SELLO DE AGUA
-    logo:logoDeEmpresa(w),
+    empresa:nombreEmpresa,
+    centro:(w&&w.centro_costo)||'—',
+    logo:logo,
     // Y EL NÚMERO DE LA FICHA
     //
     // Porque el papel archivado tiene que poder numerarse sin depender de una
@@ -330,6 +492,69 @@ function fila(etiqueta, valor, destacado){
     +'<td class="fichaEtiqueta">'+escHtml(etiqueta)+'</td>'
     +'<td'+clase+'>'+(hay?escHtml(String(valor)):'<span class="fichaVacio">—</span>')+'</td>'
     +'</tr>';
+}
+
+// ---------------------------------------------------------------------
+// LOS DATOS DE A DOS POR LÍNEA
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ DOS Y NO UNO
+//
+// Porque en el papel que salió de la app, los datos personales ocupaban ocho renglones
+// para ocho campos, con una etiqueta a la izquierda y el valor en una celda que
+// llegaba hasta el otro borde de una hoja enorme. Dos tercios del papel eran vacío.
+//
+// Con dos pares por renglón, la misma información entra en la mitad del alto, y el
+// valor queda pegado a su etiqueta y no perdido al otro lado de la hoja. Eso es lo
+// que hace una ficha de papel de verdad: se lee de arriba abajo, no saltando de un
+// borde al otro.
+//
+// Y QUÉ PASA SI EL VALOR ES LARGO
+//
+// Se acorta la fila, no el texto. El valor no se parte a la mitad ni se le corta con
+// puntos suspensivos: un número de teléfono o un correo no se pueden recortar. Si
+// ocupa más, ocupa el renglón entero de abajo y la fila queda más alta. Perder un
+// renglón de alto no es un problema; perder parte de un dato sí.
+//
+// Y UN CAMPO QUE NECESITA LA LÍNEA ENTERA
+//
+// El plazo del contrato y el resto de los destacados, porque son los que llevan el
+// fondo de color y tienen que verse de una vez. Se marcan con "completo".
+function celdaDeCampo(campo){
+  const valor=campo.valor;
+  const hay=valor!==null&&valor!==undefined&&String(valor).trim()!=='';
+  const clase=(hay&&campo.destacado)?' class="fichaValor fichaDestacado"':' class="fichaValor"';
+  // Y LA CELDA DE RELLENO
+  //
+  // Porque una fila con un solo campo y la otra celda vacía queda con un hueco feo al
+  // lado. Se escriben los dos rótulos y los dos valores, y el que no hay queda con el
+  // guion de siempre: es lo que se ve en la ficha y es lo que hay que leer.
+  const etiq=campo.vacio?'':escHtml(campo.etiqueta);
+  return '<td class="fichaEtiqueta">'+etiq+'</td>'
+    +'<td'+clase+'>'+(hay?escHtml(String(valor)):'<span class="fichaVacio">—</span>')+'</td>';
+}
+function tablaPares(campos){
+  const salida=[];
+  let i=0;
+  while(i<campos.length){
+    const uno=campos[i];
+    // Y EL QUE NECESITA LA LÍNEA ENTERA, EN SU PROPIO RENGLÓN
+    if(uno.completo){
+      salida.push('<tr>'+celdaDeCampo(uno)+'</tr>');
+      i++;
+      continue;
+    }
+    const dos=campos[i+1];
+    if(!dos||dos.completo){
+      // Y SI EL SIGUIENTE TAMBIÉN ES ENTERO, ESTE SE QUEDA CON SU PAR DE AL LADO
+      salida.push('<tr>'+celdaDeCampo(uno)+celdaDeCampo({etiqueta:'',valor:'',vacio:true})+'</tr>');
+      i++;
+      continue;
+    }
+    salida.push('<tr>'+celdaDeCampo(uno)+celdaDeCampo(dos)+'</tr>');
+    i+=2;
+  }
+  return '<table class="fichaTabla">'+salida.join('')+'</table>';
 }
 function filaLarga(etiqueta, valor){
   const hay=valor!==null&&valor!==undefined&&String(valor).trim()!=='';
@@ -399,8 +624,16 @@ function bloqueFoto(w){
 function tarjetaDelTrabajador(w){
   const cab=datosDeCabecera(w);
   const desvinculado=w.status==='desvinculado';
+  // Y LA FECHA DE DESVINCULACIÓN CON EL MISMO FORMATO QUE LAS OTRAS
+  //
+  // Porque sin esto la insignia decía "Desvinculado el 2026-09-30" a dos renglones
+  // de "Fecha de ingreso: 1 de Agosto de 2026". Dos formas de escribir una fecha en
+  // la misma hoja, y la que se descuadra es la de arriba, que es la que más se lee.
+  // MEDIDO en la vista previa, que para eso está.
+  const fechaBaja=w.fecha_desvinculacion&&(typeof fechaLarga==='function')
+    ? fechaLarga(w.fecha_desvinculacion):w.fecha_desvinculacion;
   const estado=desvinculado
-    ? 'Desvinculado'+(w.fecha_desvinculacion?(' el '+w.fecha_desvinculacion):'')
+    ? 'Desvinculado'+(fechaBaja?(' el '+fechaBaja):'')
     : 'Activo';
   const claseEstado=desvinculado?'fichaInsenia-desvinculado':'fichaInsenia-activo';
 
@@ -448,7 +681,20 @@ function datosClave(w){
   const claves=[
     ['Supervisor',supervisor],
     ['Fecha de ingreso',fecha],
-    ['Grupo del cargo',w.grupo_cargo],
+    // Y NO EL GRUPO DEL CARGO, QUE NO EXISTE
+    //
+    // Estaba acá y salía siempre vacío, y eso es peor que no estar: en una ficha
+    // archivada un guion dice "este trabajador no tiene grupo", y lo que pasa es que
+    // el grupo no se guarda en ninguna parte.
+    //
+    // El formulario tiene un desplegable de grupo, pero solo sirve para FILTRAR la
+    // lista de cargos: no se manda a la base. El cargo es el único que se guarda
+    // ("spec"), y de él se deduce el grupo. Poner una fila que nunca puede llenarse es
+    // prometer un dato que el sistema no tiene.
+    //
+    // Si algún día el grupo se guarda de verdad, la fila vuelve acá y se agrega la
+    // columna al "upsert" del trabajador, que es lo que hay que tocar primero.
+    ['Cargo para las planillas',w.cargo],
     ['Centro de costo',w.centro_costo]
   ];
   return '<div class="fichaClaves">'+claves.map(function(k){
@@ -461,10 +707,40 @@ function datosClave(w){
 // ---------------------------------------------------------------------
 // LA FICHA ENTERA
 // ---------------------------------------------------------------------
-function imprimirFichaTrabajador(){
-  const w=(typeof fichaEnPantalla!=='undefined')?fichaEnPantalla:null;
+function imprimirFichaTrabajador(trabajador,opciones){
+  // Y EL TRABAJADOR PUEDE VENIR DADO EN ARGUMENTO
+  //
+  // Porque la pantalla de la ficha es la forma normal de imprimirla: uno elige a
+  // alguien del desplegable y se imprime esa. Pero el botón "Guardar e imprimir
+  // ficha" de "Nuevo trabajador" recién acaba de crear a alguien y todavía no está en
+  // ninguna pantalla abierta, y no lo pone: se pondría solo al listado.
+  //
+  // Sin este parámetro esa ficha saldría sin nombre o, peor, con el de la persona
+  // que estuviera abierta de antes. Con él, la misma función imprime la de quien se
+  // le pase.
+  //
+  // Y CUANDO NO VIENE, ES LA DE LA PANTALLA, COMO SIEMPRE
+  //
+  // Porque el botón de la pantalla llama a "imprimirFichaTrabajador()" sin
+  // argumentos: sin este parámetro devuelve el mismo papel que antes.
+  const crudo=trabajador||((typeof fichaEnPantalla!=='undefined')?fichaEnPantalla:null);
+  // Y DE AHÍ SALEN LOS DATOS YA TRADUCIDOS A LOS NOMBRES DE ESTA FICHA
+  //
+  // Porque la ficha se inventó los nombres de varios campos y en la aplicación no
+  // existen con esos nombres. MEDIDO en el PDF que salió de la app: el cargo decía
+  // "Sin cargo cargado" y el centro de costo decía "—", y los dos están guardados.
+  // El detalle de cada campo está en "datosDeLaFicha()".
+  const w=datosDeLaFicha(crudo);
   if(!w){
-    alert('No hay ninguna ficha abierta. Abrí la ficha de un trabajador primero.');
+    // Y CON TRABAJADOR NO SE LLEGA AQUÍ: si se pasó uno, hay una ficha.
+    //
+    // Y CUÁNDO NO SE DICE "NO HAY NINGUNA FICHA ABIERTA" A SECAS
+    //
+    // Porque este botón se puede apretar sin haber abierto ninguna ficha, y el aviso
+    // tiene que decir las dos cosas que se pueden hacer: abrir una ficha de las que
+    // ya hay, o guardar un trabajador nuevo con el botón de al lado. Decir solo
+    // "no hay ficha abierta" deja a la persona pensando que tocó algo mal.
+    alert('No hay ninguna ficha abierta. Para imprimirla, elige un trabajador en la pantalla de ficha, o usa aquí el botón "Guardar e imprimir ficha" al guardar uno nuevo.');
     return;
   }
   // Y SI NO SE LEYERON LAS TAREAS, EL PAPEL LO DICE
@@ -526,31 +802,36 @@ function imprimirFichaTrabajador(){
     +tarjetaDelTrabajador(w)
     +datosClave(w)
 
-    +seccion('A','Datos personales',tabla([
-      fila('RUT',w.rut),
-      fila('Fecha de nacimiento',w.fecha_nac&&fechaLarga?fechaLarga(w.fecha_nac):w.fecha_nac),
-      fila('Nacionalidad',w.nacionalidad),
-      fila('Estado civil',w.estado_civil),
-      fila('Profesión u oficio',w.profesion),
-      fila('Comuna',w.comuna),
-      fila('Teléfono',w.phone),
-      fila('Correo',w.email)
+    +seccion('A','Datos personales',tablaPares([
+      {etiqueta:'RUT',valor:w.rut},
+      {etiqueta:'Fecha de nacimiento',valor:w.fecha_nac&&fechaLarga?fechaLarga(w.fecha_nac):w.fecha_nac},
+      {etiqueta:'Nacionalidad',valor:w.nacionalidad},
+      {etiqueta:'Estado civil',valor:w.estado_civil},
+      {etiqueta:'Profesión u oficio',valor:w.profesion},
+      {etiqueta:'Comuna',valor:w.comuna},
+      {etiqueta:'Teléfono',valor:w.phone},
+      {etiqueta:'Correo',valor:w.email}
     ]))
 
-    +seccion('B','Datos del contrato',tabla([
-      fila('Inicio del contrato',w.contrato_fecha_inicio&&fechaLarga?fechaLarga(w.contrato_fecha_inicio):w.contrato_fecha_inicio),
-      fila('Plazo',plazo,true),
-      fila('Hasta',w.contrato_fecha_hasta&&fechaLarga?fechaLarga(w.contrato_fecha_hasta):w.contrato_fecha_hasta)
+    +seccion('B','Datos del contrato',tablaPares([
+      {etiqueta:'Inicio del contrato',valor:w.contrato_fecha_inicio&&fechaLarga?fechaLarga(w.contrato_fecha_inicio):w.contrato_fecha_inicio},
+      {etiqueta:'Hasta',valor:w.contrato_fecha_hasta&&fechaLarga?fechaLarga(w.contrato_fecha_hasta):w.contrato_fecha_hasta},
+      // Y EL PLAZO CON LA LÍNEA ENTERA
+      //
+      // Porque es el único dato del contrato que va con fondo de color, y un
+      // destacado partido en dos mitades se ve como dos destacados cortados.
+      {etiqueta:'Plazo',valor:plazo,destacado:true,completo:true}
     ]))
 
-    +seccion('C','Datos de contratación',tabla([
-      fila('Empresa',cab.empresa),
-      fila('Centro de costo',cab.centro),
-      fila('Fecha de ingreso',w.fecha_ingreso&&fechaLarga?fechaLarga(w.fecha_ingreso):w.fecha_ingreso),
-      fila('Grupo del cargo',w.grupo_cargo),
-      fila('AFP',[w.afp_nombre,w.afp_rut].filter(Boolean).join(' · ')),
-      fila('Tipo de trabajador',w.tipo_trabajador),
-      fila('Cargo planillas',w.cargo_planillas)
+    +seccion('C','Datos de contratación',tablaPares([
+      {etiqueta:'Empresa',valor:cab.empresa},
+      {etiqueta:'Centro de costo',valor:cab.centro},
+      {etiqueta:'Fecha de ingreso',valor:w.fecha_ingreso&&fechaLarga?fechaLarga(w.fecha_ingreso):w.fecha_ingreso},
+      // Y NO EL GRUPO DEL CARGO, POR LO MISMO QUE EN LOS DESTACADOS
+      // Ver "datosClave()": el grupo del cargo no se guarda en ninguna parte.
+      {etiqueta:'AFP',valor:[w.afp_nombre,w.afp_rut].filter(Boolean).join(' · ')},
+      {etiqueta:'Tipo de trabajador',valor:w.tipo_trabajador},
+      {etiqueta:'Cargo para las planillas',valor:w.cargo}
     ]))
 
     // Y LAS PRECAUCIONES, QUE SI NO HAY DICEN QUE NO HAY
@@ -565,8 +846,12 @@ function imprimirFichaTrabajador(){
     +pie
     +'</div>';
 
-  imprimirPapelEnVentana(html,{
+  // Y LAS OPCIONES DEL LLAMADOR SE SUMAN, NO LO CAMBIAN
+  //
+  // Porque lo que se le pasa es la ventana ya abierta, que es lo que evita el
+  // bloqueo de emergente. Si no viene nada, el motor abre la suya como siempre.
+  imprimirPapelEnVentana(html,Object.assign({
     plantilla:'Ficha del trabajador',
     trabajador:w.name||w.code
-  });
+  },opciones||{}));
 }

@@ -285,7 +285,19 @@ function dbToWorker(r){
     contrato_plazo_dias:r.contrato_plazo_dias==null?null:Number(r.contrato_plazo_dias),
     contrato_fecha_inicio:r.contrato_fecha_inicio||null,
     contrato_fecha_hasta:r.contrato_fecha_hasta||null,
-    empresa_id:r.empresa_id||null
+    empresa_id:r.empresa_id||null,
+    // Y EL CENTRO DE COSTO, QUE SE GUARDA PERO NO VOLTABA
+    //
+    // La columna existe (migración 064) y el formulario la guarda —el "upsert" de más
+    // abajo la manda—, pero el objeto del trabajador en memoria no la traía. Por eso
+    // dos cosas salían mal sin decir nada: la revisión del listado marcaba "Sin centro
+    // de costo" a todo el mundo, y la ficha del archivador ponía "—" donde debería ir
+    // el nombre del centro.
+    //
+    // Se mapea el ID y no el nombre: el nombre se resuelve con "nombreCentroCosto()" en
+    // el momento de mostrarlo. Guardar el nombre en dos lugares es garantizar que
+    // algún día no coincidan.
+    centro_costo_id:r.centro_costo_id==null?null:Number(r.centro_costo_id)
   };
 }
 function attToDb(a){

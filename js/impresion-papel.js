@@ -75,7 +75,23 @@ function estilosDeLaVentana() {
 // 1. Se abre la ventana.
 function imprimirPapelEnVentana(html, opciones) {
   const o = opciones || {};
-  const win = window.open('', '_blank');
+  // ---------------------------------------------------------------------
+  // Y UNA VENTANA QUE YA ESTÁ ABIERTA, QUE SE PUEDE PASAR POR ADELANTE
+  // ---------------------------------------------------------------------
+  //
+  // Porque hay un caso en que abrir la ventana aquí es imposible y aun así hay que
+  // imprimir: cuando la persona primero espera algo en la base —el alta de un
+  // trabajador, por ejemplo— y después imprime. Una ventana pedida DESPUÉS de un
+  // "await" la bloquean Chrome y Edge como emergente: devuelve null y salta el
+  // "alert" que tiene esta misma función. Por eso el llamador abre la ventana de
+  // forma síncrona, dentro del clic, y la pasa por acá.
+  //
+  // Y ES ADITIVO, Y POR QUÉ
+  //
+  // Porque los demás llamadores —Bodega, los kit, la ficha del trabajador— no pasan
+  // nada: siguen abriendo su propia ventana con "window.open()", igual que antes. Si
+  // "ventana" no viene, el comportamiento es el de siempre.
+  const win = o.ventana || window.open('', '_blank');
   if (!win) {
     // Y SI EL NAVEGADOR LO BLOQUEÓ, SE DICE POR QUÉ
     alert(

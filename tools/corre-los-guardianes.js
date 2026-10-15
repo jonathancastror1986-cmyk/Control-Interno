@@ -110,7 +110,8 @@ const GUARDIANES = [
   // Van al final porque son las que se escriben hoy, y porque son las que hay que
   // volver a mirar cuando se cambia algo en esa parte.
   'prueba-ficha-archivador',
-  'inyecta-bug-ficha'
+  'inyecta-bug-ficha',
+  'prueba-guardar-ficha'
 ];
 
 const SALIDA_LIMPIA = 'pipe';
