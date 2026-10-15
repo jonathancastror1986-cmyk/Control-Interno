@@ -44,7 +44,33 @@ let detectados = 0;
 let probados = 0;
 
 probarBug('la foto del papel desaparece',
-  FICHA, '<div class="fichaFoto"><img', '<div class="fichaFotoVacia"><div class="fotoI"><img')
+  FICHA, 'return \'<div class="fichaFoto">\'', 'return \'<div class="fichaFotoVacia">X\'')
+  && detectados++;
+probados++;
+
+// Y UNO NUEVO, DEL CAMBIO DE HOY
+//
+// La foto ahora lleva un "onerror" para que una foto que no se puede bajar no salga
+// como el cuadrito roto del navegador. Se comprueba que el "onerror" no se pierda.
+probarBug('la foto pierde el aviso de que no se pudo cargar',
+  FICHA, ' onerror="this.style.display', ' data-basura="this.style.display')
+  && detectados++;
+probados++;
+
+// Y UNO DEL SELLO DE AGUA
+//
+// El sello tiene que quedar DETRÁS del texto del pie. Si el z-index se da vuelta, el
+// logo tapa la línea que dice de qué sistema salió la hoja, y esa línea es lo único
+// que el pie dice.
+//
+// Y POR QUÉ EL BUG REEMPLAZA EL "z-index:0" Y NO AGREGA UNO NUEVO
+//
+// La primera versión del bug agregaba un "z-index:9" al principio de la regla, y la
+// comprobación no lo vio: la regla seguía teniendo más abajo su "z-index:0", así que
+// el texto "z-index:0" aparecía igual y la comprobación pasaba. Reemplazar hace el
+// bug de verdad, que es lo que un error real hace.
+probarBug('el sello de agua tapa el texto del pie',
+  FICHA, 'pointer-events:none;z-index:0;', 'pointer-events:none;z-index:9;')
   && detectados++;
 probados++;
 

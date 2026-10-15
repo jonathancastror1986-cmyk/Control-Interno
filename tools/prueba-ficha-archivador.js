@@ -75,7 +75,13 @@ function fechaLegible(v) {
   const f = String(v || '');
   return /^\d{4}-\d{2}-\d{2}/.test(f) ? f.slice(8, 10) + '-' + f.slice(5, 7) : '';
 }
-const empresas = [{ id: 'e1', nombre: 'Constructora Prueba', centro_costo: 'PU' }];
+const empresas = [{
+  id: 'e1',
+  nombre: 'Constructora Prueba',
+  centro_costo: 'PU',
+  // Y EL LOGO, PARA EL ENCABEZADO Y PARA EL SELLO DE AGUA
+  logo: 'https://ejemplo.test/logo-empresa.png'
+}];
 function obtenerEmpresaActual() { return empresas; }
 function puedeGuardar() { return true; }
 
@@ -131,7 +137,11 @@ const TAREA_ESTADO = {
 //
 // La tercera forma, la que se usa, es cargar el archivo primero y después
 // asignarle el estado. Es lo que hace la aplicación cuando alguien marca una casilla.
-function correr(estadoTareas, textoError, ficha) {
+// Y LA LISTA DE EMPRESAS SE PUEDE CAMBIAR POR CADA CORRIDA
+//
+// Porque hay que probar el caso de la empresa que no tiene logo, y sin esto no se
+// podría: la lista era una constante.
+function correr(estadoTareas, textoError, ficha, listaEmpresas) {
   impreso = null;
   let alertas = null;
   const previo = global.alert;
@@ -150,7 +160,8 @@ function correr(estadoTareas, textoError, ficha) {
       cuerpo
     )(
       escHtml, fechaLarga, fechaLegible,
-      obtenerEmpresaActual, puedeGuardar, imprimirPapelEnVentana,
+      function () { return listaEmpresas || empresas; },
+      puedeGuardar, imprimirPapelEnVentana,
       ficha, [], { supabaseClient: {} }, {}, function (m) { alertas = m; }
     );
     api.sembrar(estadoTareas, textoError);
@@ -174,7 +185,19 @@ if (!r.impreso) {
 const h = r.impreso.html;
 const texto = h.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
 
-ok(/FICHA/.test(texto), 'el papel dice que es una ficha');
+// Y EL CUERPO DEL PAPEL, SIN EL "<style>"
+//
+// Porque el papel ahora trae su CSS adentro —tiene que traerlo, la ventana de
+// impresión no ve los archivos de la aplicación—, y el "<style>" nombra todas las
+// clases que se usan en el cuerpo. Buscando sobre el papel entero, "no sale el
+// recuadro de sin foto" encuentra el nombre de la clase DENTRO del CSS y falla,
+// aunque el cuerpo esté bien.
+//
+// La primera versión de estas comprobaciones no separaba las dos cosas y por eso
+// dio falsos tres veces el día que el papel empezó a traer su estilo.
+const cuerpo = h.replace(/<style>[\s\S]*?<\/style>/g, '');
+
+ok(/FICHA DEL TRABAJADOR/.test(texto), 'el papel dice que es una ficha');
 ok(h.indexOf('0021') >= 0, 'el código del trabajador está');
 ok(h.indexOf('Adasme') >= 0, 'el nombre está');
 ok(h.indexOf('Constructora Prueba') >= 0, 'la empresa está en el encabezado');
@@ -183,7 +206,18 @@ ok(h.indexOf('Constructora Prueba') >= 0, 'la empresa está en el encabezado');
 // Porque "cab.empresa" se escribe en dos lugares del papel y el encabezado es el que
 // se lee de reojo. Si el encabezado se rompe y queda la sección C, el papel parece
 // completo y en realidad le falta la marca de arriba.
-ok(/fichaMarca"><b>Constructora Prueba<\/b>/.test(h),
+// Y QUE EL NOMBRE DE LA EMPRESA ESTÉ DENTRO DE LA MARCA
+//
+// Antes se buscaba el texto pegado al "<div class=\"fichaMarca\">", y funcionaba
+// porque la marca era una sola cosa. Ahora la marca lleva el logo antes del nombre
+// y el nombre va en un "<div>" propio, así que el texto no está pegado al "<div>".
+//
+// Lo que se delimita es el bloque entero, desde la marca hasta el título de la hoja,
+// que es lo que viene justo después. Así el nombre tiene que estar ahí adentro, y no
+// en cualquier parte del papel que también lo tenga, que es la sección de
+// contratación.
+const bloqueMarca = (cuerpo.match(/<div class="fichaMarca">[\s\S]*?fichaTituloPapel/) || [''])[0];
+ok(/Constructora Prueba/.test(bloqueMarca),
   'la empresa va arriba, en la marca, no solo en la sección de contratación');
 ok(h.indexOf('>PU<') >= 0, 'el centro de costo está en el encabezado');
 ok(h.indexOf('13.199.887-2') >= 0, 'el RUT está');
@@ -207,15 +241,45 @@ ok(/fijo,?\s*90 d/i.test(texto), 'el plazo sale junto: tipo y cantidad en la mis
 // pedazo, un papel sin foto pasa la comprobación igual: la primera versión de esta
 // prueba buscaba el nombre suelto, y por eso no veía el bug de que la foto se perdiera
 // y quedara el recuadro en su lugar.
-ok(/class="fichaFoto"><img/.test(h), 'con foto cargada, la foto va en el papel');
-ok(!/fichaFotoVacia/.test(h), 'con foto cargada no sale el recuadro de "sin foto"');
+ok(/class="fichaFoto"><img/.test(cuerpo), 'con foto cargada, la foto va en el papel');
+// Y QUE NO SALGA UN RECUADRO DE "SIN FOTO" CUANDO SÍ HAY FOTO
+//
+// Y POR QUÉ SE BUSCA EL "<div>" Y NO SOLO EL NOMBRE DE LA CLASE
+//
+// Porque el "onerror" de la foto lleva el nombre de la clase escrito adentro, que
+// es justamente lo que tiene que llevar: reemplaza la imagen por el recuadro si la
+// foto no se puede bajar. Buscando el nombre suelto, el papel da falso POSITIVO.
+//
+// Y es una comprobación más fuerte, no más floja: ahora mira que no exista el
+// ELEMENTO, que es lo que importa.
+ok(!/<div class="fichaFotoVacia">/.test(cuerpo),
+  'con foto cargada no sale el recuadro de "sin foto"');
+
+// Y QUE LA FOTO TENGA SU "onerror"
+// Porque sin él, una foto que está guardada pero que ya no se puede bajar sale como
+// el cuadrito roto del navegador, que en una ficha archivada parece una foto
+// dañada, y no parece que hay que ir a buscarla.
+ok(/onerror=/.test(cuerpo) && /No se pudo cargar la foto/.test(cuerpo),
+  'la foto avisa cuando no se puede cargar, en vez de salir el cuadrito roto');
 
 // Y EL CASO CONTRARIO, QUE ES EL QUE SE CONFUNDE
 const sinFoto = Object.assign({}, w, { foto_seguridad_url: '', foto_casual_url: '' });
 r = correr(TAREA_ESTADO, '', sinFoto);
-ok(/class="fichaFotoVacia"/.test(r.impreso.html) && !/<img/.test(r.impreso.html),
+const cuerpoSinFoto = r.impreso.html.replace(/<style>[\s\S]*?<\/style>/g, '');
+// Y POR QUÉ SE BUSCA QUE NO ESTÉ EL "<div>" DE LA FOTO Y NO QUE NO HAYA NINGÚN "<img>"
+//
+// Porque el papel tiene más de una imagen: la del trabajador y la del logo de la
+// empresa, en el encabezado y en el sello de agua. La primera versión pedía "ninguna
+// imagen" y pasaba a dar falso en cuanto se agregó el logo, que es el orden natural
+// en que se construyen estas cosas.
+//
+// Lo que importa es que la foto del trabajador no esté, no que el papel no tenga
+// pictures.
+ok(/class="fichaFotoVacia"/.test(cuerpoSinFoto) && !/class="fichaFoto">/.test(cuerpoSinFoto),
   'sin foto, sale el recuadro que lo dice y no un hueco en blanco');
-ok(/Sin foto/.test(r.impreso.html), 'el recuadro dice que no hay foto');
+ok(/Sin foto/.test(cuerpoSinFoto), 'el recuadro dice que no hay foto');
+ok(/logo-empresa/.test(cuerpoSinFoto),
+  'y eso no apaga el logo de la empresa, que va por su cuenta');
 
 // Y CUANDO HAY UNA FOTO PERO NO LA DE SEGURIDAD
 //
@@ -229,9 +293,15 @@ ok(/<img/.test(r.impreso.html) && /Foto casual/.test(r.impreso.html),
 // ---------------------------------------------------------------------
 // EL CHECKLIST, CON LAS MARCADAS Y LAS VACÍAS
 // ---------------------------------------------------------------------
-ok(/INGRESO/.test(texto), 'sale la etapa de ingreso');
-ok(/MINO|TERMINO/.test(texto), 'sale la etapa de término');
-ok((h.match(/width:11px/g) || []).length === 8, 'las ocho casillas, cuatro por etapa');
+ok(/Ingreso/.test(texto), 'sale la etapa de ingreso');
+ok(/T.rmino/.test(texto), 'sale la etapa de término');
+// Y CUANTAS CASILLAS, CONTADAS POR SU CLASE Y NO POR UN ANCHO
+//
+// La primera versión contaba "width:11px". Cuando el papel pasó a traer su CSS
+// adentro, ese ancho se escribe una vez en el "<style>" y ya no está en cada casilla,
+// y la cuenta daba cero. Contando la clase, cada casilla aparece una vez, que es lo
+// que se quiere comprobar.
+ok((h.match(/class="fichaCheckCaja"/g) || []).length === 8, 'las ocho casillas, cuatro por etapa');
 ok((h.split('10003').length - 1) === 2, 'solo dos casillas con tilde, que son las dos hechas');
 ok(h.indexOf('Jonathan Castro') >= 0, 'el papel dice QUIÉN marcó, no solo que está hecha');
 
@@ -269,6 +339,61 @@ ok(h.indexOf('Medicamentos') === -1 && h.indexOf('Salud') === -1,
   'las advertencias que están vacías no salen, en vez de salir con un guion');
 ok(/Precauciones en obra<\/td><\/tr><tr><td class="fichaValor" colspan="2">/.test(h),
   'la advertencia que sí está ocupa la fila entera, sin que le corten el texto');
+
+// ---------------------------------------------------------------------
+// EL LOGO DE LA EMPRESA: ENCABEZADO Y SELLO DE AGUA
+// ---------------------------------------------------------------------
+
+// Y POR QUÉ SE COMPRUEBA QUE SALGAN DOS VECES
+//
+// Porque son dos usos distintos y son dos elementos distintos: el del encabezado se
+// ve, y el del pie es un sello tendido detrás del texto. Si se escribiera una vez y
+// se usara las dos, el sello se vería en el encabezado o el logo del encabezado
+// saldría desvanecido.
+//
+// Y EL SELLO VA DETRÁS DEL TEXTO
+//
+// Porque por eso es un sello: tiene que estar sin estorbar. Si el texto del pie queda
+// detrás de la imagen, ya no se sabe de qué sistema salió la hoja, y eso es lo único
+// que el pie dice.
+ok((cuerpo.match(/logo-empresa\.png/g) || []).length === 2,
+  'el logo de la empresa sale dos veces: en el encabezado y en el sello de agua');
+ok(/class="fichaMarcaLogo"/.test(cuerpo), 'el del encabezado es el logo, a la vista');
+ok(/class="fichaSello"/.test(cuerpo), 'el del pie es el sello de agua');
+ok(cuerpo.indexOf('fichaSello') < cuerpo.indexOf('fichaPieTxt'),
+  'el sello se escribe antes que el texto del pie, para que quede detrás');
+// Y EL ORDEN DE LAS DOS CAPAS, COMPROBADO POR SEPARADO
+//
+// Porque "está el z-index:0 en algún lado" no alcanza: si la regla del sello tuviera
+// los dos, un "z-index:0" más abajo y un "z-index:9" más arriba, el texto seguiría
+// apareciendo y la comprobación pasaría. Lo que importa es que el sello tenga UN
+// z-index, y que sea cero.
+const reglaSello = (h.match(/\.fichaSello\{([^}]*)\}/) || ['', ''])[1];
+const capasSello = reglaSello.match(/z-index\s*:\s*(\S+?);/g) || [];
+ok(capasSello.length === 1 && /z-index\s*:\s*0;/.test(capasSello[0]),
+  'el sello tiene una sola capa, y es la de abajo: '
+  + (capasSello.length ? capasSello.join(' y ') : 'no tiene ninguna'));
+ok(/\.fichaPieTxt\{[^}]*z-index\s*:\s*1/.test(h),
+  'y el texto del pie tiene su capa por encima, que es al revés de lo que se ve');
+// Y LA OPACIDAD DEL SELLO, COMO RANGO Y NO COMO NÚMERO EXACTO
+//
+// Porque lo que importa no es "un nueve por ciento": es que se vea y que no tape el
+// texto. Con el número pegado, subir un punto la opacidad —que es justo lo que se
+// hizo después de mirarlo en la pantalla— daba falso, y el resultado era dejar de
+// comprobar la única propiedad del sello que lo hace útil.
+const opacidad = parseFloat((reglaSello.match(/opacity\s*:\s*([\d.]+)/) || [])[1]);
+ok(opacidad > 0 && opacidad <= 0.25,
+  'el sello se ve pero no tapa el texto del pie, y la opacidad es '
+  + opacidad + ', entre 0 y 0.25');
+
+// Y CUANDO LA EMPRESA NO TIENE LOGO
+//
+// Porque si no hay logo no puede haber sello, y el pie tiene que quedar igual. Un pie
+// que aparece y desaparece según la empresa obliga a releerlo.
+r = correr(TAREA_ESTADO, '', w, [{ id: 'e1', nombre: 'Constructora Prueba', centro_costo: 'PU' }]);
+ok(!/logo-empresa/.test(r.impreso.html), 'sin logo, no sale ni el logo del encabezado ni el sello');
+ok(/fichaPieTxt/.test(r.impreso.html),
+  'sin logo, el pie sigue saliendo: no se pierde el texto que dice de qué sistema salió');
 
 // ---------------------------------------------------------------------
 // EL CASO QUE MÁS SE CONFUNDE: NO SE PUDO LEER

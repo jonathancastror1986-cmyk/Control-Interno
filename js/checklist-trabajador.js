@@ -293,19 +293,21 @@ function checklistParaElPapel(w){
       const e=tareasEstado[etapa+'|'+t.clave];
       return e&&e.hecho;
     }).length;
-    html+='<h4 style="margin:10px 0 4px;font-size:.85rem">'
-      +escHtml(etapa==='ingreso'?'INGRESO':'TÉRMINO')
-      +' <small>('+hechas+' de '+tareas.length+')</small></h4>';
-    html+='<table style="width:100%;border-collapse:collapse;font-size:.75rem">';
+    html+='<h4 style="margin:3mm 0 1.5mm;font-size:8.5pt;font-weight:800;'
+      +'color:#3b3f8f;text-transform:uppercase;letter-spacing:.05em">'
+      +escHtml(etapa==='ingreso'?'Ingreso':'Término')
+      +' <span style="font-weight:400;color:#6b7280;text-transform:none;letter-spacing:0">'
+      +'('+hechas+' de '+tareas.length+' hechas)</span></h4>';
+    html+='<table class="fichaCheck">';
     tareas.forEach(t=>{
       const e=tareasEstado[etapa+'|'+t.clave];
       const hecho=!!(e&&e.hecho);
       const cuando=hecho&&e.hecho_at?(' · '+fechaLegible(e.hecho_at,true)):'';
-      html+='<tr><td style="width:22px;text-align:center;border-bottom:1px solid #ccc">'
-        +'<span style="display:inline-block;width:11px;height:11px;border:1.2px solid #333">'
+      html+='<tr><td style="text-align:center">'
+        +'<span class="fichaCheckCaja">'
         +(hecho?'&#10003;':'')+'</span></td>'
-        +'<td style="border-bottom:1px solid #ccc">'+escHtml(t.texto)+'</td>'
-        +'<td style="width:130px;border-bottom:1px solid #ccc;font-size:.68rem">'
+        +'<td>'+escHtml(t.texto)+'</td>'
+        +'<td style="font-size:7.5pt;color:#5d6377">'
         +escHtml(hecho?((e.hecho_por_nombre||'')+cuando):'')
         +'</td></tr>';
     });
