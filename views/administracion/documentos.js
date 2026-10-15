@@ -3232,6 +3232,18 @@ function abrirFichaTrabajador(code){
   if(!w){alert('No se encontro al trabajador '+code+'.');return;}
   fichaEnPantalla=w;
   pintarFicha(w);
+  // Y EL CHECKLIST DE INGRESO Y DE TÉRMINO, QUE VA EN LA MISMA FICHA
+  //
+  // Se carga acá y no adentro de "pintarFicha" porque es una consulta más: la ficha
+  // se dibuja de memoria, y eso es lo que la hace inmediata. El checklist son filas
+  // de otra tabla.
+  //
+  // Y se dibuja aunque la consulta falle, porque "renderChecklist()" sabe decir "no
+  // se pudieron leer" en vez de mostrar una lista vacía, que en un checklist
+  // significaría "no se hizo ninguna tarea". Es una diferencia grave.
+  if(typeof cargarTareas==='function'){
+    cargarTareas(w.code).then(function(){renderChecklist();});
+  }
   if(typeof showView==='function')showView('ficha-trabajador');
 }
 
