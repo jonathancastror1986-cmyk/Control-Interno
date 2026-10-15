@@ -257,6 +257,38 @@ arch.forEach(function (f) {
       + ': al pegarla da "operator too long at or near ==="');
   }
 
+  // ---- 6) UN "||" PEGADO A UN "raise exception" ----
+//
+// Y POR QUÉ ESTA REGLA EXISTE
+//
+// Porque en PL/pgSQL el "raise exception" no es una expresión: no acepta una
+// concatenación detrás. Escribir
+//
+//     raise exception 'La etapa tiene que ser... ' || coalesce(p_etapa,'vacia')
+//
+// Postgres lo rechaza con "42601: syntax error at or near ||". La forma que sí
+// funciona es la del marcador: un "%" en el texto y el valor como argumento.
+//
+// Salió en la 089, la primera vez que se corrió en la base, y ni el conteo de
+// paréntesis ni el de comillas lo ven: las dos comillas están cerradas y los dos
+// paréntesis están pareados. El archivo está impecable y no compila.
+//
+// Y POR QUÉ SOLO DENTRO DE UN DOLLAR-QUOTE
+//
+// Porque afuera, en SQL de verdad, "select 'a' || 'b'" es correcto y hay que dejarlo
+// pasar. El "||" solo es un error cuando PL/pgSQL lo lee como sentencia.
+  const cuerpos = txt.match(/\$\$[\s\S]*?\$\$/g) || [];
+  cuerpos.forEach(function (cuerpo) {
+    cuerpo.split('\n').forEach(function (linea, n) {
+      if (/^\s*--/.test(linea)) return;
+      if (/raise\s+exception\b[^;]*\|\|/.test(linea)) {
+        poder.push('L' + (txt.slice(0, txt.indexOf(linea)).split('\n').length)
+          + '  RAISE CON "||": en PL/pgSQL el "raise exception" no acepta concatenacion. '
+          + 'Usá un "%" en el texto y el valor como argumento. Ver la regla 6 de este guardián.');
+      }
+    });
+  });
+
   if (!poder.length) {
     vistas++;
     console.log('  ok  ' + f.split('/').pop() + ': nada sospechoso');

@@ -76,6 +76,7 @@ const GUARDIANES = [
   'revisa-nombres-sql',
   'prueba-revisa-nombres-sql',
   'comprueba-codigo-sql',
+  'prueba-comprueba-codigo-sql-raise',
   'comprueba-columnas',
   'comprueba-migracion-corta',
   'prueba-comprueba-065',

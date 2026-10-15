@@ -223,8 +223,18 @@ begin
   --
   -- El "check" de la columna lo impediría, pero el error de Postgres no dice
   -- "esa etapa no existe". Con la lista escrita acá, el error dice cuál es.
+  --
+  -- Y POR QUÉ EL VALOR VA CON UN "%" Y NO CON "||"
+  --
+  -- Porque en PL/pgSQL el "raise exception" no es una expresión: no acepta que se le
+  -- pegue una concatenación atrás. La primera versión de este archivo usaba
+  --
+  --     raise exception 'La etapa tiene que ser... ' || coalesce(p_etapa,'vacia')
+  --
+  -- y Postgres la rechazó con "syntax error at or near ||". La forma que sí funciona
+  -- es la del marcador: un "%" en el texto y el valor como argumento.
   if p_etapa not in ('ingreso','termino') then
-    raise exception 'La etapa tiene que ser ingreso o termino, y es ' || coalesce(p_etapa,'vacia')
+    raise exception 'La etapa tiene que ser ingreso o termino, y es "%"', coalesce(p_etapa,'vacia')
       using errcode = '22023';
   end if;
 
@@ -239,7 +249,7 @@ begin
   -- Para que el error sea "no encontré a esa persona" y no una violación de clave
   -- foránea, que no dice ni el nombre ni el código.
   if not exists (select 1 from public.trabajadores where code = p_code) then
-    raise exception 'No encontré al trabajador ' || coalesce(p_code,'(sin código)')
+    raise exception 'No encontré al trabajador "%"', coalesce(p_code,'(sin código)')
       using errcode = '22023';
   end if;
 

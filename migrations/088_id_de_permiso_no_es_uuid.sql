@@ -102,19 +102,27 @@ create or replace function public.pedir_permiso_horario(
   p_motivo      text,
   p_comentario  text default null
 )
-returns bigint
+returns integer
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  -- Y POR QUÉ "bigint" Y NO EL "serial" DE LA COLUMNA
+  -- Y POR QUÉ "integer" Y NO "bigint"
   --
-  -- Porque "serial" es un atajo que crea una secuencia y un "default" por detrás.
-  -- En PL/pgSQL no existe ese atajo: hay que poner el tipo de verdad, y el de un
-  -- "serial" es un entero. Se usa "bigint" para no estar a dos dígitos de que se
-  -- llene la tabla.
-  v_id bigint;
+  -- Porque la columna es "id serial", y "serial" es un atajo que crea una secuencia
+  -- y un "default" por detrás. En PL/pgSQL no existe ese atajo: hay que poner el
+  -- tipo de verdad, y el de un "serial" es "integer". Un "bigserial" habría dado
+  -- "bigint", pero esta tabla no usa "bigserial".
+  --
+  -- La primera versión de este archivo decía "bigint", con el razonamiento de que
+  -- un entero grande daría más margen. La comprobación del final de la migración lo
+  --avrapeó: "la función devuelve bigint y la columna id es integer". El margen
+  -- extra no sirve de nada, y tener los dos tipos distintos obliga a que el error
+  -- salga recién al devolver la fila.
+  --
+  -- Por eso los dos tienen que ser IGUALES, no parecidos.
+  v_id integer;
   v_motivo text;
 begin
   -- -----------------------------------------------------------------
@@ -186,9 +194,15 @@ grant execute on function public.pedir_permiso_horario(text,date,time,time,text,
 --
 -- Y QUÉ COMPRUEBA
 --
--- Que el tipo que devuelve la función sea el mismo tipo que la columna "id". Si
--- alguien vuelve a cambiar cualquiera de las dos cosas, esto avisa con el nombre de
--- los dos y no con un 22P02 que no dice nada.
+-- Que el tipo que devuelve la función sea EXACTAMENTE el tipo de la columna "id". No
+-- "uno compatible": el mismo. Y esto no es una condición formando: "bigint" y
+-- "integer" se pueden convertir el uno en el otro, pero si se dejan distintos, el
+-- error sale recién cuando alguien guarda un permiso de verdad, y como un 22P02 que
+-- no dice ni qué función es.
+--
+-- Esta comprobación existe porque la primera versión de este archivo decía "bigint"
+-- creyendo que un "serial" da margen de sobra, y este fue el error que avisó: la
+-- migración se paró en el mismo pantallón, con el nombre de los dos tipos.
 do $$
 declare
   v_tipo_funcion text;
@@ -219,7 +233,7 @@ end;
 $$;
 
 comment on function public.pedir_permiso_horario(text,date,time,time,text,text) is
-  'Devuelve el id (bigint) del permiso creado. Antes declaraba "returns uuid" con la columna "id serial", que son tipos distintos, y por eso salia 22P02 al guardar. Ver migrations/088_id_de_permiso_no_es_uuid.sql.';
+  'Devuelve el id (integer) del permiso creado. La columna es "id serial", y "serial" es "integer", así que el tipo tiene que ser ese y no otro. Antes declaraba "returns uuid", que con un "serial" daba 22P02 al guardar. Ver migrations/088_id_de_permiso_no_es_uuid.sql.';
 
 commit;
 
