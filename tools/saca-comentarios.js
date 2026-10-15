@@ -172,12 +172,34 @@ function primeraFase(lasLineas) {
     return true;
   });
   if (!util.length) return '';
+
+  // Y LOS MARCADORES DE DOCUMENTACIÓN SE GUARDAN SIEMPRE
+  //
+  // Este es el error que cometió la primera versión, y lo pará el guardián
+  // "comprueba-codigos": hay comentarios con referencias como [modulos-01] o
+  // [tarja-01], que apuntan a una sección de "documentacion.txt".
+  //
+  // No son decoración: son el índice. Y al sacar el bloque, el marcador se iba con
+  // él, y la herramienta se llevaba una referencia que el proyecto usa para
+  // encontrar su propia documentación.
+  //
+  // Por eso la línea corta que queda lleva el marcador aunque no tenga nada que ver
+  // con la frase: primero es una referencia, y después el resumen.
+  const marcadores = [];
+  lasLineas.forEach(function (l) {
+    const encontrados = l.match(/\[[a-z0-9]+-\d+\]/gi) || [];
+    encontrados.forEach(function (m) {
+      if (marcadores.indexOf(m) < 0) marcadores.push(m);
+    });
+  });
+
   // Y SE CORTA EN LA PRIMERA FRASE COMPLETA
   let frase = util[0];
   const corte = frase.indexOf('. ');
   if (corte > 20) frase = frase.slice(0, corte + 1);
-  if (frase.length > 150) frase = frase.slice(0, 147).replace(/\s+\S*$/, '') + '...';
-  return frase;
+  if (frase.length > 130) frase = frase.slice(0, 127).replace(/\s+\S*$/, '') + '...';
+  const conMarcador=marcadores.length?marcadores.join(' ') + '  ' + frase:frase;
+  return conMarcador;
 }
 
 // ---------------------------------------------------------------------

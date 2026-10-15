@@ -21,11 +21,43 @@ function trozo(desde, hasta, archivo) {
   return t.slice(i, j);
 }
 const cuerpo = trozo('function fechaLarga(', 'async function descargarEntrega');
+
+// Y DEVUELVE EL TROZO HASTA LA SIGUIENTE DECLARACIÓN DE NIVEL SUPERIOR
+//
+// Se corta en la primera línea que empieza SIN SANGRA con "function", "async
+// function", "const", "let", "var" o "class". Sin sangría porque una
+// declaración de nivel superior no la tiene, y una que está adentro de un
+// bloque sí.
+function hastaLaSiguienteDeclaracion(archivo, desde) {
+  const t = fs.readFileSync(R + archivo, 'utf8');
+  const i = t.indexOf(desde);
+  if (i < 0) throw new Error('no se encontro: ' + desde);
+  const re = /^(?:async\s+)?function\s|^const\s|^let\s|^var\s|^class\s/m;
+  const resto = t.slice(i + desde.length);
+  const m = re.exec(resto);
+  if (!m) return t.slice(i);
+  return t.slice(i, i + desde.length + m.index);
+}
+
 // Y "fechaCorta" NO ESTA EN BODEGA.JS: se usa la de "documentos.js", porque los
 // archivos comparten el ámbito y repetirla sería pisarla. Si esa función cambia
 // de lugar, esta prueba tiene que romper, y por eso se saca de SU archivo.
-const fechaCortaReal = trozo('function fechaCorta(iso)', '// EL FILTRO DE RELOJES',
-  'views/administracion/documentos.js');
+// Y EL CORTE ES POR LA DECLARACIÓN SIGUIENTE, NO POR UN COMENTARIO
+//
+// Antes el corte era "desde fechaCorta hasta // EL FILTRO DE RELOJES", o sea
+// que la prueba dependía de un comentario. Si ese comentario se movía, se
+// renombraba o se sacaba, la prueba se rompía aunque la función estuviera
+// perfecta. Y pasó: al comprimir los comentarios largos del proyecto, ese
+// encabezado se fue.
+//
+// No es un problema de la función: es que la prueba usaba una palabra como
+// ancla, y las palabras se mueven.
+//
+// Ahora corta en la siguiente declaración de nivel superior. Si mañana se
+// reordenan las funciones, esta prueba no se entera, que es lo que
+// corresponde: a esta prueba le interesa la función, no lo que la rodee.
+const fechaCortaReal = hastaLaSiguienteDeclaracion(
+  'views/administracion/documentos.js', 'function fechaCorta(iso)');
 const REEMPLAZO = cuerpo + '\n' + fechaCortaReal
   + '\nreturn {reemplazarCampos,fechaLarga,fechaCorta,plazoDelContrato,domicilioDelContrato,marcadoresSinLlenar};';
 const api = new Function(REEMPLAZO)();
