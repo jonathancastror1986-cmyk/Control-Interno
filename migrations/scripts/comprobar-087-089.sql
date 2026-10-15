@@ -97,17 +97,49 @@ select column_name, data_type, is_nullable
  order by ordinal_position;
 
 -- ---------------------------------------------------------------------
--- 4. QUE EL PERMISO QUE PIDE LA 089 EXISTA
+-- 4. QUIÉN PUEDE MARCAR EL CHECKLIST, Y SI EL PERMISO EXISTE
 -- ---------------------------------------------------------------------
 --
 -- La función de marcar una tarea exige el permiso "contratacion.editar". Si ese
 -- permiso no está en la base, la casilla se ve pero al apretarla contesta que no
 -- hay permiso, y no es un error: es que el permiso no existe.
 --
--- Tiene que salir un "t" abajo.
+-- Y POR QUÉ ESTA CONSULTA SE CORRIGIÓ
+--
+-- La primera versión preguntaba en "public.permiso_definiciones", que NO EXISTE. La
+-- tabla del catálogo se llama "public.permisos", con la columna "clave". Esa versión
+-- no fallaba: devolvía falso y una persona podía leer "el permiso no existe" cuando
+-- lo que pasaba era que la consulta apuntaba a la nada. Peor: como es la única
+-- comprobación que dice si el permiso está, y daba un "f" convincente, podía llevar a
+-- cambiar permisos que estaban bien.
+--
+-- Los roles: solo "admin", "rrhh" y "prevención" lo tienen (migración 031). Ni
+-- "oficina" ni "supervisores" lo reciben en ninguna migración.
+--
+-- OJO: "roles_permisos" se puede editar desde la pantalla "Permisos por rol", así que
+-- lo que hay en la base puede diferir de las migraciones. Por eso las dos consultas.
 select
-  exists (select 1 from public.permiso_definiciones where clave = 'contratacion.editar')
+  exists (select 1 from public.permisos where clave = 'contratacion.editar')
   as existe_el_permiso_contratacion_editar;
+
+select rol, count(*) as cuantos_usuarios
+  from public.roles_permisos
+ where permiso = 'contratacion.editar'
+ group by rol
+ order by rol;
+
+-- Y ESTA ES LA QUE CONTESTA "POR QUÉ NO PUEDO MARCAR"
+--
+-- Dice qué roles tienen el permiso AHORA. Si tu rol no aparece en la lista de arriba,
+-- no hay caso raro ni error de la 089: es que a ese rol no se le dio el permiso, y es
+-- una decisión de la pantalla "Permisos por rol", no un bug.
+select
+  exists (select 1 from public.permisos where clave = 'contratacion.editar')
+  as el_permiso_existe,
+  (select string_agg(rol, ', ' order by rol)
+     from public.roles_permisos
+    where permiso = 'contratacion.editar')
+  as roles_que_lo_tienen_hoy;
 
 -- ---------------------------------------------------------------------
 -- 5. LO QUE YA SE MARCÓ, QUE CON LAS MIGRACIONES NUEVAS TIENE QUE ESTAR VACÍO
