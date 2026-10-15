@@ -101,6 +101,20 @@
   height:70px;
   min-width:0;
   flex:0 1 auto;
+  /* ref: marca-25 - El alto se anima, y por qué antes saltaba la pantalla
+     Al pasar los 40 píxeles de scroll el encabezado entero se achica 12
+     píxeles, de 216 a 204. MEDIDO: el "<header>" de adentro animaba su
+     padding, pero ESTE bloque —el que tiene el alto— no animaba nada: su alto
+     saltaba de 70 a 58 de golpe.
+
+     El resultado era el tirón que se sentía al scrollear. La barra es "sticky"
+     y está en el flujo, así que el contenido subía los 12 píxeles de golpe, y un
+     instante después el logo se terminaba de encoger. Dos tiempos distintos para
+     el mismo gesto.
+
+     El tiempo y la curva son los mismos que ya usan los hijos, para que el
+     bloque y lo que tiene adentro se muevan como una sola cosa. */
+  transition:height .28s cubic-bezier(.25,.46,.45,.94);
 }
 
 .marca-jc{
