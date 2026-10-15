@@ -323,34 +323,13 @@ function diasSinSalida(code){
   return marcajes.filter(m=>m.code===code&&m.tipo==='entrada'&&m.fecha<hoy&&!salidas.has(m.fecha));
 }
 
-// Y POR QUÉ CADA UNA TRAE SU "clase"
-//
-// Porque "situacionDiaria()" termina con esta línea:
-//
-//     const situacion=SITUACIONES_MEDIBLES.find(s=>s.clave===clave);
-//     return {clave,clase:situacion.clase,texto:situacion.texto};
-//
-// y si la entrada no tiene "clase", eso devuelve "undefined", y una etiqueta con
-// clase "undefined" no tiene color: sale con el mismo tono que el texto de la
-// tabla. Cuatro de las cinco pastillas salían sin color, y solo se veían
-// "Accidente" y "Licencia", que no salen de esta lista.
-//
-// Y POR QUÉ EL VERDE ES EL CASO NORMAL Y NO UNA EXCEPCIÓN
-//
-// Porque "Presente, marcó" es lo que le pasa a la mayoría de las personas todos
-// los días. Si lo que sale siempre es "Presente, tarde", el amarillo es lo de
-// siempre y no llama la atención de nadie: cuando todos están mal, ninguno está
-// marcándose como mal.
-//
-// Y "Entró y no fichó salida" es amarilla, y no roja: el rojo es para "Sin marcar",
-// que es la única cosa que el supervisor tiene que ir a hacer HOY. Seis filas rojas
-// no tienen ninguna que destaque.
+// Los cinco grupos siguen sin color hasta decidir cómo resolver los días abiertos.
 const SITUACIONES_MEDIBLES=[
-  {clave:'presente',texto:'Presente, marcó',clase:'dia-verde'},
-  {clave:'tarde',texto:'Presente, tarde',clase:'dia-amarillo'},
-  {clave:'pendiente',texto:'Presente, pendiente marca',clase:'dia-amarillo'},
-  {clave:'abierto',texto:'Entró y no fichó salida',clase:'dia-amarillo'},
-  {clave:'sin_marcar',texto:'Sin marcar',clase:'dia-rojo'}
+  {clave:'presente',texto:'Presente, marcó'},
+  {clave:'tarde',texto:'Presente, tarde'},
+  {clave:'pendiente',texto:'Presente, pendiente marca'},
+  {clave:'abierto',texto:'Entró y no fichó salida'},
+  {clave:'sin_marcar',texto:'Sin marcar'}
 ];
 
 function claveSituacionDiaria(entrada,tarde,avisoRRHH,hayDiasAbiertos,motivoPuerta){
@@ -675,14 +654,17 @@ async function marcarPorEscaneo(scanned){
   // resolutor rapido, que solo mira el arreglo en memoria: por eso una
   // tarjeta emitida despues de abrir la pantalla salia "no encontrada".
   const w=await resolverCodigoTrabajadorCompleto(scanned);
-  if(!w)return;
+  if(!w){
+    mostrarResultadoEnCamara(scanned,'sup-diaria','<p>No se pudo identificar el trabajador. No se registró ningún marcaje.</p>');
+    return;
+  }
   // Solo su equipo. Si es RRHH o administración, se avisa y no se marca.
   if(miCodigoSupervisor&&w.supervisor_code!==miCodigoSupervisor){
-    alert(w.name+' no está a tu cargo. Solo puedes registrar el marcaje de tu equipo.');
+    mostrarResultadoEnCamara(scanned,'sup-diaria','<p>'+escHtml(w.name)+' no está a tu cargo. Solo puedes registrar el marcaje de tu equipo.</p>');
     return;
   }
   if(!miCodigoSupervisor&&!soyAdmin()){
-    alert('Tu usuario no está vinculado a un supervisor, así que no hay equipo al que registrarle el marcaje. Un administrador lo vincula en Soporte → Usuarios.');
+    mostrarResultadoEnCamara(scanned,'sup-diaria','<p>Tu usuario no está vinculado a un supervisor, así que no hay equipo al que registrarle el marcaje. Un administrador lo vincula en Soporte → Usuarios.</p>');
     return;
   }
   const entrada=marcajeDe(w.code,'entrada');
@@ -692,27 +674,21 @@ async function marcarPorEscaneo(scanned){
   // Ya fichó entrada y salida: solo se informa.
   if(entrada&&salida){
     renderDiaria();
-    // Cerramos solo cuando el resultado ya es visible en la planilla. La
-    // alternativa de “marcar siguiente” era viable, pero hoy la cámara es la
-    // confirmación inmediata del resultado y no hace falta un paso extra.
-    stopLiveScan();
-    abrirAvisoMarcaje(w,{yaCompleto:true,entrada,salida,avisos:avisosSinSalida(w)});
+    mostrarMarcajeEnCamara(w,{yaCompleto:true,entrada,salida,avisos:avisosSinSalida(w)});
     return;
   }
   // Todavía no sale: el siguiente escaneo es la salida.
   const tipo=entrada?'salida':'entrada';
   const m=await registrarMarcaje(w.code,tipo,'qr');
-  if(!m)return;
+  if(!m){
+    mostrarResultadoEnCamara(scanned,'sup-diaria','<p>No se pudo registrar el marcaje. Revisa el aviso y vuelve a intentarlo.</p>');
+    return;
+  }
   const avisos=(tipo==='entrada'?revisarAlertas(w,hora):[]).concat(avisosSinSalida(w));
   await guardarAvisos(w.code,m,avisos);
   await loadAvisosDia();
   renderDiaria();
-  // La cámara sigue abierta en los caminos de error para poder reintentar
-  // sin volver a abrir el lector; en el éxito, se cierra de inmediato para
-  // que el supervisor pueda ir al siguiente trabajador sin quedar en un
-  // estado ambiguo.
-  stopLiveScan();
-  abrirAvisoMarcaje(w,{tipo,hora,marcaje:m,avisos});
+  mostrarMarcajeEnCamara(w,{tipo,hora,marcaje:m,avisos});
 }
 
 // Ajustar manualmente (se le olvidó la tarjeta, se le olvidó el reloj).
@@ -764,6 +740,20 @@ function abrirAvisoMarcaje(w,info){
       </div>
     </div>`).join('');
   document.getElementById('marcajeModal').classList.add('open');
+}
+
+function mostrarMarcajeEnCamara(w,info){
+  const {tipo,hora,avisos,entrada,salida,yaCompleto}=info;
+  const titulo=yaCompleto?'Marcaje completo':tipo==='entrada'?'Presente registrado':'Salida registrada';
+  const detalle=yaCompleto
+    ?'Entrada a las '+escHtml(entrada.hora)+' y salida a las '+escHtml(salida.hora)+'.'
+    :tipo==='entrada'?'El marcaje quedó guardado a las '+escHtml(hora)+'.':'Se registró la salida a las '+escHtml(hora)+'.';
+  const pendientes=(avisos||[]).map(a=>'<div class="mkAviso"><div class="mkAvisoIcono">'+(a.icono||'ℹ️')+
+    '</div><div><b>'+escHtml(a.titulo||'Aviso')+'</b><div>'+String(a.texto||'')+'</div>'+
+    (a.donde?'<div class="mkAvisoDonde">Debe pasar por <b>'+escHtml(a.donde)+'</b></div>':'')+'</div></div>').join('');
+  const contenido='<div class="camResultado"><b>'+escHtml(w.name)+'</b> · código '+
+    escHtml(codigoMostrar(w.code))+'<p><b>'+titulo+'</b><br>'+detalle+'</p>'+pendientes+'</div>';
+  mostrarResultadoEnCamara(w.code,'sup-diaria',contenido);
 }
 
 // ---------------------------------------------------------------------
@@ -1111,7 +1101,7 @@ function situacionDiaria(ent, sal, tarde, abierto, motivoPuerta, avisoRRHH,abier
     return {clave,clase:'dia-azul', texto: clave==='accidente'?'Accidente':'Licencia'};
   if(clave==='permiso') return {clave,clase:'dia-amarillo', texto:'Permiso'};
   const situacion=SITUACIONES_MEDIBLES.find(s=>s.clave===clave);
-  return {clave,clase:situacion.clase,texto:situacion.texto};
+  return {clave,texto:situacion.texto};
 }
 
 function alternarFiltroDiaria(){
@@ -1228,7 +1218,7 @@ if(social||prev){
       <td class="diaCelda diaCeldaHora">${celdaDeHora(entDelSupervisor,'supervisor')}</td>
       <td class="diaCelda diaCeldaHora">${sal?escHtml(sal.hora):(ent?'<span class="diaVacia">&mdash;</span>':'')}</td>
       <td class="diaCelda diaCeldaSit">
-        <span class="diaPill ${sit.clase}">${escHtml(sit.texto)}</span>
+        <span class="diaPill${sit.clase?' '+sit.clase:''}">${escHtml(sit.texto)}</span>
         ${marcaPermisoHorario(w.code)}
         ${abiertas.length?'<small class="diaVacia">salida pendiente del '+escHtml(abiertas.map(m=>fechaLegible(m.fecha)||m.fecha).join(', '))+'</small>':''}
       </td>

@@ -230,7 +230,18 @@ if(cierreBody<0){
   console.log('  *** NO SE ENCONTRÓ </body> PARA INSERTAR LAS PRUEBAS ***');
   process.exit(1);
 }
-const salida=salidaBase.slice(0,cierreBody)+pruebaPermisosHorario+NL+salidaBase.slice(cierreBody);
+const pruebaCamara=[
+  '<aside class="card" id="pruebasCamara" style="margin:16px">',
+  '  <h2>Pruebas del lector de cámara</h2>',
+  '  <button class="btn secondary" type="button" onclick="medirCajaCamara()">Medir caja del modal</button>',
+  '  <button class="btn secondary" type="button" onclick="probarCicloCamara()">Probar abrir, cerrar y reabrir</button>',
+  '  <button class="btn secondary" type="button" onclick="probarResultadoCamara()">Probar escaneo y resultado</button>',
+  '  <button class="btn secondary" type="button" onclick="contarSelectoresRotos()">Contar selectores rotos</button>',
+  '  <div id="resultadoPruebasCamara" role="status" aria-live="polite"></div>',
+  '</aside>',
+  '<script src="../../tools/pruebas/lector-camara.js?v=' + VERSION + '"></script>',
+].join(NL);
+const salida=salidaBase.slice(0,cierreBody)+pruebaPermisosHorario+NL+pruebaCamara+NL+salidaBase.slice(cierreBody);
 
 // -------------------------------------------------------------------
 // LOS MODOS, ANTES DE LA GUARDA
@@ -445,12 +456,14 @@ if (veces !== 1) {
 const scripts = (t) => (t.match(/<script src="[^"]+"/g) || []).map((x) => x.slice(14, -1));
 const antes = scripts(origen);
 const despues = scripts(salida);
+const scriptsSoloPruebas=despues.filter((x)=>x.indexOf('/tools/pruebas/lector-camara.js')>=0);
+const scriptsDeAplicacion=despues.filter((x)=>x.indexOf('/tools/pruebas/lector-camara.js')<0);
 
 console.log('  === la copia de "app-sin-login" ===');
 console.log('    sale de "pages/app.html", en la versión ' + VERSION);
-console.log('    ' + despues.length + ' scripts, y se cambian solo los prefijos de ruta');
+console.log('    ' + scriptsDeAplicacion.length + ' scripts de la app y '+scriptsSoloPruebas.length+' script(s) de prueba');
 
-if (antes.length !== despues.length) {
+if (antes.length !== scriptsDeAplicacion.length || scriptsSoloPruebas.length !== 1) {
   console.log('  *** CAMBIÓ LA CANTIDAD DE SCRIPTS ***');
   process.exit(1);
 }
@@ -464,14 +477,14 @@ antes.forEach((a, i) => {
   // Un comprobador que compara lo que NO tiene que comparar no encuentra lo que SÍ importa:
   // este avisa del script equivocado, en un archivo donde todo lo demás está bien.
   const limpio = (x) => x.replace(/\?v=\d+/, '').replace(/(\.\.\/)+/, '');
-  if (limpio(a) !== limpio(despues[i])) {
+  if (limpio(a) !== limpio(scriptsDeAplicacion[i])) {
     console.log('  *** EL SCRIPT ' + (i + 1) + ' ES DISTINTO ***');
     console.log('      - ' + a);
-    console.log('      + ' + despues[i]);
+    console.log('      + ' + scriptsDeAplicacion[i]);
     process.exit(1);
   }
 });
-console.log('    ok  los ' + despues.length + ' scripts son los mismos, con otra ruta');
+console.log('    ok  los ' + scriptsDeAplicacion.length + ' scripts de la app son los mismos, y la prueba trae el suyo aparte');
 
 fs.writeFileSync(DESTINO, salida, 'utf8');
 

@@ -12,24 +12,24 @@ function qrFormatsAvailable(){
 function handleScannedCode(rawCode,purpose){
   const code=String(rawCode||'').trim();
   if(!code)return;
-  if(purpose==='attendance-worker'||purpose==='attendance-supervisor'){applyAttendanceQr(code,purpose);return;}
-  if(purpose==='sup-diaria'){marcarPorEscaneo(code);return;}
-  if(purpose==='marcaje-manual'){buscarParaMarcajeManual(code);return;}
-  if(purpose==='epp-worker'){selectEppWorkerByScan(code);return;}
-  if(purpose==='kit-worker'){selectKitWorkerByScan(code);return;}
-  if(purpose==='epp-historial'){filtrarHistorialPorScan(code);return;}
-  if(purpose==='tool-owner'){lookupQrOwner(code);return;}
+  if(purpose==='attendance-worker'||purpose==='attendance-supervisor')return applyAttendanceQr(code,purpose);
+  if(purpose==='sup-diaria')return marcarPorEscaneo(code);
+  if(purpose==='marcaje-manual')return buscarParaMarcajeManual(code);
+  if(purpose==='epp-worker')return selectEppWorkerByScan(code);
+  if(purpose==='kit-worker')return selectKitWorkerByScan(code);
+  if(purpose==='epp-historial')return filtrarHistorialPorScan(code);
+  if(purpose==='tool-owner')return lookupQrOwner(code);
   // Elemento, herramienta o kit. El numero es la fila a la que va.
   //
   // "nueva" no es un numero: es el botón único que está al lado del título, y no
   // sabe de antemano en qué fila va el código. Eso se resuelve acá, con la lista
   // ya a la vista, que es el momento en que se puede saber.
-  if(purpose==='epp-item:nueva'){escanearEppEnLaFilaVacia(code);return;}
-  if(purpose.indexOf('epp-item:')===0){escanearEppItem(+purpose.slice(9),code);return;}
-  if(purpose.indexOf('kit-item:')===0){escanearKitItem(+purpose.slice(9),code);return;}
+  if(purpose==='epp-item:nueva')return escanearEppEnLaFilaVacia(code);
+  if(purpose.indexOf('epp-item:')===0)return escanearEppItem(+purpose.slice(9),code);
+  if(purpose.indexOf('kit-item:')===0)return escanearKitItem(+purpose.slice(9),code);
   const input=document.getElementById('scanCode');
   if(input)input.value=code;
-  doScan();
+  return doScan();
 }
 // Resuelve lo que se escaneó a un trabajador validando la TARJETA.
 //
@@ -266,6 +266,18 @@ function camStatus(text,isError){
   line.textContent=text;
   status.appendChild(line);
 }
+function mostrarResultadoEnCamara(text,purpose,detalle){
+  const panel=document.getElementById('camConfirmar');
+  if(!panel)return;
+  if(panel.innerHTML.trim())return;
+  const consulta=purpose==='porteria'&&document.getElementById('scanResult');
+  const cuerpo=detalle||(consulta&&consulta.innerHTML)||
+    '<p>Se leyó el código <b>'+escHtml(text)+'</b>. El resultado se aplicó al campo correspondiente de esta pantalla.</p>';
+  panel.style.display='';
+  panel.innerHTML='<div class="camResultado">'+cuerpo+'</div>'+
+    '<button class="btn secondary" type="button" id="camRescanBtn">Escanear otra tarjeta</button>';
+  panel.querySelector('#camRescanBtn').addEventListener('click',()=>openQrCamera(purpose));
+}
 function chooseRearCamera(cameras){
   const rear=/back|rear|trasera|trase|environment/i;
   return cameras.find(c=>rear.test(c.label||''))||cameras[0];
@@ -320,29 +332,30 @@ function onLiveScanSuccess(decodedText){
   }
   liveScanLock=true;
   camStatus('✓ Código detectado: '+text+' — buscando…');
-  setTimeout(()=>{
-    stopLiveScan();
-    handleScannedCode(text,purpose);
+  setTimeout(async()=>{
+    await pararCamaraDejandoModal();
+    try{
+      await handleScannedCode(text,purpose);
+      mostrarResultadoEnCamara(text,purpose);
+    }catch(error){
+      mostrarResultadoEnCamara(text,purpose,'<p class="gpsWarn">No se pudo procesar el código: '+escHtml(error&&error.message||error)+'</p>');
+    }
   },350);
 }
 
 // Muestra a quién se encontró y pide un OK antes de registrar. Un marcaje
 // equivocado obliga a corregir la asistencia después; un clic de más no.
-function pedirConfirmacionMarcaje(text,purpose){
+async function pedirConfirmacionMarcaje(text,purpose){
   const panel=document.getElementById('camConfirmar');
   if(!panel)return;
+  await pararCamaraDejandoModal();
   const w=buscarTrabajadorPorCodigo(text);
   if(!w){
-    // No se reconoce: se avisa y se deja seguir leyendo, sin marcar nada.
-    liveScanLock=true;
-    setTimeout(()=>{
-      stopLiveScan();
-      handleScannedCode(text,purpose);   // muestra el aviso del caso
-    },200);
+    await handleScannedCode(text,purpose);
+    mostrarResultadoEnCamara(text,purpose);
     return;
   }
   liveScanLock=true;
-  stopLiveScan();
   const entrada=marcajeDe(w.code,'entrada');
   const salida=marcajeDe(w.code,'salida');
   const yaCompleto=entrada&&salida;
@@ -365,15 +378,13 @@ function pedirConfirmacionMarcaje(text,purpose){
     </div>
     <small style="display:block;color:var(--muted);margin-top:6px">Se escaneó la tarjeta <b>${escHtml(text)}</b>. Revisa el nombre antes de confirmar.</small>
   </div>`;
-  document.getElementById('camOk').addEventListener('click',()=>{
+  document.getElementById('camOk').addEventListener('click',async()=>{
     panel.style.display='none';
-    handleScannedCode(text,purpose);
+    panel.innerHTML='';
+    await handleScannedCode(text,purpose);
+    mostrarResultadoEnCamara(text,purpose);
   });
   document.getElementById('camNo').addEventListener('click',()=>{
-    panel.style.display='none';
-    reiniciarLecturaEstable();
-    liveScanLock=false;
-    camStatus('Escaneado de nuevo. Acércate un poco más o mueve la tarjeta.');
     openQrCamera(purpose);
   });
   if(navigator.vibrate){try{navigator.vibrate([40,60,40]);}catch(error){}}
@@ -575,9 +586,13 @@ async function openQrCamera(purpose='porteria'){
     return;
   }
   const modal=camModal();
+  if(liveScanner)await pararCamaraDejandoModal();
+  liveScanLock=false;
   modal.dataset.purpose=purpose;
   modal.classList.add('open');
   reiniciarLecturaEstable();
+  const panel=document.getElementById('camConfirmar');
+  if(panel){panel.innerHTML='';panel.style.display='none';}
   camScanArea();
   document.getElementById('camShotInput').value='';
   camStatus('Encendiendo cámara…');
@@ -613,6 +628,14 @@ async function openQrCamera(purpose='porteria'){
     camStatus('No se pudo iniciar la cámara: '+(error&&error.message||error),true);
   }
 }
+async function pararCamaraDejandoModal(){
+  const scanner=liveScanner;
+  liveScanner=null;
+  liveScanLock=true;
+  if(!scanner)return;
+  try{if(scanner.isScanning)await scanner.stop();}catch(error){}
+  try{scanner.clear();}catch(error){}
+}
 function stopLiveScan(){
   const scanner=liveScanner;
   liveScanner=null;
@@ -626,8 +649,7 @@ function stopLiveScan(){
     const input=document.getElementById('camShotInput');
     if(input)input.value='';
   }
-  if(!scanner)return;
-  Promise.resolve()
+  if(scanner)Promise.resolve()
     .then(()=>scanner.isScanning?scanner.stop():null)
     .catch(()=>{})
     .then(()=>{try{scanner.clear();}catch(error){}})
@@ -650,8 +672,8 @@ async function scanQrImage(file,purpose='porteria'){
     scanner=new Html5Qrcode('qrImageScanArea',{verbose:false,formatsToSupport:qrSupportedFormats()});
     const code=await scanner.scanFile(file,false);
     if(scanner){try{scanner.clear();}catch(error){}}
-    stopLiveScan();
-    handleScannedCode(code,purpose);
+    await handleScannedCode(code,purpose);
+    mostrarResultadoEnCamara(code,purpose);
   }catch(error){
     if(scanner){try{scanner.clear();}catch(error){}}
     liveScanner=null;

@@ -5104,13 +5104,12 @@ body.nav-compacto #barrasSuperiores header h1{
    "transform:none" sino con las mismas propiedades y su valor grande. */
 body.nav-compacto #barrasSuperiores:hover header,
 body.nav-compacto #barrasSuperiores:focus-within header{padding-top:8px;padding-bottom:8px}
-body.nav-compacto #barrasSuperiores:hover #barrasSuperiores #mainNav button,
-body.nav-compacto #barrasSuperiores:hover #barrasSuperiores #subNav>button,
-body.nav-compacto #barrasSuperiores:hover #barrasSuperiores #subNav .nav-dropdown-trigger,
-body.nav-compacto #barrasSuperiores:focus-within #barrasSuperiores #mainNav button,
-body.nav-compacto #barrasSuperiores:focus-within #barrasSuperiores #subNav>button,
-
-body.nav-compacto #barrasSuperiores:focus-within #barrasSuperiores #subNav .nav-dropdown-trigger{
+body.nav-compacto #barrasSuperiores:hover #mainNav button,
+body.nav-compacto #barrasSuperiores:hover #subNav>button,
+body.nav-compacto #barrasSuperiores:hover #subNav .nav-dropdown-trigger,
+body.nav-compacto #barrasSuperiores:focus-within #mainNav button,
+body.nav-compacto #barrasSuperiores:focus-within #subNav>button,
+body.nav-compacto #barrasSuperiores:focus-within #subNav .nav-dropdown-trigger{
   padding-top:9px;
   padding-bottom:9px;
   font-size:.75rem;
@@ -5430,7 +5429,7 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
    "js/versiones.js" y el "?v=" de los enlaces. O mejor: correr el guion.
 */
 :root{
-  --version-app:'138';
+  --version-app:'139';
 }
 
 .attendance-tabs .pest-txt{

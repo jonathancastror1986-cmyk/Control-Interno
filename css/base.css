@@ -35,19 +35,6 @@
    negra y el texto encima, y ademas se pegaba al hacer scroll. Ver [h2-01]. */
 header{padding:16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--accent2);top:env(safe-area-inset-top,0px);z-index:5}
 header h1{font-size:1.3rem;color:#fff;text-transform:uppercase;letter-spacing:.04em}
-nav
-nav button{background:none;border:1px solid var(--line);color:var(--muted);padding:8px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;font-size:.85rem}
-nav button.active
-#subNav
-#subNav button.active
-main
-.view
-.view.active
-.card
-label
-input,select,textarea
-textarea
-button.btn{background:var(--accent2);color:#fff;border:none;padding:9px 16px;border-radius:6px;cursor:pointer;font-size:.85rem;margin-top:10px}
 /* Ítem del menú que existe pero que esta persona no puede abrir. Se muestra
    en vez de desaparecer: esconderlo deja a quien lo busca sin ninguna
    respuesta, y no hay forma de pedir que te lo habiliten si no sabes qué
@@ -79,20 +66,8 @@ details.supEquipo .supEquipoHint{font-weight:400;font-size:.8rem;color:var(--mut
 /* button.btn.secondary NO se define acá: lo define css/styles.css con
    --secondary-text. Estaba duplicado acá con --accent2, y --accent2 es un
    gris de superficie (#404040 en oscuro), no un color de texto. */
-.row
-.row>div
-fieldset
-legend
-table
-th,td
-.overflow
-.day-feriado
-.day-lab
-.pill
-small
-.list-item
-.list-item:hover
-#camModal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,18,.74)}#camModal.open{display:flex}
+#camModal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(10,14,18,.74)}
+#camModal.open{display:flex}
 .camModalBox{width:min(480px,100%);max-height:92vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
 .camModalBox h3{margin:0 0 4px}
 .camStage{position:relative;width:100%;min-height:180px;margin-top:12px;background:#000;border-radius:8px;overflow:hidden}
@@ -327,20 +302,6 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 .labelCell canvas,.labelCell img{width:28mm;height:28mm}
 .labelCell .lcEmpresa{font-size:6pt;text-transform:uppercase;letter-spacing:.05em;color:#7a8680;margin-top:1mm}
 /* ---- tarjeta tamaño carnet: 85.6mm x 53.98mm ---- */
-.cardWrap
-.idcard
-.idcard-inner
-.idcard.flipped .idcard-inner
-.idcard-face
-.idcard-back
-.idcard-photo
-.idcard-info
-.idcard-name
-.idcard-cargo
-.idcard-code
-.idcard-codes
-.idcard-back h4
-.idcard-back .sec
 .attendance-cell{position:relative;cursor:pointer}
 .attendance-cell:hover{outline:2px solid var(--accent);outline-offset:-2px}
 .attendance-code-column{min-width:72px;white-space:nowrap;font-weight:700;color:var(--secondary-text)}
