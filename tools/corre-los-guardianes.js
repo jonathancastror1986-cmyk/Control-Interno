@@ -111,7 +111,8 @@ const GUARDIANES = [
   // volver a mirar cuando se cambia algo en esa parte.
   'prueba-ficha-archivador',
   'inyecta-bug-ficha',
-  'prueba-guardar-ficha'
+  'prueba-guardar-ficha',
+  'prueba-horas-permiso'
 ];
 
 const SALIDA_LIMPIA = 'pipe';

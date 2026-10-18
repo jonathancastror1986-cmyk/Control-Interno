@@ -50,6 +50,11 @@ const MODULO_POR_VISTA = {
   'v-kit': 'contratos',
   'v-plantillas-kit': 'contratos',
   'v-aprobar-cambio': 'asistencia',
+  // Los dos registros de permisos son de asistencia, como la pantalla que los
+  // produce. Son consultas de lectura, así que el módulo alcanza para que el
+  // filtro de la barra las muestre; igual siguen closures y la RLS de la base.
+  'v-registro-permisos-diarios': 'asistencia',
+  'v-registro-permisos-hora': 'asistencia',
   'v-usuarios': 'empresas',
   'v-invitar-usuario': 'empresas',
   'v-permisos': 'empresas',

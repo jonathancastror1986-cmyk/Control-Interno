@@ -420,6 +420,8 @@ if(v==='ficha-trabajador'){initFichaTrabajador();}
   if(v==='sup-diaria'){initDiaria();}
   if(v==='just-diaria'){initJustificacionDiaria();}
   if(v==='auditoria'){initAuditoria();}
+  if(v==='registro-permisos-diarios'){initRegistroPermisosDiarios();}
+  if(v==='registro-permisos-hora'){initRegistroPermisosHora();}
   if(v==='relojes'){cargarRelojes();}
   if(v==='marcajes'){
     // Encadenado, no con await: initView no es async. Los filtros por reloj

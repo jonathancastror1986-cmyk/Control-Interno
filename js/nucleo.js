@@ -569,7 +569,15 @@ const navGroups = {
     // puede aprobar, o buscar dónde se aprueban las solicitudes.
     {v:'aprobar-cambio',label:'Aprobaciones y estados',options:[
       {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
-      {v:'aprobar-cambio',label:'Aprobar solicitudes'}
+      {v:'aprobar-cambio',label:'Aprobar solicitudes'},
+      // Y LOS DOS REGISTROS, AL LADO DE LAS DOS PANTALLAS QUE LOS PRODUCEN
+      //
+      // Porque van al mismo grupo y no a "Asistencia mensual": estas dos no
+      // cambian nada, son el papel que respalda las decisiones que se toman en
+      // las otras dos. Quien va a revisar un permiso va a "Aprobar solicitudes";
+      // quien después quiere contarlo, lo encuentra acá y no en la planilla.
+      {v:'registro-permisos-diarios',label:'Registro de permisos diarios'},
+      {v:'registro-permisos-hora',label:'Registro de permisos por hora'}
     ]},
 // Porque estaban juntos dentro de "Relojes y centros de costo", y con el
     {v:'relojes',label:'Relojes y centros de costo',options:[
