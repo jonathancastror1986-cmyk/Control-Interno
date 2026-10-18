@@ -439,10 +439,14 @@ dialog .card {
    pixels al lado de otro de 143 se apretan mal y se aprietan por error:
    el de "Cerrar sesión" al lado del de "Agregar" a 40 pixels de
    separación. A lo ancho, uno debajo del otro, no hay forma de apretar el
-   equivocado. */
+   equivocado.
+
+   Y 44 y no 42: 42 era el mínimo cómodo en escritorio, pero el dedo en un
+   teléfono necesita 44. La diferencia son 2 pixels y es la diferencia
+   entre apretar un botón y apretar el de al lado. */
 .card .row > div > .btn,
 .btn {
-  min-height: 42px;
+  min-height: 44px;
 }
 
 main {
@@ -734,4 +738,158 @@ svg {
 */
 :root{
   --alto-panel-asistencia: 168px;
+}
+
+
+/* ===================================================================
+   8. LOS TRES BOTONES DEL ALTA DE TRABAJADOR
+   ===================================================================
+
+   Son "Guardar trabajador", "Guardar e imprimir ficha para archivador" e
+   "Imprimir temporal (frente y reverso)". Tres rótulos largos, y lo que
+   se comprueba es que NO hay un envoltorio: los tres son hijos directos de
+   la ".card", así que van como inline-block sueltos, uno pegado al otro
+   con el espacio del código HTML entre medio.
+
+   -------------------------------------------------------------------
+   POR QUÉ NO SE SALEN, PERO SE VEN MAL
+   -------------------------------------------------------------------
+   El desborde horizontal ya lo tapa la regla de más arriba que pone
+   "max-width:100%" en ".btn", así que la página no se desplaza de lado.
+   Lo que queda es feo y apretado: cada botón queda con el ancho de su
+   texto, alineado a la izquierda, en tres escalones de ancho distinto, y
+   el más largo crece hacia abajo en tres o cuatro renglones. En 360 la
+   fila útil son 320 pixels y "ARCHIVADOR" a .75rem en mayúscula es casi
+   la mitad de eso.
+
+   A lo ancho, uno debajo del otro, los tres rótulos se leen enteros en
+   una línea cada uno y la fila se vuelve una lista, que es lo que es.
+
+   Y "display:flex" (y no sólo "width:100%") para que el texto se centre
+   también en vertical: con inline-block el texto queda pegado al borde
+   de arriba y el botón se ve hueco por abajo cuando el texto ocupa dos
+   renglones. */
+#v-nuevo-trabajador .card > .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 44px;
+  text-align: center;
+}
+
+
+/* ===================================================================
+   9. EL LECTOR DE CÁMARA EN EL TELÉFONO
+   ===================================================================
+
+   El marco es "#camModal" / ".camModalBox" (css/base.css), y lo que se
+   revisa es el RESULTADO: el "#camConfirmar", que queda oculto hasta que
+   escanea y después trae la foto, el nombre, los avisos y la tabla de
+   últimos registros.
+
+   -------------------------------------------------------------------
+   LO QUE PASABA
+   -------------------------------------------------------------------
+   Tres cosas, todas del mismo tipo: la caja se quedaba chica para lo que
+   tenía que mostrar, y lo que no entraba quedaba debajo del borde. */
+#camModal {
+  /* 8 y no 16 de margen: la caja va a ocupar casi todo el alto, y cada
+     riel de borde es alto que se le saca al resultado. El "env()" es por
+     el notch y la barra del sistema en un teléfono con la pantalla
+     completa. */
+  padding: 8px;
+  padding-top: max(8px, env(safe-area-inset-top, 0px));
+  padding-bottom: max(8px, env(safe-area-inset-bottom, 0px));
+}
+
+.camModalBox {
+  /* Lo primero se deja como estaba, para los navegadores que no conocen
+     "dvh". */
+  max-height: 92vh;
+  /* dvh y no vh. "vh" es el alto de la pantalla SIN el teclado: cuando el
+     teclado virtual sube, la caja sigue midiendo 92vh, su mitad de abajo
+     —la tabla de últimos registros y el botón Cerrar— queda tapada por el
+     teclado, y el scroll no la salva porque el scroll es DENTRO de la caja
+     y la caja no se mueve. "dvh" sí baja cuando sube el teclado. */
+  max-height: calc(100dvh - 16px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  /* El ancho NO se toca: se queda el "min(480px,100%)" del escritorio, que
+     en 360 y 390 ya da el ancho disponible y en 768 mantiene el cuadro
+     angosto en vez de estirarlo a 752. */
+  padding: 12px;
+  /* Para que scrollear el resultado no siga arrastrando la página de
+     atrás, que en la portería es la lista de asistencia. */
+  overscroll-behavior: contain;
+}
+
+/* En cuanto el panel del resultado tiene algo adentro, la cámara ya está
+   apagada —escaner.js la para ANTES de dibujar el resultado—, pero el
+   marco negro sigue ahí ocupando su min-height de 180 px más los 12 de
+   margen. En un teléfono de 360x640 son casi 200 px de alto, un tercio de
+   la pantalla, empujando la tabla de últimos registros y el botón Cerrar
+   más allá del borde.
+
+   El selector es ":has(#camConfirmar > *)" y no "[style*=display:none]"
+   a propósito: "escaner.js" cambia ese estilo en línea y lo escribe con
+   o sin espacio según por dónde ("display='none'" deja "display: none;"),
+   así que un selector de atributo se queda a medias. Que el panel TENGA
+   hijos es la señal fiable de que ya hay resultado, y "openQrCamera()"
+   vacía el panel antes de cada escaneo nuevo, así que el marco vuelve. */
+.camModalBox:has(#camConfirmar > *) .camStage {
+  display: none;
+}
+
+/* El botón Cerrar, pegado al pie de la caja mientras el resultado se
+   desplaza. Con la tabla de últimos registros abierta queda a más de un
+   scroll de distancia del final, y Cerrar es lo que se toca siempre:
+   sin esto, cerrar el lector es buscarlo.
+
+   El fondo va porque el texto de la tabla se transparenta por debajo, y
+   es el mismo "--card" de la caja; los márgenes negativos y el "bottom"
+   negativo son para que la barra llegue de borde a borde tapando el
+   padding de la caja, que si no deja una franja de 12 px por donde asoma
+   la tabla. */
+.camActions {
+  position: sticky;
+  bottom: -12px;
+  margin: 0 -12px -12px;
+  padding: 10px 12px;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+}
+
+/* Los dos se reparten el ancho de la barra en vez de quedar uno al lado
+   del otro con medio riel vacío, y el margen de 10 px que trae el escritorio
+   se va: el aire ahora lo pone el padding de la barra. Se nombra ".btn" y
+   no ">*" porque el escritorio pone ese margen con ".camActions .btn", que
+   es más específico que un hijo cualquiera y le ganaría. */
+.camActions > *,
+.camActions .btn {
+  flex: 1 1 auto;
+  margin-top: 0;
+}
+
+/* "Subir foto" es un <label>, no un ".btn", así que el bloque genérico de
+   más arriba no lo toca: se le da el alto mínimo del dedo acá, con
+   "inline-flex" para que el texto quede centrado en vertical.
+
+   Y el color: en css/base.css el de "Subir foto" es "var(--accent2)", que
+   es un gris de SUPERFICIE, no un color de texto — en claro es #101a14 y
+   se lee, en oscuro es #404040 sobre un "--card" #1e1e1e, que da 1.6:1 y
+   desaparece. Se usan los mismos dos tokens que usa ".btn.secondary", que
+   sí están medidos para los dos temas: "--secondary-text" para la letra y
+   "--field-hover" para el borde, como el borde de un botón secundario. */
+.camUpload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  margin: 0;
+  color: var(--secondary-text);
+  border-color: var(--field-hover);
+}
+
+.camUpload:hover {
+  background: var(--surface-hover);
+  color: var(--text);
 }
