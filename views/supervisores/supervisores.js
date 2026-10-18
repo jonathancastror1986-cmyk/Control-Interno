@@ -93,10 +93,50 @@ function cambiarPestanaSup(clave){
   document.querySelectorAll('[data-sup-panel]').forEach(p=>{
     p.classList.toggle('active',p.dataset.supPanel===clave);
   });
+  // Y AL ABRIR LA PESTAÑA DE PERMISOS, EL BOTÓN DE PEDIR SE MIRA
+  if(clave==='permisos'&&typeof mostrarBotonPedirPermisoHorario==='function'){
+    mostrarBotonPedirPermisoHorario();
+  }
   pestanaSupActual=clave;
   try{localStorage.setItem('pestanaSup',clave);}catch(error){}
 }
 let pestanaSupActual='diaria';
+
+// ---------------------------------------------------------------------
+// EL BOTÓN DE PEDIR PERMISO, QUE SE MUESTRA O NO SEGÚN EL PERMISO
+// ---------------------------------------------------------------------
+//
+// Y POR QUÉ SE OCULTA Y NO SOLO SE DESHABILITA
+//
+// Porque los botones de resolver YA se ocultan cuando no hay permiso (en
+// "js/permisos-horarios.js"), y tener en la misma pantalla un botón que se oculta y
+// otro que no hace que uno se pregunte si el permiso anda o no. O los dos se
+// esconden, o ninguno.
+//
+// Y POR QUÉ SE CALCULA AL CAMBIAR DE PESTAÑA Y NO AL CARGAR
+//
+// Porque los permisos llegan de la base después de que la pantalla ya está
+// dibujada. Si se calculara solo al arrancar, el botón aparecería o desaparecería
+// sin que nadie lo haya tocado, y dependería de en qué orden llegaron las consultas.
+//
+// Y CUANDO LOS PERMISOS NO SE HAN CARGADO
+//
+// "puede()" devuelve verdadero hasta que los permisos llegan, porque en el
+// navegador no se sabe todavía. Entonces el botón se muestra y, si de verdad no hay
+// permiso, la base lo rechaza al apretar. Es al revés de "cerrar por omisión", y es
+// a propósito: la regla vive en la base, y el navegador solo esconde lo que ya sabe.
+function mostrarBotonPedirPermisoHorario(){
+  const boton=document.getElementById('btnPedirPermisoHorario');
+  if(!boton)return;
+  const puede=(typeof puedeGuardar==='function')&&puedeGuardar('permisos_horario.pedir');
+  boton.style.display=puede?'':'none';
+  // Y EL AVISO DE POR QUÉ NO ESTÁ
+  //
+  // Porque un botón que desaparece sin explicación parece un error. Un renglón que
+  // dice quién puede pedirlo y que a vos no le corresponde es información.
+  const aviso=document.getElementById('permisoHorarioSinPermiso');
+  if(aviso)aviso.textContent=puede?'':'Pedir permisos con hora es del rol solicitante o del administrador de obra. Vos podés ver los permisos, pero no pedir nuevos.';
+}
 function initPestanasSup(){
   // La de la ultima vez, si es una de las que existen. Se comprueba contra
   // los botones: si el nombre guardado no esta, se cae a la primera.

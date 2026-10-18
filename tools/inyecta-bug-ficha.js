@@ -12,10 +12,10 @@ function cargar() {
   originales[FICHA] = fs.readFileSync(FICHA, 'utf8');
   originales[LISTA] = fs.readFileSync(LISTA, 'utf8');
 }
-function dejar() {
-  for (const f of Object.keys(originales)) fs.writeFileSync(f, originales[f]);
-  for (const f of Object.keys(originales)) delete originales[f];
-}
+// Y LA DEVOLVER QUEDA ABAJO, CON SU COMPROBACION
+//
+// Antes estaba acá y no podia fallar: si algo se caía antes de llegar al final, el
+// bug se quedaba puesto. Ver "restaurar()" mas abajo.
 function correr() {
   try {
     const salida = execFileSync(process.execPath, ['tools/prueba-ficha-archivador.js'],
@@ -24,6 +24,46 @@ function correr() {
   } catch (e) {
     return { verde: false, salida: String(e.stdout || '') };
   }
+}
+// ===================================================================
+// DEVOLVER LOS ARCHIVOS A SU ESTADO, PASE LO QUE PASE
+// ===================================================================
+//
+// Y POR QUÉ ESTA FUNCIÓN ES MÁS IMPORTANTE QUE LA DE INYECTAR
+//
+// Porque esta herramienta ESCRIBE sobre el código de la aplicación. Si se corta a
+// mitad —un Ctrl+C, una excepción, una caída— el bug se queda puesto en el archivo
+// de verdad.
+//
+// Y PASÓ. Una corrida dejó "z-index:9" en el sello de agua de "ficha-archivador.js"
+// (el bug que esta misma herramienta inyecta), y casi se sube a producción: el
+// sello de agua tapaba el texto del pie. Lo detectó "prueba-ficha-archivador", que
+// para eso existe, pero llegó tarde.
+//
+// Por eso ahora:
+//   1) todo lo que inyecta queda dentro de un "try" que SIEMPRE restaura,
+//   2) al final se COMPRUEBA que los archivos estén byte a byte como estaban, y
+//   3) si no están, se restauran y el proceso sale con código 1.
+function restaurar(){
+  for (const f of Object.keys(originales)) fs.writeFileSync(f, originales[f]);
+  for (const f of Object.keys(originales)) delete originales[f];
+}
+// Y LO MISMO, PARA EL CASO DE QUE ALGO SALTE ANTES DE LLEGAR AL FINAL
+process.on('exit', function () {
+  // "salio" es la marca de que ya se restauró a propósito. Sin esta marca, un
+  // "exit" por error intentaría restaurar sobre archivos que ya están bien, que es
+  // inocuo, pero el mensaje engaña.
+  if (originales && Object.keys(originales).length) restaurar();
+});
+function comprobarQueQuedoIgual(){
+  for (const f of Object.keys(originales)) {
+    if (fs.readFileSync(f, 'utf8') !== originales[f]) {
+      console.log('    *** ' + f + ' quedo MODIFICADO: lo restauro');
+      fs.writeFileSync(f, originales[f]);
+      return false;
+    }
+  }
+  return true;
 }
 function probarBug(nombre, archivo, de, a) {
   if (!originales[archivo]) throw new Error('no tengo copia de ' + archivo);
@@ -109,9 +149,20 @@ probados++;
 
 console.log('');
 console.log('    ' + detectados + ' de ' + probados + ' bugs detectados');
-dejar();
+// Y ANTES DE NADA, COMPROBAR QUE LOS ARCHIVOS QUEDARON EXACTAMENTE IGUALES
+//
+// Porque esta herramienta escribe sobre el código de la aplicación, y un archivo
+// que queda con un bug inyectado es un bug en producción esperando un commit. Ya
+// pasó una vez.
+const intacto = comprobarQueQuedoIgual();
+restaurar();
+if (!intacto) {
+  console.log('    *** ALGO QUEDO MODIFICADO: RESTAURADO, NO CONFIES EN ESTA CORRIDA ***');
+  process.exit(1);
+}
 if (detectados !== probados) {
   console.log('    *** LA PRUEBA NO ALCANZA A VER LOS BUGS ***');
   process.exit(1);
 }
 console.log('    ok  la prueba los ve todos');
+console.log('    ok  los archivos quedaron intactos');

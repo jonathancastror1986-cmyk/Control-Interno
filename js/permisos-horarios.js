@@ -51,7 +51,7 @@ function renderListaPermisosHorario(){
     const estado=estadoPermisoHorario(p.estado);
     const pedidoCuando=typeof fechaLegible==='function'?fechaLegible(p.creado_en,true):p.creado_en;
     const resueltoCuando=typeof fechaLegible==='function'?fechaLegible(p.confirmado_at,true):p.confirmado_at;
-    const puedeResolver = p.estado==='pendiente' && puedeGuardar('tarja.aprobar_cambio');
+    const puedeResolver = p.estado==='pendiente' && puedeGuardar('permisos_horario.aprobar');
     return `<tr>
       <td>${textoSeguroPermisoHorario(persona?persona.name:p.code)}</td>
       <td>${textoSeguroPermisoHorario(String(p.hora_inicio||'').slice(0,5))}–${textoSeguroPermisoHorario(String(p.hora_fin||'').slice(0,5))}</td>
@@ -164,7 +164,13 @@ async function cambiarSupervisorPermisoHorario(){
 }
 
 async function pedirPermisoHorario(){
-  if(!puedeGuardar('tarja.marcaje')){
+  // Y EL PERMISO, QUE ES EL NUEVO Y NO EL DE LA TARJA
+  //
+  // Antes pedía "tarja.marcaje", que es para registrar marcajes. Con la 090 la base
+  // exige "permisos_horario.pedir", y con el nombre viejo el botón se veía pero la
+  // base lo rechazaba: el error llegaba recién al apretar, y parecía un problema de
+  // la base cuando el problema era que el navegador preguntaba otra cosa.
+  if(!puedeGuardar('permisos_horario.pedir')){
     mostrarErrorPermisoHorario('No tienes permiso para pedir permisos horarios.', '42501');
     return;
   }
@@ -210,7 +216,13 @@ async function pedirPermisoHorario(){
 }
 
 async function resolverPermisoHorario(id, acepta, comentario){
-  if(!puedeGuardar('tarja.aprobar_cambio')){
+  // Y EL PERMISO, QUE ES EL NUEVO Y NO EL DE LA TARJA
+  //
+  // Antes pedía "tarja.aprobar_cambio", que es para aprobar cambios de asistencia y
+  // para los avisos de ingreso. Con la 090, aprobar un permiso con hora es
+  // "permisos_horario.aprobar", y a propósito NO es el mismo: con el viejo, "rrhh"
+  // seguía viendo botones para aprobar y la base se los rechazaba.
+  if(!puedeGuardar('permisos_horario.aprobar')){
     mostrarErrorPermisoHorario('No tienes permiso para resolver permisos horarios.', '42501');
     return;
   }
