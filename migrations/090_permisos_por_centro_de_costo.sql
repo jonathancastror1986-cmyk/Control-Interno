@@ -190,12 +190,110 @@ create table if not exists public.perfil_centros_costo (
 
 alter table public.perfil_centros_costo enable row level security;
 
-drop policy if exists "perfil centros rw" on public.perfil_centros_costo;
-create policy "perfil centros rw" on public.perfil_centros_costo for all
-  using (exists (select 1 from public.perfiles p
-                  where p.id = auth.uid() and p.activo))
-  with check (exists (select 1 from public.perfiles p
-                       where p.id = auth.uid() and p.activo));
+-- ---------------------------------------------------------------------
+-- LAS POLÍTICAS, QUE ESTABAN ABIERTAS
+-- ---------------------------------------------------------------------
+--
+-- Lo que había era UNA sola política "for all" con un "exists" que solo pedía
+-- "estés activo". Eso dejaba que cualquier usuario activo insertara
+--
+--     (su user_id, el centro de costo que quisiera)
+--
+-- y con esa fila ya podía pedir y aprobar permisos en cualquier obra de
+-- cualquier empresa: las dos funciones del permiso con hora preguntan
+-- "perfil_centros_costo", y la fila insertada ERA la credencial.
+--
+-- ---------------------------------------------------------------------
+-- POR QUÉ NO HAY UN PERMISO NUEVO
+-- ---------------------------------------------------------------------
+--
+-- Porque "sistema.usuarios" ya es "Gestionar usuarios y sus roles"
+-- (013_roles_permisos.sql:94), y asignarle a alguien qué centros ve es
+-- exactamente lo mismo: cambiarle el acceso a un usuario. Es el mismo permiso
+-- que ya protege a "perfil_empresas" (014_multi_empresa.sql:271-272). Un
+-- permiso nuevo habría que repartirlo, auditarlο y explicarlo, para nombrar lo
+-- mismo.
+--
+-- ---------------------------------------------------------------------
+-- Y POR QUÉ LA LECTURA Y LA ESCRITURA VAN SEPARADAS
+-- ---------------------------------------------------------------------
+--
+-- "perfil_empresas" usa una sola política "for all" para escribir y funciona.
+-- Pero mezclar los cuatro comandos en una sola condición hace imposible leer
+-- la política y decir qué se puede ver y qué se puede cambiar.
+--
+-- ---------------------------------------------------------------------
+-- Y LA REGLA QUE FALTA EN TODO EL PROYECTO: NADIE SE DA ALCANCE A SÍ MISMO
+-- ---------------------------------------------------------------------
+--
+-- El "with check" dice que no se puede escribir una fila con el propio
+-- "user_id". Sin eso, alguien con "sistema.usuarios" que no sea admin —un
+-- encargado que reparte alcances— podría estirar el suyo hasta una obra que no
+-- le corresponde, y aprobar ahí permisos que él mismo no debería ver.
+--
+-- El único que puede auto-asignarse es "admin", y a propósito.
+
+-- Y SE TIRAN TODAS LAS POLÍTICAS DE LA TABLA, POR COMANDO Y NO POR NOMBRE
+--
+-- Porque en Postgres las políticas permisivas se combinan con OR. Si sobrevive
+-- UNA sola política que permita escribir, da igual cuántas restrictivas haya:
+-- alcanza con que alguien la deje puesta, y vuelve a quedar abierto para cualquier
+-- usuario activo.
+--
+-- Y POR QUÉ NO SOLO POR EL NOMBRE CONOCIDO
+--
+-- Porque esta migración es la primera que crea la tabla, pero el nombre de la
+-- política vieja depende de quién la haya hecho: si alguien corrió un borrador a
+-- mano, con otro nombre, un "drop policy if exists" por el nombre que yo conozco
+-- no la toca y el agujero queda abierto. Por eso se borran por comando.
+--
+-- Y POR QUÉ SE BORRA "select" TAMBIÉN
+--
+-- Porque la de lectura vieja era "for all", que alcanzaba para todo. Si se deja,
+-- el "using" viejo vuelve a dejar leer los alcances de los demás.
+do $$
+declare
+  v_politica record;
+begin
+  for v_politica in
+    select policyname from pg_policies
+     where schemaname = 'public' and tablename = 'perfil_centros_costo'
+  loop
+    execute format('drop policy if exists %I on public.perfil_centros_costo',
+                   v_politica.policyname);
+  end loop;
+end;
+$$;
+
+-- Y LEER LO PROPIO, Y LOS ADMINISTRADORES TODO
+create policy "perfil centros read" on public.perfil_centros_costo for select
+  using (public.es_admin() or user_id = auth.uid());
+
+-- Y ESCRIBIR SOLO QUIEN ADMINISTRA USUARIOS
+create policy "perfil centros insert" on public.perfil_centros_costo for insert
+  with check (
+    public.es_admin()
+    or (public.tiene_permiso('sistema.usuarios') and user_id <> auth.uid())
+  );
+
+create policy "perfil centros update" on public.perfil_centros_costo for update
+  using      (public.es_admin() or public.tiene_permiso('sistema.usuarios'))
+  with check (
+    public.es_admin()
+    or (public.tiene_permiso('sistema.usuarios') and user_id <> auth.uid())
+  );
+
+create policy "perfil centros delete" on public.perfil_centros_costo for delete
+  using (public.es_admin() or public.tiene_permiso('sistema.usuarios'));
+
+-- Y LOS PERMISOS PARA EL USUARIO CONECTADO
+--
+-- Porque la tabla es nueva y no hay ningún "grant" previo que la alcance. Sin esto,
+-- un usuario conectado no puede leer ni escribir, las políticas nunca llegan a
+-- evaluarse, y el síntoma es "no tengo permiso" sin ninguna pista de por qué: no es
+-- un problema de permiso, es que a la tabla no lo dejaron entrar.
+grant select, insert, update, delete on public.perfil_centros_costo to authenticated;
+revoke all on public.perfil_centros_costo from anon;
 
 -- ===================================================================
 -- 4) QUIÉN PUEDE PEDIR Y QUIÉN PUEDE APROBAR
@@ -350,6 +448,8 @@ set search_path = public
 as $$
 declare
   v_centro integer;
+  v_estado text;
+  v_afectadas integer;
 begin
   -- Y EL PERMISO DE APROBAR, QUE ES NUEVO Y DISTINTO
   --
@@ -361,7 +461,11 @@ begin
       using errcode = '42501';
   end if;
 
-  select t.centro_costo_id into v_centro
+  -- Y EL ESTADO Y EL CENTRO, EN LA MISMA CONSULTA
+  --
+  -- El estado se trae acá porque el error de abajo necesita decir EN QUÉ ESTÁ, y
+  -- "ya fue resuelto" sin decir cuál obliga a abrir la pantalla para averiguarlo.
+  select ph.estado, t.centro_costo_id into v_estado, v_centro
     from public.permiso_horario ph
     join public.trabajadores t on t.code = ph.code
    where ph.id = p_id;
@@ -373,6 +477,21 @@ begin
   -- alcanzar con conocer un "id" alcanzaba para tocar un permiso de otra empresa.
   if not found then
     raise exception 'Ese permiso no existe' using errcode = '22023';
+  end if;
+
+  -- Y SOLO SE RESUELVE UNA VEZ
+  --
+  -- Esta comprobación estaba en la 086 (L331-335) y en la 087 (L182-185), y se
+  -- había perdido al reescribir la función. Sin ella, un permiso confirmado se
+  -- puede anular o volver a confirmar, y el "update" de abajo pisa
+  -- "confirmado_por", "confirmado_por_nombre" y "confirmado_at": el registro dice
+  -- que lo resolvió el último, y no queda rastro de quien lo había rechazado.
+  --
+  -- El mensaje dice en qué estado quedó, porque "ese permiso ya fue resuelto"
+  -- obliga a ir a mirar la pantalla para saber si alguien lo confirmó o lo anuló.
+  if v_estado <> 'pendiente' then
+    raise exception 'Ese permiso ya fue resuelto: su estado ahora es "%"', v_estado
+      using errcode = '22023';
   end if;
 
   if not public.es_admin() then
@@ -404,13 +523,33 @@ begin
     end if;
   end if;
 
+  -- Y EL "UPDATE" LLEVA LA COMPROBACIÓN OTRA VEZ, EN LA PROPIA SENTENCIA
+  --
+  -- Arriba ya se comprobó que el permiso está pendiente. Ponerlo también acá no es
+  -- redundancia: es para que la garantía NO dependa de una sola comprobación en
+  -- PL/pgSQL que alguien puede borrar en una edición de las que se hacen "para
+  -- limpiar". Si la condición desaparece de arriba, el permiso sigue sin poder
+  -- re-resolverse, porque la fila ya no está pendiente.
   update public.permiso_horario
      set estado = (case when p_acepta then 'confirmado' else 'anulado' end),
          confirmado_por = auth.uid(),
          confirmado_por_nombre = (select nombre from public.perfiles where id = auth.uid()),
          confirmado_at = now(),
          comentario = nullif(btrim(coalesce(p_comentario, '')), '')
-   where id = p_id;
+   where id = p_id
+     and estado = 'pendiente';
+
+  -- Y SI NO SE TOCÓ NINGUNA FILA, ALGUIEN SE ADELANTÓ
+  --
+  -- Porque el "update" no lleva candado. Si dos administradores aprueban el mismo
+  -- permiso al mismo tiempo, los dos pasan la comprobación de arriba, y el segundo
+  -- no cambia nada: se queda creyendo que lo aprobó. Con el conteo se avisa, en
+  -- vez de mostrar un "Listo" que no ocurrió.
+  get diagnostics v_afectadas = row_count;
+  if v_afectadas = 0 then
+    raise exception 'Ese permiso fue resuelto por alguien más mientras se revisaba'
+      using errcode = '22023';
+  end if;
 end;
 $$;
 
