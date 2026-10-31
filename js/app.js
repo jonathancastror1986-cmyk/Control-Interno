@@ -433,6 +433,7 @@ if(v==='ficha-trabajador'){initFichaTrabajador();}
       // El centro de costo va después de los relojes porque depende de la
       // misma lista de centros que se acaba de cargar.
       .then(llenarFiltroCentrosMarcajes)
+      .then(()=>cargarPresentesSinMarcaje());
   }
   // Un usuario reloj no navega vistas: se queda en la pantalla de marcaje.
   if(soyUsuarioReloj()){abrirTotemPorRelojDelUsuario();return;}
@@ -1969,7 +1970,7 @@ async function importWorkersCsv(){
         return;
       }
       const tipoTrabajadorValue=read('tipo_trabajador','tipo de trabajador').toLowerCase();
-      const tipoTrabajador=['interno','subcontrato'].includes(tipoTrabajadorValue)?tipoTrabajadorValue:(existing?.tipo_trabajador||'interno');
+      const tipoTrabajador=['interno','externo'].includes(tipoTrabajadorValue)?tipoTrabajadorValue:(existing?.tipo_trabajador||'interno');
       // "trabajadores.supervisor_code" tiene clave foránea a
       // "trabajadores.code". Si el CSV dice un supervisor que no existe,
       // Postgres lo rechaza con una violación de clave foránea, y
@@ -2519,7 +2520,7 @@ function cardFrontHtml(w,idSuffix,temporal){
           ${emp.nombre?`<div class="${temporal?'temp-company':''}" style="font-size:5.5pt;text-transform:uppercase">${emp.nombre}</div>`:''}
           <div class="idcard-name">${w.name}</div>
           <div class="idcard-cargo">${w.spec||''}</div>
-          ${temporal?'<span class="temp-card-badge">Temporal</span>':`<span class="final-card-badge">Definitiva</span><span class="worker-type-badge ${w.tipo_trabajador==='subcontrato'?'subcontrato':'interno'}">${w.tipo_trabajador==='subcontrato'?'Subcontrato':'Interno Empresa'}</span>`}
+          ${temporal?'<span class="temp-card-badge">Temporal</span>':`<span class="final-card-badge">Definitiva</span><span class="worker-type-badge ${w.tipo_trabajador==='externo'?'externo':'interno'}">${w.tipo_trabajador==='externo'?'Externo':'Interno Empresa'}</span>`}
         </div>
         <div>
           <div class="idcard-code">Código: <b>${escHtml(codigoMostrar(w.code))}</b></div>
@@ -2563,7 +2564,7 @@ function cardBackHtml(w,idSuffix='',temporal=false){
         <div><b>Código:</b> ${w.code}</div>
         <div><b>Cargo:</b> ${w.spec||'—'}</div>
         <div><b>Fecha de ingreso:</b> ${formatCardDate(w.fecha_ingreso)}</div>
-        <div><b>Tipo:</b> ${w.tipo_trabajador==='subcontrato'?'Subcontrato':'Interno Empresa'}</div>
+        <div><b>Tipo:</b> ${w.tipo_trabajador==='externo'?'Externo':'Interno Empresa'}</div>
         <div><b>Estado:</b> ${w.status==='desvinculado'?'Desvinculado':'Activo'}</div>
         <div class="final-card-emergency"><b>Emergencia:</b> ${w.emerg_name||'—'}${w.emerg_rel?` (${w.emerg_rel})`:''} · ${w.emerg_phone||'—'}</div>
         <div class="final-card-health"><b>Prevención:</b> ${w.salud||'—'}${w.medicamentos?` · Medicamentos: ${w.medicamentos}`:''}${w.precauciones?` · Precauciones: ${w.precauciones}`:''}</div>
@@ -3238,7 +3239,7 @@ async function conciliarMarcar(code,tipo){
 
 async function cambiarFechaDiaria(){
   fechaDiaria=(document.getElementById('diariaFecha')||{}).value||hoyLocal();
-  loadMarcajesDia().then(loadAvisosDia).then(cargarPermisosHorarioDia).then(renderDiaria);
+  loadMarcajesDia().then(loadAvisosDia).then(cargarPermisosHorarioDia).then(renderDiaria).then(avisoAsistenciaNoCargada);
 }
 
 // ============================================================

@@ -469,6 +469,7 @@ async function initDiaria(){
   // "catch" de abajo y se ve.
   await renderDiaria();
   renderConciliacion();
+  avisoAsistenciaNoCargada();
   renderAvisosIngresoEnviados();
   // Las pestañas se inician acá y no en un arranque aparte: si la lista cambia
   // al cambiar de supervisor o de fecha, tienen que seguir andando, y eso ya
@@ -1342,7 +1343,7 @@ const VARIABLES_DEL_MODELO = [
   ['[ESPECIALIDAD]', 'Cargo del kit'],
   ['[CENTRO]', 'Centro de costo o nombre de la obra'],
   ['[FECHA_INGRESO]', 'Fecha de ingreso'],
-  ['[TIPO_TRABAJADOR]', 'Interno o subcontrato'],
+  ['[TIPO_TRABAJADOR]', 'Interno o externo'],
   ['[AFP_CODIGO]', 'Código de la AFP'],
   ['[AFP_NOMBRE]', 'Nombre de la AFP'],
   ['[FECHA]', 'Fecha de hoy'],
@@ -4744,6 +4745,46 @@ async function cargarMarcajes(){
     };
   });
   pintarMarcajes();
+}
+
+// PRESENTES SEGÚN EL SUPERVISOR QUE NO MARCARON (solo lectura)
+//
+// Lo calcula la base (migración 095). Si el Excel de ese día no está cargado
+// devuelve vacío, y por eso se pregunta aparte: vacío no significa "todos marcaron".
+async function cargarPresentesSinMarcaje(){
+  const caja=document.getElementById('presentesSinMarcajeLista');
+  const inFecha=document.getElementById('presentesSinMarcajeFecha');
+  if(!caja||!inFecha)return;
+  if(!inFecha.value)inFecha.value=hoyLocal();
+  const fecha=inFecha.value;
+  const empresa=empresaDelIngreso();
+  caja.innerHTML='<small>Cargando…</small>';
+  const cargado=await window.supabaseClient.rpc('marcajes_cargados',{p_fecha:fecha,p_empresa_id:empresa});
+  if(cargado.error){
+    caja.innerHTML='<small>No se pudo consultar. Si dice que falta una función, aplica la migración 095. <br>'+escHtml(cargado.error.message)+'</small>';
+    return;
+  }
+  if(!cargado.data){
+    caja.innerHTML='<div class="kitResumen"><b>Aún no se carga el Excel de esta fecha.</b><br>'
+      +'<small>Sin él no se puede saber quién no marcó.</small></div>';
+    return;
+  }
+  const res=await window.supabaseClient.rpc('presentes_sin_marcaje',{p_fecha:fecha,p_empresa_id:empresa});
+  if(res.error){
+    caja.innerHTML='<small>No se pudo leer la lista: '+escHtml(res.error.message)+'</small>';
+    return;
+  }
+  const filas=res.data||[];
+  if(!filas.length){
+    caja.innerHTML='<small class="muted">Todos los presentes anotados por el supervisor tienen marcaje.</small>';
+    return;
+  }
+  caja.innerHTML='<div class="overflow"><table><thead><tr><th>Trabajador</th><th>Supervisor</th><th>Hora anotada</th></tr></thead><tbody>'
+    +filas.map(function(f){
+      return '<tr><td>'+escHtml(f.nombre||'')+' <small>'+escHtml(f.code||'')+'</small></td>'
+        +'<td>'+escHtml(f.supervisor_nombre||'Sin supervisor')+'</td>'
+        +'<td>'+escHtml(String(f.hora_anotada||'').slice(0,5)||'—')+'</td></tr>';
+    }).join('')+'</tbody></table></div><small>'+filas.length+' persona(s).</small>';
 }
 // HACE "N" DIAS ATRAS, EN AAAA-MM-DD
 //

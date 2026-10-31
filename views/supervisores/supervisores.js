@@ -137,6 +137,23 @@ function mostrarBotonPedirPermisoHorario(){
   const aviso=document.getElementById('permisoHorarioSinPermiso');
   if(aviso)aviso.textContent=puede?'':'Pedir permisos con hora es del rol solicitante o del administrador de obra. Vos podés ver los permisos, pero no pedir nuevos.';
 }
+// AVISO: LA ASISTENCIA DEL DÍA AÚN NO SE CARGA DESDE EL EXCEL (solo lectura)
+//
+// Solo se muestra para el día de hoy. Si la consulta falla no se muestra nada:
+// un aviso falso es peor que ninguno.
+async function avisoAsistenciaNoCargada(){
+  const caja=document.getElementById('avisoSinCargaHoy');
+  if(!caja)return;
+  caja.innerHTML='';
+  if(fechaDiaria!==hoyLocal())return;
+  const selSup=document.getElementById('supDiariaSup');
+  const sup=workers.find(w=>w.code===(selSup?selSup.value:miCodigoSupervisor));
+  const {data,error}=await window.supabaseClient.rpc('marcajes_cargados',
+    {p_fecha:fechaDiaria,p_empresa_id:(sup&&sup.empresa_id)||null});
+  if(error||data!==false)return;
+  caja.innerHTML='<div style="background:var(--warn-surface);border:1px solid var(--warn);color:var(--warn-ink);padding:10px 12px;border-radius:8px;margin:8px 0">'
+    +'Aún no se carga la asistencia de hoy; tu registro no reemplaza el marcaje.</div>';
+}
 function initPestanasSup(){
   // La de la ultima vez, si es una de las que existen. Se comprueba contra
   // los botones: si el nombre guardado no esta, se cae a la primera.

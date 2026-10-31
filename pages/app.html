@@ -20,19 +20,19 @@ proyecto: cero build, cero "node_modules". -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=151"></script>
-<script src="../config/supabase.client.js?v=151"></script>
-<script src="../config/auth.js?v=151"></script>
-<script src="../controllers/theme.js?v=151"></script>
-<script src="../controllers/clima-reloj.js?v=151"></script>
-<link rel="stylesheet" href="../css/base.css?v=151">
+<script src="../config/supabase.config.js?v=152"></script>
+<script src="../config/supabase.client.js?v=152"></script>
+<script src="../config/auth.js?v=152"></script>
+<script src="../controllers/theme.js?v=152"></script>
+<script src="../controllers/clima-reloj.js?v=152"></script>
+<link rel="stylesheet" href="../css/base.css?v=152">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=151">
-<link rel="stylesheet" href="../css/grupos.css?v=151">
-<link rel="stylesheet" href="../css/styles.css?v=151">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=151">
+<link rel="stylesheet" href="../css/tokens.css?v=152">
+<link rel="stylesheet" href="../css/grupos.css?v=152">
+<link rel="stylesheet" href="../css/styles.css?v=152">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=152">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=151"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=152"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,14 +68,14 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=151">
-<link rel="stylesheet" href="../css/checklist.css?v=151">
-<link rel="stylesheet" href="../css/vistas.css?v=151">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=151">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=151">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=151">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=151">
-<link rel="stylesheet" href="../css/movil.css?v=151" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=152">
+<link rel="stylesheet" href="../css/checklist.css?v=152">
+<link rel="stylesheet" href="../css/vistas.css?v=152">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=152">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=152">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=152">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=152">
+<link rel="stylesheet" href="../css/movil.css?v=152" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -493,13 +493,13 @@ con solo el código, las cartas quedan con algo que el trabajador no reconoce.
 
 
 </details></label><input id="w-afp-nombre" placeholder="AFP Habitat"></div>
-        <div><label>Tipo de trabajador <details class="ayuda"><summary class="ayuda-ico" title="Interno o subcontrato, y qué cambia">i</summary>
+        <div><label>Tipo de trabajador <details class="ayuda"><summary class="ayuda-ico" title="Interno o externo, y qué cambia">i</summary>
 
 
   <div class="ayuda-caja">
 
 
-  <b>Interno Empresa o Subcontrato.</b> No es un dato del trabajador: es a quién se le
+  <b>Interno Empresa o Externo.</b> No es un dato del trabajador: es a quién se le
 imputa el costo.
 <br><br>
 <b>Cambia el kit que le corresponde</b> y sale impreso en la credencial.
@@ -511,7 +511,7 @@ distintas, y por eso no se mezclan.
   </div>
 
 
-</details></label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="subcontrato">Subcontrato</option></select></div>
+</details></label><select id="w-tipo-trabajador"><option value="interno">Interno Empresa</option><option value="externo">Externo</option></select></div>
         <div><label>Cargo para las planillas</label><input id="w-spec"></div>
       </div>
       <div class="row">
@@ -1217,6 +1217,18 @@ duplica nada: la base lo sabe y lo cuenta.
     <div class="row tarjaControles">
       <div class="tarjaCampo tarjaGrande"><label>Supervisor</label><select id="matSupervisorFilter" onchange="updateAttendanceWorkerFilter()"><option value="">Todos los supervisores</option></select></div>
       <div class="tarjaCampo tarjaMedio"><label>Trabajador</label><select id="matWorkerFilter" onchange="renderMatrix()"><option value="">Todos los trabajadores</option></select></div>
+      <div>
+        <label>Empresa</label>
+        <select id="matEmpresaFilter" onchange="renderMatrix()"><option value="">Todas las empresas</option></select>
+      </div>
+      <div>
+        <label>Tipo</label>
+        <select id="matTipoFilter" onchange="renderMatrix()">
+          <option value="">Todos los tipos</option>
+          <option value="interno">Interno</option>
+          <option value="externo">Externo</option>
+        </select>
+      </div>
       <div class="tarjaCampo tarjaMedio"><label>Equipo</label><select id="matEstadoEquipo" onchange="renderMatrix()">
         <option value="activo">Solo activos</option>
         <option value="desvinculado">Solo inactivos</option>
@@ -1241,8 +1253,16 @@ duplica nada: la base lo sabe y lo cuenta.
         <button class="btn secondary btn-compacto" type="button" onclick="openQrCamera('attendance-supervisor')">📷 Escanear QR supervisor</button>
         <button class="btn secondary btn-compacto" type="button" onclick="openQrCamera('attendance-worker')">📷 Escanear QR trabajador</button>
         <button class="btn secondary btn-compacto" type="button" onclick="renderMatrix()">Generar tarja</button>
+        <button class="btn secondary btn-compacto" type="button" onclick="renderReportePorCargo()">Ver por cargo</button>
+        <label for="matFechaReporte">Fecha del resumen diario</label>
+        <input type="date" id="matFechaReporte">
+        <button class="btn secondary btn-compacto" type="button" onclick="renderResumenDiario(document.getElementById('matFechaReporte').value)">Resumen diario</button>
+        <button class="btn secondary btn-compacto" type="button" onclick="renderResumenMensual()">Resumen mensual</button>
       </div>
     </div>
+    <div id="cargoReporte"></div>
+    <div id="resumenDiarioReporte"></div>
+    <div id="resumenMensualReporte"></div>
     <div id="matLeyendaCeldas" class="tarjaLeyenda" hidden></div>
     <div class="kitResumen" id="tarjaPermisoHint"></div>
     <div class="row tarjaControles tarjaHoliday">
@@ -1742,6 +1762,7 @@ duplica nada: la base lo sabe y lo cuenta.
           <button class="btn secondary" type="button" onclick="initDiaria()">Actualizar</button>
         </div>
       </div>
+      <div id="avisoSinCargaHoy" role="status" aria-live="polite"></div>
       <div id="medicionAsistenciaDiaria" role="status" aria-live="polite"></div>
       <div id="diariaFiltroResumen" style="margin-top:6px"></div>
       <div class="mkResumen" id="diariaResumen"></div>
@@ -1913,6 +1934,17 @@ otra cosa, y esa otra cosa es la asistencia, con su motivo y su firma.
     </div>
     <div id="marcajesAviso" style="margin-top:10px"></div>
     <div id="marcajesLista" style="margin-top:10px"></div>
+  </div>
+  <div class="card">
+    <h2>Presentes según el supervisor que no marcaron</h2>
+    <small>Trabajadores internos que el supervisor anotó como presentes y que no tienen marcaje de entrada
+      en el Excel cargado. Es solo una lista para revisar: no cambia marcajes ni asistencia.</small>
+    <div class="row" style="margin-top:12px;align-items:flex-end;gap:10px">
+      <div><label for="presentesSinMarcajeFecha">Fecha</label>
+        <input type="date" id="presentesSinMarcajeFecha" onchange="cargarPresentesSinMarcaje()"></div>
+      <div><button class="btn secondary" type="button" onclick="cargarPresentesSinMarcaje()">Actualizar</button></div>
+    </div>
+    <div id="presentesSinMarcajeLista" style="margin-top:10px"></div>
   </div>
 </section>
 
@@ -3350,21 +3382,21 @@ trabajados de todos los trabajadores y no serviría para nada.
 </div>
 
 <!-- Y LA VERSIÓN, PRIMERO DE TODO: es lo que usan "app.js" para mostrar el número -->
-<script src="../js/versiones.js?v=151"></script>
-<script src="../js/nucleo.js?v=151"></script>
+<script src="../js/versiones.js?v=152"></script>
+<script src="../js/nucleo.js?v=152"></script>
 <!-- Y LOS MÓDULOS -->
 <!-- Va acá y no al final porque "showGroup" dibuja el menú apenas arranca, y el -->
 <!-- filtro de módulos tiene que estar cargado antes de que alguien abra una vista. -->
 <!-- No necesita "defer": sus funciones se llaman después de iniciar sesión, -->
 <!-- cuando todos los scripts ya se cargaron. -->
-<script src="../js/modulos.js?v=151"></script>
+<script src="../js/modulos.js?v=152"></script>
 <!-- Y LA CONCILIACIÓN, ANTES QUE TODO: LA USA LA JUSTIFICACIÓN DIARIA Y EL SUPERVISOR -->
-<script src="../js/conciliacion.js?v=151"></script>
-<script src="../views/porteria/escaner.js?v=151"></script>
+<script src="../js/conciliacion.js?v=152"></script>
+<script src="../views/porteria/escaner.js?v=152"></script>
 
-<script src="../views/asistencia/relojes.js?v=151"></script>
-<script src="../views/soporte/soporte.js?v=151"></script>
-<script src="../views/administracion/administracion.js?v=151"></script>
+<script src="../views/asistencia/relojes.js?v=152"></script>
+<script src="../views/soporte/soporte.js?v=152"></script>
+<script src="../views/administracion/administracion.js?v=152"></script>
 <!--
 LA IMPRESION DEL PAPEL
 =====================
@@ -3374,25 +3406,25 @@ recien cuando alguien aprieta Descargar. Por eso el orden aqui es solo de
 lectura, no de dependencia.
 Ver "js/impresion-papel.js".
 -->
-<script src="../js/impresion-papel.js?v=151"></script>
+<script src="../js/impresion-papel.js?v=152"></script>
 <!-- El checklist y la ficha del archivador.
 Van DESPUÉS de "impresion-papel.js" porque la ficha llama a
 "imprimirPapelEnVentana()", que vive ahí. Y antes de "app.js", que es el que
 dibuja el menú y las vistas. -->
-<script src="../js/checklist-trabajador.js?v=151"></script>
-<script src="../js/ficha-archivador.js?v=151"></script>
-<script src="../views/bodega/bodega.js?v=151"></script>
+<script src="../js/checklist-trabajador.js?v=152"></script>
+<script src="../js/ficha-archivador.js?v=152"></script>
+<script src="../views/bodega/bodega.js?v=152"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
-<script src="../views/administracion/docx.js?v=151"></script>
-<script src="../views/administracion/documentos.js?v=151"></script>
-<script src="../views/supervisores/supervisores.js?v=151"></script>
-<script src="../js/permisos-horarios.js?v=151"></script>
+<script src="../views/administracion/docx.js?v=152"></script>
+<script src="../views/administracion/documentos.js?v=152"></script>
+<script src="../views/supervisores/supervisores.js?v=152"></script>
+<script src="../js/permisos-horarios.js?v=152"></script>
 <!-- Los dos registros de permisos. Van DESPUÉS de "permisos-horarios.js" porque usan
 "estadoPermisoHorario", que escribe el texto de cada estado. -->
-<script src="../views/administracion/registro-permisos.js?v=151"></script>
-<script src="../js/app.js?v=151"></script>
+<script src="../views/administracion/registro-permisos.js?v=152"></script>
+<script src="../js/app.js?v=152"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
