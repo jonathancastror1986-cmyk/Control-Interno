@@ -346,6 +346,15 @@ begin
       using errcode = '42501';
   end if;
 
+  -- Y QUE EL USUARIO ESTÉ ACTIVO
+  --
+  -- La misma regla que en el resolver: "tiene_permiso" no mira "activo". Sin
+  -- esto, un usuario desactivado que conserva el rol sigue pidiendo permisos.
+  if not public.es_usuario_activo() then
+    raise exception 'Tu usuario está desactivado'
+      using errcode = '42501';
+  end if;
+
   v_motivo := btrim(coalesce(p_motivo, ''));
   if v_motivo = '' then
     raise exception 'Falta el motivo del permiso. Un permiso sin motivo no se puede defender.'
@@ -461,6 +470,17 @@ begin
       using errcode = '42501';
   end if;
 
+  -- Y QUE EL USUARIO ESTÉ ACTIVO
+  --
+  -- Porque "tiene_permiso" no mira el campo "activo": si alguien desactiva a un
+  -- usuario pero no le quita los roles, sigue pudiendo aprobar. La 086 y la 088
+  -- ya lo exigían; la 090 se olvidó de ponerlo. Es el mismo error en las dos
+  -- funciones: la de pedir y la de resolver.
+  if not public.es_usuario_activo() then
+    raise exception 'Tu usuario está desactivado'
+      using errcode = '42501';
+  end if;
+
   -- Y EL ESTADO Y EL CENTRO, EN LA MISMA CONSULTA
   --
   -- El estado se trae acá porque el error de abajo necesita decir EN QUÉ ESTÁ, y
@@ -570,10 +590,23 @@ grant execute on function public.resolver_permiso_horario(integer,boolean,text)
 -- "rrhh" NO entra, a propósito: es quien visa, no quien autoriza. Si el
 -- administrador de obra pierde su acceso por error, es "admin" el que lo
 -- recupera, y queda en el registro que lo recuperó.
+-- Y POR EMPRESA, NO TODOS LOS CENTROS DE LA PLATAFORMA
+--
+-- La versión anterior era un "cross join" con TODOS los centros de costo, sin
+-- filtrar por empresa. El efecto era permanente: todo "aprobador" aprobaba en
+-- todas las obras de todas las empresas, que es exactamente el problema que
+-- esta migración dice cerrar.
+--
+-- Ahora un aprobador solo ve los centros de las empresas que tiene asignadas.
+-- Y si no tiene ninguna empresa asignada, no ve ningún centro: no hay un
+-- "ve todo" implícito, porque ver todo tiene que ser una decisión explícita.
+--
+-- Y "admin" sí ve todo, a propósito: es el desatasco.
 insert into public.perfil_centros_costo (user_id, centro_costo_id)
 select p.id, c.id
   from public.perfiles p
-  cross join public.centros_costo c
+  join public.perfil_empresas pe on pe.user_id = p.id
+  join public.centros_costo c on c.empresa_id = pe.empresa_id
  where p.activo
    and p.rol in ('admin', 'aprobador')
 on conflict do nothing;
