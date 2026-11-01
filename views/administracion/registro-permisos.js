@@ -235,7 +235,8 @@ function rpLlenarFiltros(){
     st.innerHTML='<option value="">Todos los estados</option>'
       +'<option value="pendiente">Pendiente</option>'
       +'<option value="confirmado">Confirmado</option>'
-      +'<option value="anulado">Anulado</option>';
+      +'<option value="anulado">Anulado</option>'
+      +'<option value="pendiente_papel">Pendiente de firma en papel</option>';
   }
 }
 
@@ -317,13 +318,14 @@ async function cargarRegistroPermisosHora(){
   // puede reasignar: se rompe la pantalla al cambiar el primer filtro. Ver
   // "docs/el-error-de-const.md".
   let q=window.supabaseClient.from('permiso_horario')
-    .select('id,code,fecha,hora_inicio,hora_fin,motivo,estado,pedido_por_nombre,pedido_por_rol,confirmado_por_nombre,confirmado_at,comentario,creado_en');
+    .select('id,code,fecha,hora_inicio,hora_fin,dia_completo,motivo,estado,pedido_por_nombre,pedido_por_rol,confirmado_por_nombre,confirmado_at,comentario,creado_en,firma_estado,folio,respaldo_path');
   const desde=(document.getElementById('rpHoraDesde')||{}).value;
   const hasta=(document.getElementById('rpHoraHasta')||{}).value;
   if(desde)q=q.gte('fecha',desde);
   if(hasta)q=q.lte('fecha',hasta);
   const estado=(document.getElementById('rpHoraEstado')||{}).value;
-  if(estado)q=q.eq('estado',estado);
+  if(estado==='pendiente_papel')q=q.eq('firma_estado','pendiente_papel');
+  else if(estado)q=q.eq('estado',estado);
   // Y SI EL FILTRO DEJA CERO PERSONAS VISIBLES, NO SE CONSULTA NADA
   //
   // Sin este recorte, una empresa sin trabajadores visibles haría la consulta
@@ -363,6 +365,13 @@ function rpEstadoTexto(estado){
 function rpClaseEstado(estado){
   const e=estadoPermisoHorario(estado);
   return e?e.clase:'';
+}
+
+function rpFirmaHtml(p){
+  const ins=insigniaFirmaPermisoHorario(p);
+  if(!ins)return '';
+  return '<div style="margin-top:4px">'+ins+'</div>'
+    +(p.respaldo_path?'<div class="permisoHorarioAcciones">'+botonVerRespaldoPermisoHorario(p)+'</div>':'');
 }
 
 function rpHoraDe(valor){
@@ -432,10 +441,12 @@ function renderRegistroPermisosHora(){
       +'<td><b>'+rpTexto(codigoMostrar(p.code))+'</b></td>'
       +'<td>'+rpTexto(w?w.name:p.code)+'<small style="color:var(--muted)">'+rpTexto(emp?emp.nombre:'—')+'</small></td>'
       +'<td><small>'+rpTexto(fechaCorta(p.fecha))+'</small></td>'
-      +'<td><small>'+rpHoraDe(p.hora_inicio)+'</small></td>'
-      +'<td><small>'+rpHoraDe(p.hora_fin)+'</small></td>'
+      +(p.dia_completo
+        ?'<td colspan="2"><small>Todo el día</small></td>'
+        :'<td><small>'+rpHoraDe(p.hora_inicio)+'</small></td><td><small>'+rpHoraDe(p.hora_fin)+'</small></td>')
       +'<td><b>'+rpTexto(horasLegiblesPermiso(h.minutos))+' h</b>'+notaH+'</td>'
-      +'<td><span class="permisoHorarioEstado '+rpTexto(rpClaseEstado(p.estado))+'">'+rpTexto(rpEstadoTexto(p.estado))+'</span></td>'
+      +'<td><span class="permisoHorarioEstado '+rpTexto(rpClaseEstado(p.estado))+'">'+rpTexto(rpEstadoTexto(p.estado))+'</span>'
+        +rpFirmaHtml(p)+'</td>'
       +'<td><small>'+rpTexto(p.motivo||'')+'</small></td>'
       +'<td><small>'+rpTexto(p.pedido_por_nombre||'—')+(p.pedido_por_rol?' ('+rpTexto(p.pedido_por_rol)+')':'')+'</small>'
         +(creado?'<small style="color:var(--muted)">'+creado+'</small>':'')+'</td>'

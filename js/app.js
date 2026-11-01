@@ -416,12 +416,17 @@ if(v==='ficha-trabajador'){initFichaTrabajador();}
   if(v==='bodega-epp-catalogo'){renderEppCatalog();}
   if(v==='bodega-historial'){fillEppItemFilter();renderEppHistory();}
   if(v==='bodega-qr'){initQrView();}
+  if(v==='bodega-stock'){initBodegaStock();}
+  if(v==='bodega-pedidos'){initBodegaPedidos();}
+  if(v==='bodega-guias'){initBodegaGuias();}
+  if(v==='aprobadores-empresa'&&typeof initAprobadoresEmpresa==='function'){initAprobadoresEmpresa();}
   if(v==='supervisores'){initSupervisores();}
   if(v==='sup-diaria'){initDiaria();}
   if(v==='just-diaria'){initJustificacionDiaria();}
   if(v==='auditoria'){initAuditoria();}
   if(v==='registro-permisos-diarios'){initRegistroPermisosDiarios();}
   if(v==='registro-permisos-hora'){initRegistroPermisosHora();}
+  if(v==='por-aprobar'&&typeof initPorAprobar==='function'){initPorAprobar();}
   if(v==='relojes'){cargarRelojes();}
   if(v==='marcajes'){
     // Encadenado, no con await: initView no es async. Los filtros por reloj
@@ -761,6 +766,7 @@ function showGroup(group){
   });
 // Cuántas pestañas hay, para saber si toca repartirlas.
   ocultarSubNavSinPermiso();
+  if(typeof papActualizarInsignia==='function'&&sub.querySelector('button[data-v="por-aprobar"]'))papActualizarInsignia();
   // abrir la primera vista que la persona sí pueda ver
   const primero=[...sub.querySelectorAll('button[data-v]')].find(b=>b.style.display!=='none');
   showView(primero?primero.dataset.v:items[0].v);
@@ -3467,15 +3473,15 @@ function marcarTodosPendientes(valor){
   if(!a)return;
   (a.items||[]).filter(i=>i.estado==='pendiente').forEach(i=>{i.seleccionado=!!valor;});
   document.querySelectorAll('#kitEntregaRows input[type=checkbox]').forEach(c=>{c.checked=!!valor;});
-}async function entregarKitItems(){
+}async function entregarKitItems(manual){
   const btn=document.getElementById('kitSaveBtn');
   const msg=document.getElementById('kitSaveMsg');
   const a=asignacionActual();
   if(!a){alert('Selecciona una asignación de kit.');return;}
   const seleccionados=(a.items||[]).filter(i=>i.estado==='pendiente'&&i.seleccionado!==false);
   if(!seleccionados.length){alert('Marca al menos un elemento pendiente para entregar.');return;}
-  const firma=signatureDataUrl('Kit');
-  if(!firma&&!confirm('No hay firma en el recuadro. ¿Guardar la entrega igual?'))return;
+  const firma=manual?null:signatureDataUrl('Kit');
+  if(!manual&&!firma&&!confirm('No hay firma en el recuadro. ¿Guardar la entrega igual?'))return;
   const unidades=seleccionados.reduce((s,i)=>s+(i.cantidad||1),0);
   const nombre=(workers.find(w=>w.code===a.code)||{}).name||a.code;
   if(!confirm(`¿Entregar ${seleccionados.length} elemento(s) (${unidades} unidad(es)) del kit "${a.kit_nombre||''}" a ${nombre}?`))return;
@@ -3504,14 +3510,18 @@ function marcarTodosPendientes(valor){
       firma_url:null,
       firma_at:firma?new Date().toISOString():null,
       firma_metodo:firma?'canvas':null,
-      firma_lat:eppGps?eppGps.lat:null,
-      firma_lng:eppGps?eppGps.lng:null,
-      firma_precision_m:eppGps?eppGps.precision:null,
+      firma_lat:(!manual&&eppGps)?eppGps.lat:null,
+      firma_lng:(!manual&&eppGps)?eppGps.lng:null,
+      firma_precision_m:(!manual&&eppGps)?eppGps.precision:null,
       pdf_url:null
     }).select().single();
     if(error)throw new Error(error.message);
     const entrega=data;
-
+    if(manual){
+      entrega.folio=await registrarEntregaManual('epp_entregas',entrega.id);
+      entrega.firma_estado='pendiente_papel';
+      entrega.firma_metodo='manual';
+    }
     const {error:errItems}=await window.supabaseClient.from('epp_entrega_items')
       .insert(items.map(it=>({entrega_id:entrega.id,...it})));
     if(errItems)throw new Error(errItems.message);
@@ -3534,7 +3544,9 @@ function marcarTodosPendientes(valor){
       if(errF)throw new Error(errF.message);
     }
     const pdfPath=`${carpeta}/entrega_${entrega.fecha}.pdf`;
-    await uploadToBucket(pdfPath,buildEppPdf(entrega,items,firma),'application/pdf');
+    const pdfKit=buildEppPdf(entrega,items,firma,{manual:!!manual});
+    await uploadToBucket(pdfPath,pdfKit,'application/pdf');
+    if(manual)guardarBlobComoArchivo(pdfKit,`entrega_kit_${entrega.code}_${entrega.fecha}_folio${String(entrega.folio).padStart(6,'0')}.pdf`);
     const {error:errP}=await window.supabaseClient.from('epp_entregas').update({pdf_url:pdfPath}).eq('id',entrega.id);
     if(errP)throw new Error(errP.message);
 
@@ -3551,11 +3563,14 @@ function marcarTodosPendientes(valor){
     fillKitAsigSelect();
     renderKitAsigList();
     const finTxt=restantes===0?' Kit completo ✓':` Quedan ${restantes} pendiente(s).`;
-    msg.textContent=`Entregados ${seleccionados.length} elemento(s).${finTxt}`;
+    msg.textContent=manual
+      ?`Entrega ${folioTexto(entrega.folio)} pendiente de firma en papel. Se descargó el PDF. ${finTxt}`
+      :`Entregados ${seleccionados.length} elemento(s).${finTxt}`;
     msg.style.color='var(--accent)';
   }catch(error){
     msg.textContent='No se pudo guardar: '+error.message;
     msg.style.color='var(--danger)';
+    if(typeof pmBotonFaltante==='function'&&pmBotonFaltante(error.message))msg.insertAdjacentHTML('beforeend',pmBotonFaltante(error.message));
     alert('No se pudo entregar: '+error.message);
   }finally{
     btn.disabled=false;
@@ -5098,6 +5113,9 @@ async function importarCargosDesdePantalla(){
 
 
 function conectarNavCompacto(){
+  // Animación de la barra superior desactivada: no se engancha el listener de
+  // scroll, así la barra queda siempre en su tamaño completo.
+  return;
   if(conectarNavCompacto.hecho)return;
   conectarNavCompacto.hecho=true;
   let pendiente=false;

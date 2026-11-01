@@ -1288,8 +1288,208 @@ async function esperarGps(suf,ms){
   return r==='timeout'?null:r;
 }
 
+// ---------- Firma manual (en papel): EPP, kits y herramientas ----------
+// El flujo es: se registra la entrega como "pendiente de firma en papel",
+// se descarga el PDF con un recuadro vacío y un folio, la persona firma en
+// papel y después se sube el PDF o la foto firmada. Los kits entregan por
+// epp_entregas, así que comparten todo con EPP.
+const RESPALDO_MAX_BYTES=10*1024*1024;
+let respaldoEnCurso=false;
+function folioTexto(folio){return folio==null?'—':'N° '+String(folio).padStart(6,'0');}
+function eppEstaFirmada(e){return !!e.firma_url||e.firma_estado==='firmada_papel';}
+function etiquetaFirmaEstado(e){
+  if(e.firma_estado==='pendiente_papel')return '<span class="eppBadge pendiente">Pendiente de firma en papel</span>';
+  if(e.firma_estado==='firmada_papel')return '<span class="eppBadge firmado">Firmado en papel</span>';
+  return `<span class="eppBadge ${e.firma_url?'firmado':'sinFirma'}">${e.firma_url?'Firmado':'Sin firma'}</span>`;
+}
+async function registrarEntregaManual(tabla,id){
+  const {data,error}=await window.supabaseClient.rpc('registrar_entrega_manual',{p_tabla:tabla,p_id:id});
+  if(error)throw new Error(error.message);
+  return data;
+}
+function guardarBlobComoArchivo(blob,nombre){
+  const url=URL.createObjectURL(blob);
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=nombre;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+function dibujarCuadroFirmaManual(doc,w,y,firmante,fecha,folio){
+  doc.setFont('helvetica','bold').setFontSize(9).setTextColor(122,127,133);
+  doc.text('Firma del trabajador',14,y);
+  doc.setDrawColor(122,127,133).setLineWidth(0.4).rect(14,y+3,90,32);
+  doc.setFont('helvetica','normal').setFontSize(8).setTextColor(122,127,133);
+  doc.text(`${firmante} · ${fecha}`,14,y+40);
+  doc.text('Fecha de firma: ____ / ____ / ________',14,y+46);
+  doc.setFont('helvetica','bold').setFontSize(9);
+  doc.text('Folio',w-14,y,{align:'right'});
+  doc.setFontSize(16).setTextColor(31,45,61);
+  doc.text(folioTexto(folio),w-14,y+9,{align:'right'});
+}
+function buildHerramientaPdf(a,folio){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({unit:'mm',format:'a4'});
+  const w=doc.internal.pageSize.getWidth();
+  const worker=workers.find(x=>x.code===a.code);
+  const emp=empresaData(worker);
+  let y=18;
+  doc.setFont('helvetica','bold').setFontSize(15).setTextColor(31,45,61);
+  doc.text(emp.nombre||'Control de Asistencia y Portería',14,y);
+  doc.setFont('helvetica','normal').setFontSize(9).setTextColor(122,127,133);
+  doc.text('Constancia de entrega de herramienta · firma manual',14,y+6);
+  doc.setFont('helvetica','bold').setFontSize(11).setTextColor(31,45,61);
+  doc.text(folioTexto(folio),w-14,y,{align:'right'});
+  doc.setDrawColor(176,141,87).setLineWidth(0.5).line(14,y+9,w-14,y+9);
+  y+=17;
+  const firmante=worker?worker.name:a.code;
+  const datos=[
+    ['Trabajador',`${firmante} (${a.code})`],
+    ['Herramienta',`${a.herramienta_codigo||'—'} · ${a.herramienta_nombre||'—'}`],
+    ['Unidad (QR)',a.inventario_qr_id||'—'],
+    ['Valor',a.precio!=null?'$'+Number(a.precio).toLocaleString('es-CL'):'—'],
+    ['Fecha de entrega',a.fecha]
+  ];
+  datos.forEach(([k,v])=>{
+    doc.setFont('helvetica','bold').setFontSize(9).setTextColor(122,127,133);
+    doc.text(k+':',14,y);
+    doc.setFont('helvetica','normal').setFontSize(10).setTextColor(35,39,43);
+    doc.text(String(v),52,y);
+    y+=7;
+  });
+  y+=10;
+  dibujarCuadroFirmaManual(doc,w,y,firmante,a.fecha,folio);
+  doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(122,127,133);
+  doc.text('Documento generado automáticamente por el sistema de Control de Asistencia y Portería.',14,288);
+  return doc.output('blob');
+}
+
+// ---------- Firma manual: subir el respaldo firmado ----------
+async function huellaDeArchivo(file){
+  if(!window.crypto||!window.crypto.subtle)return null;
+  try{
+    const buf=await window.crypto.subtle.digest('SHA-256',await file.arrayBuffer());
+    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  }catch(e){return null;}
+}
+function extensionDeRespaldo(file){
+  const tipos={'application/pdf':'pdf','image/jpeg':'jpg','image/png':'png'};
+  if(tipos[file.type])return tipos[file.type];
+  const m=String(file.name||'').toLowerCase().match(/\.(pdf|jpe?g|png)$/);
+  return m?(m[1]==='jpeg'?'jpg':m[1]):'';
+}
+function permisoDeRespaldo(tabla){
+  if(tabla==='herramientas_asignaciones')return exigirPermiso('bodega.herramientas');
+  if(puede('bodega.epp.entregar')||puede('bodega.kits'))return true;
+  return exigirPermiso('bodega.epp.entregar');
+}
+function subirRespaldoFirmado(tabla,id){
+  if(!permisoDeRespaldo(tabla))return;
+  const lista=tabla==='epp_entregas'?eppDeliveries:toolAssignments;
+  const reg=lista.find(x=>mismoId(x.id,id));
+  if(!reg){alert('Esa entrega ya no está en la lista. Recarga la vista.');return;}
+  if(reg.firma_estado!=='pendiente_papel'&&reg.firma_estado!=='firmada_papel'){
+    alert('Esta entrega no está en firma manual.');return;
+  }
+  const input=document.createElement('input');
+  input.type='file';
+  input.accept='application/pdf,image/jpeg,image/png';
+  input.onchange=()=>{const f=input.files&&input.files[0];if(f)procesarRespaldoFirmado(tabla,reg,f);};
+  input.click();
+}
+// Devuelve el texto del problema, o '' si el archivo sirve. Lo comparten EPP y permisos por hora.
+function validarArchivoRespaldo(file){
+  if(!extensionDeRespaldo(file))return 'Formato no admitido. Sube un PDF, JPG o PNG.';
+  if(!file.size)return 'El archivo está vacío.';
+  if(file.size>RESPALDO_MAX_BYTES){
+    return `El archivo pesa ${(file.size/1048576).toFixed(1)} MB y el máximo es ${RESPALDO_MAX_BYTES/1048576} MB. Comprímelo o toma la foto con menos resolución.`;
+  }
+  return '';
+}
+// Calcula la huella y sube al bucket privado sin pisar nada. Lanza Error con mensaje claro.
+async function subirArchivoRespaldo(file,carpeta){
+  const ext=extensionDeRespaldo(file);
+  const sha=await huellaDeArchivo(file);
+  if(!sha)throw new Error('Este navegador no puede calcular la huella SHA-256 (hace falta https o localhost). No se subió nada.');
+  const ruta=`${carpeta}/respaldo_${sha.slice(0,16)}.${ext}`;
+  const mime=ext==='pdf'?'application/pdf':(ext==='jpg'?'image/jpeg':'image/png');
+  // upsert:false: si la ruta ya existe es un archivo idéntico (la huella va en el nombre).
+  const {error}=await window.supabaseClient.storage.from(EPP_BUCKET).upload(ruta,file,{contentType:mime,upsert:false});
+  if(error&&!/already exists|duplicate/i.test(error.message))throw new Error('No se pudo subir el archivo: '+error.message);
+  return {ruta,sha};
+}
+async function procesarRespaldoFirmado(tabla,reg,file){
+  if(respaldoEnCurso)return;
+  const problema=validarArchivoRespaldo(file);
+  if(problema){alert(problema);return;}
+  let motivo=null;
+  if(reg.respaldo_path){
+    motivo=prompt('Esta entrega ya tiene un respaldo firmado, subido el '+fechaLegible(reg.respaldo_subido_at,true)+'.\nPara reemplazarlo indica el motivo (mínimo 5 letras). El anterior queda registrado en el historial.');
+    if(motivo===null)return;
+    motivo=motivo.trim();
+    if(motivo.length<5){alert('El motivo debe tener al menos 5 letras. No se reemplazó nada.');return;}
+  }
+  respaldoEnCurso=true;
+  try{
+    const huella=await huellaDeArchivo(file);
+    if(huella&&reg.respaldo_sha256===huella){alert('Ese archivo es idéntico al respaldo ya subido. No se cambió nada.');return;}
+    const carpeta=tabla==='epp_entregas'?`${reg.code}/${reg.id}`:`${reg.code}/herr-${reg.id}`;
+    const {ruta,sha}=await subirArchivoRespaldo(file,carpeta);
+    const {error:errRpc}=await window.supabaseClient.rpc('subir_respaldo_firma',{p_tabla:tabla,p_id:reg.id,p_path:ruta,p_sha256:sha,p_motivo:motivo});
+    if(errRpc)throw new Error('El archivo subió pero no se pudo registrar en la entrega: '+errRpc.message);
+    if(tabla==='epp_entregas')await loadEppDeliveries(true);
+    else{await loadToolAssignments(true);renderToolAssignments();}
+    alert('Respaldo firmado guardado. Huella SHA-256: '+sha.slice(0,16)+'…');
+  }catch(error){
+    alert(error.message+'\n\nLa entrega sigue como estaba. Puedes reintentar.');
+  }finally{
+    respaldoEnCurso=false;
+  }
+}
+
+function puedeVerBotonRespaldo(tabla){
+  if(tabla==='herramientas_asignaciones')return puede('bodega.herramientas');
+  return puede('bodega.epp.entregar')||puede('bodega.kits');
+}
+function botonesRespaldo(tabla,r){
+  const pend=r.firma_estado==='pendiente_papel';
+  const nombre=`respaldo_${r.code}_${r.fecha}.${String(r.respaldo_path||'').split('.').pop()}`;
+  const verBtn=r.respaldo_path
+    ?`<button class="btn secondary" type="button" onclick="downloadFromBucket('${escHtml(r.respaldo_path)}','${escHtml(nombre)}')">📎 Ver respaldo firmado</button>`
+    :'';
+  const info=r.respaldo_path
+    ?`<small>Respaldo subido: ${escHtml(fechaLegible(r.respaldo_subido_at,true))} · huella ${escHtml(String(r.respaldo_sha256||'').slice(0,12))}…</small>`
+    :'';
+  const subirBtn=puedeVerBotonRespaldo(tabla)
+    ?`<button class="btn secondary" type="button" onclick="subirRespaldoFirmado('${tabla}','${escHtml(r.id)}')">${pend?'📎 Subir PDF firmado':'Reemplazar respaldo'}</button>`
+    :'';
+  return info+verBtn+subirBtn;
+}
+function accionesFirmaManualEpp(e){
+  if(e.firma_estado!=='pendiente_papel'&&e.firma_estado!=='firmada_papel')return '';
+  return botonesRespaldo('epp_entregas',e);
+}
+function descargarPdfHerramienta(id){
+  const a=toolAssignments.find(x=>mismoId(x.id,id));
+  if(!a||a.folio==null){alert('Esa entrega no tiene folio de firma manual.');return;}
+  guardarBlobComoArchivo(buildHerramientaPdf(a,a.folio),`entrega_herramienta_${a.code}_${a.fecha}_folio${String(a.folio).padStart(6,'0')}.pdf`);
+}
+let herrFiltroPapel=false;
+function alternarFiltroHerrPapel(valor){herrFiltroPapel=!!valor;renderToolAssignments();}
+function herramientaFirmaHtml(a){
+  if(a.firma_estado!=='pendiente_papel'&&a.firma_estado!=='firmada_papel')return '';
+  const estado=etiquetaFirmaEstado(a)+(a.folio!=null?` <small>${escHtml(folioTexto(a.folio))}</small>`:'');
+  const pdf=a.firma_estado==='pendiente_papel'
+    ?`<button class="btn secondary" type="button" onclick="descargarPdfHerramienta('${escHtml(a.id)}')">📄 Descargar PDF</button>`
+    :'';
+  return `<span class="eppActions">${estado}${pdf}${botonesRespaldo('herramientas_asignaciones',a)}</span>`;
+}
+
 // ---------- EPP: respaldo PDF ----------
-function buildEppPdf(entrega,items,sigDataUrl){
+function buildEppPdf(entrega,items,sigDataUrl,opciones){
+  const manual=!!(opciones&&opciones.manual);
   const {jsPDF}=window.jspdf;
   const doc=new jsPDF({unit:'mm',format:'a4'});
   const w=doc.internal.pageSize.getWidth();
@@ -1299,7 +1499,11 @@ function buildEppPdf(entrega,items,sigDataUrl){
   doc.setFont('helvetica','bold').setFontSize(15).setTextColor(31,45,61);
   doc.text(emp.nombre||'Control de Asistencia y Portería',14,y);
   doc.setFont('helvetica','normal').setFontSize(9).setTextColor(122,127,133);
-  doc.text('Constancia de entrega de EPP / materiales',14,y+6);
+  doc.text('Constancia de entrega de EPP / materiales'+(manual?' · firma manual':''),14,y+6);
+  if(manual){
+    doc.setFont('helvetica','bold').setFontSize(11).setTextColor(31,45,61);
+    doc.text(folioTexto(entrega.folio),w-14,y,{align:'right'});
+  }
   doc.setDrawColor(176,141,87).setLineWidth(0.5).line(14,y+9,w-14,y+9);
   y+=17;
   const worker=workers.find(x=>x.code===entrega.code);
@@ -1378,7 +1582,10 @@ function buildEppPdf(entrega,items,sigDataUrl){
     y+=44;
   }else{
     doc.setFont('helvetica','normal').setFontSize(9).setTextColor(181,80,74);
-    doc.text('Entrega registrada sin firma.',14,y+4);
+    if(manual){
+      if(y>225){doc.addPage();y=18;}
+      dibujarCuadroFirmaManual(doc,w,y,firmante,entrega.fecha,entrega.folio);
+    }else doc.text('Entrega registrada sin firma.',14,y+4);
     y+=14;
   }
   doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor(122,127,133);
@@ -1404,7 +1611,7 @@ async function downloadFromBucket(path,filename){
 }
 
 // ---------- EPP: guardar entrega ----------
-async function saveEpp(){
+async function saveEpp(manual){
   const btn=document.getElementById('eppSaveBtn');
   const msg=document.getElementById('eppSaveMsg');
   const code=document.getElementById('epp-worker').value;
@@ -1418,8 +1625,8 @@ async function saveEpp(){
   const resumenConfirm=`¿Confirmas ${esInicial?'la ENTREGA INICIAL':'la entrega'} de ${items.length} elemento(s) a ${(workers.find(w=>w.code===code)||{}).name||code}?`;
   if(!confirm(resumenConfirm))return;
 
-  const sigDataUrl=signatureDataUrl();
-  if(!sigDataUrl&&!confirm('No hay firma en el recuadro. ¿Guardar la entrega igual?'))return;
+  const sigDataUrl=manual?null:signatureDataUrl();
+  if(!manual&&!sigDataUrl&&!confirm('No hay firma en el recuadro. ¿Guardar la entrega igual?'))return;
 
   btn.disabled=true;
   msg.textContent='Generando PDF…';
@@ -1429,13 +1636,13 @@ async function saveEpp(){
   // después de firmar puede que todavía no haya llegado. Se espera un poco
   // en vez de guardar sin coordenadas a ciegas, y si no llega se guarda
   // igual avisando que no se obtuvo.
-  let gps=eppGps;
+  let gps=manual?null:eppGps;
   if(sigDataUrl&&!gps&&gpsEnCurso['']){
     msg.textContent='Esperando la ubicación…';
     gps=await esperarGps('',9000);
     if(!gps)msg.textContent='No se obtuvo la ubicación; se guarda la firma igual.';
   }
-  if(!gps)gps=eppGps;
+  if(!gps&&!manual)gps=eppGps;
 
   const stamp=new Date();
   const base={code,fecha,detalle:eppDetalleResumen(items),observacion:observacion||null,es_entrega_inicial:esInicial,cargo,
@@ -1465,6 +1672,12 @@ async function saveEpp(){
       .insert(items.map(it=>({entrega_id:entrega.id,...it})));
     if(errItems)throw new Error(errItems.message);
 
+    if(manual){
+      msg.textContent='Registrando como pendiente de firma en papel…';
+      entrega.folio=await registrarEntregaManual('epp_entregas',entrega.id);
+      entrega.firma_estado='pendiente_papel';
+      entrega.firma_metodo='manual';
+    }
     // firma + PDF al bucket privado
     msg.textContent='Subiendo firma y PDF…';
     const carpeta=`${entrega.code}/${entrega.id}`;
@@ -1476,12 +1689,13 @@ async function saveEpp(){
       if(errF)throw new Error(errF.message);
       entrega.firma_url=firmaPath;
     }
-    const pdfBlob=buildEppPdf(entrega,items,sigDataUrl);
+    const pdfBlob=buildEppPdf(entrega,items,sigDataUrl,{manual});
     const pdfPath=`${carpeta}/entrega_${entrega.fecha}.pdf`;
     await uploadToBucket(pdfPath,pdfBlob,'application/pdf');
     const {error:errP}=await window.supabaseClient.from('epp_entregas').update({pdf_url:pdfPath}).eq('id',entrega.id);
     if(errP)throw new Error(errP.message);
     entrega.pdf_url=pdfPath;
+    if(manual)guardarBlobComoArchivo(pdfBlob,`entrega_${entrega.code}_${entrega.fecha}_folio${String(entrega.folio).padStart(6,'0')}.pdf`);
     entrega.items=items.map(it=>({...it,entrega_id:entrega.id}));
 
     await loadEppDeliveries();
@@ -1497,13 +1711,16 @@ async function saveEpp(){
     // dice si esta entrega quedó con ubicación o no: es el único momento en
     // que la persona puede enterarse de que faltó, y sirve para ir a
     // regularizarla.
-    msg.textContent=gps
+    msg.textContent=manual
+      ?`Entrega ${folioTexto(entrega.folio)} registrada como pendiente de firma en papel. Se descargó el PDF; cuando esté firmado, súbelo desde el historial.`
+      :gps
       ?'Entrega registrada con PDF, firma y ubicación.'
       :'Entrega registrada con PDF y firma, pero SIN ubicación. Se puede agregar después desde el historial.';
-    msg.style.color=gps?'var(--accent)':'var(--warn-ink)';
+    msg.style.color=(manual||gps)?'var(--accent)':'var(--warn-ink)';
   }catch(error){
     msg.textContent='No se pudo guardar: '+error.message;
     msg.style.color='var(--danger)';
+    if(typeof pmBotonFaltante==='function'&&pmBotonFaltante(error.message))msg.insertAdjacentHTML('beforeend',pmBotonFaltante(error.message));
     alert('No se pudo guardar la entrega: '+error.message);
   }finally{
     btn.disabled=false;
@@ -1622,8 +1839,9 @@ function entregasFiltradasDe(code){
     const f=e.fecha||'';
     if(desde&&f<desde)return false;
     if(hasta&&f>hasta)return false;
-    if(firma==='firmadas'&&!e.firma_url)return false;
-    if(firma==='sinfirma'&&e.firma_url)return false;
+    if(firma==='firmadas'&&!eppEstaFirmada(e))return false;
+    if(firma==='sinfirma'&&eppEstaFirmada(e))return false;
+    if(firma==='pendientepapel'&&e.firma_estado!=='pendiente_papel')return false;
     if(item&&!(e.items||[]).some(i=>i.epp_codigo===item))return false;
     return true;
   });
@@ -1713,7 +1931,8 @@ function renderEppHistory(){
         ?' title="'+escHtml(cods.join(', '))+'"'
         :' title="Sin ítems detallados"';
       const piezasF=f.entregas.reduce((t,e)=>t+itemsVisibles(e).reduce((u,i)=>u+(Number(i.cantidad)||1),0),0);
-      const sinFirma=f.entregas.filter(e=>!e.firma_url).length;
+      const sinFirma=f.entregas.filter(e=>!eppEstaFirmada(e)&&e.firma_estado!=='pendiente_papel').length;
+      const pendPapel=f.entregas.filter(e=>e.firma_estado==='pendiente_papel').length;
       const ultima=(f.entregas[0].fecha||'');
       const badges=`<div class="eppCodigos"${tituloCods}>`+
         mostrados.map(c=>`<span class="eppCod">${escHtml(c)}</span>`).join('')+
@@ -1722,7 +1941,7 @@ function renderEppHistory(){
         `</div>`;
       const firma=sinFirma
         ?(f.entregas.length===sinFirma?'<span class="eppBadge sinFirma">Sin firma</span>':`<span class="eppBadge sinFirma">${sinFirma} sin firma</span>`)
-        :'<span class="eppBadge firmado">Firmado</span>';
+        :(pendPapel?'':'<span class="eppBadge firmado">Firmado</span>');
       const tr=`<tr class="eppFila${abierta?' eppFilaAbierta':''}">
         <td><b>${escHtml(f.code)}</b></td>
         <td class="izq">${f.w?escHtml(f.w.name):'<small>(fuera de la lista)</small>'}${f.w&&f.w.spec?` <small>· ${escHtml(f.w.spec)}</small>`:''}</td>
@@ -1731,7 +1950,7 @@ function renderEppHistory(){
         ?`<small title="de ${f.total} entregas en total"> / ${f.total}</small>`:''}</td>
         <td>${piezasF}</td>
         <td>${escHtml(ultima)}</td>
-        <td>${firma}</td>
+        <td>${firma}${pendPapel?` <span class="eppBadge pendiente">${pendPapel} pendiente(s) en papel</span>`:''}</td>
         <td><button class="btn secondary" type="button" onclick="toggleEppDetalle('${escHtml(f.code)}')"
             aria-expanded="${abierta}">${abierta?'Ocultar':'Ver detalle'} <span class="caret">▶</span></button></td>
       </tr>`;
@@ -1765,10 +1984,10 @@ function renderEppDetalleFila(fila){
       :'<small class="gpsWarn">📍 sin ubicación</small>';
     return `<div class="eppEntrega">
       <div class="headline">
-        <span><b>${escHtml(e.fecha)}</b>${e.cargo?` · ${escHtml(e.cargo)}`:''}</span>
+        <span><b>${escHtml(e.fecha)}</b>${e.cargo?` · ${escHtml(e.cargo)}`:''}${e.folio!=null?` · ${escHtml(folioTexto(e.folio))}`:''}</span>
         <span>
           ${e.es_entrega_inicial?'<span class="eppBadge" style="color:var(--accent);border-color:var(--accent)">Entrega inicial</span> ':''}
-          <span class="eppBadge ${e.firma_url?'firmado':'sinFirma'}">${e.firma_url?'Firmado':'Sin firma'}</span>
+          ${etiquetaFirmaEstado(e)}
         </span>
       </div>
       ${filasItems}
@@ -1778,6 +1997,7 @@ function renderEppDetalleFila(fila){
         ${e.observacion?`<small>Obs.: ${escHtml(e.observacion)}</small>`:''}
         ${e.pdf_url?`<button class="btn secondary" type="button" onclick="downloadFromBucket('${escHtml(e.pdf_url)}','entrega_${escHtml(e.code)}_${escHtml(e.fecha)}.pdf')">📄 Descargar PDF</button>`:''}
         ${e.firma_url?`<button class="btn secondary" type="button" onclick="downloadFromBucket('${escHtml(e.firma_url)}','firma_${escHtml(e.code)}_${escHtml(e.fecha)}.png')">✍ Ver firma</button>`:''}
+        ${accionesFirmaManualEpp(e)}
       </div>
     </div>`;
   }).join('');
@@ -1860,7 +2080,7 @@ function fillAssignableUnits(){
     }
   }
 }
-async function assignTool(){
+async function assignTool(manual){
   const code=document.getElementById('assign-worker').value;
   const toolId=document.getElementById('assign-tool').value;
   const unidadId=document.getElementById('assign-unit').value;
@@ -1879,7 +2099,7 @@ async function assignTool(){
     return;
   }
   if(!confirm(`¿Entregar la unidad ${unidad.id} (${tool.codigo} · ${tool.nombre}) a ${(workers.find(w=>w.code===code)||{}).name||code}?`))return;
-  const {error}=await window.supabaseClient.from('herramientas_asignaciones').insert({
+  const {data:fila,error}=await window.supabaseClient.from('herramientas_asignaciones').insert({
     code,
     herramienta_id:toolId,
     herramienta_codigo:tool.codigo||null,
@@ -1888,15 +2108,24 @@ async function assignTool(){
     inventario_qr_id:unidad.id,
     fecha,
     devuelta:false
-  });
+  }).select().single();
   if(error){alert('No se pudo registrar la asignación: '+error.message);return;}
+  if(manual){
+    try{
+      const folio=await registrarEntregaManual('herramientas_asignaciones',fila.id);
+      guardarBlobComoArchivo(buildHerramientaPdf({...fila,firma_estado:'pendiente_papel'},folio),`entrega_herramienta_${fila.code}_${fila.fecha}_folio${String(folio).padStart(6,'0')}.pdf`);
+      alert('Entrega '+folioTexto(folio)+' registrada como pendiente de firma en papel. Se descargó el PDF.');
+    }catch(err){
+      alert('La entrega quedó registrada, pero no se pudo marcar para firma en papel: '+err.message);
+    }
+  }
   await loadToolAssignments();
   initBodega();
 }
 function renderToolAssignments(){
   const el=document.getElementById('toolAssignments');
   if(!el)return;
-  const encabezado='<h2>Herramientas en poder de trabajadores</h2>';
+  const encabezado='<h2>Herramientas en poder de trabajadores</h2><label style="display:flex;gap:6px;align-items:center;margin:4px 0"><input type="checkbox" '+(herrFiltroPapel?'checked ':'')+'onchange="alternarFiltroHerrPapel(this.checked)"> Solo pendientes de firma en papel</label>';
   // Primero el error, si lo hay. Un "no hay" cuando en realidad no se pudo
   // leer es peor que un vacío: hace perder tiempo buscando una devolución
   // que sí existe.
@@ -1924,9 +2153,9 @@ function renderToolAssignments(){
   }
   el.innerHTML=encabezado+
     (pendientes.length?'':'<small>No hay ninguna herramienta pendiente de devolución.</small>')+
-    toolAssignments.map(a=>{
+    toolAssignments.filter(a=>!herrFiltroPapel||a.firma_estado==='pendiente_papel').map(a=>{
       const w=workers.find(x=>x.code===a.code);
-      return `<div class="list-item" style="cursor:default"><span>${a.fecha} — <b>${escHtml(codigoMostrar(a.code))}</b> ${w?escHtml(w.name):''}: <b>${escHtml(a.herramienta_codigo||'—')}</b> ${escHtml(a.herramienta_nombre||'')} ($${Number(a.precio).toLocaleString('es-CL')}) ${a.inventario_qr_id?`<small style="font-family:ui-monospace,monospace"> · QR ${escHtml(a.inventario_qr_id)}</small>`:''} ${a.devuelta?`<span class="pill" style="color:var(--secondary-text);border-color:var(--secondary-text)">Devuelta${a.fecha_devolucion?' el '+escHtml(a.fecha_devolucion):''}</span>`:'<span class="pill" style="color:var(--warn-ink);border-color:var(--warn)">Pendiente</span>'}</span>${a.devuelta?'':`<button class="btn secondary" style="margin:0;padding:4px 8px" onclick="marcarDevuelta('${escHtml(a.id)}')">Marcar devuelta</button>`}</div>`;
+      return `<div class="list-item" style="cursor:default"><span>${a.fecha} — <b>${escHtml(codigoMostrar(a.code))}</b> ${w?escHtml(w.name):''}: <b>${escHtml(a.herramienta_codigo||'—')}</b> ${escHtml(a.herramienta_nombre||'')} ($${Number(a.precio).toLocaleString('es-CL')}) ${a.inventario_qr_id?`<small style="font-family:ui-monospace,monospace"> · QR ${escHtml(a.inventario_qr_id)}</small>`:''} ${a.devuelta?`<span class="pill" style="color:var(--secondary-text);border-color:var(--secondary-text)">Devuelta${a.fecha_devolucion?' el '+escHtml(a.fecha_devolucion):''}</span>`:'<span class="pill" style="color:var(--warn-ink);border-color:var(--warn)">Pendiente</span>'}</span>${a.devuelta?'':`<button class="btn secondary" style="margin:0;padding:4px 8px" onclick="marcarDevuelta('${escHtml(a.id)}')">Marcar devuelta</button>`}${herramientaFirmaHtml(a)}</div>`;
     }).join('');
 }
 async function marcarDevuelta(id){
@@ -2534,6 +2763,9 @@ const VISTAS_POR_PERMISO={
   'v-bodega-catalogo':'bodega.herramientas',
   'v-bodega-asignar':'bodega.herramientas',
   'v-bodega-qr':'bodega.qr',
+  'v-bodega-stock':'bodega.stock.ver',
+  'v-bodega-pedidos':'bodega.pedidos.ver',
+  'v-bodega-guias':'bodega.guias.ver',
   'v-solicitar-cambio':'tarja.solicitar_cambio',
   'v-solicitar-ingreso':'ingresos.pedir',
   'v-ingresos-cola':'ingresos.aprobar',
@@ -2549,17 +2781,19 @@ const VISTAS_POR_PERMISO={
   'v-usuarios':'sistema.usuarios',
   'v-invitar-usuario':'sistema.usuarios',
   'v-permisos':'sistema.permisos',
-  'v-empresa':'sistema.empresa'
+  'v-empresa':'sistema.empresa',
+  'v-aprobadores-empresa':'aprobaciones.configurar',
+  'v-por-aprobar':'aprobaciones.historial'
 };
 // Permiso de cada grupo del menú principal (para hiding de la nav)
 const GRUPOS_POR_PERMISOS={
   porteria:['porteria.ver'],
   administracion:['trabajadores.ver','tarja.ver','tarja.exportar','tarja.aprobar_cambio','sistema.usuarios','sistema.permisos','sistema.empresa','ingresos.aprobar'],
-  bodega:['bodega.epp.entregar','bodega.epp.historial','bodega.epp.catalogo','bodega.kits','bodega.herramientas','bodega.qr'],
+  bodega:['bodega.epp.entregar','bodega.epp.historial','bodega.epp.catalogo','bodega.kits','bodega.herramientas','bodega.qr','bodega.stock.ver','bodega.pedidos.ver','bodega.guias.ver'],
   supervisores:['tarja.ver','trabajadores.ver','prevencion.ver','ingresos.pedir'],
-  soporte:['sistema.usuarios','sistema.permisos','sistema.empresa','tarja.aprobar_cambio','tarja.ver','trabajadores.ver'],
+  soporte:['sistema.usuarios','sistema.permisos','sistema.empresa','aprobaciones.configurar','tarja.aprobar_cambio','tarja.ver','trabajadores.ver'],
   'asistente-social':['social.ver'],
-  prevencion:['prevencion.ver','prevencion.subcontrato']
+  prevencion:['prevencion.ver','prevencion.externo']
 };
 
 function puede(permiso){

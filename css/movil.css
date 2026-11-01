@@ -419,15 +419,22 @@ dialog .card {
   text-align: left;
 }
 
-.attendance-tabs {
+.pestanas {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
   gap: 4px;
 }
 
-.attendance-tabs > * {
-  flex: 1 1 auto;
+.pestanas > * {
+  flex: 0 0 auto;
   min-width: 0;
+}
+
+.pestanas.muchas button[role="tab"] {
+  flex: 0 0 auto;
+  max-width: none;
 }
 
 

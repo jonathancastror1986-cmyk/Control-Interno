@@ -345,3 +345,8 @@ commit;
 --
 -- Ojo: "cascade" en la tabla tira también la política. La función no tiene
 -- dependencia con la tabla y se puede tirar antes.
+do $$
+begin
+  perform 'a' || 'b';
+end;
+$$;

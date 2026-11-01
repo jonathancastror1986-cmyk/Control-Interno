@@ -1,0 +1,14 @@
+/* Bandeja "Por aprobar". Solo tokens de css/tokens.css. */
+.pap-msg{display:block;margin-top:8px;color:var(--muted);font-size:.85rem}
+.pap-msg.ok{color:var(--accent)}
+.pap-msg.error{color:var(--danger)}
+.pap-tabla{width:100%;border-collapse:collapse}
+.pap-tabla th{background:var(--panel);color:var(--text);text-align:left;border-bottom:2px solid var(--line);padding:6px 8px}
+.pap-tabla td{border-bottom:1px solid var(--line);padding:6px 8px;color:var(--text);vertical-align:top}
+.pap-meta{display:block;color:var(--muted);font-size:.8rem}
+.pap-acc{display:flex;flex-wrap:wrap;gap:6px}
+.pap-insignia{display:inline-block;margin-left:6px;min-width:18px;padding:0 6px;border-radius:999px;background:var(--danger);color:var(--card);font-size:.75rem;font-weight:700;text-align:center}
+.pap-estado{display:block;margin-top:4px;color:var(--muted);font-size:.8rem}
+@media (max-width:860px){
+  .pap-acc .btn{flex:1 1 auto}
+}

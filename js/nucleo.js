@@ -570,6 +570,7 @@ const navGroups = {
     {v:'aprobar-cambio',label:'Aprobaciones y estados',options:[
       {v:'solicitar-cambio',label:'Solicitar cambio de estado'},
       {v:'aprobar-cambio',label:'Aprobar solicitudes'},
+      {v:'por-aprobar',label:'Por aprobar'},
       // Y LOS DOS REGISTROS, AL LADO DE LAS DOS PANTALLAS QUE LOS PRODUCEN
       //
       // Porque van al mismo grupo y no a "Asistencia mensual": estas dos no
@@ -621,7 +622,8 @@ const navGroups = {
     // trabaja esta empresa", que es de RRHH y se pregunta seguido.
     {v:'empresas-cargos',label:'Empresas: cargos y permisos'},
 // Porque "cargos y permisos" es una pantalla de RRHH: qué oficios maneja la
-    {v:'empresa-modulos',label:'Empresas: módulos'}
+    {v:'empresa-modulos',label:'Empresas: módulos'},
+    {v:'aprobadores-empresa',label:'Aprobadores de empresa'}
   ],
   'asistente-social': [
     {v:'alertas-sociales',label:'Alertas'},
@@ -636,6 +638,11 @@ const navGroups = {
       {v:'bodega-epp',label:'Entrega de EPP / materiales'},
       {v:'bodega-historial',label:'Historial de entregas EPP'},
       {v:'bodega-epp-catalogo',label:'Catálogo de EPP'}
+    ]},
+    {v:'bodega-stock',label:'Inventario ▾',options:[
+      {v:'bodega-stock',label:'Stock'},
+      {v:'bodega-pedidos',label:'Pedidos de materiales'},
+      {v:'bodega-guias',label:'Ingreso por guía'}
     ]},
     {v:'bodega-kits',label:'Kits ▾',options:[
       {v:'bodega-kits',label:'Asignar y entregar'},
@@ -1397,6 +1404,9 @@ async function resolverSolicitud(id,decision){
 // Con el encabezado pegajoso y el submenú por encima, al bajar el submenú le
 let navCompactoYa=false;
 function marcarNavCompacto(){
+  // Animación de la barra superior desactivada: la barra queda siempre en su
+  // tamaño completo, sin encogerse al bajar. (Pedido del usuario.)
+  return;
   if(totemActual)return;   // con el reloj abierto la pantalla es de él
   const chico=window.scrollY>40;
   if(chico===navCompactoYa)return;

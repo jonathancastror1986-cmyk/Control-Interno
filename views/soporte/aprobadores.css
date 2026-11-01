@@ -1,0 +1,35 @@
+/* Aprobadores de empresa (Soporte). Solo tokens de css/tokens.css. */
+.apb-msg{display:block;margin-top:6px;color:var(--muted);font-size:.85rem}
+.apb-msg.ok{color:var(--accent)}
+.apb-msg.error{color:var(--danger)}
+.apb-lista{margin-top:14px;display:flex;flex-direction:column;gap:12px}
+.apb-tipo{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel)}
+.apb-cab{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+.apb-check{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--text)}
+.apb-nombre{color:var(--text)}
+.apb-nombre small{color:var(--muted)}
+.apb-insignia{margin-left:auto;padding:2px 10px;border-radius:999px;border:1px solid var(--line);font-size:.8rem;color:var(--muted)}
+.apb-insignia.ok{border-color:var(--accent);color:var(--accent)}
+.apb-insignia.mal{border-color:var(--danger);color:var(--danger)}
+.apb-sucio{padding:2px 10px;border-radius:999px;background:var(--warn-surface);color:var(--warn-ink);font-size:.8rem}
+.apb-sucio[hidden]{display:none}
+.apb-cuerpo{margin-top:12px;display:flex;flex-direction:column;gap:10px}
+.apb-fila{display:flex;flex-wrap:wrap;gap:10px}
+.apb-fila>div{flex:1 1 200px;min-width:0}
+.apb-paso{border:1px solid var(--line);border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.apb-paso-cab{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;color:var(--text)}
+.apb-acciones{display:flex;flex-wrap:wrap;gap:6px}
+.apb-grupo{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:0;min-width:0}
+.apb-grupo legend{padding:0 6px;color:var(--muted);font-size:.85rem}
+.apb-ops{display:flex;flex-wrap:wrap;gap:4px 16px;max-height:160px;overflow:auto}
+.apb-op{display:inline-flex;align-items:center;gap:6px;color:var(--text);font-size:.9rem}
+.apb-op-mal{color:var(--danger)}
+.apb-barra{display:flex;gap:8px}
+.apb-resumen{margin:0;padding:8px 10px;border-radius:8px;background:var(--card);border:1px solid var(--line);color:var(--text)}
+.apb-pie{margin-top:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.apb-nota{display:block;margin-top:8px;color:var(--muted);font-size:.8rem}
+@media (max-width:860px){
+  .apb-insignia{margin-left:0}
+  .apb-acciones .btn{flex:1 1 auto}
+  .apb-ops{flex-direction:column;max-height:200px}
+}

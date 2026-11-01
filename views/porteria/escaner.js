@@ -19,6 +19,7 @@ function handleScannedCode(rawCode,purpose){
   if(purpose==='kit-worker')return selectKitWorkerByScan(code);
   if(purpose==='epp-historial')return filtrarHistorialPorScan(code);
   if(purpose==='tool-owner')return lookupQrOwner(code);
+  if(purpose==='guia-linea')return giEscanearLinea(code);
   // Elemento, herramienta o kit. El numero es la fila a la que va.
   //
   // "nueva" no es un numero: es el botón único que está al lado del título, y no

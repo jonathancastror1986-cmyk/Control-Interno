@@ -233,14 +233,20 @@ details.supEquipo .supEquipoHint{font-weight:400;font-size:.8rem;color:var(--mut
 .pwdToggle:hover{color:var(--accent);border-color:var(--accent)}
 .eppBadge{display:inline-block;padding:1px 6px;border-radius:10px;font-size:.65rem;font-weight:600;border:1px solid currentColor}
 .eppBadge.firmado{color:var(--accent)}
-.eppBadge.sinFirma{color:var(--danger)}
+.eppBadge.sinFirma{color:var(--danger);background:var(--danger-surface)}
+.eppBadge.pendiente{color:var(--warn-ink);border-color:var(--warn);background:var(--warn-surface)}
 .eppHistoryItem{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;background:var(--panel)}
 .eppHistoryItem .headline{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
 .eppHistoryItem table{margin-top:6px;background:transparent}
 .eppHistoryItem th{background:var(--accent2);font-size:.7rem}
 .eppHistoryItem td{font-size:.78rem;padding:4px 6px}
 .eppActions{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
-.eppActions .btn{margin-top:0;padding:6px 10px;font-size:.7rem}
+.eppActions .btn{margin-top:0;padding:6px 10px;font-size:.7rem;white-space:normal}
+.eppActions{align-items:center}
+@media (max-width:640px){
+  .eppActions .btn{flex:1 1 100%;min-height:40px}
+  .eppBadge{font-size:.7rem;white-space:normal}
+}
 /* ---- historial de EPP: tabla expandible, una fila por trabajador ---- */
 .eppFiltros{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;align-items:end}
 .eppFiltros .eppBuscar{grid-column:span 2}
@@ -411,7 +417,7 @@ table.eppTabla td.izq,table.eppTabla th.izq{text-align:left}
 /* El texto va con --on-accent, no fijo en blanco: el primario del modo
    oscuro es un verde claro, y blanco sobre #7eb96e no se lee. */
 .worker-type-badge.interno{background:var(--accent);color:var(--on-accent)}
-.worker-type-badge.subcontrato{background:#8a5a2b;color:#fff}
+.worker-type-badge.externo{background:#8a5a2b;color:#fff}
 
 .temp-card-front .idcard-code{display:inline-block;padding:1mm 2mm;background:#fff;color:#17231c;border-radius:1mm;font-size:7pt}
 .temp-card-front .idcard-codes{width:100%;margin-top:1mm}

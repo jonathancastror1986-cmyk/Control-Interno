@@ -38,6 +38,11 @@ const MODULO_POR_VISTA = {
   'v-bodega-catalogo': 'epp',
   'v-bodega-asignar': 'epp',
   'v-bodega-qr': 'epp',
+  // Mismo módulo que el resto de Bodega: el check de empresa_modulos (085) no
+  // admite un módulo nuevo sin migración, y así se activa desde Soporte.
+  'v-bodega-stock': 'epp',
+  'v-bodega-pedidos': 'epp',
+  'v-bodega-guias': 'epp',
   'v-solicitar-cambio': 'asistencia',
   'v-solicitar-ingreso': 'solicitar_ingreso',
   'v-ingresos-cola': 'solicitar_ingreso',
@@ -55,11 +60,13 @@ const MODULO_POR_VISTA = {
   // filtro de la barra las muestre; igual siguen closures y la RLS de la base.
   'v-registro-permisos-diarios': 'asistencia',
   'v-registro-permisos-hora': 'asistencia',
+  'v-por-aprobar': 'asistencia',
   'v-usuarios': 'empresas',
   'v-invitar-usuario': 'empresas',
   'v-permisos': 'empresas',
   'v-empresa': 'empresas',
   'v-empresa-modulos': 'empresas',
+  'v-aprobadores-empresa': 'empresas',
   'v-expedientes': 'expedientes',
 };
 

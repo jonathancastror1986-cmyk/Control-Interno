@@ -115,7 +115,8 @@
   pierde a medias en vez de entera. Ver [panel-13].
 */
 #v-asistencia #matrixArea,
-#v-supervisores #supMatrixArea{
+#v-supervisores #supMatrixArea,
+.ppd-grilla{
   font-size:.78rem;
 }
 
@@ -199,7 +200,9 @@
 #v-asistencia #matrixArea td,
 #v-asistencia #matrixArea th,
 #v-supervisores #supMatrixArea td,
-#v-supervisores #supMatrixArea th{
+#v-supervisores #supMatrixArea th,
+.ppd-grilla td,
+.ppd-grilla th{
   padding:2px 1px;
   line-height:1.25;
 }
@@ -226,7 +229,9 @@
 #v-asistencia #matrixArea th:first-child,
 #v-asistencia #matrixArea td:first-child,
 #v-supervisores #supMatrixArea th:first-child,
-#v-supervisores #supMatrixArea td:first-child{
+#v-supervisores #supMatrixArea td:first-child,
+.ppd-grilla th:first-child,
+.ppd-grilla td:first-child{
   position:sticky;
   left:0;
   z-index:2;
@@ -240,7 +245,8 @@
 /* Y la esquina de arriba a la izquierda queda por ENCIMA de las dos, porque es el
    pedazo que se ve siempre: la que se ve siempre tiene que tapar a las otras dos. */
 #v-asistencia #matrixArea th:first-child,
-#v-supervisores #supMatrixArea th:first-child{
+#v-supervisores #supMatrixArea th:first-child,
+.ppd-grilla th:first-child{
   z-index:4;
 }
 
@@ -588,6 +594,20 @@
   top:0;
 }
 
+/* Y EL REPORTE POR CARGO: OTRA MATRIZ PERO DE OTROS DATOS. Filas = cargos,
+   columnas = supervisores, valor = conteo. Va en el MISMO ".overflow" de la
+   tarja para heredar el scroll, y la tabla usa "fixed" como la grilla. Ver el
+   boton "Ver por cargo" del panel de asistencia. */
+#v-asistencia #cargoReporte > .overflow{
+  max-height:72vh;
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:8px;
+}
+#v-asistencia #cargoReporte table{
+  table-layout:fixed;
+}
+
 /* -------------------------------------------------------------------
   LA TARJETA QUE NO APLASTABA A LA TABLA
   -------------------------------------------------------------------
@@ -657,7 +677,8 @@
    sobra. Con la clase en las celdas de día, cada día mide 22 píxeles steerla la cantidad de días
    que tenga el mes, sin escribir ninguna lista. Ver [tarja-21]. */
 #v-asistencia #matrixArea table,
-#v-supervisores #supMatrixArea table{
+#v-supervisores #supMatrixArea table,
+.ppd-grilla{
   table-layout:fixed;
 }
 
@@ -870,7 +891,8 @@
 .permisoHorarioEstado.confirmado,
 .permisoHorarioMarca.confirmado{
   color:var(--accent);
-  background:rgba(46,125,50,.1);
+  border-color:var(--accent);
+  background:var(--panel);
 }
 .permisoHorarioEstado.pendiente,
 .permisoHorarioMarca.pendiente{
@@ -888,3 +910,87 @@
   white-space:normal;
 }
 .permisoHorarioMarca.error{color:var(--danger)}
+
+.permisoHorarioFirma{
+  display:inline-block;
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:2px 6px;
+  font-size:.72rem;
+  line-height:1.35;
+  white-space:normal;
+}
+.permisoHorarioFirma.pendiente_papel{
+  color:var(--warn-ink);
+  border-color:var(--warn);
+  background:var(--warn-surface);
+}
+.permisoHorarioFirma.firmada_papel{
+  color:var(--accent);
+  border-color:var(--accent);
+  background:var(--panel);
+}
+.permisoHorarioAcciones{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+  margin-top:6px;
+}
+.permisoHorarioAcciones .btn{
+  margin-top:0;
+  padding:6px 10px;
+  font-size:.72rem;
+  white-space:normal;
+}
+@media (max-width:640px){
+  .permisoHorarioAcciones .btn{flex:1 1 100%;min-height:40px}
+  .permisoHorarioFirma{font-size:.75rem}
+}
+
+/* Resumen diario y mensual: misma grilla clara de la tarja (encabezado claro, líneas finas, filas compactas) */
+#resumenDiarioReporte table,#resumenMensualReporte table{border-collapse:collapse;width:100%}
+#resumenDiarioReporte thead th,#resumenMensualReporte thead th{background:var(--panel);color:var(--text);font-size:.8125rem;font-weight:700;border:1px solid var(--line);border-bottom:2px solid var(--line);padding:5px 8px}
+#resumenDiarioReporte td,#resumenMensualReporte td{border:1px solid var(--line);padding:4px 8px;font-size:.8125rem;text-align:center;color:var(--text)}
+#resumenDiarioReporte tbody th,#resumenMensualReporte tbody th{background:transparent;color:var(--text);font-size:.8125rem;font-weight:700;text-align:left;border:1px solid var(--line);padding:4px 8px}
+#resumenDiarioReporte tbody tr:last-child th,#resumenDiarioReporte tbody tr:last-child td,#resumenMensualReporte tbody tr:last-child th,#resumenMensualReporte tbody tr:last-child td{font-weight:700;border-top:2px solid var(--text)}
+#resumenDiarioReporte small,#resumenMensualReporte small{font-size:.75rem;color:var(--muted)}
+#resumenDiarioReporte .overflow,#resumenMensualReporte .overflow{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media (max-width:640px){
+  #resumenDiarioReporte table,#resumenMensualReporte table{min-width:560px}
+}
+
+/* Tarja mensual: marca de permiso por hora en un día sin estado (solo visual, no entra en los totales) */
+#matrixArea td.attendance-cell.tarja-permiso-hora{background:var(--warn-surface);color:var(--warn-ink);box-shadow:inset 0 0 0 1px var(--warn-ink);text-align:center}
+#matrixArea .tarjaPermisoI{display:inline-block;width:9px;height:9px;line-height:9px;border:1px solid var(--warn-ink);border-radius:50%;font-size:7px;font-weight:700;font-style:italic;text-align:center;color:var(--warn-ink);vertical-align:middle}
+.tarjaAvisoPermisos{margin:0 0 8px;color:var(--warn-ink);background:var(--warn-surface);border:1px solid var(--warn-ink);border-radius:7px;padding:6px 10px;font-size:.8125rem}
+
+/* Personas por día y grupo: la grilla reutiliza las reglas de la tarja (selectores ".ppd-grilla" arriba) */
+.ppd-grilla th{position:sticky;top:0;z-index:3;background:var(--card);color:var(--text);padding:6px 3px;line-height:1.35;font-size:.68rem;vertical-align:bottom;box-shadow:inset 0 -1px 0 var(--line)}
+.ppd-host .overflow{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ppd-titulo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.ppd-acciones{display:flex;flex-wrap:wrap;gap:4px;justify-content:flex-end}
+.ppd-grilla{border-collapse:collapse;width:auto}
+.ppd-grilla th,.ppd-grilla td{border:1px solid var(--line);text-align:center;color:var(--text)}
+.ppd-grilla th:first-child,.ppd-grilla td:first-child{text-align:left;padding-left:6px;font-weight:700;white-space:nowrap}
+.ppd-grilla small{color:var(--muted)}
+.ppd-grilla td.ppd-vacio{color:var(--muted)}
+.ppd-grilla tr.ppd-sub td,.ppd-grilla tr.ppd-total td{font-weight:700}
+.ppd-grilla tr.ppd-total td{border-top:2px solid var(--text)}
+.ppd-n{display:block;width:100%;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:inherit;font:inherit;cursor:pointer;text-transform:none}
+.ppd-n:hover{background:var(--surface-hover)}
+.ppd-n:focus-visible{outline:2px solid var(--focus-shadow);outline-offset:-2px}
+.ppd-lista{margin:6px 0;padding:6px 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel);color:var(--text);font-size:.8125rem}
+.ppd-lista[hidden]{display:none}
+.ppd-control{margin:6px 0;color:var(--muted);font-size:.75rem}
+.ppd-aviso{margin:6px 0;padding:4px 8px;border-radius:6px;background:var(--warn-surface);color:var(--warn-ink);font-size:.8125rem}
+.ppd-msg{padding:8px;color:var(--muted)}
+.ppd-panel{position:fixed;top:80px;right:16px;z-index:60;display:flex;flex-direction:column;width:min(900px,calc(100vw - 32px));max-height:80vh;overflow:hidden;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px}
+.ppd-panel[hidden]{display:none}
+.ppd-barra{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 8px;background:var(--panel);border-bottom:2px solid var(--line);cursor:move;touch-action:none;user-select:none}
+.ppd-cuerpo{flex:1 1 auto;min-height:0;overflow:auto;padding:0 8px 8px}
+@media (max-width:859px){
+  .ppd-panel{left:0;right:0;bottom:0;top:auto;width:100%;max-height:60vh;border-radius:8px 8px 0 0}
+  .ppd-barra{cursor:default}
+}
+

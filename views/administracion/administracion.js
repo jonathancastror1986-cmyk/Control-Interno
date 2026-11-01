@@ -92,6 +92,11 @@ function horaSalidaDe(supCode){
   const emp=empresaDeEquipo(supCode);
   return (emp&&emp.hora_salida)||null;
 }
+// Igual que horaEntradaDe pero sin el '08:00' de relleno: null si la empresa no la cargó.
+function horaEntradaRealDe(supCode){
+  const emp=empresaDeEquipo(supCode);
+  return (emp&&emp.hora_entrada)||null;
+}
 // Porque son dos hechos distintos y la tabla los mezclaba en una sola columna.
 const ORIGENES_DEL_RELOJ=['excel','reloj','offline_csv'];
 const ORIGENES_DEL_SUPERVISOR=['qr','manual','porteria','app'];
@@ -404,21 +409,15 @@ function comoDiceLasSalidas(cuantas){
   return String(cuantas);
 }
 
-async function medirAsistenciaDiaria(){
+async function medirAsistenciaDiariaPara(equipo, supCode, fecha){
   const caja=document.getElementById('medicionAsistenciaDiaria');
   if(!caja)return;
   caja.innerHTML='<small>Leyendo la asistencia de hoy…</small>';
-  const supCode=(document.getElementById('supDiariaSup')||{}).value||miCodigoSupervisor;
-  if(!supCode){
+  if(!equipo || !equipo.length){
     caja.innerHTML='<div class="gpsWarn">Selecciona un supervisor para medir su equipo.</div>';
     return;
   }
-  const equipo=equipoDe(supCode);
-  if(!equipo.length){
-    caja.innerHTML='<div class="gpsWarn">No se encontró el equipo del supervisor seleccionado.</div>';
-    return;
-  }
-  const hoy=hoyLocal();
+  const hoy=fecha||hoyLocal();
   const horaEntrada=horaEntradaDe(supCode);
   const tolerancia=toleranciaDe(supCode);
   const desde=new Date();
@@ -452,7 +451,9 @@ async function medirAsistenciaDiaria(){
       hoy,horaEntrada,tolerancia,motivos);
     const pendientes=resumen.filas.filter(f=>!f.exento&&f.clave!=='presente').length;
     const exentos=resumen.filas.filter(f=>f.exento).length;
-    const aviso=pendientes===0?'<p><b>Nadie tiene nada pendiente hoy.</b></p>':'';
+    const aviso=pendientes===0?'<p><b>Nadie tiene nada pendiente hoy.</b></p>':''+(
+      '<p><b>Marcaje pendiente: </b>'+pendientes+' fila(s) sin marcar o sin subir el marcaje del reloj. Deben marcar asistencia en el reloj o justificar (permiso, licencia, accidente).</p>'
+    );
     caja.innerHTML=aviso+'<p><b>Hora de entrada del equipo:</b> '+escHtml(horaEntrada)+' (tolerancia '+tolerancia+' min)</p>'+
       '<table class="diaTabla"><thead><tr><th>Situación</th><th>Filas</th></tr></thead><tbody>'+
       SITUACIONES_MEDIBLES.map(s=>'<tr><td><span class="diaPill">'+escHtml(s.texto)+'</span></td><td>'+resumen.conteos[s.clave]+'</td></tr>').join('')+
@@ -465,6 +466,21 @@ async function medirAsistenciaDiaria(){
   }catch(error){
     caja.innerHTML='<div class="gpsWarn"><b>No se pudo leer la asistencia.</b><br><small>'+escHtml(error.message||error)+'</small></div>';
   }
+}
+
+async function medirAsistenciaDiaria(){
+  const caja=document.getElementById('medicionAsistenciaDiaria');
+  const supCode=(document.getElementById('supDiariaSup')||{}).value||miCodigoSupervisor;
+  const equipo=equipoDe(supCode);
+  if(!supCode){
+    if(caja)caja.innerHTML='<div class="gpsWarn">Selecciona un supervisor para medir su equipo.</div>';
+    return;
+  }
+  if(!equipo.length){
+    if(caja)caja.innerHTML='<div class="gpsWarn">No se encontró el equipo del supervisor seleccionado.</div>';
+    return;
+  }
+  return medirAsistenciaDiariaPara(equipo, supCode, hoyLocal());
 }
 
 async function registrarMarcaje(code,tipo,origen,nota,horaPedida){
@@ -1242,6 +1258,7 @@ function armarLeyendaTarja(){
     +'<b>Fondos</b><div class="tarjaLeyendaGrid">'
     +'<span>Celda con fondo de color: feriado — hacé clic en el día para alternar laborable/feriado.</span>'
     +'<span>Celda en negro: anterior a la fecha de ingreso o posterior a la de desvinculación. No se puede editar.</span>'
+    +'<span>Celda vacía con borde punteado y una <b>i</b>: el trabajador tiene un permiso por hora ese día y aún no tiene estado. Es solo una marca: no cuenta en los totales.</span>'
     +'</div>'
     // Y LAS SEIS COLUMNAS DEL RESUMEN, DE LA MISMA LISTA QUE LOS ENCABEZADOS
     //
@@ -1453,6 +1470,10 @@ async function justificar(){
   renderMatrix();
   document.getElementById('just-nota').value='';
   alert(`${rows.length} día(s) justificado(s) como ${estado}.`);
+  if((estado==='P'||estado==='PP')&&typeof papPermisoDiaTrasJustificar==='function'){
+    try{await papPermisoDiaTrasJustificar(code,desde,hasta,estado,nota);}
+    catch(e){alert('La justificación quedó guardada, pero falló el flujo de aprobación o el PDF: '+((e&&e.message)||e));}
+  }
 }
 
 function daysInMonth(y,m){return new Date(y,m,0).getDate();}
@@ -1603,12 +1624,39 @@ function resumenDeEstadosDelMes(w,y,m){
   }
   return {conF,conPermiso,vacios,laborables,estados};
 }
+// Filtro por empresa y por tipo de trabajador (interno / externo) para la
+// tarja mensual: permite ver el reporte de una sola empresa, por ejemplo una
+// externa, y acotar despues por tipo.
+function llenarFiltrosEmpresaYTipo(){
+  const selE=document.getElementById('matEmpresaFilter');
+  const selT=document.getElementById('matTipoFilter');
+  if(selE){
+    const permitidas=(Array.isArray(empresas)?empresas:[]).filter(e=>veTodasLasEmpresas()||misEmpresas.includes(e.id));
+    const antes=selE.value;
+    selE.innerHTML='';
+    const opE=document.createElement('option');opE.value='';opE.textContent='Todas las empresas';selE.appendChild(opE);
+    permitidas.forEach(e=>{const o=document.createElement('option');o.value=e.id;o.textContent=e.nombre||e.id;selE.appendChild(o);});
+    if([...selE.options].some(o=>o.value===antes))selE.value=antes;
+  }
+  if(selT){
+    const antes=selT.value;
+    selT.innerHTML='';
+    const op0=document.createElement('option');op0.value='';op0.textContent='Todos los tipos';selT.appendChild(op0);
+    const opI=document.createElement('option');opI.value='interno';opI.textContent='Interno';selT.appendChild(opI);
+    const opS=document.createElement('option');opS.value='externo';opS.textContent='Externo';selT.appendChild(opS);
+    if([...selT.options].some(o=>o.value===antes))selT.value=antes;
+  }
+}
+
 function renderMatrix(){
+  llenarFiltrosEmpresaYTipo();
   const y=parseInt(document.getElementById('matYear').value);
   const m=parseInt(document.getElementById('matMonth').value);
   const supervisorCode=document.getElementById('matSupervisorFilter').value;
   const workerCode=document.getElementById('matWorkerFilter').value;
   const estadoFiltro=(document.getElementById('matEstadoFiltro')||{}).value||'';
+  const empresaCode=(document.getElementById('matEmpresaFilter')||{}).value||'';
+  const tipoFiltro=(document.getElementById('matTipoFilter')||{}).value||'';
     // Y EL FILTRO DE ACTIVOS E INACTIVOS, QUE ANTES NO ESTABA EN ESTA TARJA
     //
     // Y sale del select, y el valor vacío es "los dos", que no es lo mismo que "ninguno": es para
@@ -1622,7 +1670,9 @@ function renderMatrix(){
       (!workerCode||worker.code===workerCode)&&
       // Y el que no trae status cuenta como activo: es lo que hace "workerToDb", que le pone
       // "'activo'" cuando no viene nada.
-      (!equipoFiltro||String(worker.status||'activo')===equipoFiltro));
+      (!equipoFiltro||String(worker.status||'activo')===equipoFiltro)&&
+      (!empresaCode||mismoId(worker.empresa_id,empresaCode))&&
+      (!tipoFiltro||String(worker.tipo_trabajador||'')===tipoFiltro));
 
   let filteredWorkers=base;
   if(estadoFiltro){
@@ -1657,6 +1707,199 @@ function renderMatrix(){
   filteredWorkers.sort((a,b)=>compararPorCodigo(a.code,b.code)||a.name.localeCompare(b.name));
   document.getElementById('matrixArea').innerHTML=buildMatrixHtml(y,m,filteredWorkers);
   if(typeof marcarTarjaSoloLectura==='function')marcarTarjaSoloLectura();
+  if(typeof marcarPermisosHoraEnTarja==='function')marcarPermisosHoraEnTarja(y,m,filteredWorkers.map(w=>w.code));
+}
+// Reporte por cargo: matriz como la tarja -- filas = cargos, columnas =
+// supervisores, valor = conteo de trabajadores. Antes salia como una lista
+// plana por cargo, sin esa forma de ver la cobertura por supervisor.
+function renderReportePorCargo(){
+  const box=document.getElementById('cargoReporte');
+  if(!box)return;
+  const y=parseInt(document.getElementById('matYear').value,10);
+  const m=parseInt(document.getElementById('matMonth').value,10);
+  if(!Number.isInteger(y)||!Number.isInteger(m)||m<1||m>12){
+    box.innerHTML='<p>Selecciona un mes y año válidos para generar el reporte por cargo.</p>';
+    return;
+  }
+  const empresaCode=(document.getElementById('matEmpresaFilter')||{}).value||'';
+  const tipoFiltro=(document.getElementById('matTipoFilter')||{}).value||'';
+  const base=(Array.isArray(workers)?workers.slice():[]).filter(w=>{
+    if(empresaCode&&!mismoId(w.empresa_id,empresaCode))return false;
+    if(tipoFiltro&&String(w.tipo_trabajador||'')!==tipoFiltro)return false;
+    return true;
+  });
+  const estadosReporte=['X','F','P','L','A','PP','V','LL'];
+  const grupos=new Map();
+  const todosSup=new Set();
+  base.forEach(w=>{
+    const cargo=String(w.spec||'').trim()||String(w.cargo||'').trim()||'Sin cargo';
+    const sup=String(w.supervisor_code||'');
+    todosSup.add(sup);
+    if(!grupos.has(cargo))grupos.set(cargo,{supervisores:new Map(),estados:Object.create(null),total:0});
+    const grupo=grupos.get(cargo);
+    grupo.supervisores.set(sup,(grupo.supervisores.get(sup)||0)+1);
+    grupo.total++;
+    const resumen=resumenDeEstadosDelMes(w,y,m);
+    estadosReporte.forEach(estado=>{
+      if(resumen.estados.has(estado))grupo.estados[estado]=(grupo.estados[estado]||0)+1;
+    });
+  });
+  const cargos=[...grupos.keys()].sort((a,b)=>a.localeCompare(b));
+  const sups=[...todosSup].sort((a,b)=>a.localeCompare(b));
+  if(!cargos.length){
+    box.innerHTML='<p>No hay trabajadores para los filtros seleccionados.</p>';
+    return;
+  }
+  let html='<div class="overflow"><table>';
+  html+='<tr><th rowspan="2">Cargo</th><th colspan="'+sups.length+'">Trabajadores por supervisor</th><th rowspan="2">Total</th>';
+  html+='<th colspan="'+estadosReporte.length+'">Trabajadores con estado en el mes</th></tr><tr>';
+  sups.forEach(s=>html+='<th>'+escHtml(s||'Sin supervisor')+'</th>');
+  estadosReporte.forEach(estado=>html+='<th>'+estado+'</th>');
+  html+='</tr>';
+  cargos.forEach(cargo=>{
+    const g=grupos.get(cargo);
+    html+='<tr><td><b>'+escHtml(cargo)+'</b></td>';
+    sups.forEach(s=>html+=`<td>${g.supervisores.get(s)||0}</td>`);
+    html+=`<td>${g.total}</td>`;
+    estadosReporte.forEach(estado=>html+=`<td>${g.estados[estado]||0}</td>`);
+    html+='</tr>';
+  });
+  html+='</table></div>';
+  html+='<p><small>Los cargos provienen de la especialidad (spec) o cargo del trabajador. Las columnas de estado cuentan personas con al menos un registro de ese estado en el mes. La empresa y el tipo corresponden a los filtros seleccionados.</small></p>';
+  box.innerHTML=html;
+}
+function trabajadoresDelReportePorEmpresa(){
+  const empresaCode=(document.getElementById('matEmpresaFilter')||{}).value||'';
+  return (Array.isArray(workers)?workers:[]).filter(w=>!empresaCode||mismoId(w.empresa_id,empresaCode));
+}
+function trabajadorActivoEnFechaDelReporte(w,fecha){
+  if(w.fecha_ingreso&&fecha<w.fecha_ingreso)return false;
+  if(w.status==='desvinculado'&&w.fecha_desvinculacion&&fecha>w.fecha_desvinculacion)return false;
+  return true;
+}
+function renderResumenDiario(fecha){
+  const box=document.getElementById('resumenDiarioReporte');
+  if(!box)return;
+  const campoFecha=document.getElementById('matFechaReporte');
+  fecha=fecha||(campoFecha&&campoFecha.value)||hoyLocal();
+  if(campoFecha)campoFecha.value=fecha;
+  const fechaDate=new Date(fecha+'T00:00:00');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)||Number.isNaN(fechaDate.getTime())||isoLocal(fechaDate)!==fecha){
+    box.innerHTML='<p>Selecciona una fecha válida para generar el resumen diario.</p>';
+    return;
+  }
+  const conteos={
+    interno:{trabajadores:0,presentes:0,faltas:0,permisos:0,sinMarcaje:0,otros:0},
+    externo:{trabajadores:0,presentes:0,faltas:0,permisos:0,sinMarcaje:0,otros:0}
+  };
+  const registros=new Map(attendance.filter(a=>a.date===fecha).map(a=>[a.code,a]));
+  const workedWeeks=buildWorkedWeeks();
+  trabajadoresDelReportePorEmpresa().forEach(w=>{
+    if(!trabajadorActivoEnFechaDelReporte(w,fecha))return;
+    const tipo=w.tipo_trabajador==='externo'?'externo':'interno';
+    const resumen=conteos[tipo];
+    resumen.trabajadores++;
+    const registro=registros.get(w.code);
+    const autoFeriado=!registro&&isFeriado(Number(fecha.slice(0,4)),Number(fecha.slice(5,7)),Number(fecha.slice(8,10)))
+      &&workedWeeks.has(`${w.code}|${weekStartIso(fecha)}`);
+    const estado=registro?registro.estado:(autoFeriado?'X':'');
+    if(estado==='X')resumen.presentes++;
+    else if(estado==='F')resumen.faltas++;
+    else if(['P','L','A','PP','V'].includes(estado))resumen.permisos++;
+    else if(estado==='LL')resumen.otros++;
+    else if(estado)resumen.otros++;
+    else resumen.sinMarcaje++;
+  });
+  const etiquetas={interno:'Interno',externo:'Externo'};
+  let html='<h3>Resumen diario — '+escHtml(fecha)+'</h3><div class="overflow"><table><thead><tr><th>Tipo</th><th>Trabajadores</th><th>Presentes (X)</th><th>Faltas (F)</th><th>Permisos/licencias (P/L/A/PP/V)</th><th>Sin marcaje</th><th>Otros (LL/estado especial)</th></tr></thead><tbody>';
+  ['interno','externo'].forEach(tipo=>{
+    const r=conteos[tipo];
+    html+=`<tr><th>${etiquetas[tipo]}</th><td>${r.trabajadores}</td><td>${r.presentes}</td><td>${r.faltas}</td><td>${r.permisos}</td><td>${r.sinMarcaje}</td><td>${r.otros}</td></tr>`;
+  });
+  const total=['interno','externo'].reduce((s,tipo)=>{
+    Object.keys(s).forEach(k=>s[k]+=conteos[tipo][k]);
+    return s;
+  },{trabajadores:0,presentes:0,faltas:0,permisos:0,sinMarcaje:0,otros:0});
+  html+=`<tr><th>Total</th><td>${total.trabajadores}</td><td>${total.presentes}</td><td>${total.faltas}</td><td>${total.permisos}</td><td>${total.sinMarcaje}</td><td>${total.otros}</td></tr></tbody></table></div>`;
+  html+='<p><small>Se excluyen trabajadores fuera de sus fechas de ingreso/desvinculación. En feriados, una X automática de la tarja cuenta como presente. El resumen considera la empresa seleccionada y muestra ambos tipos.</small></p>';
+  box.innerHTML=html;
+}
+// Estado de un trabajador en un día, con el mismo criterio de la tarja (X automática en feriado incluida).
+// Lo usan el resumen mensual y la tabla de personas por día: una sola definición.
+function estadoDiaParaResumen(w,iso,y,m,d,registros,workedWeeks){
+  const registro=registros.get(`${w.code}|${iso}`);
+  const feriado=isFeriado(y,m,d);
+  const autoFeriado=!registro&&feriado&&workedWeeks.has(`${w.code}|${weekStartIso(iso)}`);
+  return {estado:registro?registro.estado:(autoFeriado?'X':''),feriado};
+}
+// Única definición de "día real trabajado (X)": X en un día que no es feriado.
+// La usan el resumen mensual y la grilla por grupo (personas-por-dia.js).
+function cuentaComoDiaReal(estado,feriado){
+  return estado==='X'&&!feriado;
+}
+function renderResumenMensual(y,m){
+  const box=document.getElementById('resumenMensualReporte');
+  if(!box)return;
+  y=Number(y)||parseInt((document.getElementById('matYear')||{}).value,10);
+  m=Number(m)||parseInt((document.getElementById('matMonth')||{}).value,10);
+  if(!Number.isInteger(y)||!Number.isInteger(m)||m<1||m>12){
+    box.innerHTML='<p>Selecciona un mes y año válidos para generar el resumen mensual.</p>';
+    return;
+  }
+  const nd=daysInMonth(y,m);
+  const prefijo=y+'-'+String(m).padStart(2,'0');
+  const workedWeeks=buildWorkedWeeks();
+  const registros=new Map(attendance.map(a=>[`${a.code}|${a.date}`,a]));
+  const conteos={
+    interno:{trabajadores:0,diasTrabajadosBase30:0,diasEfectivos:0,diasReales:0,faltas:0,permisos:0},
+    externo:{trabajadores:0,diasTrabajadosBase30:0,diasEfectivos:0,diasReales:0,faltas:0,permisos:0}
+  };
+  const tipoPorCodigo=new Map();
+  trabajadoresDelReportePorEmpresa().forEach(w=>{
+    const tipo=w.tipo_trabajador==='externo'?'externo':'interno';
+    const r=conteos[tipo];
+    let diasX=0,diasXferiado=0,diasF=0,diasP=0,diasL=0,diasA=0,diasPP=0,diasV=0,diasLL=0;
+    let diasEnPeriodo=0;
+    for(let d=1;d<=nd;d++){
+      const iso=prefijo+'-'+String(d).padStart(2,'0');
+      if(!trabajadorActivoEnFechaDelReporte(w,iso))continue;
+      diasEnPeriodo++;
+      const {estado,feriado}=estadoDiaParaResumen(w,iso,y,m,d,registros,workedWeeks);
+      if(cuentaComoDiaReal(estado,feriado))diasX++;
+      else if(estado==='X')diasXferiado++;
+      else if(estado==='F')diasF++;
+      else if(estado==='P')diasP++;
+      else if(estado==='L')diasL++;
+      else if(estado==='A')diasA++;
+      else if(estado==='PP')diasPP++;
+      else if(estado==='V')diasV++;
+      else if(estado==='LL')diasLL++;
+    }
+    if(!diasEnPeriodo)return;
+    r.trabajadores++;
+    tipoPorCodigo.set(w.code,tipo);
+    r.diasTrabajadosBase30+=Math.round((diasX+diasXferiado+diasV+diasPP+diasLL)/nd*30);
+    r.diasEfectivos+=diasX+diasXferiado+diasV+diasPP+diasLL;
+    r.diasReales+=diasX;
+    r.faltas+=diasF;
+    r.permisos+=diasP+diasL+diasA+diasPP+diasV;
+  });
+  const etiquetas={interno:'Interno',externo:'Externo'};
+  let html='<h3>Resumen mensual — '+escHtml(String(m).padStart(2,'0')+'/'+y)+'</h3><div class="overflow"><table><thead><tr><th>Tipo</th><th>Trabajadores</th><th>Días trabajados (base 30)</th><th>Días efectivos</th><th>Días reales trabajados (X)</th><th>Faltas (F)</th><th>Permisos/licencias (P/L/A/PP/V)</th><th>Permisos por hora</th></tr></thead><tbody>';
+  ['interno','externo'].forEach(tipo=>{
+    const r=conteos[tipo];
+    html+=`<tr><th>${etiquetas[tipo]}</th><td>${r.trabajadores}</td><td>${r.diasTrabajadosBase30}</td><td>${r.diasEfectivos}</td><td>${r.diasReales}</td><td>${r.faltas}</td><td>${r.permisos}</td><td data-permiso-hora="${tipo}">…</td></tr>`;
+  });
+  const total=['interno','externo'].reduce((s,tipo)=>{
+    Object.keys(s).forEach(k=>s[k]+=conteos[tipo][k]);
+    return s;
+  },{trabajadores:0,diasTrabajadosBase30:0,diasEfectivos:0,diasReales:0,faltas:0,permisos:0});
+  html+=`<tr><th>Total</th><td>${total.trabajadores}</td><td>${total.diasTrabajadosBase30}</td><td>${total.diasEfectivos}</td><td>${total.diasReales}</td><td>${total.faltas}</td><td>${total.permisos}</td><td data-permiso-hora="total">…</td></tr></tbody></table></div>`;
+  html+='<p><small>Los días trabajados en base 30 y los días efectivos siguen el criterio de la tarja. Los días efectivos incluyen X, V, PP, LL y X en feriado; permisos/licencias suma P, L, A, PP y V. Se aplica la empresa seleccionada y se muestran ambos tipos.</small></p>';
+  html+='<p><small>Permisos por hora: cantidad de permisos con horario pendientes o confirmados en el mes; no descuentan días.</small></p>';
+  box.innerHTML=html;
+  if(typeof renderGrillaGrupos==='function')renderGrillaGrupos(y,m,total.diasReales);
+  if(typeof completarPermisosHoraResumen==='function')completarPermisosHoraResumen(y,m,box,tipoPorCodigo);
 }
 function refreshAttendanceMatrix(){
   if(document.getElementById('v-supervisores').classList.contains('active'))renderSupervisorMatrix();
@@ -1836,7 +2079,14 @@ async function saveAttendanceState(code,iso,state,hora,opciones){
     return true;
   }
   let motivo=opciones.motivo||'';
-  if(!motivoEsValido(motivo)){
+  // El dia de lluvia (LL) no exige motivo escrito: el supervisor puede dejar
+  // varios dias sin marcar como lluvia sin escribir la misma justificacion una
+  // y otra vez. Pero la base (registrar_asistencia) exige un motivo de al
+  // menos 5 caracteres para TODA alta manual, así que se genera uno automático
+  // para que el cambio se guarde sin pedirle que escriba.
+  const esLluvia=String(state||'')==='LL';
+  const exigirMotivo=!esLluvia;
+  if(exigirMotivo && !motivoEsValido(motivo)){
     const pedido=await pedirMotivoCambio({
       titulo:opciones.titulo||'Por qué cambiás la asistencia',
       detalle:'<b>'+escHtml((workers.find(x=>x.code===code)||{}).name||code)+'</b> — '+escHtml(iso)+
@@ -1847,6 +2097,14 @@ async function saveAttendanceState(code,iso,state,hora,opciones){
     });
     if(!pedido)return false;
     motivo=pedido;
+  }
+  if(esLluvia && !motivoEsValido(motivo)){
+    motivo=motivoSugerido(code,iso,state);
+    if(!motivoEsValido(motivo)) motivo='Día de lluvia (LL) registrado por '+(miNombrePerfil()||'sistema');
+  }
+  // Red de seguridad: nunca llamar a la base con un motivo vacío o corto.
+  if(!motivoEsValido(motivo)){
+    motivo='Cambio de asistencia registrado por '+(miNombrePerfil()||'sistema');
   }
   const nuevaHora=state==='X'?String(hora||existing?.hora_llegada||'').slice(0,5):'';
   let error=await guardarAsistencia(code,iso,state,nuevaHora,motivo,
