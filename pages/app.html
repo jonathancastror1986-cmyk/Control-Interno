@@ -75,6 +75,7 @@ quiere correr.
   <link rel="stylesheet" href="../views/porteria/totem.css?v=152">
 <link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=152">
 <link rel="stylesheet" href="../views/bodega/plantillas.css?v=152">
+<link rel="stylesheet" href="../views/bodega/pedidos.css?v=152">
 <link rel="stylesheet" href="../css/movil.css?v=152" media="(max-width: 860px)">
 </head>
 <body>
@@ -1262,6 +1263,7 @@ duplica nada: la base lo sabe y lo cuenta.
     </div>
     <div id="cargoReporte"></div>
     <div id="resumenDiarioReporte"></div>
+    <div id="grillaGruposMensual"></div>
     <div id="resumenMensualReporte"></div>
     <div id="matLeyendaCeldas" class="tarjaLeyenda" hidden></div>
     <div class="kitResumen" id="tarjaPermisoHint"></div>
@@ -1434,6 +1436,7 @@ duplica nada: la base lo sabe y lo cuenta.
     </div>
 
     <button class="btn" type="button" onclick="saveEpp()" id="eppSaveBtn">Guardar entrega y generar PDF</button>
+    <button class="btn secondary" type="button" onclick="saveEpp(true)">Descargar PDF para firma manual</button>
     <span id="eppSaveMsg" style="margin-left:10px;font-size:.8rem"></span>
   </div>
 </section>
@@ -1520,6 +1523,7 @@ duplica nada: la base lo sabe y lo cuenta.
       <div><label>Nivel</label><input id="kit-nivel" placeholder="Ej. Planta baja"></div>
     </div>
     <button class="btn" type="button" onclick="entregarKitItems()" id="kitSaveBtn">Entregar marcados y generar PDF</button>
+    <button class="btn secondary" type="button" onclick="entregarKitItems(true)">Descargar PDF para firma manual</button>
     <span id="kitSaveMsg" style="margin-left:10px;font-size:.8rem"></span>
   </div>
 
@@ -1582,6 +1586,142 @@ duplica nada: la base lo sabe y lo cuenta.
   </div>
 </section>
 
+<section class="view v-bodega" id="v-bodega-stock">
+  <div class="card">
+    <h2>Stock de bodega</h2>
+    <small>Saldo calculado desde el libro de movimientos. Los cambios se hacen con ingresos, entregas o ajustes: nunca editando el saldo.</small>
+    <div class="pm-barra"><div><label for="stBodegaSel">Bodega</label><select id="stBodegaSel" onchange="pmCambiarBodega(this.value,'stock')"></select></div></div>
+    <small id="stMsg" role="status"></small>
+    <div class="pestanas" id="stTabs" role="tablist">
+      <button type="button" role="tab" data-st-tab="saldos" aria-selected="true" class="active" onclick="giStockPestana('saldos')"><span class="pest-txt">Saldos</span></button>
+      <button type="button" role="tab" data-st-tab="ajustar" aria-selected="false" onclick="giStockPestana('ajustar')"><span class="pest-txt">Ajustar stock</span></button>
+      <button type="button" role="tab" data-st-tab="kits" aria-selected="false" onclick="giStockPestana('kits')"><span class="pest-txt">Kits que se pueden armar</span></button>
+    </div>
+    <div class="pm-pane" data-st-pane="saldos"><div id="stBody"></div></div>
+    <div class="pm-pane" data-st-pane="ajustar" hidden>
+      <p class="gi-aviso">Para cuadrar el stock contra un conteo físico completo usa el módulo de inventarios. Este ajuste es para corregir un artículo puntual y queda registrado con tu nombre y el motivo.</p>
+      <div class="pm-barra">
+        <div><label for="gaArt">Artículo (código o nombre)</label><input id="gaArt" list="giArticulos" autocomplete="off" onchange="gaElegirArticulo()"></div>
+        <div><label for="gaTalla">Talla</label><select id="gaTalla" onchange="gaMostrarSaldo()"></select></div>
+        <div class="pm-cont"><span>Saldo actual</span><b id="gaSaldo">—</b></div>
+      </div>
+      <div class="pm-barra">
+        <div><label for="gaModo">Indicar</label><select id="gaModo" onchange="gaCambiarModo()"><option value="nueva">Cantidad nueva (el saldo queda en ese valor)</option><option value="dif">Diferencia (+ suma, − resta)</option></select></div>
+        <div><label for="gaCant" id="gaCantEt">Cantidad nueva</label><input type="number" id="gaCant" step="1" inputmode="numeric"></div>
+      </div>
+      <div><label for="gaMotivo">Motivo del ajuste (obligatorio, mínimo 5 caracteres)</label><textarea id="gaMotivo" rows="2" maxlength="300"></textarea></div>
+      <div class="pm-acciones"><button class="btn" id="gaBtn" type="button" onclick="gaGuardar()">Registrar ajuste</button></div>
+      <small id="gaMsg" role="status"></small>
+    </div>
+    <div class="pm-pane" data-st-pane="kits" hidden>
+      <small>Cuántos kits completos se pueden armar con el saldo actual de esta bodega, y qué componente lo limita. Cuenta el saldo total del artículo, sin separar por talla.</small>
+      <small id="stKitsMsg" role="status"></small>
+      <div id="stKitsBody"></div>
+    </div>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-pedidos">
+  <div class="card">
+    <h2>Pedidos de materiales</h2>
+    <div class="pm-barra"><div><label for="pmBodegaSel">Bodega</label><select id="pmBodegaSel" onchange="pmCambiarBodega(this.value,'pedidos')"></select></div></div>
+    <small id="pmMsg" role="status"></small>
+    <div id="pmFaltBox" class="pm-faltantes" hidden></div>
+    <div class="pestanas" id="pmTabs" role="tablist">
+      <button type="button" role="tab" data-pm-tab="sugerencia" aria-selected="true" class="active" onclick="pmPestanaAbrir('sugerencia')"><span class="pest-txt">Sugerencia</span></button>
+      <button type="button" role="tab" data-pm-tab="pedidos" aria-selected="false" onclick="pmPestanaAbrir('pedidos')"><span class="pest-txt">Pedidos</span></button>
+      <button type="button" role="tab" data-pm-tab="recibir" aria-selected="false" onclick="pmPestanaAbrir('recibir')"><span class="pest-txt">Recibir mercadería</span></button>
+    </div>
+
+    <div class="pm-pane" data-pm-pane="sugerencia">
+      <small>Artículos con saldo igual o menor al mínimo. Sugerida = objetivo − saldo − lo ya pedido y no recibido.</small>
+      <div class="pm-barra">
+        <div><label for="pmSugProv">Proveedor</label><input id="pmSugProv" maxlength="120"></div>
+        <div><label for="pmSugNotas">Notas</label><input id="pmSugNotas" maxlength="200"></div>
+        <div class="pm-fin"><button class="btn" id="pmSugBtn" type="button" onclick="pmCrearPedidoSugerido()">Crear pedido</button></div>
+      </div>
+      <small id="pmSugMsg" role="status"></small>
+      <div id="pmSugBody"></div>
+    </div>
+
+    <div class="pm-pane" data-pm-pane="pedidos" hidden>
+      <div class="pm-barra">
+        <div><label for="pmFEstado">Estado</label><select id="pmFEstado" onchange="pmCargarPedidos()"><option value="">Todos</option><option value="borrador">Borrador</option><option value="enviado">Enviado</option><option value="recibido_parcial">Recibido parcial</option><option value="recibido">Recibido</option><option value="anulado">Anulado</option></select></div>
+        <div><label for="pmFDesde">Desde</label><input type="date" id="pmFDesde" onchange="pmCargarPedidos()"></div>
+        <div><label for="pmFHasta">Hasta</label><input type="date" id="pmFHasta" onchange="pmCargarPedidos()"></div>
+        <div><label for="pmFProv">Proveedor</label><input id="pmFProv" oninput="pmCargarPedidos()"></div>
+      </div>
+      <small id="pmListMsg" role="status"></small>
+      <div id="pmListBody"></div>
+      <div id="pmDetalle" class="pm-detalle" hidden></div>
+    </div>
+
+    <div class="pm-pane" data-pm-pane="recibir" hidden>
+      <div class="pm-barra">
+        <div><label for="pmRecPedido">Pedido</label><select id="pmRecPedido" onchange="pmElegirRecepcion(this.value)"></select></div>
+        <div><label for="pmRecGuia">N° de guía</label><input id="pmRecGuia" maxlength="60"></div>
+        <div class="pm-fin"><button class="btn" id="pmRecBtn" type="button" onclick="pmConfirmarRecepcion()">Registrar recepción</button></div>
+      </div>
+      <small id="pmRecMsg" role="status"></small>
+      <div id="pmRecForm"></div>
+    </div>
+  </div>
+</section>
+
+<section class="view v-bodega" id="v-bodega-guias">
+  <div class="card">
+    <h2>Ingreso por guía</h2>
+    <small>Registra la mercadería que llega con su guía de despacho o factura. Suma al stock y no se puede editar: si te equivocas, anula la guía con un motivo.</small>
+    <div class="pm-barra"><div><label for="giBodegaSel">Bodega</label><select id="giBodegaSel" onchange="pmCambiarBodega(this.value,'guias')"></select></div></div>
+    <small id="giMsg" role="status"></small>
+    <div class="pestanas" id="giTabs" role="tablist">
+      <button type="button" role="tab" data-gi-tab="nueva" aria-selected="true" class="active" onclick="giPestanaAbrir('nueva')"><span class="pest-txt">Nueva guía</span></button>
+      <button type="button" role="tab" data-gi-tab="lista" aria-selected="false" onclick="giPestanaAbrir('lista')"><span class="pest-txt">Guías registradas</span></button>
+    </div>
+
+    <div class="pm-pane" data-gi-pane="nueva">
+      <div class="pm-barra">
+        <div><label for="giProv">Proveedor</label><input id="giProv" maxlength="120" autocomplete="off"></div>
+        <div><label for="giTipo">Tipo de documento</label><select id="giTipo"><option value="guia_despacho">Guía de despacho</option><option value="factura">Factura</option><option value="otro">Otro</option></select></div>
+        <div><label for="giNumero">N° de documento</label><input id="giNumero" maxlength="60" autocomplete="off"></div>
+        <div><label for="giFecha">Fecha del documento</label><input type="date" id="giFecha"></div>
+      </div>
+      <div class="pm-barra">
+        <div><label for="giPedido">Pedido relacionado (opcional)</label><select id="giPedido" onchange="giElegirPedido(this.value)"></select></div>
+        <div><label for="giArchivo">Documento escaneado (PDF o foto, máx. 10 MB)</label><input type="file" id="giArchivo" accept="application/pdf,image/*" onchange="giArchivoElegido()"></div>
+      </div>
+      <small id="giArchMsg" role="status"></small>
+      <div class="gi-cab-lineas">
+        <h3>Líneas</h3>
+        <div class="pm-acciones">
+          <button class="btn secondary btn-compacto" type="button" onclick="giAgregarLinea()">+ Agregar línea</button>
+          <button class="btn secondary btn-compacto" type="button" data-dato="Escanear el código de un artículo y agregarlo como línea" onclick="openQrCamera('guia-linea')">Escanear código</button>
+        </div>
+      </div>
+      <div id="giLineas"></div>
+      <div class="pm-acciones">
+        <button class="btn" id="giRevisarBtn" type="button" onclick="giRevisar()">Revisar y guardar</button>
+        <button class="btn secondary" type="button" onclick="giLimpiar()">Limpiar formulario</button>
+      </div>
+      <div id="giResumen" class="pm-detalle" hidden></div>
+      <small id="giFormMsg" role="status"></small>
+    </div>
+
+    <div class="pm-pane" data-gi-pane="lista" hidden>
+      <div class="pm-barra">
+        <div><label for="giFDesde">Desde</label><input type="date" id="giFDesde" onchange="giCargarGuias()"></div>
+        <div><label for="giFHasta">Hasta</label><input type="date" id="giFHasta" onchange="giCargarGuias()"></div>
+        <div><label for="giFProv">Proveedor</label><input id="giFProv" oninput="giCargarGuias()"></div>
+        <div><label for="giFEstado">Estado</label><select id="giFEstado" onchange="giCargarGuias()"><option value="">Todos</option><option value="registrada">Registrada</option><option value="anulada">Anulada</option></select></div>
+      </div>
+      <small id="giListMsg" role="status"></small>
+      <div id="giListBody"></div>
+      <div id="giDetalle" class="pm-detalle" hidden></div>
+    </div>
+    <datalist id="giArticulos"></datalist>
+  </div>
+</section>
+
 <section class="view v-bodega" id="v-bodega-historial">
   <div class="card">
     <h2>Historial de entregas EPP</h2>
@@ -1594,6 +1734,7 @@ duplica nada: la base lo sabe y lo cuenta.
         <option value="">Todas</option>
         <option value="firmadas">Solo firmadas</option>
         <option value="sinfirma">Solo sin firma</option>
+        <option value="pendientepapel">Pendientes de firma en papel</option>
       </select></div>
       <div><label>Desde</label><input type="date" id="epp-filtro-desde" onchange="renderEppHistory()"></div>
       <div><label>Hasta</label><input type="date" id="epp-filtro-hasta" onchange="renderEppHistory()"></div>
@@ -1633,6 +1774,7 @@ duplica nada: la base lo sabe y lo cuenta.
       <div><label>Unidad (QR)</label><select id="assign-unit"></select></div>
       <div style="display:flex;align-items:flex-end;gap:8px">
         <button class="btn" type="button" onclick="assignTool()">Registrar entrega de herramienta</button>
+        <button class="btn secondary" type="button" onclick="assignTool(true)">Descargar PDF para firma manual</button>
         <button class="btn secondary" type="button" onclick="openQrCamera('tool-owner')">📷 Buscar por QR</button>
       </div>
     </div>
@@ -1736,10 +1878,10 @@ duplica nada: la base lo sabe y lo cuenta.
 <section class="view v-supervisores" id="v-sup-diaria">
   <div class="pestanas supTabs" role="tablist" aria-label="Opciones del supervisor">
     <button type="button" class="active" aria-selected="true" role="tab" data-sup-tab="diaria">Asistencia diaria</button>
-    <button type="button" aria-selected="false" role="tab" data-sup-tab="conciliacion">Conciliar el reloj con la planilla</button>
-    <button type="button" aria-selected="false" role="tab" data-sup-tab="avisos-mios">Mis avisos de ingreso</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="conciliacion" title="Conciliar el reloj con la planilla">Conciliar reloj y planilla</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="avisos-mios" title="Mis avisos de ingreso">Avisos de ingreso</button>
     <button type="button" aria-selected="false" role="tab" data-sup-tab="avisos-dia">Avisos del día</button>
-    <button type="button" aria-selected="false" role="tab" data-sup-tab="importar">Importar marcajes desde Excel</button>
+    <button type="button" aria-selected="false" role="tab" data-sup-tab="importar" title="Importar marcajes desde Excel">Importar marcajes</button>
     <button type="button" aria-selected="false" role="tab" data-sup-tab="permisos">Permisos con hora</button>
   </div>
 
@@ -1831,13 +1973,16 @@ duplica nada: la base lo sabe y lo cuenta.
       <h3 style="margin-top:0">Pedir permiso con horario</h3>
       <div id="permisoHorarioError" role="status" aria-live="polite"></div>
       <div class="row">
-        <div><label for="permisoHorarioPersona">Persona</label><select id="permisoHorarioPersona"><option value="">Selecciona una persona</option></select></div>
-        <div><label for="permisoHorarioFecha">Fecha</label><input id="permisoHorarioFecha" type="date"></div>
+        <div><label for="permisoHorarioPersona">Persona</label><select id="permisoHorarioPersona" onchange="programarResumenPermisoHorario()"><option value="">Selecciona una persona</option></select></div>
+        <div><label for="permisoHorarioFecha">Fecha</label><input id="permisoHorarioFecha" type="date" onchange="programarResumenPermisoHorario()"></div>
       </div>
+      <div><label for="permisoHorarioTodoDia"><input id="permisoHorarioTodoDia" type="checkbox" onchange="alternarTodoDiaPermisoHorario()"> Permiso todo el día</label></div>
       <div class="row">
-        <div><label for="permisoHorarioInicio">Hora de inicio</label><input id="permisoHorarioInicio" type="time"></div>
-        <div><label for="permisoHorarioFin">Hora de fin</label><input id="permisoHorarioFin" type="time"></div>
+        <div><label for="permisoHorarioInicio">Hora de inicio (opcional)</label><input id="permisoHorarioInicio" type="time" oninput="programarResumenPermisoHorario()"></div>
+        <div><label for="permisoHorarioFin">Hora de fin (opcional)</label><input id="permisoHorarioFin" type="time" oninput="programarResumenPermisoHorario()"></div>
       </div>
+      <small>Indica al menos una hora o marca "todo el día". Si dejas una sola hora, la otra sale del horario del trabajador.</small>
+      <div id="permisoHorarioResumen" role="status" aria-live="polite" style="margin-top:6px"></div>
       <div><label for="permisoHorarioMotivo">Motivo *</label><input id="permisoHorarioMotivo" type="text" placeholder="Ej. atención médica, trámite, etc."></div>
       <div><label for="permisoHorarioComentario">Comentario opcional</label><textarea id="permisoHorarioComentario" rows="2" placeholder="Detalla si hace falta."></textarea></div>
       <div id="permisoHorarioSinPermiso" class="gpsWarn" style="margin-top:10px"></div>
@@ -3414,6 +3559,8 @@ dibuja el menú y las vistas. -->
 <script src="../js/checklist-trabajador.js?v=152"></script>
 <script src="../js/ficha-archivador.js?v=152"></script>
 <script src="../views/bodega/bodega.js?v=152"></script>
+<script src="../views/bodega/pedidos-materiales.js?v=152"></script>
+<script src="../views/bodega/guias-ingreso.js?v=152"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
@@ -3424,6 +3571,7 @@ del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
 <!-- Los dos registros de permisos. Van DESPUÉS de "permisos-horarios.js" porque usan
 "estadoPermisoHorario", que escribe el texto de cada estado. -->
 <script src="../views/administracion/registro-permisos.js?v=152"></script>
+<script src="../views/administracion/personas-por-dia.js?v=152"></script>
 <script src="../js/app.js?v=152"></script>
 <script>
 // EL REGISTRO CORTO

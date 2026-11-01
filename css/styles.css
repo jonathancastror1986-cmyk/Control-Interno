@@ -2331,6 +2331,15 @@ button[role="tab"][aria-selected="true"] .ico {
   border-bottom: 1px solid var(--line);
 }
 
+/* Las del supervisor: siempre en una sola línea; si no caben, scroll dentro de su contenedor. */
+.pestanas.supTabs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
 .pestanas button,
 .supTabs button,
 .attendance-tabs button {
@@ -3677,7 +3686,6 @@ body.nav-compacto #mainNav:hover,
 body.nav-compacto #subNav:hover,
 body.nav-compacto #subNav .nav-dropdown:hover{
   transform:scaleY(1);
-  transition:transform .26s cubic-bezier(.25,.46,.45,.94);
 }
 
 /* -------------------------------------------------------------------
@@ -3690,8 +3698,7 @@ body.nav-compacto #subNav .nav-dropdown:hover{
 #mainNav button,
 #subNav button,
 #subNav .nav-dropdown-trigger{
-  transition:transform .34s cubic-bezier(.25,.46,.45,.94),
-             background-color .2s ease,
+  transition:background-color .2s ease,
              color .15s ease,
              border-color .15s ease;
 }
@@ -5287,7 +5294,7 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
    "min-width:0" para que puedan encogerse, y el "max-width:100%" del final es para
    el teléfono: una pestaña larga no puede salirse de la pantalla. */
-.attendance-tabs button[role="tab"]{
+.pestanas button[role="tab"]{
   flex:0 0 auto;
   min-width:0;
   max-width:100%;
@@ -5295,37 +5302,22 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
   align-items:center;
   justify-content:flex-start;
   gap:8px;
-  padding:11px 12px;
-  border:0;
-  border-bottom:2px solid transparent;
+  padding:10px 14px;
+  border:1px solid var(--line);
   border-radius:7px;
-  background:none;
-  color:var(--muted);
+  background:transparent;
+  box-shadow:none;
+  /* --muted no llega a 4.5:1 sobre el fondo claro, así que el texto inactivo usa --text. */
+  color:var(--text);
   font-family:var(--menu-fuente-pila);
-  font-size:inherit;
-  font-weight:600;
+  font-size:.8125rem;
+  font-weight:700;
   letter-spacing:.05em;
   line-height:1.2;
   text-align:left;
   white-space:nowrap;
   cursor:pointer;
-  /* Y LA ANIMACIÓN, MÁS LENTA A PROPÓSITO.
-     Se pidió "que no se vea cortada": los colores cambian en 0.5s, no en 0.18s. Con
-     0.18 el cambio de fondo se lee como un parpadeo, porque entra y sale antes de que el
-     ojo decida que algo se movió. Con medio segundo el movimiento se sigue, y no se ve como
-     un corte.
-
-     Y la curva es "cubic-bezier(.4,0,.2,1)", que entra despacio, acelera en el medio y sale
-     despacio. "ease" sale disparada, y eso es lo que lo hace ver abrupto: el final es el que
-     más se nota, porque es donde el ojo ya está mirando.
-
-     Y NO queda "flex-basis" ni "max-width" en la lista. Antes estaban porque el ancho
-     cambiaba al pasar el puntero, y eso hay que animarlo o salta de golpe. Con cada
-     pestaña midiendo lo mismo, el ancho no cambia nunca, y animar una propiedad que no
-     cambia es gastar trabajo del navegador todos los pasos. */
-  transition:background-color .5s cubic-bezier(.4,0,.2,1),
-             border-color   .5s cubic-bezier(.4,0,.2,1),
-             color          .46s cubic-bezier(.4,0,.2,1);
+  transition:none;
 }
 
 /* -------------------------------------------------------------------
@@ -5345,32 +5337,32 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
    Ahora la base ya es "0 0 auto", o sea que todas miden su rótulo y ninguna se corta.
    Ponerlo otra vez acá sería repetir lo mismo, así que no va: al pasar el puntero sólo
    cambian el fondo y el borde, que es lo que hay que notar. */
-.attendance-tabs button[role="tab"]:hover,
-.attendance-tabs button[role="tab"]:focus-visible{
-  background:none;
-  border-bottom-color:var(--accent);
+.pestanas.supTabs button[role="tab"]{
+  padding:10px 10px;
+  font-size:.8125rem;
+  letter-spacing:.02em;
+  white-space:nowrap;
 }
 
-.attendance-tabs button[role="tab"].active,
-.attendance-tabs button[role="tab"][aria-selected="true"]{
-  background:none;
-  border-bottom-color:var(--accent);
-  color:var(--secondary-text);
-  border-width:2px;
-  color:var(--text);
-  /* Y POR QUÉ NO SE PONE "font-weight:700" EN LA ACTIVA
-   *
-   * Porque la activa del supervisor no lo tiene, y con "700" acá las dos barras
-   * seguían sin verse iguales justo en la pestaña que más se mira.
-   *
-   * MEDIDO después de unificar todo lo demás, y solo por esto:
-   *
-   *     mensual      font-weight: 700
-   *     supervisor   font-weight: 600
-   *
-   * La activa se distingue por la raya de abajo y por el color, que es lo que
-   * alcanza, y no necesita estar en negrita además. */
-  font-weight:600;
+.pestanas button[role="tab"]:hover,
+.pestanas button[role="tab"]:focus-visible{
+  background:var(--surface-hover);
+  border-color:var(--line);
+  box-shadow:none;
+}
+.pestanas button[role="tab"]:focus-visible{
+  outline:none;
+  box-shadow:0 0 0 3px var(--focus-shadow);
+}
+
+.pestanas button[role="tab"].active,
+.pestanas button[role="tab"][aria-selected="true"]{
+  background:var(--accent2);
+  border-color:var(--accent2);
+  box-shadow:none;
+  /* Blanco fijo: --on-accent es oscuro en el tema oscuro y sobre --accent2 (#404040) no se lee. */
+  color:#fff;
+  font-weight:700;
 }
 
 /* -------------------------------------------------------------------
@@ -5429,10 +5421,10 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
    "js/versiones.js" y el "?v=" de los enlaces. O mejor: correr el guion.
 */
 :root{
-  --version-app:'151';
+  --version-app:'152';
 }
 
-.attendance-tabs .pest-txt{
+.pestanas .pest-txt{
   min-width:0;
   /* Y QUITADO EL "text-overflow" Y EL "white-space:nowrap" */
   white-space:normal;
@@ -5447,7 +5439,7 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 
    El "flex-grow" pasa a cero porque acá el ancho no se reparte: es la octava
    parte para cada una, ocho por fila, y el noveno baja. */
-.attendance-tabs.muchas button[role="tab"]{
+.pestanas.muchas button[role="tab"]{
   /* Igual que en el submenú, y por el mismo motivo: la base es el texto y el tope
      es la octava parte. Con la base fija el botón no tenía de dónde crecer. */
   flex:0 1 auto;
@@ -5457,8 +5449,8 @@ body.nav-compacto #subNav .nav-dropdown-children .nav-dropdown-menu{
 /* Y al pasar el puntero el tope se levanta, para que la palabra se lea entera.
    El "flex-grow" vuelve a uno, porque el botón tiene que crecer para hacer
    sitio, no encogerse. */
-.attendance-tabs.muchas button[role="tab"]:hover,
-.attendance-tabs.muchas button[role="tab"]:focus-visible{
+.pestanas.muchas button[role="tab"]:hover,
+.pestanas.muchas button[role="tab"]:focus-visible{
   flex-grow:1;
   max-width:40em;
 }

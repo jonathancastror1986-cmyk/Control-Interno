@@ -72,11 +72,27 @@ function probarBug(nombre, archivo, de, a) {
     console.log('    ?  ' + nombre + ': NO ENCONTRADO el texto, el bug no se inyecto');
     return false;
   }
+  // Y EL TRY/FINALLY, QUE ES LO QUE EVITA QUE SE QUEDE UN BUG PUESTO
+  //
+  // Porque entre que se escribe el bug y se restaura el archivo, la prueba puede
+  // fallar: un error de JavaScript, un Ctrl+C, un timeout. Con el "try/finally"
+  // el archivo se restaura SIEMPRE, pase lo que pase. Y el "correr()" va adentro
+  // del "try" para que, si se cae, el "finally" lo restaure antes de que el
+  // proceso se vaya.
+  //
+  // Esto es lo que evitó que el "z-index:9" se quedara en producción.
   fs.writeFileSync(archivo, texto.split(de).join(a));
-  const r = correr();
-  console.log('    ' + (r.verde ? '*** NO DETECTADO  ' : 'ok  lo detecto     ') + nombre);
-  fs.writeFileSync(archivo, texto);
-  return !r.verde;
+  let resultado = false;
+  try {
+    const r = correr();
+    console.log('    ' + (r.verde ? '*** NO DETECTADO  ' : 'ok  lo detecto     ') + nombre);
+    resultado = !r.verde;
+  } finally {
+    // Y SE RESTAURA AQUÍ, NO AL FINAL: si algo salta entre el "fs.writeFileSync"
+    // de arriba y este punto, el "finally" corre igual.
+    fs.writeFileSync(archivo, texto);
+  }
+  return resultado;
 }
 
 cargar();
