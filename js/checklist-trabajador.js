@@ -267,10 +267,21 @@ function advertenciasDe(w){
 // La de seguridad, y si no hay, la casual. Y si no hay ninguna, un recuadro que lo
 // diga: un hueco en blanco en una ficha de archivador parece un dato que se perdió,
 // y es una foto que nunca se tomó.
+// Y LA FOTO, QUE LEE LOS NOMBRES DE LA APLICACIÓN
+//
+// Y POR QUÉ LEE LOS DOS NOMBRES
+//
+// Porque la ficha traduce "safety" y "casual" a "foto_seguridad_url" y
+// "foto_casual_url" antes de llamar a esta función. Pero si alguien la llama
+// con el objeto original —de otra pantalla, de un test— los nombres reales son
+// "safety" y "casual". Leer los dos hace que funcione en las dos formas, y no
+// depende de que alguien se acuerde de traducir antes.
 function fotoDe(w){
   if(!w)return {url:'',falta:true};
-  const url=w.foto_seguridad_url||w.foto_casual_url||'';
-  return {url,falta:!url,deSeguridad:!!w.foto_seguridad_url};
+  const seg=w.foto_seguridad_url||w.safety||'';
+  const cas=w.foto_casual_url||w.casual||'';
+  const url=seg||cas||'';
+  return {url,falta:!url,deSeguridad:!!seg};
 }
 
 // ---------------------------------------------------------------------

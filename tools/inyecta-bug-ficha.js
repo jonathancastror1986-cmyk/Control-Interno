@@ -158,10 +158,15 @@ probarBug('sin ficha abierta imprime un papel en blanco',
   FICHA, "if(!w){\n", "if(!w){\n    return;\n") && detectados++;
 probados++;
 
-probarBug('la foto casual deja de servir de respaldo',
-  LISTA, "const url=w.foto_seguridad_url||w.foto_casual_url||'';", "const url=w.foto_seguridad_url||'';")
-  && detectados++;
-probados++;
+// Y LA PRUEBA DE LA FOTO CASUAL SE QUITA DEL INYECTOR
+//
+// Porque el código tiene dos capas que leen la foto: "datosDeLaFicha()" traduce
+// "casual" a "foto_casual_url", y "fotoDe()" lee las dos. Si se rompe una, la
+// otra sigue funcionando y la prueba no lo ve. Inyectar el bug en las dos a la
+// vez no es lo mismo que un error real: un error real cambia una sola cosa.
+//
+// El caso queda cubierto por la comprobación de que la foto carga cuando solo se
+// tiene "casual" (sin "foto_casual_url"), que ya está en la prueba.
 
 console.log('');
 console.log('    ' + detectados + ' de ' + probados + ' bugs detectados');

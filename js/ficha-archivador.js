@@ -415,6 +415,11 @@ function estilosDelPapel(){
 function datosDeLaFicha(w){
   if(!w)return null;
   const f=Object.assign({},w);
+  // Y LOS NOMBRES QUE LA FICHA SE INVENTÓ, TRADUCIDOS
+  //
+  // El detalle completo de cada campo está en los comentarios de la función
+  // original. Acá se traducen los nombres para que la ficha no lea "undefined"
+  // en una celda.
   f.cargo=w.spec||'';
   f.email=w.correo||'';
   f.afp_rut=w.afp_codigo||'';
@@ -425,6 +430,27 @@ function datosDeLaFicha(w){
   f.centro_costo=(w.centro_costo_id!=null&&typeof nombreCentroCosto==='function')
     ? (nombreCentroCosto(w.centro_costo_id)||'')
     : '';
+  // Y LAS FOTOS, QUE SON LOS DOS NOMBRES DEL MISMO DATO
+  //
+  // La ficha lee "foto_seguridad_url" y "foto_casual_url". La aplicación guarda
+  // "safety" y "casual". El mismo desajuste de nombres que se arregló en los
+  // otros campos, pero que en la foto se había quedado: por eso siempre salía
+  // "Sin foto" aunque la persona tuviera una.
+  f.foto_seguridad_url=w.safety||w.foto_seguridad_url||'';
+  f.foto_casual_url=w.casual||w.foto_casual_url||'';
+  // Y LA EMPRESA, RESUELTA AHORA Y NO DESPUÉS
+  //
+  // Porque la ficha busca la empresa en el arreglo "empresas", que es la lista
+  // de la aplicación. Si esta función se llama desde la ventana de impresión,
+  // ese arreglo no existe y sale "Empresa no encontrada". Acá se resuelve en el
+  // momento, con lo que haya, y se guarda el nombre y el logo en el propio
+  // trabajador, para que el papel no dependa de un arreglo que puede estar
+  // vacío.
+  if(!f.empresa_nombre){
+    const emp=empresaDelTrabajador(w);
+    f.empresa_nombre=(emp&&(emp.nombre||emp.razon_social))||'';
+    f.empresa_logo=(emp&&(emp.logo_url||emp.logo))||'';
+  }
   return f;
 }
 

@@ -338,7 +338,16 @@ ok(/logo-empresa/.test(cuerpoSinFoto),
 //
 // Porque "fotoDe()" usa la de seguridad y, si no hay, la casual. Si ese "si no hay"
 // se pierde, la persona sale en el papel sin foto aunque tenga una.
-const casual = Object.assign({}, w, { foto_seguridad_url: '', foto_casual_url: 'https://ejemplo.test/casual.jpg' });
+// Y LA PRUEBA DE LA FOTO CASUAL, QUE ES EL CASO QUE SE PERDÍA
+//
+// Y POR QUÉ EL TRABAJADOR NO LLEVA "foto_casual_url"
+//
+// Porque en la aplicación el campo se llama "casual", no "foto_casual_url". Si la
+// prueba le ponía los dos, la foto salía bien aunque el código estuviera roto:
+// el primer campo tapaba el error. Con solo "casual", la única forma de que salga
+// la foto es que la función la lea. Eso es lo que se quiere comprobar.
+const casual = Object.assign({}, w, { foto_seguridad_url: '', foto_casual_url: '',
+  safety: '', casual: 'https://ejemplo.test/casual.jpg' });
 r = correr(TAREA_ESTADO, '', casual);
 ok(/<img/.test(r.impreso.html) && /Foto casual/.test(r.impreso.html),
   'si no hay foto de seguridad, sale la casual y el papel lo dice');
