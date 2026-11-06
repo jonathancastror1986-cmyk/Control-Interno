@@ -1649,6 +1649,7 @@ function llenarFiltrosEmpresaYTipo(){
 }
 
 function renderMatrix(){
+  reportePanelMarcarSucioSiCambio();
   llenarFiltrosEmpresaYTipo();
   const y=parseInt(document.getElementById('matYear').value);
   const m=parseInt(document.getElementById('matMonth').value);
@@ -1709,64 +1710,297 @@ function renderMatrix(){
   if(typeof marcarTarjaSoloLectura==='function')marcarTarjaSoloLectura();
   if(typeof marcarPermisosHoraEnTarja==='function')marcarPermisosHoraEnTarja(y,m,filteredWorkers.map(w=>w.code));
 }
+// -------------------------------------------------------------------
+// Panel flotante de reportes de la tarja. Reemplaza a la ventana modal
+// anterior: ahora es no modal, arrastrable, redimensionable y se acuerda
+// de su posición. Los contenedores originales (cargoReporte, etc.) se
+// mueven dentro del panel al crearlo, así no cambian las consultas.
+// -------------------------------------------------------------------
+let reportePanel=null;
+let reportePanelTab='diario';
+let reportePanelMin=false;
+let reportePanelFiltrosFirma=null;
+let reportePanelSucio=false;
+let reporteMensualPorDiaDatos=null;
+let reporteCargoCeldas=null;
+
+function reportePanelCrear(){
+  const p=document.createElement('div');
+  p.id='reportePanel';
+  p.className='reporte-panel';
+  p.setAttribute('role','dialog');
+  p.setAttribute('aria-modal','false');
+  p.setAttribute('aria-label','Reportes de la tarja mensual');
+  p.hidden=true;
+  p.innerHTML=
+    '<div class="reporte-barra" id="reporteBarra">'
+      +'<strong id="reporteTituloPanel">Reportes</strong>'
+      +'<div class="reporte-tabs" role="tablist">'
+        +'<button type="button" data-reporte-tab="diario" class="reporte-tab">Diario</button>'
+        +'<button type="button" data-reporte-tab="mensual" class="reporte-tab">Mensual por día</button>'
+        +'<button type="button" data-reporte-tab="cargo" class="reporte-tab">Por cargo</button>'
+      +'</div>'
+      +'<span class="reporte-acciones">'
+        +'<button type="button" data-reporte-accion="minimizar" aria-label="Minimizar" title="Minimizar">_</button>'
+        +'<button type="button" data-reporte-accion="cerrar" aria-label="Cerrar" title="Cerrar (Esc)">✕</button>'
+      +'</span>'
+    +'</div>'
+    +'<div class="reporte-cuerpo" id="reporteCuerpo">'
+      +'<div id="reporteAvisoFiltros" class="reporte-aviso-filtros" hidden>Los filtros cambiaron. <button type="button" id="reporteBtnActualizar">Actualizar</button></div>'
+      +'<div id="reporteTabDiario" class="reporte-tabpanel"></div>'
+      +'<div id="reporteTabMensual" class="reporte-tabpanel" hidden></div>'
+      +'<div id="reporteTabCargo" class="reporte-tabpanel" hidden></div>'
+    +'</div>';
+  // Y SE GUARDA LA REFERENCIA, PORQUE SI NO EL RESTO DEL CÓDIGO NO LA ENCUENTRA
+  //
+  // La función crea el panel, lo arma entero, le pone los listeners y lo devuelve,
+  // pero nunca lo asigna a "reportePanel". El que lo llamaba —"abrirPanelReportes"—
+  // preguntaba "if(!reportePanel) reportePanelCrear()", y como la referencia seguía
+  // en null, la siguiente línea —"reportePanel.hidden = false"— intentaba poner
+  // "hidden" sobre null y reventaba con "Cannot set properties of null".
+  //
+  // El panel existía en el DOM, pero el código que lo manejaba no sabía que existía.
+  // Por eso se veía "NO FUNCIONO" aunque todo lo demás estuviera bien.
+  reportePanel = p;
+  document.body.appendChild(p);
+  // Se mueven los contenedores que ya usan las funciones de cálculo.
+  const rd=document.getElementById('resumenDiarioReporte'); if(rd)p.querySelector('#reporteTabDiario').appendChild(rd);
+  const cr=document.getElementById('cargoReporte'); if(cr)p.querySelector('#reporteTabCargo').appendChild(cr);
+  const rg=document.getElementById('grillaGruposMensual'); if(rg)p.querySelector('#reporteTabMensual').appendChild(rg);
+  const rm=document.getElementById('resumenMensualReporte'); if(rm)p.querySelector('#reporteTabMensual').appendChild(rm);
+
+  // Pestañas
+  p.querySelectorAll('[data-reporte-tab]').forEach(btn=>{
+    btn.addEventListener('click',()=>{ abrirPanelReportes(btn.dataset.reporteTab); });
+  });
+  // Acciones
+  p.querySelector('[data-reporte-accion="minimizar"]').addEventListener('click',()=>{ reportePanelMinimizar(); });
+  p.querySelector('[data-reporte-accion="cerrar"]').addEventListener('click',()=>{ reportePanelCerrar(); });
+  p.querySelector('#reporteBtnActualizar').addEventListener('click',()=>{
+    reportePanelSucio=false;
+    const av=p.querySelector('#reporteAvisoFiltros'); if(av)av.hidden=true;
+    reportePanelRenderTab(reportePanelTab);
+  });
+
+  // Arrastre
+  const barra=p.querySelector('#reporteBarra');
+  barra.addEventListener('pointerdown',e=>{
+    if(window.innerWidth<860||e.target.closest('button'))return;
+    const r=p.getBoundingClientRect();
+    const dx=e.clientX-r.left,dy=e.clientY-r.top;
+    try{barra.setPointerCapture(e.pointerId);}catch(err){}
+    const mover=ev=>{
+      p.style.right='auto';
+      p.style.left=Math.min(Math.max(0,ev.clientX-dx),Math.max(0,window.innerWidth-p.offsetWidth))+'px';
+      p.style.top=Math.min(Math.max(0,ev.clientY-dy),Math.max(0,window.innerHeight-barra.offsetHeight))+'px';
+    };
+    const soltar=ev=>{
+      barra.removeEventListener('pointermove',mover);
+      barra.removeEventListener('pointerup',soltar);
+      barra.removeEventListener('pointercancel',soltar);
+      try{barra.releasePointerCapture(ev.pointerId);}catch(err){}
+      reportePanelGuardarEstado();
+    };
+    barra.addEventListener('pointermove',mover);
+    barra.addEventListener('pointerup',soltar);
+    barra.addEventListener('pointercancel',soltar);
+  });
+
+  // Escape
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape' && reportePanel && !reportePanel.hidden){ reportePanelCerrar(); }
+  });
+
+  reportePanelRestaurarEstado();
+  return p;
+}
+
+function reportePanelGuardarEstado(){
+  if(!reportePanel)return;
+  try{
+    const r=reportePanel.getBoundingClientRect();
+    localStorage.setItem('reportePanelEstado',JSON.stringify({
+      left:r.left,top:r.top,width:r.width,height:r.height,min:reportePanelMin
+    }));
+  }catch(e){}
+}
+function reportePanelRestaurarEstado(){
+  if(!reportePanel)return;
+  try{
+    const raw=localStorage.getItem('reportePanelEstado');
+    if(!raw)return;
+    const s=JSON.parse(raw);
+    if(typeof s.left==='number'){reportePanel.style.right='auto';reportePanel.style.left=s.left+'px';}
+    if(typeof s.top==='number')reportePanel.style.top=s.top+'px';
+    if(typeof s.width==='number')reportePanel.style.width=s.width+'px';
+    if(typeof s.height==='number')reportePanel.style.height=s.height+'px';
+    if(s.min)reportePanelMinimizar(true);
+  }catch(e){}
+}
+
+function reportePanelActivarTab(){
+  if(!reportePanel)return;
+  reportePanel.querySelectorAll('.reporte-tab').forEach(b=>{
+    const act=b.dataset.reporteTab===reportePanelTab;
+    b.classList.toggle('active',act);
+    b.setAttribute('aria-selected',act?'true':'false');
+  });
+  reportePanel.querySelectorAll('.reporte-tabpanel').forEach(div=>{
+    const id=div.id.replace('reporteTab','');
+    const tabName=id==='Diario'?'diario':(id==='Mensual'?'mensual':'cargo');
+    div.hidden = tabName!==reportePanelTab;
+  });
+  const tit=reportePanel.querySelector('#reporteTituloPanel');
+  if(tit) tit.textContent = reportePanelTab==='diario'?'Resumen diario'
+    : (reportePanelTab==='mensual'?'Mensual por día':'Por cargo');
+}
+
+function reportePanelRenderTab(tab){
+  reportePanelTab=tab;
+  reportePanelActivarTab();
+  if(tab==='diario') renderResumenDiario();
+  else if(tab==='mensual') renderResumenMensual();
+  else if(tab==='cargo') renderReportePorCargo();
+  reportePanelFiltrosFirma=reportePanelFiltrosActuales();
+  reportePanelSucio=false;
+  const av=reportePanel.querySelector('#reporteAvisoFiltros'); if(av)av.hidden=true;
+}
+
+function abrirPanelReportes(tab){
+  if(!reportePanel) reportePanelCrear();
+  reportePanel.hidden=false;
+  if(reportePanelMin){ reportePanelMin=false; reportePanel.classList.remove('reporte-minimizado'); }
+  reportePanelRenderTab(tab||'diario');
+}
+
+function reportePanelCerrar(){
+  if(reportePanel) reportePanel.hidden=true;
+}
+
+function reportePanelMinimizar(silencio){
+  if(!reportePanel)return;
+  reportePanelMin=true;
+  reportePanel.classList.add('reporte-minimizado');
+  if(!silencio) reportePanelGuardarEstado();
+}
+function reportePanelRestaurarDeMin(){
+  if(!reportePanel)return;
+  reportePanelMin=false;
+  reportePanel.classList.remove('reporte-minimizado');
+}
+
+function reportePanelFiltrosActuales(){
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  return JSON.stringify({
+    sup:g('matSupervisorFilter'),worker:g('matWorkerFilter'),empresa:g('matEmpresaFilter'),
+    tipo:g('matTipoFilter'),equipo:g('matEstadoEquipo'),year:g('matYear'),month:g('matMonth'),
+    estado:g('matEstadoFiltro'),fecha:g('matFechaReporte')
+  });
+}
+
+function reportePanelMarcarSucioSiCambio(){
+  if(!reportePanel||reportePanel.hidden)return;
+  if(reportePanelFiltrosFirma && reportePanelFiltrosFirma!==reportePanelFiltrosActuales()){
+    reportePanelSucio=true;
+    const av=reportePanel.querySelector('#reporteAvisoFiltros'); if(av)av.hidden=false;
+  }
+}
 // Reporte por cargo: matriz como la tarja -- filas = cargos, columnas =
 // supervisores, valor = conteo de trabajadores. Antes salia como una lista
 // plana por cargo, sin esa forma de ver la cobertura por supervisor.
+function cargoDeTrabajador(w){
+  return String(w.spec||'').trim()||String(w.cargo||'').trim()||'Sin cargo';
+}
 function renderReportePorCargo(){
   const box=document.getElementById('cargoReporte');
   if(!box)return;
-  const y=parseInt(document.getElementById('matYear').value,10);
-  const m=parseInt(document.getElementById('matMonth').value,10);
-  if(!Number.isInteger(y)||!Number.isInteger(m)||m<1||m>12){
-    box.innerHTML='<p>Selecciona un mes y año válidos para generar el reporte por cargo.</p>';
+  // Selector de fecha de corte (por defecto hoy).
+  let wrap=box.querySelector('.reporte-cargo-controles');
+  if(!wrap){
+    box.innerHTML='<div class="reporte-cargo-controles row tarjaControles"><div class="tarjaCampo tarjaMedio"><label>Fecha de corte</label><input type="date" id="reporteCargoFechaCorte" value="'+hoyLocal()+'"></div><div class="tarjaBotones"><button type="button" class="btn secondary btn-compacto" onclick="renderReportePorCargo()">Actualizar</button></div></div><div id="reporteCargoMatriz"></div>';
+    wrap=box.querySelector('.reporte-cargo-controles');
+  }
+  const fechaInput=document.getElementById('reporteCargoFechaCorte');
+  const fecha=fechaInput&&fechaInput.value?fechaInput.value:hoyLocal();
+  if(fechaInput)fechaInput.value=fecha;
+  const fechaDate=new Date(fecha+'T00:00:00');
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha)||Number.isNaN(fechaDate.getTime())){
+    const mb=box.querySelector('#reporteCargoMatriz'); if(mb)mb.innerHTML='<p>Selecciona una fecha válida.</p>';
     return;
   }
+  const matrizBox=box.querySelector('#reporteCargoMatriz');
   const empresaCode=(document.getElementById('matEmpresaFilter')||{}).value||'';
   const tipoFiltro=(document.getElementById('matTipoFilter')||{}).value||'';
+  const equipoFiltro=(document.getElementById('matEstadoEquipo')||{}).value||'';
   const base=(Array.isArray(workers)?workers.slice():[]).filter(w=>{
     if(empresaCode&&!mismoId(w.empresa_id,empresaCode))return false;
     if(tipoFiltro&&String(w.tipo_trabajador||'')!==tipoFiltro)return false;
+    if(equipoFiltro==='activo'&&w.status!=='activo')return false;
+    if(equipoFiltro==='desvinculado'&&w.status!=='desvinculado')return false;
     return true;
   });
-  const estadosReporte=['X','F','P','L','A','PP','V','LL'];
-  const grupos=new Map();
-  const todosSup=new Set();
+  // Supervisores con al menos un trabajador en la base.
+  const supSet=new Set(base.map(w=>String(w.supervisor_code||'')));
+  const supsSinSort=supSet;
+  function nombreSup(code){ if(!code)return 'Sin supervisor'; const w=workers.find(x=>x.code===code); return w?w.name:code; }
+  function cargoSup(code){ if(!code)return ''; const w=workers.find(x=>x.code===code); return w?(String(w.spec||'').trim()||String(w.cargo||'').trim()):''; }
+  const otros=[...supsSinSort].filter(c=>c!=='').sort((a,b)=>nombreSup(a).localeCompare(nombreSup(b)));
+  const sups=['',...otros]; // 'Sin supervisor' primero
+
+  const cargos=[...new Set(base.map(cargoDeTrabajador))].sort((a,b)=>a.localeCompare(b));
+
+  // Matriz cargo -> supervisor -> {count,nombres}
+  const counts=new Map();
+  cargos.forEach(c=>{const m=new Map(); sups.forEach(s=>m.set(s,{count:0,nombres:[]})); counts.set(c,m);});
+  let totalContados=0;
   base.forEach(w=>{
-    const cargo=String(w.spec||'').trim()||String(w.cargo||'').trim()||'Sin cargo';
+    if(!trabajadorActivoEnFechaDelReporte(w,fecha))return;
+    const cargo=cargoDeTrabajador(w);
     const sup=String(w.supervisor_code||'');
-    todosSup.add(sup);
-    if(!grupos.has(cargo))grupos.set(cargo,{supervisores:new Map(),estados:Object.create(null),total:0});
-    const grupo=grupos.get(cargo);
-    grupo.supervisores.set(sup,(grupo.supervisores.get(sup)||0)+1);
-    grupo.total++;
-    const resumen=resumenDeEstadosDelMes(w,y,m);
-    estadosReporte.forEach(estado=>{
-      if(resumen.estados.has(estado))grupo.estados[estado]=(grupo.estados[estado]||0)+1;
-    });
+    if(!counts.has(cargo)){const m=new Map();sups.forEach(s=>m.set(s,{count:0,nombres:[]}));counts.set(cargo,m);cargos.push(cargo);}
+    const cell=counts.get(cargo).get(sup);
+    if(cell){cell.count++;cell.names?cell.nombres.push(w.name):cell.nombres.push(w.name);totalContados++;}
   });
-  const cargos=[...grupos.keys()].sort((a,b)=>a.localeCompare(b));
-  const sups=[...todosSup].sort((a,b)=>a.localeCompare(b));
-  if(!cargos.length){
-    box.innerHTML='<p>No hay trabajadores para los filtros seleccionados.</p>';
-    return;
-  }
-  let html='<div class="overflow"><table>';
-  html+='<tr><th rowspan="2">Cargo</th><th colspan="'+sups.length+'">Trabajadores por supervisor</th><th rowspan="2">Total</th>';
-  html+='<th colspan="'+estadosReporte.length+'">Trabajadores con estado en el mes</th></tr><tr>';
-  sups.forEach(s=>html+='<th>'+escHtml(s||'Sin supervisor')+'</th>');
-  estadosReporte.forEach(estado=>html+='<th>'+estado+'</th>');
-  html+='</tr>';
+  reporteCargoCeldas=counts;
+
+  const colTotals=new Map(sups.map(s=>[s,0]));
+  const rowTotals=new Map();
+  let html='<div class="overflow"><table class="reporte-cargo-grid">';
+  // Encabezado: cargo del supervisor arriba, nombre abajo.
+  html+='<thead><tr><th rowspan="2">Cargo</th>';
+  sups.forEach(s=>html+='<th>'+escHtml(cargoSup(s)||'')+'</th>');
+  html+='<th rowspan="2">Total</th></tr><tr>';
+  sups.forEach(s=>html+='<th>'+escHtml(nombreSup(s))+'</th>');
+  html+='</tr></thead><tbody>';
   cargos.forEach(cargo=>{
-    const g=grupos.get(cargo);
     html+='<tr><td><b>'+escHtml(cargo)+'</b></td>';
-    sups.forEach(s=>html+=`<td>${g.supervisores.get(s)||0}</td>`);
-    html+=`<td>${g.total}</td>`;
-    estadosReporte.forEach(estado=>html+=`<td>${g.estados[estado]||0}</td>`);
-    html+='</tr>';
+    let rt=0;
+    sups.forEach(s=>{
+      const cell=counts.get(cargo).get(s);
+      const n=cell?cell.count:0;
+      rt+=n;
+      colTotals.set(s,colTotals.get(s)+n);
+      if(n>0){
+        html+='<td class="reporte-cargo-positivo"><button type="button" class="ppd-n" data-reporte-cargo="1" data-cargo="'+encodeURIComponent(cargo)+'" data-sup="'+encodeURIComponent(s)+'">'+n+'</button></td>';
+      }else{
+        html+='<td class="reporte-cargo-cero">-</td>';
+      }
+    });
+    rowTotals.set(cargo,rt);
+    html+='<td>'+rt+'</td></tr>';
   });
-  html+='</table></div>';
-  html+='<p><small>Los cargos provienen de la especialidad (spec) o cargo del trabajador. Las columnas de estado cuentan personas con al menos un registro de ese estado en el mes. La empresa y el tipo corresponden a los filtros seleccionados.</small></p>';
-  box.innerHTML=html;
+  html+='<tr class="reporte-total"><td><b>Total</b></td>';
+  let grand=0;
+  sups.forEach(s=>{const n=colTotals.get(s);grand+=n;html+='<td>'+(n||'-')+'</td>';});
+  html+='<td>'+grand+'</td></tr>';
+  html+='</tbody></table></div>';
+  const sumFilas=[...rowTotals.values()].reduce((a,b)=>a+b,0);
+  const coincide = grand===totalContados && grand===sumFilas;
+  html += coincide
+    ? '<p class="ppd-control">Control: OK — columnas, filas y total contado coinciden ('+grand+').</p>'
+    : '<p class="ppd-aviso" role="alert">Control: NO coincide — total '+grand+', contados '+totalContados+'. Revisa.</p>';
+  html += '<div class="ppd-lista" role="status" aria-live="polite" hidden></div>';
+  if(matrizBox)matrizBox.innerHTML=html;
 }
 function trabajadoresDelReportePorEmpresa(){
   const empresaCode=(document.getElementById('matEmpresaFilter')||{}).value||'';
@@ -1898,9 +2132,202 @@ function renderResumenMensual(y,m){
   html+='<p><small>Los días trabajados en base 30 y los días efectivos siguen el criterio de la tarja. Los días efectivos incluyen X, V, PP, LL y X en feriado; permisos/licencias suma P, L, A, PP y V. Se aplica la empresa seleccionada y se muestran ambos tipos.</small></p>';
   html+='<p><small>Permisos por hora: cantidad de permisos con horario pendientes o confirmados en el mes; no descuentan días.</small></p>';
   box.innerHTML=html;
-  if(typeof renderGrillaGrupos==='function')renderGrillaGrupos(y,m,total.diasReales);
+  if(typeof renderReporteMensualPorDia==='function')renderReporteMensualPorDia(y,m,total.diasReales);
+  try{ if(typeof ppdCalcular==='function') ppdDatos=ppdCalcular(y,m,total.diasReales); }catch(e){}
   if(typeof completarPermisosHoraResumen==='function')completarPermisosHoraResumen(y,m,box,tipoPorCodigo);
 }
+// -------------------------------------------------------------------
+// Grilla "Mensual por día" del panel: modelo Excel.
+// -------------------------------------------------------------------
+function grupoDeTrabajadorReporte(w){
+  let clave=w.especialidad_clave||null;
+  if(!clave){
+    const esp=especialidades.find(e=>String(e.nombre||'').toLowerCase()===String(w.spec||'').toLowerCase());
+    if(esp)clave=esp.clave;
+  }
+  let g=clave?grupoDeCargo(clave):'';
+  if(!g&&clave){
+    const esp=especialidades.find(e=>mismoId(e.clave,clave));
+    if(esp&&esp.grupo)g=esp.grupo;
+  }
+  if(!g)g='general';
+  return g;
+}
+function empresaSeleccionadaNombre(){
+  const code=(document.getElementById('matEmpresaFilter')||{}).value||'';
+  if(!code)return 'Todas las empresas';
+  const e=empresas.find(x=>mismoId(x.id,code));
+  return (e&&e.nombre)||'Empresa seleccionada';
+}
+function renderReporteMensualPorDia(y,m,esperado){
+  const box=document.getElementById('grillaGruposMensual');
+  if(!box)return;
+  y=Number(y)||parseInt((document.getElementById('matYear')||{}).value,10);
+  m=Number(m)||parseInt((document.getElementById('matMonth')||{}).value,10);
+  if(!Number.isInteger(y)||!Number.isInteger(m)||m<1||m>12){
+    box.innerHTML='<p>Selecciona un mes y año válidos.</p>';
+    return;
+  }
+  const nd=daysInMonth(y,m);
+  const prefijo=y+'-'+String(m).padStart(2,'0');
+  const workedWeeks=buildWorkedWeeks();
+  const registros=new Map(attendance.map(a=>[`${a.code}|${a.date}`,a]));
+  const vacias=()=>Array.from({length:nd},()=>[]);
+  const internosGrupos=new Map();
+  const externos=new Map();
+  trabajadoresDelReportePorEmpresa().forEach(w=>{
+    const esExterno=w.tipo_trabajador==='externo';
+    const diasActivos=[];
+    for(let d=1;d<=nd;d++){
+      const iso=prefijo+'-'+String(d).padStart(2,'0');
+      if(trabajadorActivoEnFechaDelReporte(w,iso))diasActivos.push(d);
+    }
+    if(!diasActivos.length)return;
+    if(esExterno){
+      const g=ppdGrupoDeExterno(w);
+      if(!externos.has(g))externos.set(g,{nombre:g,dotacion:0,celdas:vacias()});
+      const fila=externos.get(g);
+      fila.dotacion++;
+      diasActivos.forEach(d=>{
+        const iso=prefijo+'-'+String(d).padStart(2,'0');
+        const r=estadoDiaParaResumen(w,iso,y,m,d,registros,workedWeeks);
+        if(cuentaComoDiaReal(r.estado,r.feriado))fila.celdas[d - 1].push(w.name);
+      });
+    }else{
+      const gk=grupoDeTrabajadorReporte(w);
+      const gname=nombreDeGrupo(gk)||gk;
+      if(!internosGrupos.has(gk))internosGrupos.set(gk,{key:gk,nombre:gname,dotacion:0,celdas:vacias()});
+      const fila=internosGrupos.get(gk);
+      fila.dotacion++;
+      diasActivos.forEach(d=>{
+        const iso=prefijo+'-'+String(d).padStart(2,'0');
+        const r=estadoDiaParaResumen(w,iso,y,m,d,registros,workedWeeks);
+        if(cuentaComoDiaReal(r.estado,r.feriado))fila.celdas[d - 1].push(w.name);
+      });
+    }
+  });
+
+  const gruposInternos=[...internosGrupos.values()].sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  // Total empresa (concatenación de nombres por día)
+  const totalEmpresaCeldas=vacias();
+  gruposInternos.forEach(g=>{g.celdas.forEach((c,i)=>{totalEmpresaCeldas[i]=totalEmpresaCeldas[i].concat(c);});});
+  // Externos
+  const listaExternos=[...externos.values()].sort((a,b)=>{
+    if(a.nombre===PPD_SIN_EMPRESA)return 1;
+    if(b.nombre===PPD_SIN_EMPRESA)return -1;
+    return a.nombre.localeCompare(b.nombre,'es');
+  });
+  const totalSubCeldas=vacias();
+  listaExternos.forEach(e=>{e.celdas.forEach((c,i)=>{totalSubCeldas[i]=totalSubCeldas[i].concat(c);});});
+  const totalGeneralCeldas=vacias();
+  [...gruposInternos,...listaExternos].forEach(f=>{f.celdas.forEach((c,i)=>{totalGeneralCeldas[i]=totalGeneralCeldas[i].concat(c);});});
+
+  const dias=[];
+  for(let d=1;d<=nd;d++){
+    const fecha=new Date(y,m-1,d);
+    dias.push({d,letra:diaSemanaLetra[fecha.getDay()],feriado:isFeriado(y,m,d),finDeSemana:[0,6].includes(fecha.getDay())});
+  }
+
+  // Construcción de filas (incluye secciones y totales)
+  const filas=[];
+  const empresaNombre=empresaSeleccionadaNombre();
+  filas.push({tipo:'seccion',nombre:empresaSeleccionadaNombre()==='Todas las empresas'?'Personal propio':empresaNombre+' — Personal propio'});
+  if(gruposInternos.length===0){
+    filas.push({tipo:'fila',nombre:'Sin personas',celdas:vacias(),clase:''});
+  }else{
+    gruposInternos.forEach(g=>filas.push({tipo:'fila',nombre:g.nombre,celdas:g.celdas,clase:''}));
+  }
+  filas.push({tipo:'total',nombre:'Total personal propio',celdas:totalEmpresaCeldas,clase:'reporte-total'});
+  filas.push({tipo:'sep'});
+  filas.push({tipo:'seccion',nombre:'SUBCONTRATOS'});
+  if(listaExternos.length===0){
+    filas.push({tipo:'fila',nombre:'Sin subcontratos',celdas:vacias(),clase:''});
+  }else{
+    listaExternos.forEach(e=>filas.push({tipo:'fila',nombre:e.nombre,celdas:e.celdas,clase:''}));
+  }
+  if(listaExternos.length)filas.push({tipo:'total',nombre:'TOTAL SUBCONTRATOS',celdas:totalSubCeldas,clase:'reporte-total'});
+  filas.push({tipo:'total',nombre:'TOTAL',celdas:totalGeneralCeldas,clase:'reporte-total-general'});
+
+  const total=totalGeneralCeldas.reduce((s,c)=>s+c.length,0);
+  const coincide = esperado===undefined||esperado===total;
+  reporteMensualPorDiaDatos={y,m,nd,dias,filas,total,esperado,coincide};
+
+  // Render
+  let h='<h3>Mensual por día — '+String(m).padStart(2,'0')+'/'+y+'</h3>';
+  h += coincide
+    ? '<p class="ppd-control">Control: el total general ('+total+') coincide con los días reales trabajados (X) del resumen ('+esperado+').</p>'
+    : '<p class="ppd-aviso" role="alert">Control: el total general ('+total+') NO coincide con los días reales trabajados (X) del resumen ('+esperado+'). No uses estas cifras hasta revisar.</p>';
+  h += '<div class="overflow"><table class="ppd-grilla reporte-mensual-grid">';
+  h += '<colgroup><col style="width:200px">'+dias.map(()=>'<col style="width:26px">').join('')+'<col style="width:52px"></colgroup>';
+  // Dos filas de encabezado
+  h += '<thead><tr><th rowspan="2" class="reporte-fija">Grupo</th>';
+  dias.forEach(x=>{const alerta=x.feriado||x.finDeSemana;h+='<th class="tarjaDia'+(alerta?' reporte-alerta':'')+'">'+escHtml(x.letra)+'</th>';});
+  h += '<th rowspan="2">Total</th></tr><tr>';
+  dias.forEach(x=>{const alerta=x.feriado||x.finDeSemana;h+='<th class="tarjaDia'+(alerta?' reporte-alerta':'')+'">'+x.d+'</th>';});
+  h += '</tr></thead><tbody>';
+  filas.forEach((f,i)=>{
+    if(f.tipo==='seccion'){
+      h += '<tr class="reporte-seccion"><td colspan="'+(nd+2)+'">'+escHtml(f.nombre)+'</td></tr>';
+      return;
+    }
+    if(f.tipo==='sep'){
+      h += '<tr class="reporte-sep"><td colspan="'+(nd+2)+'"></td></tr>';
+      return;
+    }
+    const totalFila=f.celdas.reduce((s,c)=>s+c.length,0);
+    const cls=f.tipo==='total'?(f.clase||'reporte-total'):'';
+    h += '<tr'+(cls?' class="'+cls+'"':'')+'><td class="reporte-fija">'+escHtml(f.nombre)+'</td>';
+    f.celdas.forEach((c,j)=>{
+      const cl='tarjaDia '+(dias[j].feriado?'day-feriado':'day-lab');
+      if(c.length){
+        h += '<td class="'+cl+'"><button type="button" class="ppd-n" data-reporte-mensual="1" data-f="'+i+'" data-d="'+(j+1)+'">'+c.length+'</button></td>';
+      }else{
+        h += '<td class="'+cl+' reporte-cero">-</td>';
+      }
+    });
+    h += '<td>'+(totalFila||'-')+'</td></tr>';
+  });
+  h += '</tbody></table></div>';
+  h += '<p class="ppd-control"><small>Ceros mostrados como "-". Clic en un número para ver los nombres. El bloque interno se agrupa por grupo de cargo; no se separa en Directo/Indirecto porque no hay un atributo que indique si el cargo es directo o indirecto (faltaría agregarlo al cargo o al trabajador).</small></p>';
+  h += '<div class="ppd-lista" role="status" aria-live="polite" hidden></div>';
+  box.innerHTML=h;
+}
+
+function reporteMensualPorDiaMostrarNombres(btn){
+  const host=btn.closest('.ppd-host')||btn.closest('#grillaGruposMensual')||btn.parentElement;
+  const caja=host?host.querySelector('.ppd-lista'):null;
+  if(!caja||!reporteMensualPorDiaDatos)return;
+  const f=reporteMensualPorDiaDatos.filas[Number(btn.dataset.f)];
+  const d=Number(btn.dataset.d);
+  const nombres=f?f.celdas[d - 1]:[];
+  caja.hidden=false;
+  caja.innerHTML='<b>'+escHtml(f?f.nombre:'')+' · día '+d+' ('+nombres.length+'):</b> '+nombres.map(escHtml).join(', ');
+}
+
+function reporteCargoMostrarNombres(btn){
+  const host=btn.closest('#reporteCargoMatriz')||btn.parentElement;
+  const caja=host?host.querySelector('.ppd-lista'):null;
+  if(!caja||!reporteCargoCeldas)return;
+  const cargo=decodeURIComponent(btn.dataset.cargo||'');
+  const sup=decodeURIComponent(btn.dataset.sup||'');
+  const cell=reporteCargoCeldas.get(cargo)&&reporteCargoCeldas.get(cargo).get(sup);
+  const nombres=cell?cell.nombres:[];
+  caja.hidden=false;
+  caja.innerHTML='<b>'+escHtml(cargo)+' · '+escHtml(sup||'Sin supervisor')+' ('+nombres.length+'):</b> '+nombres.map(escHtml).join(', ');
+}
+
+// Delegación de clics en las grillas nuevas del panel.
+document.addEventListener('click',e=>{
+  const btn=e.target.closest('button.ppd-n');
+  if(!btn)return;
+  if(btn.hasAttribute('data-reporte-mensual')){
+    reporteMensualPorDiaMostrarNombres(btn);return;
+  }
+  if(btn.hasAttribute('data-reporte-cargo')){
+    reporteCargoMostrarNombres(btn);return;
+  }
+});
+
 function refreshAttendanceMatrix(){
   if(document.getElementById('v-supervisores').classList.contains('active'))renderSupervisorMatrix();
   else renderMatrix();

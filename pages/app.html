@@ -20,19 +20,19 @@ proyecto: cero build, cero "node_modules". -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="../config/supabase.config.js?v=153"></script>
-<script src="../config/supabase.client.js?v=153"></script>
-<script src="../config/auth.js?v=153"></script>
-<script src="../controllers/theme.js?v=153"></script>
-<script src="../controllers/clima-reloj.js?v=153"></script>
-<link rel="stylesheet" href="../css/base.css?v=153">
+<script src="../config/supabase.config.js?v=159"></script>
+<script src="../config/supabase.client.js?v=159"></script>
+<script src="../config/auth.js?v=159"></script>
+<script src="../controllers/theme.js?v=159"></script>
+<script src="../controllers/clima-reloj.js?v=159"></script>
+<link rel="stylesheet" href="../css/base.css?v=159">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="../css/tokens.css?v=153">
-<link rel="stylesheet" href="../css/grupos.css?v=153">
-<link rel="stylesheet" href="../css/styles.css?v=153">
-<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=153">
+<link rel="stylesheet" href="../css/tokens.css?v=159">
+<link rel="stylesheet" href="../css/grupos.css?v=159">
+<link rel="stylesheet" href="../css/styles.css?v=159">
+<link rel="stylesheet" href="../views/asistencia/asistencia.css?v=159">
 <!--
 EL TEMA OSCURO DE WHATSAPP
 
@@ -50,7 +50,7 @@ Paleta: fondo #111B21, superficies #202C33, campos #2A3942, énfasis
 #005C4B, acento #25D366, texto #E9EDEF, texto apagado #8696A0, enlaces
 #53BDEB.
 -->
-<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=153"> -->
+<!-- <link rel="stylesheet" href="../css/whatsapp.css?v=159"> -->
 <!--
 LA CAPA MÓVIL
 
@@ -68,17 +68,18 @@ Si se metiera dentro de styles.css, cualquier cambio de una línea se vería
 en las 37 vistas. Y con 37 vistas, eso es exactamente el riesgo que no se
 quiere correr.
 -->
-<link rel="stylesheet" href="../css/marca.css?v=153">
-<link rel="stylesheet" href="../css/checklist.css?v=153">
-<link rel="stylesheet" href="../css/vistas.css?v=153">
-<link rel="stylesheet" href="../views/porteria/porteria.css?v=153">
-  <link rel="stylesheet" href="../views/porteria/totem.css?v=153">
-<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=153">
-<link rel="stylesheet" href="../views/bodega/plantillas.css?v=153">
-<link rel="stylesheet" href="../views/bodega/pedidos.css?v=153">
-<link rel="stylesheet" href="../views/soporte/aprobadores.css?v=153">
-<link rel="stylesheet" href="../views/asistencia/por-aprobar.css?v=153">
-<link rel="stylesheet" href="../css/movil.css?v=153" media="(max-width: 860px)">
+<link rel="stylesheet" href="../css/marca.css?v=159">
+<link rel="stylesheet" href="../css/checklist.css?v=159">
+<link rel="stylesheet" href="../css/vistas.css?v=159">
+<link rel="stylesheet" href="../views/porteria/porteria.css?v=159">
+  <link rel="stylesheet" href="../views/porteria/totem.css?v=159">
+<link rel="stylesheet" href="../views/tarjetas/tarjeta.css?v=159">
+<link rel="stylesheet" href="../views/bodega/plantillas.css?v=159">
+<link rel="stylesheet" href="../views/bodega/pedidos.css?v=159">
+<link rel="stylesheet" href="../views/soporte/aprobadores.css?v=159">
+<link rel="stylesheet" href="../views/soporte/subcontratistas.css?v=159">
+<link rel="stylesheet" href="../views/asistencia/por-aprobar.css?v=159">
+<link rel="stylesheet" href="../css/movil.css?v=159" media="(max-width: 860px)">
 </head>
 <body>
 <!--
@@ -712,6 +713,27 @@ porque salen del mismo lugar.
   </div>
 </section>
 
+<section class="view v-soporte" id="v-subcontratistas">
+  <div class="card">
+    <h2>Empresas subcontratistas</h2>
+    <small>Empresas externas que trabajan para la principal: sus obras y sus usuarios (supervisor y administrativo).</small>
+    <div id="sbcNuevoWrap" class="sbc-pie" hidden><button type="button" class="btn" onclick="sbcNueva()">Nueva empresa</button></div>
+    <div id="sbcForm" hidden>
+      <div class="sbc-fila">
+        <div><label for="sbcNombre">Nombre</label><input id="sbcNombre" type="text" autocomplete="off"></div>
+        <div><label for="sbcRut">RUT</label><input id="sbcRut" type="text" autocomplete="off"></div>
+        <div><label for="sbcPadre">Empresa principal</label><select id="sbcPadre"></select></div>
+      </div>
+      <div class="sbc-pie">
+        <button type="button" class="btn" onclick="sbcGuardarNueva()">Crear</button>
+        <button type="button" class="btn secondary" onclick="sbcCancelarNueva()">Cancelar</button>
+      </div>
+    </div>
+    <small id="sbcMsg" class="sbc-msg" role="status"></small>
+    <div id="sbcLista"></div>
+  </div>
+</section>
+
 <section class="view v-soporte" id="v-aprobadores-empresa">
   <div class="card">
     <h2>Aprobadores de empresa</h2>
@@ -1268,11 +1290,11 @@ duplica nada: la base lo sabe y lo cuenta.
         <button class="btn secondary btn-compacto" type="button" onclick="openQrCamera('attendance-supervisor')">📷 Escanear QR supervisor</button>
         <button class="btn secondary btn-compacto" type="button" onclick="openQrCamera('attendance-worker')">📷 Escanear QR trabajador</button>
         <button class="btn secondary btn-compacto" type="button" onclick="renderMatrix()">Generar tarja</button>
-        <button class="btn secondary btn-compacto" type="button" onclick="renderReportePorCargo()">Ver por cargo</button>
+        <button class="btn secondary btn-compacto" type="button" onclick="abrirPanelReportes('cargo')">Por cargo</button>
         <label for="matFechaReporte">Fecha del resumen diario</label>
         <input type="date" id="matFechaReporte">
-        <button class="btn secondary btn-compacto" type="button" onclick="renderResumenDiario(document.getElementById('matFechaReporte').value)">Resumen diario</button>
-        <button class="btn secondary btn-compacto" type="button" onclick="renderResumenMensual()">Resumen mensual</button>
+        <button class="btn secondary btn-compacto" type="button" onclick="abrirPanelReportes('diario')">Resumen diario</button>
+        <button class="btn secondary btn-compacto" type="button" onclick="abrirPanelReportes('mensual')">Resumen mensual</button>
       </div>
     </div>
     <div id="cargoReporte"></div>
@@ -3550,23 +3572,24 @@ trabajados de todos los trabajadores y no serviría para nada.
 </div>
 
 <!-- Y LA VERSIÓN, PRIMERO DE TODO: es lo que usan "app.js" para mostrar el número -->
-<script src="../js/versiones.js?v=153"></script>
-<script src="../js/nucleo.js?v=153"></script>
+<script src="../js/versiones.js?v=159"></script>
+<script src="../js/nucleo.js?v=159"></script>
 <!-- Y LOS MÓDULOS -->
 <!-- Va acá y no al final porque "showGroup" dibuja el menú apenas arranca, y el -->
 <!-- filtro de módulos tiene que estar cargado antes de que alguien abra una vista. -->
 <!-- No necesita "defer": sus funciones se llaman después de iniciar sesión, -->
 <!-- cuando todos los scripts ya se cargaron. -->
-<script src="../js/modulos.js?v=153"></script>
+<script src="../js/modulos.js?v=159"></script>
 <!-- Y LA CONCILIACIÓN, ANTES QUE TODO: LA USA LA JUSTIFICACIÓN DIARIA Y EL SUPERVISOR -->
-<script src="../js/conciliacion.js?v=153"></script>
-<script src="../views/porteria/escaner.js?v=153"></script>
+<script src="../js/conciliacion.js?v=159"></script>
+<script src="../views/porteria/escaner.js?v=159"></script>
 
-<script src="../views/asistencia/relojes.js?v=153"></script>
-<script src="../views/soporte/soporte.js?v=153"></script>
-<script src="../views/soporte/aprobadores.js?v=153"></script>
-<script src="../views/asistencia/por-aprobar.js?v=153"></script>
-<script src="../views/administracion/administracion.js?v=153"></script>
+<script src="../views/asistencia/relojes.js?v=159"></script>
+<script src="../views/soporte/soporte.js?v=159"></script>
+<script src="../views/soporte/aprobadores.js?v=159"></script>
+<script src="../views/soporte/subcontratistas.js?v=159"></script>
+<script src="../views/asistencia/por-aprobar.js?v=159"></script>
+<script src="../views/administracion/administracion.js?v=159"></script>
 <!--
 LA IMPRESION DEL PAPEL
 =====================
@@ -3576,28 +3599,28 @@ recien cuando alguien aprieta Descargar. Por eso el orden aqui es solo de
 lectura, no de dependencia.
 Ver "js/impresion-papel.js".
 -->
-<script src="../js/impresion-papel.js?v=153"></script>
+<script src="../js/impresion-papel.js?v=159"></script>
 <!-- El checklist y la ficha del archivador.
 Van DESPUÉS de "impresion-papel.js" porque la ficha llama a
 "imprimirPapelEnVentana()", que vive ahí. Y antes de "app.js", que es el que
 dibuja el menú y las vistas. -->
-<script src="../js/checklist-trabajador.js?v=153"></script>
-<script src="../js/ficha-archivador.js?v=153"></script>
-<script src="../views/bodega/bodega.js?v=153"></script>
-<script src="../views/bodega/pedidos-materiales.js?v=153"></script>
-<script src="../views/bodega/guias-ingreso.js?v=153"></script>
+<script src="../js/checklist-trabajador.js?v=159"></script>
+<script src="../js/ficha-archivador.js?v=159"></script>
+<script src="../views/bodega/bodega.js?v=159"></script>
+<script src="../views/bodega/pedidos-materiales.js?v=159"></script>
+<script src="../views/bodega/guias-ingreso.js?v=159"></script>
   <!-- Y el motor del .docx, que está DESPUÉS de "documentos.js" a propósito: el motor usa
 la función "completarPlantilla"? No. No la usa. Va después porque los dos archivos son
 del mismo módulo y el motor es el que se apoya en el resto, no al revés. -->
-<script src="../views/administracion/docx.js?v=153"></script>
-<script src="../views/administracion/documentos.js?v=153"></script>
-<script src="../views/supervisores/supervisores.js?v=153"></script>
-<script src="../js/permisos-horarios.js?v=153"></script>
+<script src="../views/administracion/docx.js?v=159"></script>
+<script src="../views/administracion/documentos.js?v=159"></script>
+<script src="../views/supervisores/supervisores.js?v=159"></script>
+<script src="../js/permisos-horarios.js?v=159"></script>
 <!-- Los dos registros de permisos. Van DESPUÉS de "permisos-horarios.js" porque usan
 "estadoPermisoHorario", que escribe el texto de cada estado. -->
-<script src="../views/administracion/registro-permisos.js?v=153"></script>
-<script src="../views/administracion/personas-por-dia.js?v=153"></script>
-<script src="../js/app.js?v=153"></script>
+<script src="../views/administracion/registro-permisos.js?v=159"></script>
+<script src="../views/administracion/personas-por-dia.js?v=159"></script>
+<script src="../js/app.js?v=159"></script>
 <script>
 // EL REGISTRO CORTO
 // ==================
